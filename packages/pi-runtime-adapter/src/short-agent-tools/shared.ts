@@ -205,6 +205,8 @@ export interface BuildWritingWorkspaceToolsInput {
   requestUserInput?: AgentUserInputRequester;
   includeAskUserQuestion?: boolean;
   sharedState?: ShortWorkspaceToolSharedState;
+  /** Called with a reset hook for when compaction drops earlier reads. */
+  onContextCompacted?: (listener: () => void) => void;
 }
 
 export type ExpertSectionMap = Map<string, ExpertDraftSectionSnapshot>;

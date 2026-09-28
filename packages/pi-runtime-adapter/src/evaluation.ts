@@ -12,6 +12,11 @@ import {
   serializedToolArguments,
   summarizeToolResult
 } from "./event-mapping";
+import {
+  applyProviderToolSchemaCompatibility,
+  type PortableToolSchemaProfile
+} from "./portable-tool-schema";
+import { enforceProviderToolSchemaCompatibility } from "./provider-tool-schema-compat";
 
 function evaluationContextText(content: UserMessage["content"]): string {
   if (typeof content === "string") return content;
@@ -167,4 +172,39 @@ export function buildAgentEvaluationSnapshot(
       ? { conversationHistory: [...conversationHistory] }
       : {})
   };
+}
+
+/** Describes the tools exactly as the provider will receive them. */
+export function providerVisibleEvaluationTools(
+  systemPrompt: string,
+  tools: AgentTool[],
+  provider: string,
+  toolSchemaProfile: Parameters<typeof applyProviderToolSchemaCompatibility>[2],
+  portableToolSchemaProfile: PortableToolSchemaProfile
+): EvaluationToolSource[] {
+  const providerVisibleTools =
+    applyProviderToolSchemaCompatibility(
+      enforceProviderToolSchemaCompatibility({
+        systemPrompt,
+        messages: [],
+        tools
+      }),
+      provider,
+      toolSchemaProfile,
+      portableToolSchemaProfile
+    ).tools ?? tools;
+  return providerVisibleTools.map((providerTool) => {
+    const executableTool = tools.find(
+      (candidate) => candidate.name === providerTool.name
+    );
+    return {
+      name: providerTool.name,
+      description: providerTool.description,
+      parameters: providerTool.parameters,
+      ...(executableTool?.label ? { label: executableTool.label } : {}),
+      ...(executableTool?.executionMode
+        ? { executionMode: executableTool.executionMode }
+        : {})
+    };
+  });
 }

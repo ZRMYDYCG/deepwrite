@@ -7,37 +7,19 @@ interface CachedConversationAgent {
 }
 
 export function conversationAgentKey(input: AgentRunInput): string {
-  if (
-    input.shortBookAnalysisProfile &&
-    input.workspaceContext?.shortBookAnalysis
-  )
-    return `${input.sessionId}:short-book-analysis:${input.workspaceContext.shortBookAnalysis.jobId}`;
-  if (input.workspaceContext?.revisionAnalysis)
-    return `${input.sessionId}:revision-analysis:${input.workspaceContext.revisionAnalysis.jobId}`;
   const libraryWorkspace = input.workspaceContext?.libraryWorkspace;
   const longWorkspace = input.workspaceContext?.longWorkspace;
   const subagentAuthoring = input.workspaceContext?.subagentAuthoring;
   return `${input.sessionId}:${
-    input.mode === "chat-assistant"
-      ? input.chatAssistantRuntimeContext?.mode === "roleplay"
-        ? `chat-assistant:roleplay:${input.chatAssistantRuntimeContext.roleId}`
-        : input.chatAssistantRuntimeContext?.mode === "project"
-          ? `chat-assistant:project:${input.chatAssistantRuntimeContext.project.projectType}:${input.chatAssistantRuntimeContext.project.projectId}`
-          : "chat-assistant:normal"
-      : subagentAuthoring
-        ? `subagent-authoring:${subagentAuthoring.parentAgentId}`
-        : input.learningImitationProfile
-          ? `learning-imitation:${input.learningImitationProfile.id}`
-          : input.longBookAnalysisProfile &&
-              input.workspaceContext?.longBookAnalysis
-            ? `long-book-analysis:${input.longBookAnalysisProfile.id}:${input.workspaceContext.longBookAnalysis.phase}:${input.workspaceContext.longBookAnalysis.unitId}`
-            : input.libraryAgentProfile && libraryWorkspace
-              ? `library:${input.libraryAgentProfile.domain}:${libraryWorkspace.libraryId}`
-              : input.scriptAgentProfile
-                ? `script:${input.scriptAgentProfile.id}`
-                : input.longAgentProfile && longWorkspace
-                  ? `long:${input.longAgentProfile.id}:${longWorkspace.bookId}`
-                  : (input.agentProfile?.id ?? "default")
+    subagentAuthoring
+      ? `subagent-authoring:${subagentAuthoring.parentAgentId}`
+      : input.libraryAgentProfile && libraryWorkspace
+        ? `library:${input.libraryAgentProfile.domain}:${libraryWorkspace.libraryId}`
+        : input.scriptAgentProfile
+          ? `script:${input.scriptAgentProfile.id}`
+          : input.longAgentProfile && longWorkspace
+            ? `long:${input.longAgentProfile.id}:${longWorkspace.bookId}`
+            : (input.agentProfile?.id ?? "default")
   }`;
 }
 

@@ -198,6 +198,13 @@ export function useGeneralSettingsCoordinator(
     queueSave();
   }
 
+  function updateContextCompaction(
+    contextCompaction: GeneralSettings["contextCompaction"]
+  ): void {
+    applyLocalPatch({ contextCompaction });
+    queueSave();
+  }
+
   function updateWorkspacePaneLayout(layout: WorkspacePaneLayout): void {
     applyLocalPatch({ workspacePaneLayout: layout });
     queueSave();
@@ -241,6 +248,7 @@ export function useGeneralSettingsCoordinator(
     updateLanguage,
     updatePermissionMode,
     updateShowContextUsage,
+    updateContextCompaction,
     updateShowInMenuBar,
     updateUseNetworkProxy,
     updateWorkspacePaneLayout

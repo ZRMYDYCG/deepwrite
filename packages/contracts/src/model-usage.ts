@@ -9,6 +9,7 @@ export const MODEL_USAGE_MODULES = [
   "long-writing",
   "skill-library",
   "material-library",
+  // Retired feature; kept so historical usage records still parse.
   "learning-imitation",
   "long-book-analysis",
   "revision-analysis",

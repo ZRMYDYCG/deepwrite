@@ -134,6 +134,8 @@ export function buildSpawnSubagentTool(
         `子智能体「${definition.name}」已开始执行。`
       );
 
+      const compactionListeners = new Set<() => void>();
+      let childContextPolicy = input.contextPolicy;
       let child: Agent;
       try {
         let childModel = input.model;
@@ -175,7 +177,12 @@ export function buildSpawnSubagentTool(
         signal?.throwIfAborted();
         if (definition.toolSource === "library-management" && !prepared)
           throw new Error("资料库管理运行上下文不可用。");
-        const childTools = (prepared?.tools ?? input.buildChildTools()).filter(
+        if (prepared?.contextPolicy)
+          childContextPolicy = prepared.contextPolicy;
+        const childTools = (
+          prepared?.tools ??
+          input.buildChildTools((listener) => compactionListeners.add(listener))
+        ).filter(
           (tool) =>
             tool.name !== "spawn_subagent" &&
             (definition.toolSource === "library-management" ||
@@ -253,12 +260,18 @@ export function buildSpawnSubagentTool(
 
       return runSubagentLifecycle(
         child,
-        input,
+        {
+          ...input,
+          ...(childContextPolicy ? { contextPolicy: childContextPolicy } : {})
+        },
         progressBase,
         task,
         childRuntime,
         emitProgress,
-        signal
+        signal,
+        () => {
+          for (const listener of compactionListeners) listener();
+        }
       );
     }
   };

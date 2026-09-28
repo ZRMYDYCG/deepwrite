@@ -6,10 +6,9 @@ import type {
   AgentTeamProfileSetEnabledInput,
   AgentTeamProfileTargetInput,
   AppLanguage,
+  ContextCompactionSettings,
   BodyTextFormatChange,
   GeneralPermissionMode,
-  LearningImitationSettingsInput,
-  LearningImitationStageId,
   LibraryAgentDomain,
   LibraryAgentSettingsInput,
   LongAgentSettingsInput,
@@ -26,7 +25,6 @@ import {
   AgentTeamSettingsPanel,
   CloudBackupPage,
   DeviceSyncPage,
-  LearningImitationDialog,
   LongBookAnalysisPage,
   ShortBookAnalysisPage,
   RevisionAnalysisPage,
@@ -57,6 +55,7 @@ const emit = defineEmits<{
   updateAutoSave: [enabled: boolean];
   updateLanguage: [language: AppLanguage];
   updateShowContextUsage: [enabled: boolean];
+  updateContextCompaction: [settings: ContextCompactionSettings];
   updateShowInMenuBar: [enabled: boolean];
   updateUseNetworkProxy: [enabled: boolean];
   updateWorkspacePaneLayout: [layout: WorkspacePaneLayout];
@@ -67,8 +66,6 @@ const emit = defineEmits<{
   saveLongAgents: [settings: LongAgentSettingsInput];
   saveLibraryAgents: [settings: LibraryAgentSettingsInput];
   resetLibraryAgent: [domain: LibraryAgentDomain];
-  saveLearningImitation: [settings: LearningImitationSettingsInput];
-  resetLearningImitation: [stageId: LearningImitationStageId];
   loadModelUsage: [input?: ModelUsageQueryInput];
   loadModels: [];
   saveModels: [settings: ModelSettingsInput];
@@ -113,6 +110,7 @@ const emit = defineEmits<{
     :auto-save-enabled="module.autoSaveEnabled"
     :language="module.language"
     :show-context-usage="module.showContextUsage"
+    :context-compaction="module.contextCompaction"
     :show-in-menu-bar="module.showInMenuBar"
     :use-network-proxy="module.useNetworkProxy"
     :workspace-pane-layout="module.workspacePaneLayout"
@@ -129,9 +127,6 @@ const emit = defineEmits<{
     :library-agent-settings="module.libraryAgentSettings"
     :library-agent-loading="module.libraryAgentLoading"
     :library-agent-saving="module.libraryAgentSaving"
-    :learning-imitation-settings="module.learningImitationSettings"
-    :learning-imitation-loading="module.learningImitationLoading"
-    :learning-imitation-saving="module.learningImitationSaving"
     :model-usage-dashboard="module.modelUsageDashboard"
     :model-usage-loading="module.modelUsageLoading"
     :model-settings="module.modelSettings"
@@ -158,6 +153,7 @@ const emit = defineEmits<{
     @update-auto-save="emit('updateAutoSave', $event)"
     @update-language="emit('updateLanguage', $event)"
     @update-show-context-usage="emit('updateShowContextUsage', $event)"
+    @update-context-compaction="emit('updateContextCompaction', $event)"
     @update-show-in-menu-bar="emit('updateShowInMenuBar', $event)"
     @update-use-network-proxy="emit('updateUseNetworkProxy', $event)"
     @update-workspace-pane-layout="emit('updateWorkspacePaneLayout', $event)"
@@ -168,8 +164,6 @@ const emit = defineEmits<{
     @save-long-agents="emit('saveLongAgents', $event)"
     @save-library-agents="emit('saveLibraryAgents', $event)"
     @reset-library-agent="emit('resetLibraryAgent', $event)"
-    @save-learning-imitation="emit('saveLearningImitation', $event)"
-    @reset-learning-imitation="emit('resetLearningImitation', $event)"
     @load-model-usage="emit('loadModelUsage', $event)"
     @load-models="emit('loadModels')"
     @save-models="emit('saveModels', $event)"
@@ -243,25 +237,6 @@ const emit = defineEmits<{
       :path="module.path"
       :loading="module.loading"
       @choose="emit('chooseWorkspaceDirectory')"
-    />
-  </WorkspaceFeatureFrame>
-
-  <WorkspaceFeatureFrame
-    v-else-if="module.kind === 'imitation'"
-    class="learning-imitation-main-view"
-    :left-collapsed="leftCollapsed"
-    expand-button-class="learning-imitation-expand-sidebar"
-    label="短篇学习仿写"
-    @expand-left="emit('expandLeft')"
-  >
-    <LearningImitationDialog
-      v-if="module.controller"
-      active
-      :controller="module.controller"
-      :models="module.models"
-      :catalog-snapshot="module.catalogSnapshot"
-      :approval-mode="module.approvalMode"
-      @refresh-catalog="emit('refreshCatalog')"
     />
   </WorkspaceFeatureFrame>
 

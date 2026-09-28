@@ -2,10 +2,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ref } from "vue";
 import { useChatAssistantMode } from "./useChatAssistantMode";
 import type { AgentConversationController } from "../../composables/useAgentConversation";
-import { normalizeChatAssistantRequestContext } from "../../composables/agent-conversation/chat-assistant-request";
 afterEach(() => vi.unstubAllGlobals());
+const settle = () => new Promise((resolve) => setTimeout(resolve));
 describe("roleplay chat selection", () => {
-  it("sends only character identity, isolates controllers and restores the selected character", async () => {
+  it("runs the selected role's profile, isolates controllers and restores the role", async () => {
     const saved = [
       { id: "a", name: "守望者", systemPrompt: "你是守望者。" },
       { id: "b", name: "旅人", systemPrompt: "你是旅人。" }
@@ -17,9 +17,14 @@ describe("roleplay chat selection", () => {
         setItem: (key: string, value: string) => storage.set(key, value)
       },
       deepwrite: {
-        chatAssistantRoleplay: {
-          list: vi.fn(async () => saved),
-          save: vi.fn(async (value) => value)
+        extrasAgents: {
+          profiles: {
+            list: vi.fn(async (agentId: string) => ({
+              agentId,
+              profiles: agentId === "chat-roleplay" ? saved : []
+            })),
+            save: vi.fn(async (value) => value)
+          }
         }
       }
     });
@@ -38,17 +43,19 @@ describe("roleplay chat selection", () => {
       longBooks: ref([])
     };
     const mode = useChatAssistantMode(options);
-    await Promise.resolve();
+    await settle();
     expect(mode.selectRole("a")).toBe(true);
     expect(conversationForKey).toHaveBeenLastCalledWith(
       "chat-assistant:roleplay:a",
       "assistant-chat:roleplay:a"
     );
+    // Roleplay never searches the web, even when the toggle is on.
     await mode.sendAssistantMessage(true);
-    expect(send).toHaveBeenLastCalledWith({ mode: "roleplay", roleId: "a" });
-    expect(
-      normalizeChatAssistantRequestContext(mode.requestContext.value!)
-    ).toEqual({ mode: "roleplay", roleId: "a" });
+    expect(send).toHaveBeenLastCalledWith({
+      agentId: "chat-roleplay",
+      profileId: "a",
+      input: {}
+    });
     busy.value = true;
     expect(mode.selectRole("b")).toBe(false);
     expect(mode.setMode("normal")).toBe(false);
@@ -59,15 +66,22 @@ describe("roleplay chat selection", () => {
       "assistant-chat:roleplay:b"
     );
     const restored = useChatAssistantMode(options);
-    await Promise.resolve();
-    expect(restored.requestContext.value).toEqual({
-      mode: "roleplay",
-      roleId: "b"
+    await settle();
+    expect(restored.chatTask.value).toEqual({
+      agentId: "chat-roleplay",
+      profileId: "b",
+      input: {}
     });
     restored.setMode("normal");
     expect(conversationForKey).toHaveBeenLastCalledWith(
       "chat-assistant:normal",
       "assistant-chat:normal"
     );
+    await restored.sendAssistantMessage(true);
+    expect(send).toHaveBeenLastCalledWith({
+      agentId: "chat-normal",
+      profileId: "default",
+      input: { webSearchEnabled: true }
+    });
   });
 });

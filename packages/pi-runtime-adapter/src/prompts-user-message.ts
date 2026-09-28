@@ -1,7 +1,10 @@
+import type { UserMessage } from "@earendil-works/pi-ai";
 import type { AgentRunInput } from "./runtime-types";
 
+type RawUserTurn = Pick<AgentRunInput, "prompt" | "attachments">;
+
 /** Raw user turn: the prompt plus any uploaded attachments, without context. */
-export function buildRawUserText(input: AgentRunInput): string {
+export function buildRawUserText(input: RawUserTurn): string {
   const attachments = input.attachments ?? [];
   const textAttachments = attachments.filter(
     (attachment) => attachment.kind === "text"
@@ -32,7 +35,7 @@ export function buildRawUserText(input: AgentRunInput): string {
   return lines.filter((line) => line !== "").join("\n");
 }
 
-export function imageContentBlocks(input: AgentRunInput): Array<{
+export function imageContentBlocks(input: RawUserTurn): Array<{
   type: "image";
   data: string;
   mimeType: string;
@@ -48,4 +51,13 @@ export function imageContentBlocks(input: AgentRunInput): Array<{
         ]
       : []
   );
+}
+
+/** User message content for a raw turn: text, plus image blocks if any. */
+export function rawUserMessageContent(
+  input: RawUserTurn
+): UserMessage["content"] {
+  const text = buildRawUserText(input);
+  const images = imageContentBlocks(input);
+  return images.length ? [{ type: "text", text }, ...images] : text;
 }

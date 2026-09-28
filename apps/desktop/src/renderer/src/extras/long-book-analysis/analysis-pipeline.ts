@@ -18,21 +18,23 @@ import {
 import type { LongBookAnalysisStartInput } from "./useLongBookAnalysis";
 import type {
   LongBookAnalysisJob as AnalysisJob,
-  LongBookAnalysisPendingUnit as PendingUnit,
   LongBookAnalysisPipelineState
 } from "./analysis-pipeline-types";
 import {
   analysisErrorMessage,
-  analysisEventBelongsToUnit,
   createAnalysisNote
 } from "./analysis-pipeline-helpers";
+import {
+  startExtrasAgentTask,
+  type ExtrasAgentTaskHandle
+} from "../agent-runtime/extrasAgentTask";
 import { LongBookAnalysisProcessTracker } from "./analysis-process";
 import { reduceAnalysisJob } from "./analysis-reducer";
 export type { LongBookAnalysisPhase } from "./analysis-pipeline-types";
 
 export class LongBookAnalysisPipeline {
   private job: AnalysisJob | null = null;
-  private pending: PendingUnit | null = null;
+  private pending: ExtrasAgentTaskHandle | null = null;
   private stopRequested = false;
   private disposed = false;
   private readonly process: LongBookAnalysisProcessTracker;
@@ -151,12 +153,9 @@ export class LongBookAnalysisPipeline {
     this.stopRequested = true;
     this.state.status.value = "stopping";
     this.process.requestStop();
-    if (this.pending?.runId) {
-      await this.getApi().session.abort({
-        sessionId: this.pending.sessionId,
-        runId: this.pending.runId
-      });
-    } else if (!this.pending) {
+    if (this.pending) {
+      await this.pending.stop();
+    } else {
       this.state.status.value = "stopped";
       this.process.stopped();
     }
@@ -164,68 +163,15 @@ export class LongBookAnalysisPipeline {
   }
 
   handleEvent(event: SystemEventEnvelope): void {
-    const pending = this.pending;
-    if (!pending || !analysisEventBelongsToUnit(event, pending)) return;
-    if (event.type === "agent.thinking_delta") {
-      this.process.thinking();
-      return;
-    }
-    if (event.type === "agent.message_delta") {
-      this.process.appendMessage(event.payload.delta);
-      return;
-    }
-    if (event.type === "tool.call_requested") {
-      this.process.toolStarted(event.payload.toolName);
-      return;
-    }
-    if (event.type === "tool.execution_completed") {
-      this.process.toolCompleted(event.payload.toolName, event.payload.isError);
-      return;
-    }
-    if (
-      event.type === "long_book_analysis.note_updated" &&
-      event.payload.unitId === pending.unitId
-    ) {
-      pending.note = event.payload.note.text;
-      this.process.noteWritten(event.payload.note.text.length);
-      return;
-    }
-    if (
-      event.type === "long_book_analysis.result_updated" &&
-      event.payload.unitId === pending.unitId
-    ) {
-      pending.result = event.payload.result;
-      this.state.result.value = event.payload.result;
-      this.process.resultWritten(event.payload.result.name);
-      return;
-    }
-    if (event.type === "agent.error") {
-      this.pending = null;
-      pending.reject(new Error(event.payload.message));
-      return;
-    }
-    if (event.type !== "agent.message_completed") return;
-    this.process.completeMessage(event.payload.content);
-    this.pending = null;
-    if (pending.phase === "final" && pending.result) {
-      pending.resolve(pending.result);
-    } else if (pending.phase !== "final" && pending.note) {
-      pending.resolve(pending.note);
-    } else {
-      pending.reject(
-        new Error(
-          pending.phase === "final"
-            ? "模型未调用 write_analysis_result，请重试当前阶段。"
-            : "模型未调用 write_analysis_note，请重试当前阶段。"
-        )
-      );
-    }
+    this.pending?.handleEvent(event);
   }
 
   dispose(): void {
     this.disposed = true;
     this.stopRequested = true;
+    const pending = this.pending;
     this.pending = null;
+    pending?.dispose();
   }
 
   private base(unitId: string) {
@@ -233,58 +179,65 @@ export class LongBookAnalysisPipeline {
     return {
       jobId: this.job.id,
       unitId,
-      presetId: this.job.preset.id,
       sourceTitle: this.job.sourceTitle,
       selectionStart: this.job.selectionStart,
       selectionEnd: this.job.selectionEnd
     };
   }
 
-  private runUnit(
+  private async runUnit(
     context: LongBookAnalysisRuntimeContext
   ): Promise<string | LongBookAnalysisResult> {
-    const currentApi = this.getApi();
-    const sessionId = createId("long_book_analysis_session");
-    return new Promise((resolve, reject) => {
-      const unit: PendingUnit = {
-        sessionId,
-        unitId: context.unitId,
-        phase: context.phase,
-        resolve,
-        reject
-      };
-      this.pending = unit;
-      void currentApi.session
-        .prompt({
-          sessionId,
-          message:
-            context.phase === "batch"
-              ? "分析当前章节批次并写入结构化中间笔记。"
-              : context.phase === "reduce"
-                ? "归并当前全部中间笔记并写入压缩后的结构化笔记。"
-                : "根据全部归并笔记生成正式 Markdown 拆书结果。",
-          modelId: this.job?.modelId,
-          thinkingLevel: this.job?.thinkingLevel,
-          writeApprovalMode: "request-approval",
-          workspaceContext: { longBookAnalysis: context }
-        })
-        .then(async (accepted) => {
-          if (this.pending !== unit) return;
-          unit.runId = accepted.runId;
-          if (this.stopRequested) {
-            await currentApi.session.abort({
-              sessionId,
-              runId: accepted.runId
-            });
+    const job = this.job;
+    if (!job) throw new Error("拆书任务尚未准备。");
+    let note: string | undefined;
+    let result: LongBookAnalysisResult | undefined;
+    const task = startExtrasAgentTask(
+      this.getApi(),
+      {
+        modelId: job.modelId,
+        thinkingLevel: job.thinkingLevel,
+        task: {
+          agentId: "long-book-analysis",
+          profileId: job.preset.id,
+          input: context
+        }
+      },
+      {
+        onThinking: () => this.process.thinking(),
+        onDelta: (delta) => this.process.appendMessage(delta),
+        onToolRequested: (toolName) => this.process.toolStarted(toolName),
+        onToolCompleted: (toolName, isError) =>
+          this.process.toolCompleted(toolName, isError),
+        onOutput: (output) => {
+          if (output.kind === "book-analysis-note") {
+            note = output.note.text;
+            this.process.noteWritten(note.length);
+          } else if (output.kind === "book-analysis-result") {
+            result = output.result;
+            this.state.result.value = output.result;
+            this.process.resultWritten(output.result.name);
           }
-        })
-        .catch((cause: unknown) => {
-          if (this.pending === unit) this.pending = null;
-          reject(
-            new Error(analysisErrorMessage(cause, "启动拆书分析阶段失败。"))
-          );
-        });
-    });
+        }
+      }
+    );
+    this.pending = task;
+    if (this.stopRequested) void task.stop().catch(() => undefined);
+    try {
+      const outcome = await task.outcome.catch((cause: unknown) => {
+        throw new Error(analysisErrorMessage(cause, "拆书分析阶段失败。"));
+      });
+      if (outcome.status === "stopped") throw new Error("拆书分析已停止。");
+      this.process.completeMessage(outcome.content);
+      if (context.phase === "final") {
+        if (result) return result;
+        throw new Error("模型未调用 write_analysis_result，请重试当前阶段。");
+      }
+      if (note) return note;
+      throw new Error("模型未调用 write_analysis_note，请重试当前阶段。");
+    } finally {
+      if (this.pending === task) this.pending = null;
+    }
   }
 
   private async run(): Promise<void> {

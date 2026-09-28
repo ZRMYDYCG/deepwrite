@@ -6,7 +6,6 @@ import {
   RevisionAnalysisSkillDraftSchema,
   RevisionAnalysisResultSchema
 } from "./revision-analysis";
-import { WorkspaceRuntimeContextSchema } from "./session/runtime";
 const input = {
   beforeText: "原文",
   afterText: "改文",
@@ -21,9 +20,9 @@ const input = {
       coarse: false
     }
   ],
-  overallReason: "",
-  systemPrompt: DEFAULT_REVISION_METHOD
+  overallReason: ""
 };
+const profile = { systemPrompt: DEFAULT_REVISION_METHOD };
 describe("revision analysis contracts", () => {
   it("accepts optional empty reasons and preserves input whitespace", () => {
     expect(
@@ -95,25 +94,23 @@ describe("revision analysis contracts", () => {
       }).description
     ).toBe("用于修订文稿。");
   });
-  it("is an isolated workspace mode and checks the whole payload budget", () => {
-    const revisionAnalysis = { ...input, jobId: "job" };
-    expect(
-      WorkspaceRuntimeContextSchema.safeParse({ revisionAnalysis }).success
-    ).toBe(true);
-    expect(
-      WorkspaceRuntimeContextSchema.safeParse({
-        revisionAnalysis,
-        styleComparison: {
-          referenceText: "甲",
-          comparisonText: "乙",
-          method: ""
-        }
-      }).success
-    ).toBe(false);
+  it("checks the whole payload, including the method, against the budget", () => {
+    const model = { contextWindow: 32_000, maxTokens: 4000 };
+    expect(() =>
+      assertRevisionAnalysisBudget(input, profile, model)
+    ).not.toThrow();
     expect(() =>
       assertRevisionAnalysisBudget(
         { ...input, beforeText: "字".repeat(100_000) },
-        { contextWindow: 32_000, maxTokens: 4000 }
+        profile,
+        model
+      )
+    ).toThrow("不会被截断");
+    expect(() =>
+      assertRevisionAnalysisBudget(
+        input,
+        { systemPrompt: "字".repeat(16_000) },
+        model
       )
     ).toThrow("不会被截断");
   });

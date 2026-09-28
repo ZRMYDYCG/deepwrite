@@ -1,7 +1,6 @@
 import { handleAgentTeamCommands } from "./agent-team-commands";
 import {
   GeneralSettingsSnapshotSchema,
-  LearningImitationSettingsSchema,
   LibraryAgentSettingsSchema,
   LongAgentSettingsSchema,
   WorkspaceAgentSettingsSchema,
@@ -339,79 +338,6 @@ export async function handleSettingsCommands(
             error instanceof Error
               ? error.message
               : "恢复资料库智能体默认设置失败。",
-          details: safeErrorDetails(error)
-        }
-      };
-    }
-  }
-
-  if (command.type === "learningImitationSettings.list") {
-    try {
-      return {
-        status: "accepted",
-        requestId: command.id,
-        payload: LearningImitationSettingsSchema.parse(
-          await ctx.requireLearningImitationConfigStore().list()
-        )
-      };
-    } catch (error: unknown) {
-      return {
-        status: "rejected",
-        requestId: command.id,
-        error: {
-          code: "learning_imitation_settings.list_failed",
-          message:
-            error instanceof Error ? error.message : "加载学习仿写设置失败。",
-          details: safeErrorDetails(error)
-        }
-      };
-    }
-  }
-
-  if (command.type === "learningImitationSettings.save") {
-    try {
-      return {
-        status: "accepted",
-        requestId: command.id,
-        payload: LearningImitationSettingsSchema.parse(
-          await ctx.requireLearningImitationConfigStore().save(command.payload)
-        )
-      };
-    } catch (error: unknown) {
-      return {
-        status: "rejected",
-        requestId: command.id,
-        error: {
-          code: "learning_imitation_settings.save_failed",
-          message:
-            error instanceof Error ? error.message : "保存学习仿写设置失败。",
-          details: safeErrorDetails(error)
-        }
-      };
-    }
-  }
-
-  if (command.type === "learningImitationSettings.reset") {
-    try {
-      return {
-        status: "accepted",
-        requestId: command.id,
-        payload: LearningImitationSettingsSchema.parse(
-          await ctx
-            .requireLearningImitationConfigStore()
-            .reset(command.payload.stageId)
-        )
-      };
-    } catch (error: unknown) {
-      return {
-        status: "rejected",
-        requestId: command.id,
-        error: {
-          code: "learning_imitation_settings.reset_failed",
-          message:
-            error instanceof Error
-              ? error.message
-              : "恢复学习仿写默认设置失败。",
           details: safeErrorDetails(error)
         }
       };

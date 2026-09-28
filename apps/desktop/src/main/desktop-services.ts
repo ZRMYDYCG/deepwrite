@@ -12,10 +12,8 @@ import { createDesktopDeviceSync } from "../extras/device-sync";
 import { AgentTeamConfigStore } from "./agent-team-config-store";
 import { AppAlertStore } from "./app-alert-store";
 import { AppearanceService } from "./appearance-service";
-import { ChatAssistantProjectConfigStore } from "./chat-assistant-project-config-store";
-import { createBookAnalysisServices } from "./extras/book-analysis-services";
+import { createExtrasAgentService } from "../extras/agents";
 import { GeneralSettingsStore } from "./general-settings-store";
-import { LearningImitationConfigStore } from "./learning-imitation-config-store";
 import { LibraryAgentConfigStore } from "./library-agent-config-store";
 import { LongAgentConfigStore } from "./long-agent-config-store";
 import { MarketplaceClient } from "./marketplace-client";
@@ -56,16 +54,10 @@ export function createDesktopServices(options: DesktopServiceOptions) {
     agentTeamConfigStore: new AgentTeamConfigStore(userDataPath),
     libraryAgentConfigStore: new LibraryAgentConfigStore(userDataPath),
     longAgentConfigStore: new LongAgentConfigStore(userDataPath),
-    learningImitationConfigStore: new LearningImitationConfigStore(
-      userDataPath
-    ),
-    bookAnalysisServices: createBookAnalysisServices(userDataPath),
+    extrasAgentService: createExtrasAgentService(userDataPath),
     workspaceDirectoryStore,
     appearanceService: new AppearanceService(userDataPath),
     generalSettingsStore: new GeneralSettingsStore(userDataPath),
-    chatAssistantProjectConfigStore: new ChatAssistantProjectConfigStore(
-      userDataPath
-    ),
     updateService: new UpdateService(options.installUpdate),
     appAlertStore: new AppAlertStore(userDataPath),
     cloudBackupService: createCloudBackupFeature(

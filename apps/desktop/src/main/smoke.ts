@@ -9,6 +9,9 @@ import {
 import { createId } from "@deepwrite/shared";
 import type { UtilitySupervisor } from "./supervisor";
 import { runBookTemplateSmoke } from "./smoke-book-templates";
+import { runExtrasAgentSmoke } from "./smoke-extras-agents";
+import { runExtrasChatSmoke } from "./smoke-extras-chat";
+import { runContextCompactionSmoke } from "./smoke-context-compaction";
 import { runConversationSmoke } from "./smoke-conversation";
 
 export async function runApplicationSmoke(
@@ -114,11 +117,17 @@ export async function runApplicationSmoke(
 
     const conversation = await runConversationSmoke(window);
     const bookTemplates = await runBookTemplateSmoke(window);
+    const extrasAgents = await runExtrasAgentSmoke(window);
+    const extrasChat = await runExtrasChatSmoke(window);
+    const contextCompaction = await runContextCompactionSmoke(window);
     console.log(
       `DEEPWRITE_SMOKE_OK ${JSON.stringify({
         health,
         conversation,
         bookTemplates,
+        extrasAgents,
+        extrasChat,
+        contextCompaction,
         agent: {
           status: "ok",
           runtime: accepted.runtime,

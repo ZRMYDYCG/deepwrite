@@ -1,6 +1,6 @@
 import type { AgentConversationContext } from "./context";
 import type {
-  ChatAssistantRequestContext,
+  ExtrasChatTask,
   LongWorkspaceRuntimeContext,
   UserPromptAttachment,
   WorkspaceRuntimeContext
@@ -14,11 +14,12 @@ type SendEntrypointsContext = Pick<
   AgentConversationContext,
   "sendMessage" | "sessionId" | "messages"
 >;
+/** Sends the draft as a turn of a "更多功能" chat agent. */
 export async function sendAssistantMessage(
   ctx: SendEntrypointsContext,
-  context: ChatAssistantRequestContext = { mode: "normal" }
+  task: ExtrasChatTask
 ): Promise<void> {
-  await ctx.sendMessage(null, [], {}, [], undefined, "chat-assistant", context);
+  await ctx.sendMessage(null, [], {}, [], undefined, task);
 }
 export async function resendMessage(
   ctx: SendEntrypointsContext,
@@ -34,7 +35,6 @@ export async function resendMessage(
     attachments,
     [],
     undefined,
-    "workspace",
     undefined,
     request
   );
@@ -94,7 +94,6 @@ export async function resendLongMessage(
     attachments,
     [],
     { longWorkspace },
-    "workspace",
     undefined,
     request
   );

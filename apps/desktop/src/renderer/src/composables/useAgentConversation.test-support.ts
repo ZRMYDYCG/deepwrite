@@ -28,7 +28,8 @@ import {
   type ModelSettings,
   type SessionAbortCommandPayload,
   type SessionPromptAcceptedPayload,
-  type SessionPromptCommandPayload
+  type SessionPromptCommandPayload,
+  type ExtrasAgentRunRequest
 } from "@deepwrite/contracts";
 import {
   mergeAgentConversationPersistenceSnapshots,
@@ -221,6 +222,8 @@ function createDraftCoordinatorDocument(
 function createDeferredApi(): {
   api: DeepWriteApi;
   prompts: SessionPromptCommandPayload[];
+  /** Chat turns, sent through `extrasAgents.run`; indexed with prompts. */
+  chatRuns: ExtrasAgentRunRequest[];
   aborts: SessionAbortCommandPayload[];
   resolveAccepted(index: number, payload: SessionPromptAcceptedPayload): void;
   rejectPrompt(index: number, error: Error): void;
@@ -236,7 +239,18 @@ function createDeferredApi(): {
     | { status: "rejected"; error: Error }
   >();
   const prompts: SessionPromptCommandPayload[] = [];
+  const chatRuns: ExtrasAgentRunRequest[] = [];
   const aborts: SessionAbortCommandPayload[] = [];
+  let submitted = 0;
+  const deferAcceptance = (index: number) =>
+    new Promise<SessionPromptAcceptedPayload>((resolve, reject) => {
+      pending[index] = { resolve, reject };
+      const queued = queuedPromptResults.get(index);
+      if (!queued) return;
+      queuedPromptResults.delete(index);
+      if (queued.status === "accepted") resolve(queued.payload);
+      else reject(queued.error);
+    });
   const api: DeepWriteApi = {
     bookTemplates: {
       list: vi.fn(async () => []),
@@ -457,16 +471,8 @@ function createDeferredApi(): {
     long: createUnusedLongApi(),
     session: {
       prompt(payload) {
-        const index = prompts.length;
         prompts.push(payload);
-        return new Promise<SessionPromptAcceptedPayload>((resolve, reject) => {
-          pending[index] = { resolve, reject };
-          const queued = queuedPromptResults.get(index);
-          if (!queued) return;
-          queuedPromptResults.delete(index);
-          if (queued.status === "accepted") resolve(queued.payload);
-          else reject(queued.error);
-        });
+        return deferAcceptance(submitted++);
       },
       async abort(payload) {
         aborts.push(payload);
@@ -590,24 +596,14 @@ function createDeferredApi(): {
         return structuredClone(DEFAULT_LIBRARY_AGENT_SETTINGS);
       }
     },
-    learningImitationSettings: {
-      async list() {
-        throw new Error(
-          "Learning imitation settings are not used by conversation tests."
-        );
-      },
-      async save() {
-        throw new Error(
-          "Learning imitation settings are not used by conversation tests."
-        );
-      },
-      async reset() {
-        throw new Error(
-          "Learning imitation settings are not used by conversation tests."
-        );
+    ...createBookAnalysisTestApi(),
+    extrasAgents: {
+      ...createBookAnalysisTestApi().extrasAgents,
+      run(request) {
+        chatRuns.push(request);
+        return deferAcceptance(submitted++);
       }
     },
-    ...createBookAnalysisTestApi(),
     workspaceDirectory: {
       async list() {
         return { path: null };
@@ -660,6 +656,7 @@ function createDeferredApi(): {
   return {
     api,
     prompts,
+    chatRuns,
     aborts,
     resolveAccepted(index, payload) {
       const request = pending[index];
@@ -671,7 +668,7 @@ function createDeferredApi(): {
       if (request) request.reject(error);
       else queuedPromptResults.set(index, { status: "rejected", error });
     },
-    promptCount: () => prompts.length
+    promptCount: () => submitted
   };
 }
 

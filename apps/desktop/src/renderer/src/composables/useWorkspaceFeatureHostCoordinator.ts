@@ -109,7 +109,6 @@ export function useWorkspaceFeatureHostCoordinator(
     const generation = beginNavigation();
     if (!(await canApplyNavigation(generation))) return;
     if (
-      mode === "imitation" ||
       mode === "long-book-analysis" ||
       mode === "revision-analysis" ||
       mode === "short-book-analysis"
@@ -117,11 +116,9 @@ export function useWorkspaceFeatureHostCoordinator(
       try {
         await (mode === "revision-analysis"
           ? options.features.revisionAnalysis.ensureLoaded()
-          : mode === "imitation"
-            ? options.features.learningImitation.ensureLoaded()
-            : mode === "short-book-analysis"
-              ? options.features.shortBookAnalysis.ensureLoaded()
-              : options.features.longBookAnalysis.ensureLoaded());
+          : mode === "short-book-analysis"
+            ? options.features.shortBookAnalysis.ensureLoaded()
+            : options.features.longBookAnalysis.ensureLoaded());
       } catch (error: unknown) {
         if (navigationIsCurrent(generation)) {
           options.notifications.error(
@@ -129,11 +126,9 @@ export function useWorkspaceFeatureHostCoordinator(
               error,
               mode === "revision-analysis"
                 ? "加载修改分析模块失败。"
-                : mode === "imitation"
-                  ? "加载学习仿写模块失败。"
-                  : mode === "short-book-analysis"
-                    ? "加载短篇拆书模块失败。"
-                    : "加载长篇拆书模块失败。"
+                : mode === "short-book-analysis"
+                  ? "加载短篇拆书模块失败。"
+                  : "加载长篇拆书模块失败。"
             )
           );
         }
@@ -146,8 +141,7 @@ export function useWorkspaceFeatureHostCoordinator(
       issueBackground(loadWorkspaceDirectory);
     }
     if (
-      (mode === "imitation" ||
-        mode === "long-book-analysis" ||
+      (mode === "long-book-analysis" ||
         mode === "revision-analysis" ||
         mode === "short-book-analysis" ||
         mode === "style-comparison") &&
@@ -186,7 +180,6 @@ export function useWorkspaceFeatureHostCoordinator(
     issueBackground(loadWorkspaceDirectory);
     issueBackground(options.loaders.loadWorkspaceAgentSettings);
     issueBackground(options.loaders.loadLibraryAgentSettings);
-    issueBackground(options.loaders.loadLearningImitationSettings);
   }
 
   function openOfficialModelsSettings(): void {

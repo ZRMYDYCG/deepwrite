@@ -16,7 +16,7 @@ DeepWrite brings models, prompts, writing skills, reference materials, manuscrip
 - **Local-first data**: store works as `deepwrite.json` and UTF-8 Markdown files that remain usable with Git, sync drives, and other text tools.
 - **Bring your own models**: add your preferred model services and switch models or thinking levels by agent or task.
 - **Material libraries, skill libraries, and sub-agents**: bind the right context and capabilities to each work, or assemble teams for complex tasks.
-- **Style learning**: analyze reference text in stages and reuse its writing traits in future work.
+- **Book and writing analysis**: analyze short and long books, learn from revisions, and compare writing styles, saving the results as reusable materials or skills.
 
 ## How It Works
 
@@ -73,12 +73,6 @@ You can add your own API services in Model Settings. DeepWrite currently support
 - Google Generative AI
 
 Model keys are never exposed to the renderer. Each model can have a default thinking level, and you can switch models by task during a conversation.
-
-### Learn and reuse writing styles
-
-Style learning analyzes reference text in stages, extracts reusable writing traits, and applies the results to later creation. Its models and prompts can be configured separately in Settings.
-
-![Style learning interface](./docs/images/style-learning.png)
 
 ## Installation and Setup
 

@@ -1,7 +1,6 @@
 import type { AgentRuntimeEvent } from "./index.test-support";
 import {
   PiAgentRuntimeAdapter,
-  cloneEmptyLearningImitationResult,
   createShortWorkspaceContentRevision,
   describe,
   expect,
@@ -123,8 +122,7 @@ describe("DeepWrite Pi runtime adapter: evaluation-and-run-lifecycle", () => {
       } as never,
       {
         runId: "run_library_event",
-        sessionId: "session_library_event",
-        prompt: "修改人物"
+        sessionId: "session_library_event"
       },
       providerRuntime,
       "assistant-library"
@@ -175,8 +173,7 @@ describe("DeepWrite Pi runtime adapter: evaluation-and-run-lifecycle", () => {
       } as never,
       {
         runId: "run_library_overview_event",
-        sessionId: "session_library_event",
-        prompt: "修改库介绍"
+        sessionId: "session_library_event"
       },
       providerRuntime,
       "assistant-library-overview"
@@ -200,67 +197,6 @@ describe("DeepWrite Pi runtime adapter: evaluation-and-run-lifecycle", () => {
         runtime: providerRuntime
       }
     });
-  });
-
-  it("starts each learning-imitation preset from a clean runtime transcript", async () => {
-    const runtime = new PiAgentRuntimeAdapter({ tokensPerSecond: 0 });
-
-    for (const [index, prompt] of [
-      "第一次素材学习",
-      "第二次素材学习"
-    ].entries()) {
-      for await (const _event of runtime.start({
-        runId: `run_learning_${index}`,
-        sessionId: "session_learning",
-        prompt,
-        thinkingLevel: "off",
-        learningImitationProfile: {
-          id: "material_split",
-          label: "素材拆分",
-          systemPrompt: "分析当前样本文档。"
-        },
-        workspaceContext: {
-          learningImitation: {
-            stageId: "material_split",
-            documents: [
-              {
-                id: "sample",
-                name: "sample.txt",
-                extension: "txt",
-                mediaType: "text/plain",
-                size: 4,
-                text: "测试正文",
-                charCount: 4
-              }
-            ],
-            result: cloneEmptyLearningImitationResult()
-          }
-        }
-      })) {
-        // Consume both complete runs before inspecting the stage-scoped cache.
-      }
-    }
-
-    const cache = (
-      runtime as unknown as {
-        conversationAgents: Map<
-          string,
-          { state: { messages: Array<{ role?: string; content?: unknown }> } }
-        >;
-      }
-    ).conversationAgents;
-    const agent = cache.get(
-      "session_learning:learning-imitation:material_split"
-    );
-    const userMessages = agent?.state.messages.filter(
-      (message) => message.role === "user"
-    );
-
-    expect(userMessages).toHaveLength(1);
-    expect(String(userMessages?.[0]?.content)).toContain(
-      "【本次智能体会话固定上下文】"
-    );
-    expect(String(userMessages?.[0]?.content)).toContain("第二次素材学习");
   });
 
   it("aborts an active run through the caller signal", async () => {

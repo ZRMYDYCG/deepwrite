@@ -41,14 +41,6 @@ export function buildWorkspaceFeatureModule(
         path: settingsStore.workspaceDirectoryPath,
         loading: settingsStore.workspaceDirectoryLoading
       };
-    case "imitation":
-      return {
-        kind: "imitation",
-        controller: options.features.learningImitation.controller.value,
-        models: settingsStore.modelSettings?.models ?? [],
-        catalogSnapshot: options.catalogSnapshot.value,
-        approvalMode: settingsStore.generalSettings.permissionMode
-      };
     case "revision-analysis":
       return {
         kind: "revision-analysis",

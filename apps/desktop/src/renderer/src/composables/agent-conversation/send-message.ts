@@ -1,7 +1,7 @@
 import { preparePromptContext } from "./request-context";
 import type { AgentConversationContext } from "./context";
 import type {
-  ChatAssistantRequestContext,
+  ExtrasChatTask,
   UserPromptAttachment,
   WorkspaceRuntimeContext
 } from "@deepwrite/contracts";
@@ -10,9 +10,12 @@ import type {
   ConversationMessageRewriteRequest
 } from "../../types/conversation";
 import type { WorkspaceDocument } from "../../types/workspace";
-import { normalizeChatAssistantRequestContext } from "./chat-assistant-request";
 import { workspaceWebSearchPromptFields } from "./web-search";
-import { buildConversationHistory } from "./history";
+import { buildConversationRestore } from "./history";
+import {
+  cancelContextCompaction,
+  pendingContextCompaction
+} from "./context-compaction";
 import {
   conversationMessageRewriteIsCurrent,
   prepareConversationMessageRewrite
@@ -24,6 +27,7 @@ import {
   discardPendingAssistantMessage
 } from "./message-identity";
 import { id, rememberBounded } from "./shared";
+import { cloneChatTask, submitConversationTurn } from "./send-transport";
 
 type SendMessageContext = Pick<
   AgentConversationContext,
@@ -70,8 +74,7 @@ export async function sendMessage(
   attachments: WorkspaceContextAttachments = {},
   promptAttachments: UserPromptAttachment[] = [],
   contextOverride?: WorkspaceRuntimeContext,
-  mode: "workspace" | "chat-assistant" = "workspace",
-  chatAssistant?: ChatAssistantRequestContext,
+  chatTask?: ExtrasChatTask,
   rewriteRequest?: ConversationMessageRewriteRequest
 ): Promise<void> {
   const api = ctx.options.api();
@@ -88,8 +91,7 @@ export async function sendMessage(
     : promptAttachments.map((attachment) => ({
         ...attachment
       }));
-  const requestChatAssistant =
-    normalizeChatAssistantRequestContext(chatAssistant);
+  const requestChatTask = chatTask ? cloneChatTask(chatTask) : undefined;
   const content =
     preparedRewrite?.content ??
     (ctx.draft.value.trim() ||
@@ -115,13 +117,20 @@ export async function sendMessage(
         (message) => message.id === ctx.unconfirmedUserMessageId
       )
     : -1;
-  const conversationHistory = buildConversationHistory(
-    preparedRewrite
-      ? ctx.messages.value.slice(0, preparedRewrite.targetIndex)
-      : persistenceRetryIndex >= 0
-        ? ctx.messages.value.slice(0, persistenceRetryIndex)
-        : ctx.messages.value
-  );
+  let conversationRestore: ReturnType<typeof buildConversationRestore>;
+  try {
+    conversationRestore = buildConversationRestore(
+      preparedRewrite
+        ? ctx.messages.value.slice(0, preparedRewrite.targetIndex)
+        : persistenceRetryIndex >= 0
+          ? ctx.messages.value.slice(0, persistenceRetryIndex)
+          : ctx.messages.value
+    );
+  } catch (error) {
+    ctx.conversationError.value =
+      error instanceof Error ? error.message : "恢复历史失败。";
+    return;
+  }
   const sendEpoch = ctx.epoch;
   const sendSessionId = ctx.sessionId.value;
   const replaceConversationHistory = Boolean(
@@ -137,7 +146,7 @@ export async function sendMessage(
     workspaceDocuments,
     attachments,
     contextOverride,
-    mode,
+    requestChatTask !== undefined,
     sendEpoch,
     sendSessionId
   );
@@ -215,50 +224,54 @@ export async function sendMessage(
     const selectedModel = ctx.configuredModels.value.find(
       (model) => model.id === ctx.selectedModelId.value
     );
-    const accepted = await api.session.prompt({
+    const compaction = pendingContextCompaction(sendSessionId);
+    const turn = {
       sessionId: sendSessionId,
       message: content,
-      ...(conversationHistory.length ? { conversationHistory } : {}),
-      ...(replaceConversationHistory
-        ? { conversationHistoryMode: "replace" as const }
+      history: conversationRestore.history,
+      ...(conversationRestore.checkpoint
+        ? { checkpoint: conversationRestore.checkpoint }
         : {}),
-      ...(mode === "chat-assistant"
-        ? {
-            mode,
-            ...(requestChatAssistant
-              ? { chatAssistant: requestChatAssistant }
-              : {})
-          }
-        : {}),
-      ...(requestAttachments.length ? { attachments: requestAttachments } : {}),
-      ...(mode === "chat-assistant"
-        ? {}
+      ...(compaction ? { compaction: { ...compaction } } : {}),
+      replaceHistory: replaceConversationHistory,
+      attachments: requestAttachments,
+      model: {
+        ...(ctx.selectedModelId.value
+          ? { modelId: ctx.selectedModelId.value }
+          : {}),
+        ...(ctx.thinkingLevel.value === "off"
+          ? {
+              thinkingLevel: "off" as const,
+              ...(selectedModel ? { temperature: ctx.temperature.value } : {})
+            }
+          : { thinkingLevel: ctx.thinkingLevel.value })
+      }
+    };
+    const accepted = await submitConversationTurn(
+      api,
+      turn,
+      requestChatTask
+        ? { chatTask: requestChatTask }
         : {
-            writeApprovalMode: ctx.approvalModeByAttempt.get(attemptId),
-            ...(contextSnapshot?.shortWorkspace ||
-            contextSnapshot?.scriptWorkspace ||
-            contextSnapshot?.longWorkspace
-              ? { agentTeamMode: requestedAgentTeamMode }
-              : {}),
-            autoApproveCrossStageOperations:
-              ctx.options.autoApproveCrossStageOperations?.() === true
-          }),
-      ...(ctx.selectedModelId.value
-        ? { modelId: ctx.selectedModelId.value }
-        : {}),
-      ...(ctx.thinkingLevel.value === "off"
-        ? {
-            thinkingLevel: "off" as const,
-            ...(selectedModel ? { temperature: ctx.temperature.value } : {})
+            workspace: {
+              writeApprovalMode: ctx.approvalModeByAttempt.get(attemptId),
+              ...(contextSnapshot?.shortWorkspace ||
+              contextSnapshot?.scriptWorkspace ||
+              contextSnapshot?.longWorkspace
+                ? { agentTeamMode: requestedAgentTeamMode }
+                : {}),
+              autoApproveCrossStageOperations:
+                ctx.options.autoApproveCrossStageOperations?.() === true,
+              ...workspaceWebSearchPromptFields(ctx.webSearchEnabled.value),
+              ...(contextSnapshot ? { workspaceContext: contextSnapshot } : {})
+            }
           }
-        : { thinkingLevel: ctx.thinkingLevel.value }),
-      ...(mode === "chat-assistant"
-        ? {}
-        : workspaceWebSearchPromptFields(ctx.webSearchEnabled.value)),
-      ...(contextSnapshot ? { workspaceContext: contextSnapshot } : {})
-    });
+    );
     if (replaceConversationHistory && accepted.sessionId === sendSessionId) {
       ctx.sessionsRequiringHistoryReplacement.delete(sendSessionId);
+    }
+    if (compaction && accepted.sessionId === sendSessionId) {
+      cancelContextCompaction(sendSessionId);
     }
     if (
       ctx.epoch !== sendEpoch ||

@@ -2,10 +2,6 @@ import {
   type LongBookAnalysisSavedSourceCatalog,
   LongBookAnalysisSavedSourceCatalogSchema,
   LongBookAnalysisSavedSourceIdSchema,
-  type LongBookAnalysisSettings,
-  type LongBookAnalysisSettingsInput,
-  LongBookAnalysisSettingsInputSchema,
-  LongBookAnalysisSettingsSchema,
   type LongBookAnalysisSource,
   type LongBookAnalysisSourceKind,
   LongBookAnalysisSourceKindSchema,
@@ -52,49 +48,6 @@ export async function loadLongBookAnalysisSource(
       createEnvelope(
         "longBookAnalysis.loadSource",
         { sourceId },
-        { id, correlationId: id }
-      )
-    )
-  );
-}
-
-export async function listLongBookAnalysisPresets(): Promise<LongBookAnalysisSettings> {
-  const id = browserId("cmd_long_book_analysis_presets_list");
-  return LongBookAnalysisSettingsSchema.parse(
-    await invokeCommand<LongBookAnalysisSettings>(
-      createEnvelope(
-        "longBookAnalysisSettings.list",
-        {},
-        { id, correlationId: id }
-      )
-    )
-  );
-}
-
-export async function saveLongBookAnalysisPresets(
-  rawSettings: LongBookAnalysisSettingsInput
-): Promise<LongBookAnalysisSettings> {
-  const settings = LongBookAnalysisSettingsInputSchema.parse(rawSettings);
-  const id = browserId("cmd_long_book_analysis_presets_save");
-  return LongBookAnalysisSettingsSchema.parse(
-    await invokeCommand<LongBookAnalysisSettings>(
-      createEnvelope("longBookAnalysisSettings.save", settings, {
-        id,
-        correlationId: id
-      })
-    )
-  );
-}
-
-export async function resetLongBookAnalysisPresets(
-  presetId?: string
-): Promise<LongBookAnalysisSettings> {
-  const id = browserId("cmd_long_book_analysis_presets_reset");
-  return LongBookAnalysisSettingsSchema.parse(
-    await invokeCommand<LongBookAnalysisSettings>(
-      createEnvelope(
-        "longBookAnalysisSettings.reset",
-        { ...(presetId ? { presetId } : {}) },
         { id, correlationId: id }
       )
     )

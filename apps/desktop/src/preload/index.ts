@@ -1,9 +1,5 @@
 import { bookTemplates, createBookFromTemplate } from "./book-templates-api";
 import { desktopEvents } from "./desktop-events-api";
-import {
-  chatAssistantProjectConfig,
-  chatAssistantRoleplay
-} from "./chat-assistant-api";
 import { textContextMenu } from "./text-context-menu-api";
 import { analysisApis } from "./analysis-apis";
 import { conversationExport } from "./conversation-export-api";
@@ -76,9 +72,6 @@ import {
   UPDATE_INSTALL_CHANNEL,
   UPDATE_STATE_EVENT_CHANNEL,
   UpdateStateSchema,
-  LearningImitationSettingsInputSchema,
-  LearningImitationSettingsSchema,
-  LearningImitationStageIdSchema,
   LibraryAgentDomainSchema,
   LibraryAgentSettingsInputSchema,
   LibraryAgentSettingsSchema,
@@ -158,9 +151,6 @@ import {
   type GeneralSettings,
   type GeneralSettingsSnapshot,
   type ImportLegacyLibraryResult,
-  type LearningImitationSettings,
-  type LearningImitationSettingsInput,
-  type LearningImitationStageId,
   type LongAgentId,
   type LongAgentSettings,
   type LongAgentSettingsInput,
@@ -929,52 +919,6 @@ async function resetLibraryAgents(
   );
 }
 
-async function listLearningImitationSettings(): Promise<LearningImitationSettings> {
-  const id = browserId("cmd_learning_imitation_settings_list");
-  return LearningImitationSettingsSchema.parse(
-    await invokeCommand<LearningImitationSettings>(
-      createEnvelope(
-        "learningImitationSettings.list",
-        {},
-        { id, correlationId: id }
-      )
-    )
-  );
-}
-
-async function saveLearningImitationSettings(
-  rawSettings: LearningImitationSettingsInput
-): Promise<LearningImitationSettings> {
-  const settings = LearningImitationSettingsInputSchema.parse(rawSettings);
-  const id = browserId("cmd_learning_imitation_settings_save");
-  return LearningImitationSettingsSchema.parse(
-    await invokeCommand<LearningImitationSettings>(
-      createEnvelope("learningImitationSettings.save", settings, {
-        id,
-        correlationId: id
-      })
-    )
-  );
-}
-
-async function resetLearningImitationSettings(
-  rawStageId?: LearningImitationStageId
-): Promise<LearningImitationSettings> {
-  const stageId = rawStageId
-    ? LearningImitationStageIdSchema.parse(rawStageId)
-    : undefined;
-  const id = browserId("cmd_learning_imitation_settings_reset");
-  return LearningImitationSettingsSchema.parse(
-    await invokeCommand<LearningImitationSettings>(
-      createEnvelope(
-        "learningImitationSettings.reset",
-        { ...(stageId ? { stageId } : {}) },
-        { id, correlationId: id }
-      )
-    )
-  );
-}
-
 async function listWorkspaceDirectory(): Promise<WorkspaceDirectorySettings> {
   const id = browserId("cmd_workspace_directory_list");
   return WorkspaceDirectorySettingsSchema.parse(
@@ -1131,8 +1075,6 @@ const api: DeepWriteApi = {
   modelUsage: {
     query: queryModelUsage
   },
-  chatAssistantProjectConfig,
-  chatAssistantRoleplay,
   workspaceAgents: {
     list: listWorkspaceAgents,
     save: saveWorkspaceAgents,
@@ -1158,11 +1100,6 @@ const api: DeepWriteApi = {
     list: listLibraryAgents,
     save: saveLibraryAgents,
     reset: resetLibraryAgents
-  },
-  learningImitationSettings: {
-    list: listLearningImitationSettings,
-    save: saveLearningImitationSettings,
-    reset: resetLearningImitationSettings
   },
   ...analysisApis,
   workspaceDirectory: {

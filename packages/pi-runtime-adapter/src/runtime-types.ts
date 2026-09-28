@@ -4,23 +4,23 @@ import type {
 } from "@deepwrite/contracts";
 import type { LibraryManagementCommandExecutor } from "./library-management-runtime";
 import type {
+  AgentContextCompactionPayload,
   AgentEvaluationSnapshot,
   AgentProviderRuntimeConfig,
   AgentRuntimeRef,
   AgentUsage,
   AgentUsageObservationStatus,
   AgentWriteApprovalMode,
+  ContextCompactionRequest,
+  ContextCompactionRunSettings,
+  ConversationCheckpoint,
   AgentUserInputQuestion,
   AgentUserInputSource,
   SessionUserInputResponsePayload,
-  ChatAssistantRuntimeContext,
-  LearningImitationAgentProfile,
-  LongBookAnalysisAgentProfile,
   LibraryAgentProfile,
   LongAgentProfile,
   ScriptWorkspaceAgentProfile,
   SessionConversationHistoryMessage,
-  SessionMode,
   ShortAgentSubagentDefinition,
   ShortWorkspaceAgentProfile,
   SubagentActivity,
@@ -40,9 +40,11 @@ export interface AgentRunInput {
   prompt: string;
   conversationHistory?: SessionConversationHistoryMessage[];
   conversationHistoryMode?: "replace";
-  mode?: SessionMode;
+  conversationCheckpoint?: ConversationCheckpoint;
+  contextCompaction?: ContextCompactionRequest;
+  contextCompactionSettings?: ContextCompactionRunSettings;
+  compactionRuntimeConfig?: AgentProviderRuntimeConfig;
   attachments?: UserPromptAttachment[];
-  chatAssistantRuntimeContext?: ChatAssistantRuntimeContext;
   webSearchEnabled?: boolean;
   writeApprovalMode?: AgentWriteApprovalMode;
   autoApproveCrossStageOperations?: boolean;
@@ -57,9 +59,6 @@ export interface AgentRunInput {
   libraryAgentProfile?: LibraryAgentProfile;
   libraryManagement?: LibraryManagementRuntimeContext;
   libraryManagementCommandExecutor?: LibraryManagementCommandExecutor;
-  learningImitationProfile?: LearningImitationAgentProfile;
-  shortBookAnalysisProfile?: import("@deepwrite/contracts").ShortBookAnalysisProfile;
-  longBookAnalysisProfile?: LongBookAnalysisAgentProfile;
   workspaceContext?: WorkspaceRuntimeContext;
   /**
    * Narrow Agent Utility -> Core query bridge for the active long-form book.
@@ -69,6 +68,12 @@ export interface AgentRunInput {
   materialCommandExecutor?: MaterialCommandExecutor;
   signal?: AbortSignal;
 }
+
+/** Run coordinates, plus the context runtime-event mapping may annotate. */
+export type AgentRunEventSource = Pick<
+  AgentRunInput,
+  "runId" | "sessionId" | "libraryManagement"
+>;
 
 export interface AgentUserInputRequest {
   toolCallId: string;
@@ -82,8 +87,6 @@ export type AgentUserInputRequester = (
 ) => Promise<SessionUserInputResponsePayload>;
 
 export type AgentRuntimeEvent =
-  | import("./revision-analysis").RevisionAnalysisRuntimeEvent
-  | import("./short-book-analysis").ShortAnalysisRuntimeEvent
   | {
       type: "agent.evaluation_snapshot";
       runId: string;
@@ -121,6 +124,12 @@ export type AgentRuntimeEvent =
         reason: string;
         runtime: AgentRuntimeRef;
       };
+    }
+  | {
+      type: "agent.context_compaction";
+      runId: string;
+      sessionId: string;
+      payload: Omit<AgentContextCompactionPayload, "runId" | "sessionId">;
     }
   | {
       type: "agent.delta";
@@ -485,37 +494,15 @@ export type AgentRuntimeEvent =
           };
     }
   | {
-      type: "learning_imitation.result_updated";
+      type: "extras_agent.output_updated";
       runId: string;
       sessionId: string;
       payload: {
-        toolCallId: string;
-        stageId: import("@deepwrite/contracts").LearningImitationStageId;
-        update: import("@deepwrite/contracts").LearningImitationWritePayload;
-        runtime: AgentRuntimeRef;
-      };
-    }
-  | {
-      type: "long_book_analysis.note_updated";
-      runId: string;
-      sessionId: string;
-      payload: {
-        toolCallId: string;
+        agentId: import("@deepwrite/contracts").ExtrasAgentId;
         jobId: string;
-        unitId: string;
-        note: import("@deepwrite/contracts").LongBookAnalysisNoteWrite;
-        runtime: AgentRuntimeRef;
-      };
-    }
-  | {
-      type: "long_book_analysis.result_updated";
-      runId: string;
-      sessionId: string;
-      payload: {
-        toolCallId: string;
-        jobId: string;
-        unitId: string;
-        result: import("@deepwrite/contracts").LongBookAnalysisResult;
+        /** Absent when the output was parsed from the final message. */
+        toolCallId?: string;
+        output: import("@deepwrite/contracts").ExtrasAgentOutput;
         runtime: AgentRuntimeRef;
       };
     }

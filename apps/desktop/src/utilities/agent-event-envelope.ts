@@ -2,7 +2,6 @@ import { longProposalEventEnvelope } from "./long-proposal-event-envelope";
 import { createEnvelope, type SystemEventEnvelope } from "@deepwrite/contracts";
 import type { AgentRuntimeEvent } from "@deepwrite/pi-runtime-adapter";
 import { createId } from "@deepwrite/shared";
-import { analysisEventEnvelope } from "./analysis-event-envelope";
 export function toEventEnvelope(
   event: AgentRuntimeEvent,
   correlationId: string
@@ -59,6 +58,14 @@ export function toEventEnvelope(
         reason: event.payload.reason,
         runtime: event.payload.runtime
       },
+      { id: createId("evt"), context }
+    );
+  }
+
+  if (event.type === "agent.context_compaction") {
+    return createEnvelope(
+      "agent.context_compaction",
+      { sessionId: event.sessionId, runId: event.runId, ...event.payload },
       { id: createId("evt"), context }
     );
   }
@@ -286,28 +293,13 @@ export function toEventEnvelope(
     );
   }
 
-  if (event.type === "learning_imitation.result_updated") {
+  if (event.type === "extras_agent.output_updated") {
     return createEnvelope(
-      "learning_imitation.result_updated",
-      {
-        sessionId: event.sessionId,
-        runId: event.runId,
-        toolCallId: event.payload.toolCallId,
-        stageId: event.payload.stageId,
-        update: event.payload.update,
-        runtime: event.payload.runtime
-      },
+      "extras_agent.output_updated",
+      { sessionId: event.sessionId, runId: event.runId, ...event.payload },
       { id: createId("evt"), context }
     );
   }
-
-  if (
-    event.type === "revision_analysis.result_updated" ||
-    event.type === "short_book_analysis.result_updated" ||
-    event.type === "long_book_analysis.note_updated" ||
-    event.type === "long_book_analysis.result_updated"
-  )
-    return analysisEventEnvelope(event, correlationId);
 
   if (event.type === "subagent_authoring.draft_updated") {
     return createEnvelope(

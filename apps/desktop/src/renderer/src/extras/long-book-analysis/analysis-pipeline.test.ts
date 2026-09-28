@@ -1,40 +1,41 @@
 import { ref, shallowRef } from "vue";
 import type {
   DeepWriteApi,
+  ExtrasAgentRunRequest,
   LongBookAnalysisPreset,
   LongBookAnalysisSource,
   ModelConfig,
-  SessionPromptCommandPayload,
   SystemEventEnvelope
 } from "@deepwrite/contracts/renderer";
 import { describe, expect, it, vi } from "vitest";
+import {
+  createExtrasAgentsFake,
+  outputEvent,
+  runEvent
+} from "../agent-runtime/extrasAgent.test-support";
 import { LongBookAnalysisPipeline } from "./analysis-pipeline";
 import type { LongBookAnalysisPipelineState } from "./analysis-pipeline-types";
 
 function fixture() {
-  const prompts: SessionPromptCommandPayload[] = [];
+  const fake = createExtrasAgentsFake();
+  const prompts = fake.run.mock.calls.map(([request]) => request);
+  fake.run.mockImplementation(async (request) => {
+    prompts.push(request);
+    return {
+      sessionId: request.sessionId,
+      runId: `${request.sessionId}-run`,
+      acceptedAt: new Date().toISOString(),
+      runtime: { provider: "test", model: "test", mode: "provider" as const }
+    };
+  });
   const abort = vi.fn(async () => ({
     sessionId: "session",
     runId: "run",
     abortedAt: new Date().toISOString()
   }));
   const api = {
-    session: {
-      prompt: vi.fn(async (payload: SessionPromptCommandPayload) => {
-        prompts.push(payload);
-        return {
-          sessionId: payload.sessionId,
-          runId: `${payload.sessionId}-run`,
-          acceptedAt: new Date().toISOString(),
-          runtime: {
-            provider: "test",
-            model: "test",
-            mode: "provider" as const
-          }
-        };
-      }),
-      abort
-    }
+    session: { abort },
+    extrasAgents: fake.extrasAgents
   } as unknown as DeepWriteApi;
   const model = {
     id: "model-1",
@@ -93,23 +94,19 @@ const preset: LongBookAnalysisPreset = {
 
 function event(
   type: string,
-  prompt: SessionPromptCommandPayload,
+  request: ExtrasAgentRunRequest,
   payload: Record<string, unknown>
 ): SystemEventEnvelope {
-  return {
-    type,
-    payload: {
-      sessionId: prompt.sessionId,
-      runId: `${prompt.sessionId}-run`,
-      ...payload
-    }
-  } as SystemEventEnvelope;
+  return runEvent(type, request, payload);
 }
 
-async function waitForPrompt(
-  prompts: SessionPromptCommandPayload[],
-  count: number
-) {
+function longInput(request: ExtrasAgentRunRequest) {
+  if (request.task.agentId !== "long-book-analysis")
+    throw new Error("unexpected agent");
+  return request.task.input;
+}
+
+async function waitForPrompt(prompts: ExtrasAgentRunRequest[], count: number) {
   await vi.waitFor(() => expect(prompts).toHaveLength(count));
   return prompts[count - 1]!;
 }
@@ -134,12 +131,10 @@ describe("long-book analysis pipeline checkpoints", () => {
 
     expect(pipeline.retry()).toBe(true);
     const batch = await waitForPrompt(prompts, 2);
-    const batchContext = batch.workspaceContext!.longBookAnalysis!;
     pipeline.handleEvent(
-      event("long_book_analysis.note_updated", batch, {
-        unitId: batchContext.unitId,
-        jobId: batchContext.jobId,
-        toolCallId: "tool-note",
+      outputEvent(batch, {
+        kind: "book-analysis-note",
+        unitId: longInput(batch).unitId,
         note: { text: "保留章节证据的中间笔记。" }
       })
     );
@@ -151,12 +146,11 @@ describe("long-book analysis pipeline checkpoints", () => {
     );
 
     const final = await waitForPrompt(prompts, 3);
-    const finalContext = final.workspaceContext!.longBookAnalysis!;
+    expect(longInput(final).phase).toBe("final");
     pipeline.handleEvent(
-      event("long_book_analysis.result_updated", final, {
-        unitId: finalContext.unitId,
-        jobId: finalContext.jobId,
-        toolCallId: "tool-result",
+      outputEvent(final, {
+        kind: "book-analysis-result",
+        unitId: longInput(final).unitId,
         result: {
           name: "剧情结构",
           description: "用于提炼写作方法。",
@@ -206,7 +200,11 @@ describe("long-book analysis pipeline checkpoints", () => {
     });
 
     const active = await waitForPrompt(prompts, 1);
-    expect(active.workspaceContext?.longBookAnalysis?.presetId).toBe(preset.id);
+    expect(active.task).toMatchObject({
+      agentId: "long-book-analysis",
+      profileId: preset.id
+    });
+    expect(longInput(active)).not.toHaveProperty("presetId");
     expect(pipeline.targetLibraryId).toBe("");
     expect(state.processEntries.value[0]?.detail).toContain("仅运行当前预设");
   });

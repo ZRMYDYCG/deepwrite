@@ -9,6 +9,7 @@ export * from "./session/runtime";
 export * from "./session/attachments";
 export * from "./session/user-input";
 export * from "./session/agent-events";
+export * from "./session/context-compaction";
 export * from "./session/evaluation";
 export * from "./session/subagent";
 export * from "./session/workspace-mutations";

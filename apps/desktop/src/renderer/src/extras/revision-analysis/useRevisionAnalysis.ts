@@ -1,16 +1,19 @@
 import { computed, ref, shallowRef, watch } from "vue";
 import {
-  DEFAULT_REVISION_METHOD,
   RevisionAnalysisInputSchema,
-  RevisionAnalysisSettingsSchema,
   type DeepWriteApi,
+  type RevisionAnalysisProfile,
   type ModelConfig,
   type RevisionChange,
   type ThinkingLevel
 } from "@deepwrite/contracts/renderer";
 import { selectableModels } from "../../utils/selectableModelSettings";
 import { compareRevisionParagraphs } from "./paragraph-diff";
-import { createRevisionAnalysisRun } from "./analysis-run";
+import { createPromptProfile } from "../agent-runtime/promptProfile";
+import {
+  createRevisionAnalysisRun,
+  revisionAnalysisInputKey
+} from "./analysis-run";
 import { createRevisionSkillSave } from "./skill-save";
 export type RevisionAnalysisController = ReturnType<typeof useRevisionAnalysis>;
 export function useRevisionAnalysis(options: {
@@ -25,7 +28,12 @@ export function useRevisionAnalysis(options: {
   const beforeText = ref(""),
     afterText = ref(""),
     overallReason = ref("");
-  const systemPrompt = ref(DEFAULT_REVISION_METHOD);
+  const method = createPromptProfile(
+    api,
+    "revision-analysis",
+    "请填写分析方法。"
+  );
+  const systemPrompt = method.systemPrompt;
   const changes = ref<RevisionChange[]>([]);
   const comparedText = ref("");
   const selectedModelId = ref(""),
@@ -40,12 +48,13 @@ export function useRevisionAnalysis(options: {
     beforeText: beforeText.value,
     afterText: afterText.value,
     changes: changes.value,
-    overallReason: overallReason.value,
-    systemPrompt: systemPrompt.value
+    overallReason: overallReason.value
   }));
   const inputKey = computed(() => {
     const parsed = RevisionAnalysisInputSchema.safeParse(input.value);
-    return parsed.success ? JSON.stringify(parsed.data) : "";
+    return parsed.success
+      ? revisionAnalysisInputKey(parsed.data, systemPrompt.value.trim())
+      : "";
   });
   const isStale = computed(
     () =>
@@ -105,11 +114,8 @@ export function useRevisionAnalysis(options: {
       if (loaded || loading.value || disposed) return;
       loading.value = true;
       try {
-        const settings = await api().revisionAnalysis.list();
-        if (!disposed) {
-          systemPrompt.value = settings.systemPrompt;
-          loaded = true;
-        }
+        await method.load();
+        loaded = !disposed;
       } finally {
         loading.value = false;
       }
@@ -118,17 +124,8 @@ export function useRevisionAnalysis(options: {
       editable();
       loading.value = true;
       try {
-        const settings = reset
-          ? await api().revisionAnalysis.reset()
-          : await api().revisionAnalysis.save(
-              RevisionAnalysisSettingsSchema.parse({
-                systemPrompt: systemPrompt.value
-              })
-            );
-        if (!disposed) {
-          systemPrompt.value = settings.systemPrompt;
-          loaded = true;
-        }
+        await (reset ? method.reset() : method.save());
+        loaded = true;
       } finally {
         loading.value = false;
       }
@@ -146,15 +143,21 @@ export function useRevisionAnalysis(options: {
       );
       comparedText.value = textKey();
     },
-    start() {
+    async start() {
       editable();
-      if (!canStart.value || !selectedModel.value)
+      const model = selectedModel.value;
+      if (!canStart.value || !model)
         throw new Error("请先比较当前正文差异并选择可用模型。");
-      run.start(
-        RevisionAnalysisInputSchema.parse(input.value),
-        selectedModel.value,
-        selectedThinkingLevel.value
-      );
+      const parsed = RevisionAnalysisInputSchema.parse(input.value);
+      let profile: RevisionAnalysisProfile;
+      loading.value = true;
+      try {
+        profile = (await method.ensureSaved()) as RevisionAnalysisProfile;
+      } finally {
+        loading.value = false;
+      }
+      if (disposed) return;
+      run.start(parsed, profile, model, selectedThinkingLevel.value);
     },
     dispose() {
       disposed = true;

@@ -3,15 +3,23 @@ import { createId } from "@deepwrite/shared";
 import type {
   DeepWriteApi,
   ModelConfig,
+  StyleComparisonProfile,
   ThinkingLevel,
   SystemEventEnvelope
 } from "@deepwrite/contracts";
 import {
+  STYLE_COMPARISON_METHOD_LIMIT,
   StyleComparisonInputSchema,
+  StyleComparisonRuntimeContextSchema,
+  assertExtrasAgentBudget,
   type StyleComparisonResult
 } from "@deepwrite/contracts/renderer";
-import { DEFAULT_STYLE_COMPARISON_METHOD } from "./method";
-import { parseStyleComparisonResult, styleComparisonPreview } from "./result";
+import {
+  startExtrasAgentTask,
+  type ExtrasAgentTaskHandle
+} from "../agent-runtime/extrasAgentTask";
+import type { createPromptProfile } from "../agent-runtime/promptProfile";
+import { styleComparisonPreview } from "./result";
 
 type Status =
   | "idle"
@@ -22,14 +30,16 @@ type Status =
   | "completed"
   | "error";
 interface Options {
-  api(): Pick<DeepWriteApi, "session" | "events"> | undefined;
+  api(): Pick<DeepWriteApi, "extrasAgents" | "session" | "events"> | undefined;
+  /** The saved comparison method; `systemPrompt` is the editable text. */
+  method: ReturnType<typeof createPromptProfile>;
   notifyError(message: string): void;
 }
 
 export function createStyleComparisonController(options: Options) {
   const referenceText = ref("");
   const comparisonText = ref("");
-  const method = ref(DEFAULT_STYLE_COMPARISON_METHOD);
+  const method = options.method.systemPrompt;
   const modelId = ref("");
   const thinkingLevel = ref<ThinkingLevel>("off");
   let thinkingModelId = "";
@@ -52,8 +62,7 @@ export function createStyleComparisonController(options: Options) {
   const isStale = computed(() =>
     Boolean(lastInput.value && lastInput.value !== inputSnapshot())
   );
-  let sessionId = "";
-  let runId = "";
+  let task: ExtrasAgentTaskHandle | null = null;
   let stopRequested = false;
   let disposed = false;
   let unsubscribe: (() => void) | undefined;
@@ -66,82 +75,13 @@ export function createStyleComparisonController(options: Options) {
     );
   }
 
-  function handleEvent(event: SystemEventEnvelope): void {
-    if (
-      disposed ||
-      !isBusy.value ||
-      !("sessionId" in event.payload) ||
-      !("runId" in event.payload)
-    )
-      return;
-    if (
-      event.payload.sessionId !== sessionId ||
-      (runId && event.payload.runId !== runId)
-    )
-      return;
-    if (
-      ![
-        "agent.turn_started",
-        "agent.retry_scheduled",
-        "agent.thinking_delta",
-        "agent.message_delta",
-        "agent.message_completed",
-        "agent.error"
-      ].includes(event.type)
-    )
-      return;
-    runId = String(event.payload.runId);
-    if (stopRequested) return;
-    switch (event.type) {
-      case "agent.turn_started":
-        status.value = "running";
-        output.value = "";
-        activity.value =
-          event.payload.attempt > 1 ? "正在重新连接模型…" : "正在阅读两份文本…";
-        break;
-      case "agent.retry_scheduled":
-        output.value = "";
-        activity.value = `连接暂时中断，${Math.ceil(event.payload.delayMs / 1000)} 秒后重试…`;
-        break;
-      case "agent.message_delta":
-        output.value += event.payload.delta;
-        activity.value = "正在整理关键发现与评分…";
-        break;
-      case "agent.thinking_delta":
-        activity.value = "正在思考，分析两份文本的文风…";
-        break;
-      case "agent.message_completed":
-        if (event.payload.stopReason === "aborted") {
-          status.value = "stopped";
-          activity.value = "已停止比对";
-          break;
-        }
-        output.value = event.payload.content;
-        try {
-          if (event.payload.stopReason === "length")
-            throw new Error(
-              "模型输出达到长度上限，未完成比对，请调整模型输出长度后重试。"
-            );
-          result.value = parseStyleComparisonResult(output.value);
-          status.value = "completed";
-          activity.value = "比对完成";
-        } catch (error) {
-          fail(error);
-        }
-        break;
-      case "agent.error":
-        fail(new Error(event.payload.message));
-        break;
-    }
+  function markStopped(): void {
+    status.value = "stopped";
+    activity.value = "已停止比对";
   }
 
-  async function abortRun(
-    api: ReturnType<Options["api"]>,
-    currentSession: string,
-    currentRun: string
-  ): Promise<void> {
-    if (!api || !currentRun) return;
-    await api.session.abort({ sessionId: currentSession, runId: currentRun });
+  function handleEvent(event: SystemEventEnvelope): void {
+    task?.handleEvent(event);
   }
 
   async function start(model: ModelConfig | undefined): Promise<void> {
@@ -158,65 +98,120 @@ export function createStyleComparisonController(options: Options) {
     syncThinkingModel(model);
     const parsed = StyleComparisonInputSchema.safeParse({
       referenceText: referenceText.value,
-      comparisonText: comparisonText.value,
-      method: method.value
+      comparisonText: comparisonText.value
     });
-    if (!parsed.success) {
+    if (
+      !parsed.success ||
+      method.value.length > STYLE_COMPARISON_METHOD_LIMIT
+    ) {
       options.notifyError(
         "请填写两份文本，每份不超过 30,000 字，比对方法不超过 8,000 字。"
       );
       return;
     }
-    // Conservative input estimate; never silently truncate either sample.
-    const estimatedTokens = JSON.stringify(parsed.data).length * 2 + 2500;
-    if (
-      model.contextWindow &&
-      estimatedTokens + (model.maxTokens ?? 4096) > model.contextWindow
-    ) {
+    const input = StyleComparisonRuntimeContextSchema.parse({
+      ...parsed.data,
+      jobId: createId("style_comparison_job")
+    });
+    try {
+      assertExtrasAgentBudget(
+        {
+          agentId: "style-comparison",
+          profile: {
+            id: "pending",
+            name: "文风比对",
+            description: "文风比对",
+            systemPrompt: method.value.trim()
+          },
+          input
+        },
+        model
+      );
+    } catch (error) {
       options.notifyError(
-        "两份文本可能超出当前模型的上下文容量，请缩短文本或选择更大上下文的模型。"
+        error instanceof Error ? error.message : "文风比对失败，请重试。"
       );
       return;
     }
     unsubscribe ??= api.events.subscribe(handleEvent);
-    const currentSession = createId("style_comparison");
-    sessionId = currentSession;
-    runId = "";
     stopRequested = false;
     status.value = "starting";
     activity.value = "正在连接比对智能体…";
     output.value = "";
     result.value = null;
-    lastInput.value = JSON.stringify(parsed.data);
+    lastInput.value = inputSnapshot();
     resultModel.value = model.label;
+    let profile: StyleComparisonProfile;
     try {
-      const accepted = await api.session.prompt({
-        sessionId: currentSession,
-        message: "请比较两份文本的文风，给出关键依据和最终相似度评分。",
+      profile = (await options.method.ensureSaved()) as StyleComparisonProfile;
+    } catch (error) {
+      if (!disposed) fail(error);
+      return;
+    }
+    if (disposed) return;
+    if (stopRequested) {
+      markStopped();
+      return;
+    }
+    let submitted: StyleComparisonResult | undefined;
+    const running = startExtrasAgentTask(
+      api,
+      {
         modelId: model.id,
         thinkingLevel: thinkingLevel.value,
-        webSearchEnabled: false,
-        workspaceContext: { styleComparison: parsed.data }
-      });
-      if (disposed || stopRequested || sessionId !== currentSession) {
-        await abortRun(api, currentSession, accepted.runId);
-        if (!disposed && sessionId === currentSession) {
-          status.value = "stopped";
-          activity.value = "已停止比对";
+        task: { agentId: "style-comparison", profileId: profile.id, input }
+      },
+      {
+        onAccepted() {
+          // Terminal events can arrive before the run acceptance.
+          if (status.value === "starting") status.value = "running";
+        },
+        onTurnStarted(attempt) {
+          status.value = "running";
+          output.value = "";
+          activity.value =
+            attempt > 1 ? "正在重新连接模型…" : "正在阅读两份文本…";
+        },
+        onRetryScheduled(delayMs) {
+          output.value = "";
+          activity.value = `连接暂时中断，${Math.ceil(delayMs / 1000)} 秒后重试…`;
+        },
+        onDelta(delta) {
+          output.value += delta;
+          activity.value = "正在整理关键发现与评分…";
+        },
+        onThinking() {
+          activity.value = "正在思考，分析两份文本的文风…";
+        },
+        onOutput(next) {
+          if (next.kind === "style-comparison-result") submitted = next.result;
         }
-        return;
       }
-      if (
-        accepted.sessionId !== currentSession ||
-        (runId && accepted.runId !== runId)
-      )
-        throw new Error("比对会话不一致，请重试。");
-      runId = accepted.runId;
-      // Terminal events can arrive before the prompt acceptance.
-      if (status.value === "starting") status.value = "running";
-    } catch (error) {
-      if (!disposed && sessionId === currentSession) fail(error);
-    }
+    );
+    task = running;
+    void running.outcome.then(
+      (outcome) => {
+        if (task !== running) return;
+        task = null;
+        if (outcome.status === "stopped") {
+          markStopped();
+          return;
+        }
+        output.value = outcome.content;
+        if (!submitted) {
+          fail(new Error("模型未返回完整的比对结论与有效评分，请重新比对。"));
+          return;
+        }
+        result.value = submitted;
+        status.value = "completed";
+        activity.value = "比对完成";
+      },
+      (error: unknown) => {
+        if (task !== running) return;
+        task = null;
+        if (!disposed) fail(error);
+      }
+    );
   }
 
   async function stop(): Promise<void> {
@@ -224,11 +219,9 @@ export function createStyleComparisonController(options: Options) {
     stopRequested = true;
     status.value = "stopping";
     activity.value = "正在停止…";
-    if (!runId) return; // start() aborts as soon as acceptance arrives.
+    if (!task) return; // start() stops once the method is saved.
     try {
-      await abortRun(options.api(), sessionId, runId);
-      status.value = "stopped";
-      activity.value = "已停止比对";
+      await task.stop();
     } catch (error) {
       stopRequested = false;
       status.value = "running";
@@ -242,8 +235,9 @@ export function createStyleComparisonController(options: Options) {
   function dispose(): void {
     disposed = true;
     unsubscribe?.();
-    if (isBusy.value && runId)
-      void abortRun(options.api(), sessionId, runId).catch(() => undefined);
+    const current = task;
+    task = null;
+    current?.dispose();
   }
 
   function syncThinkingModel(model: ModelConfig | undefined): void {

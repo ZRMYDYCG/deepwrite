@@ -63,6 +63,11 @@ export function createLongToolContext(input: BuildLongWorkspaceToolsInput) {
   const fullyReadDocuments = new Map<string, FullyReadDocumentEntry>();
   /** Index-backed entities have no file, so their read credential is the body text. */
   const fullyReadRecords = new Map<string, string>();
+  // Reads summarized away no longer authorize edits of existing text.
+  input.onContextCompacted?.(() => {
+    fullyReadDocuments.clear();
+    fullyReadRecords.clear();
+  });
   const proposalOverlay =
     input.sharedState?.proposalOverlay ?? createProposalOverlay();
 

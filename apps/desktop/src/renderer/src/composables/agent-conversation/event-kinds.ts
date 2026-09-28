@@ -7,6 +7,7 @@ export function isAgentEvent(event: SystemEventEnvelope): event is Extract<
       | "agent.evaluation_snapshot"
       | "agent.turn_started"
       | "agent.retry_scheduled"
+      | "agent.context_compaction"
       | "agent.message_delta"
       | "agent.thinking_delta"
       | "agent.message_completed"
@@ -24,6 +25,7 @@ export function isAgentEvent(event: SystemEventEnvelope): event is Extract<
     event.type === "agent.evaluation_snapshot" ||
     event.type === "agent.turn_started" ||
     event.type === "agent.retry_scheduled" ||
+    event.type === "agent.context_compaction" ||
     event.type === "agent.message_delta" ||
     event.type === "agent.thinking_delta" ||
     event.type === "agent.message_completed" ||

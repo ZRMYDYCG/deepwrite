@@ -85,6 +85,13 @@ export function cloneMessage(message: ChatMessage): ChatMessage {
     ...rest,
     ...(evaluationSnapshot ? { evaluationSnapshot } : {}),
     ...(message.retry ? { retry: { ...message.retry } } : {}),
+    ...(message.contextCompactions
+      ? {
+          contextCompactions: message.contextCompactions.map((item) =>
+            cloneJsonRecord(item)
+          )
+        }
+      : {}),
     ...(message.attachments
       ? {
           attachments: message.attachments.map((attachment) => ({

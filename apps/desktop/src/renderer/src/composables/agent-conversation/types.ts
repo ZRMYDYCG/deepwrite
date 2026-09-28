@@ -5,7 +5,7 @@ import type {
   AgentUserInputAnswer,
   AgentUserInputRequestedPayload,
   AgentTeamRunMode,
-  ChatAssistantRequestContext,
+  ExtrasChatTask,
   DeepWriteApi,
   LongWorkspaceRuntimeContext,
   ModelConfig,
@@ -187,7 +187,7 @@ export interface AgentConversationController {
     workspaceDocuments?: WorkspaceDocument[],
     attachments?: WorkspaceContextAttachments
   ): Promise<boolean>;
-  sendAssistantMessage(context?: ChatAssistantRequestContext): Promise<void>;
+  sendAssistantMessage(task: ExtrasChatTask): Promise<void>;
   sendLongMessage(
     context: LongWorkspaceRuntimeContext,
     attachments?: Pick<

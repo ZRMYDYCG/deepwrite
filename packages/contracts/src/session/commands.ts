@@ -1,16 +1,7 @@
-import {
-  ChatAssistantRuntimeContextTransportSchema,
-  validateChatAssistantRuntimeContext
-} from "./chat-assistant-context";
-import { validateBookAnalysisProfiles } from "./analysis-profile-validation";
 import { LibraryManagementRuntimeContextSchema } from "../library-management";
 import { z } from "zod";
 import { ShortAgentSubagentDefinitionsSchema } from "../agent-team";
-import { ChatAssistantRequestContextSchema } from "../chat-assistant-base";
 import { EnvelopeBaseSchema } from "../envelope";
-import { LearningImitationAgentProfileSchema } from "../learning-imitation";
-import { ShortBookAnalysisProfileSchema } from "../short-book-analysis";
-import { LongBookAnalysisAgentProfileSchema } from "../long-book-analysis";
 import { LibraryAgentProfileSchema } from "../library-agent";
 import {
   LongAgentProfileSchema,
@@ -29,6 +20,11 @@ import {
 } from "../workspace";
 import { UserPromptAttachmentsSchema } from "./attachments";
 import {
+  ContextCompactionRequestSchema,
+  ContextCompactionRunSettingsSchema,
+  ConversationCheckpointSchema
+} from "./context-compaction";
+import {
   SessionUserInputResponsePayloadSchema,
   type SessionUserInputResponsePayload
 } from "./user-input";
@@ -39,12 +35,12 @@ import {
   WorkspaceRuntimeContextSchema
 } from "./runtime";
 
-export const SessionModeSchema = z.enum(["workspace", "chat-assistant"]);
-export type SessionMode = z.infer<typeof SessionModeSchema>;
-
-export const SESSION_CONVERSATION_HISTORY_MAX_MESSAGES = 80;
-export const SESSION_CONVERSATION_HISTORY_MAX_MESSAGE_LENGTH = 20_000;
-export const SESSION_CONVERSATION_HISTORY_MAX_CONTENT_LENGTH = 120_000;
+import {
+  SESSION_CONVERSATION_HISTORY_MAX_MESSAGES,
+  SESSION_CONVERSATION_HISTORY_MAX_MESSAGE_LENGTH,
+  SESSION_CONVERSATION_HISTORY_MAX_CONTENT_LENGTH
+} from "./history-limits";
+export * from "./history-limits";
 
 export const SessionConversationHistoryMessageSchema = z.object({
   role: z.enum(["user", "assistant"]),
@@ -55,7 +51,9 @@ export const SessionConversationHistoryMessageSchema = z.object({
     .refine((value) => value.trim().length > 0, {
       message: "Conversation history messages cannot be blank."
     }),
-  createdAt: z.string().datetime()
+  createdAt: z.string().datetime(),
+  /** The run that produced (assistant) or answered (user) this message. */
+  runId: z.string().min(1).max(200).optional()
 });
 export type SessionConversationHistoryMessage = z.infer<
   typeof SessionConversationHistoryMessageSchema
@@ -83,7 +81,10 @@ export const SessionPromptCommandPayloadSchema = z
     message: z.string().trim().min(1).max(20_000),
     conversationHistory: SessionConversationHistorySchema.optional(),
     conversationHistoryMode: z.literal("replace").optional(),
-    mode: SessionModeSchema.optional(),
+    /** Summary of turns older than `conversationHistory`, if any. */
+    conversationCheckpoint: ConversationCheckpointSchema.optional(),
+    /** Compact the conversation context before this reply. */
+    contextCompaction: ContextCompactionRequestSchema.optional(),
     attachments: UserPromptAttachmentsSchema.optional(),
     modelId: z.string().min(1).max(120).optional(),
     thinkingLevel: ThinkingLevelSchema.optional(),
@@ -92,67 +93,19 @@ export const SessionPromptCommandPayloadSchema = z
     agentTeamMode: AgentTeamRunModeSchema.optional(),
     autoApproveCrossStageOperations: z.boolean().optional(),
     webSearchEnabled: z.boolean().optional(),
-    chatAssistant: ChatAssistantRequestContextSchema.optional(),
     workspaceContext: WorkspaceRuntimeContextSchema.optional()
   })
   .superRefine((value, context) => {
-    if (value.mode !== "chat-assistant") {
-      if (value.chatAssistant !== undefined) {
-        context.addIssue({
-          code: "custom",
-          path: ["chatAssistant"],
-          message: "Chat assistant context requires chat-assistant mode."
-        });
-      }
-      if (
-        value.agentTeamMode !== undefined &&
-        !value.workspaceContext?.shortWorkspace &&
-        !value.workspaceContext?.scriptWorkspace &&
-        !value.workspaceContext?.longWorkspace
-      ) {
-        context.addIssue({
-          code: "custom",
-          path: ["agentTeamMode"],
-          message: "Agent team mode requires a short, script or long workspace."
-        });
-      }
-      return;
-    }
-    if (value.webSearchEnabled !== undefined) {
-      context.addIssue({
-        code: "custom",
-        path: ["webSearchEnabled"],
-        message:
-          "Chat assistant sessions must request web search through chatAssistant.webSearchEnabled."
-      });
-    }
-    if (value.workspaceContext !== undefined) {
-      context.addIssue({
-        code: "custom",
-        path: ["workspaceContext"],
-        message: "Chat assistant sessions cannot receive workspace context."
-      });
-    }
-    if (value.writeApprovalMode !== undefined) {
-      context.addIssue({
-        code: "custom",
-        path: ["writeApprovalMode"],
-        message: "Chat assistant sessions cannot request write approval."
-      });
-    }
-    if (value.agentTeamMode !== undefined) {
+    if (
+      value.agentTeamMode !== undefined &&
+      !value.workspaceContext?.shortWorkspace &&
+      !value.workspaceContext?.scriptWorkspace &&
+      !value.workspaceContext?.longWorkspace
+    ) {
       context.addIssue({
         code: "custom",
         path: ["agentTeamMode"],
-        message: "Chat assistant sessions cannot request agent team mode."
-      });
-    }
-    if (value.autoApproveCrossStageOperations !== undefined) {
-      context.addIssue({
-        code: "custom",
-        path: ["autoApproveCrossStageOperations"],
-        message:
-          "Chat assistant sessions cannot approve cross-stage operations."
+        message: "Agent team mode requires a short, script or long workspace."
       });
     }
   });
@@ -266,8 +219,6 @@ export const SessionUserInputResponseCommandEnvelopeSchema =
 
 export const AgentPromptCommandPayloadSchema =
   SessionPromptCommandPayloadSchema.extend({
-    chatAssistantRuntimeContext:
-      ChatAssistantRuntimeContextTransportSchema.optional(),
     runtimeConfig: AgentProviderRuntimeConfigSchema.optional(),
     agentProfile: ShortWorkspaceAgentProfileSchema.optional(),
     scriptAgentProfile: ScriptWorkspaceAgentProfileSchema.optional(),
@@ -282,11 +233,10 @@ export const AgentPromptCommandPayloadSchema =
       .record(z.string().min(1).max(120), AgentProviderRuntimeConfigSchema)
       .optional(),
     libraryAgentProfile: LibraryAgentProfileSchema.optional(),
-    learningImitationProfile: LearningImitationAgentProfileSchema.optional(),
-    shortBookAnalysisProfile: ShortBookAnalysisProfileSchema.optional(),
-    longBookAnalysisProfile: LongBookAnalysisAgentProfileSchema.optional()
+    contextCompactionSettings: ContextCompactionRunSettingsSchema.optional(),
+    /** Runtime-only config of the summary model when it differs from the run model. */
+    compactionRuntimeConfig: AgentProviderRuntimeConfigSchema.optional()
   }).superRefine((value, context) => {
-    validateChatAssistantRuntimeContext(value, context);
     const shortWorkspace = value.workspaceContext?.shortWorkspace;
     const scriptWorkspace = value.workspaceContext?.scriptWorkspace;
     const longWorkspace = value.workspaceContext?.longWorkspace;
@@ -407,29 +357,6 @@ export const AgentPromptCommandPayloadSchema =
         });
       }
     }
-    if (
-      Boolean(value.workspaceContext?.learningImitation) !==
-      Boolean(value.learningImitationProfile)
-    ) {
-      context.addIssue({
-        code: "custom",
-        path: ["learningImitationProfile"],
-        message:
-          "Learning-imitation context and agent profile must be provided together."
-      });
-    }
-    if (
-      value.learningImitationProfile &&
-      value.workspaceContext?.learningImitation?.stageId !==
-        value.learningImitationProfile.id
-    ) {
-      context.addIssue({
-        code: "custom",
-        path: ["learningImitationProfile", "id"],
-        message: "Learning-imitation profile must match the active stage."
-      });
-    }
-    validateBookAnalysisProfiles(value, context);
     if (
       Boolean(value.workspaceContext?.libraryWorkspace) !==
       Boolean(value.libraryAgentProfile)

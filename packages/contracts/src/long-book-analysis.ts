@@ -60,7 +60,6 @@ export type LongBookAnalysisNote = z.infer<typeof LongBookAnalysisNoteSchema>;
 const RuntimeBaseSchema = z.object({
   jobId: LongBookAnalysisIdSchema,
   unitId: LongBookAnalysisIdSchema,
-  presetId: LongBookAnalysisIdSchema,
   sourceTitle: z.string().trim().min(1).max(1_024),
   selectionStart: z
     .number()

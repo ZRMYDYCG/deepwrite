@@ -10,7 +10,7 @@ import {
   type DeepWriteApi,
   type ModelConfig,
   type CatalogSnapshot,
-  type SessionPromptCommandPayload,
+  type ExtrasAgentRunRequest,
   type SystemEventEnvelope
 } from "@deepwrite/contracts/renderer";
 import "../../src/renderer/src/styles.css";
@@ -41,21 +41,38 @@ const library = {
   createdAt: "2026-01-01T00:00:00.000Z",
   updatedAt: "2026-01-01T00:00:00.000Z"
 } as const;
-let request: SessionPromptCommandPayload | undefined;
+let request: ExtrasAgentRunRequest | undefined;
 const saved: unknown[] = [];
+const methodSettings = {
+  agentId: "revision-analysis",
+  profiles: [
+    {
+      id: "default",
+      name: "修改分析",
+      description: "从修改前后的正文差异中提炼可复用的修改技能。",
+      systemPrompt: DEFAULT_REVISION_METHOD,
+      builtin: true
+    }
+  ]
+};
 const api = {
-  revisionAnalysis: {
-    list: async () => ({ systemPrompt: DEFAULT_REVISION_METHOD }),
-    save: async (s: unknown) => s,
-    reset: async () => ({ systemPrompt: DEFAULT_REVISION_METHOD })
-  },
-  session: {
-    prompt: async (input: SessionPromptCommandPayload) => {
+  extrasAgents: {
+    run: async (input: ExtrasAgentRunRequest) => {
       request = input;
-      return { sessionId: input.sessionId, runId: "probe-run" };
+      return {
+        sessionId: input.sessionId,
+        runId: "probe-run",
+        acceptedAt: new Date().toISOString(),
+        runtime: { provider: "test", model: "test", mode: "provider" }
+      };
     },
-    abort: async () => ({})
+    profiles: {
+      list: async () => methodSettings,
+      save: async () => methodSettings,
+      reset: async () => methodSettings
+    }
   },
+  session: { abort: async () => ({}) },
   catalog: {
     createLibraryEntry: async (input: unknown) => {
       saved.push(input);
@@ -133,10 +150,11 @@ async function run() {
   await frame();
   button("开始分析").click();
   await frame();
+  await frame();
   check(c.isBusy.value && request, "点击开始应启动任务");
   check(
-    request.workspaceContext?.revisionAnalysis?.changes[0]?.reason ===
-      "用动作代替解释，让情绪留白。",
+    request.task.agentId === "revision-analysis" &&
+      request.task.input.changes[0]?.reason === "用动作代替解释，让情绪留白。",
     "理由必须传入任务快照"
   );
   visible.value = false;
@@ -146,13 +164,17 @@ async function run() {
     delta:
       "# 修改分析报告\n\n## 修改概览\n从直接解释情绪，转向可观察的动作与有余味的细节。\n\n## 差异 1\n用户明确希望用动作代替解释。修改后通过捏住信角表现情绪，同时压缩直述信息。\n\n## 差异 2\n新增未关严的抽屉。推断：为结尾保留悬念，具体意图尚未说明。\n\n## 修改方向\n优先寻找能承载情绪的动作；只在读者需要补足理解时保留解释。"
   });
-  event("revision_analysis.result_updated", {
-    jobId: request.workspaceContext!.revisionAnalysis!.jobId,
-    result: {
-      report: "",
-      title: "以动作承载情绪的修改方法",
-      description: "用于修订情绪描写较直白的场景，以符合人物的动作承载情绪。",
-      body: "# 以动作承载情绪\n\n## 适用场景\n情绪描写较直白的短篇场景。\n\n## 执行步骤\n1. 找出直接解释情绪的句子。\n2. 选择与当下处境一致的微动作。\n3. 删除动作已经表达的信息。\n\n## 检查清单\n- 动作是否符合人物？\n- 是否保留必要的因果线索？\n- 是否避免所有场景一律删解释？"
+  event("extras_agent.output_updated", {
+    agentId: "revision-analysis",
+    jobId: request.task.input.jobId,
+    output: {
+      kind: "revision-analysis-result",
+      result: {
+        report: "",
+        title: "以动作承载情绪的修改方法",
+        description: "用于修订情绪描写较直白的场景，以符合人物的动作承载情绪。",
+        body: "# 以动作承载情绪\n\n## 适用场景\n情绪描写较直白的短篇场景。\n\n## 执行步骤\n1. 找出直接解释情绪的句子。\n2. 选择与当下处境一致的微动作。\n3. 删除动作已经表达的信息。\n\n## 检查清单\n- 动作是否符合人物？\n- 是否保留必要的因果线索？\n- 是否避免所有场景一律删解释？"
+      }
     }
   });
   event("agent.message_completed");

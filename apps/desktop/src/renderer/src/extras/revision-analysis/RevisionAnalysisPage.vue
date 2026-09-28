@@ -56,8 +56,8 @@ function compare() {
   });
 }
 function start() {
-  void act(() => {
-    c.start();
+  void act(async () => {
+    await c.start();
     processOpen.value = true;
   });
 }

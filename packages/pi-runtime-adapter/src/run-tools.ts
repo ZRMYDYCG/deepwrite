@@ -1,5 +1,3 @@
-import { buildRevisionAnalysisTools } from "./revision-analysis";
-import { buildShortBookAnalysisTools } from "./short-book-analysis";
 import type {
   AgentMessage,
   AgentTool,
@@ -10,10 +8,7 @@ import type { BuildSpawnSubagentToolInput } from "./subagent-types";
 import type { PortableToolSchemaProfile } from "./portable-tool-schema";
 import { createLibraryManagementRuntime } from "./library-management-runtime";
 import { createMaterialQueryRunner } from "./material-query-runtime";
-import { buildChatAssistantTools } from "./chat-assistant-tools";
-import { buildLearningImitationTools } from "./learning-imitation-tools";
 import { buildLibraryAgentTools } from "./library-agent-tools";
-import { buildLongBookAnalysisTools } from "./long-book-analysis/tools";
 import {
   buildLongWorkspaceTools,
   createLongWorkspaceToolSharedState
@@ -27,6 +22,7 @@ import {
 import { buildSubagentAuthoringTools } from "./subagent-authoring-tools";
 import { buildSubagentMaterialContext } from "./prompts-material";
 import { buildSpawnSubagentTool } from "./subagent-runtime";
+import { workspaceContextPolicy } from "./workspace-context-policy";
 import { buildProviderRuntime, toPiThinkingLevel } from "./provider-runtime";
 import {
   scriptRuntimeSystemRequirements,
@@ -51,14 +47,12 @@ export interface BuildRunToolsOptions extends Pick<
   getParentMessages: () => readonly AgentMessage[];
   portableToolSchemaProfile: PortableToolSchemaProfile;
   subagentTimeoutMs?: number;
+  onContextCompacted?: (listener: () => void) => void;
 }
 export function buildRunTools(
   input: AgentRunInput,
   options: BuildRunToolsOptions
 ): AgentTool[] {
-  if (input.workspaceContext?.revisionAnalysis)
-    return buildRevisionAnalysisTools(input.workspaceContext.revisionAnalysis);
-  if (input.workspaceContext?.styleComparison) return [];
   const {
     model,
     thinkingLevel: effectiveThinkingLevel,
@@ -72,8 +66,6 @@ export function buildRunTools(
     scriptWorkspace,
     longWorkspace,
     libraryWorkspace,
-    learningImitation,
-    longBookAnalysis,
     subagentAuthoring
   } = input.workspaceContext ?? {};
   const writingToolSharedState =
@@ -86,7 +78,9 @@ export function buildRunTools(
     longWorkspace && input.longAgentProfile
       ? createLongWorkspaceToolSharedState()
       : undefined;
-  const buildWritingTools = (): AgentTool[] => {
+  const buildWritingTools = (
+    onContextCompacted = options.onContextCompacted
+  ): AgentTool[] => {
     if (scriptWorkspace && input.scriptAgentProfile) {
       return buildScriptWorkspaceTools({
         workspace: scriptWorkspace,
@@ -98,6 +92,7 @@ export function buildRunTools(
         attachedMaterials: input.workspaceContext?.attachedMaterials,
         queryMaterials: createMaterialQueryRunner(input),
         requestUserInput,
+        ...(onContextCompacted ? { onContextCompacted } : {}),
         ...(writingToolSharedState
           ? { sharedState: writingToolSharedState }
           : {})
@@ -114,13 +109,17 @@ export function buildRunTools(
           attachedMaterials: input.workspaceContext?.attachedMaterials,
           queryMaterials: createMaterialQueryRunner(input),
           requestUserInput,
+          ...(onContextCompacted ? { onContextCompacted } : {}),
           ...(writingToolSharedState
             ? { sharedState: writingToolSharedState }
             : {})
         })
       : [];
   };
-  const buildLongTools = (includeAskUserQuestion = true): AgentTool[] =>
+  const buildLongTools = (
+    includeAskUserQuestion = true,
+    onContextCompacted = options.onContextCompacted
+  ): AgentTool[] =>
     longWorkspace && input.longAgentProfile
       ? buildLongWorkspaceTools({
           workspace: longWorkspace,
@@ -138,56 +137,39 @@ export function buildRunTools(
             : {}),
           requestUserInput,
           includeAskUserQuestion,
+          ...(onContextCompacted ? { onContextCompacted } : {}),
           ...(longToolSharedState ? { sharedState: longToolSharedState } : {})
         })
       : [];
   const management = createLibraryManagementRuntime(input);
-  let tools: AgentTool[] =
-    input.mode === "chat-assistant"
-      ? input.chatAssistantRuntimeContext
-        ? buildChatAssistantTools({
-            runId: input.runId,
-            sessionId: input.sessionId,
-            context: input.chatAssistantRuntimeContext,
-            ...(input.longCommandExecutor
-              ? { longCommandExecutor: input.longCommandExecutor }
-              : {})
-          })
-        : []
-      : subagentAuthoring
-        ? buildSubagentAuthoringTools(subagentAuthoring)
-        : learningImitation && input.learningImitationProfile
-          ? buildLearningImitationTools(
-              learningImitation,
-              input.writeApprovalMode ?? "request-approval"
-            )
-          : input.workspaceContext?.shortBookAnalysis &&
-              input.shortBookAnalysisProfile
-            ? buildShortBookAnalysisTools(
-                input.workspaceContext.shortBookAnalysis
-              )
-            : longBookAnalysis && input.longBookAnalysisProfile
-              ? buildLongBookAnalysisTools(longBookAnalysis)
-              : libraryWorkspace && input.libraryAgentProfile
-                ? buildLibraryAgentTools({
-                    workspace: libraryWorkspace,
-                    profile: input.libraryAgentProfile,
-                    writeApprovalMode:
-                      input.writeApprovalMode ?? "request-approval",
-                    attachedSkills: input.workspaceContext?.attachedSkills
-                  })
-                : longWorkspace && input.longAgentProfile
-                  ? buildLongTools()
-                  : (scriptWorkspace && input.scriptAgentProfile) ||
-                      (shortWorkspace && input.agentProfile)
-                    ? buildWritingTools()
-                    : [];
+  let tools: AgentTool[] = subagentAuthoring
+    ? buildSubagentAuthoringTools(subagentAuthoring)
+    : libraryWorkspace && input.libraryAgentProfile
+      ? buildLibraryAgentTools({
+          workspace: libraryWorkspace,
+          profile: input.libraryAgentProfile,
+          writeApprovalMode: input.writeApprovalMode ?? "request-approval",
+          attachedSkills: input.workspaceContext?.attachedSkills
+        })
+      : longWorkspace && input.longAgentProfile
+        ? buildLongTools()
+        : (scriptWorkspace && input.scriptAgentProfile) ||
+            (shortWorkspace && input.agentProfile)
+          ? buildWritingTools()
+          : [];
   if (
     ((scriptWorkspace && input.scriptAgentProfile) ||
       (shortWorkspace && input.agentProfile) ||
       (longWorkspace && input.longAgentProfile)) &&
     !subagentAuthoring
   ) {
+    const parentPolicy = workspaceContextPolicy(input);
+    const childContextPolicy = parentPolicy && {
+      settings: parentPolicy.settings,
+      task: parentPolicy.task,
+      toolCompactors: parentPolicy.toolCompactors,
+      ...(parentPolicy.rehydrate ? { rehydrate: parentPolicy.rehydrate } : {})
+    };
     const spawnTool = buildSpawnSubagentTool({
       parentSessionId: input.sessionId,
       ...((options.parentSignal ?? input.signal)
@@ -203,6 +185,7 @@ export function buildRunTools(
       ],
       prepareChild: management.prepareChild,
       getParentMessages: options.getParentMessages,
+      ...(childContextPolicy ? { contextPolicy: childContextPolicy } : {}),
       materialContext: buildSubagentMaterialContext(input),
       ...(input.subagentRuntimeConfigs
         ? { subagentRuntimeConfigs: input.subagentRuntimeConfigs }
@@ -228,7 +211,7 @@ export function buildRunTools(
       },
       buildChildTools:
         longWorkspace && input.longAgentProfile
-          ? () => buildLongTools(false)
+          ? (listener) => buildLongTools(false, listener)
           : buildWritingTools,
       ...(scriptWorkspace
         ? {

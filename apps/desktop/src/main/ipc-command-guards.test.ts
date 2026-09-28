@@ -58,14 +58,20 @@ describe("IPC command requestId handling", () => {
       'command.type === "catalog.createScriptBookAtPath"'
     );
     expect(coreSource).toContain("catalogStore.createScriptBook(");
-    expect(mainSource).toContain(
+    const sessionSource = readFileSync(
+      new URL("./ipc/session-commands.ts", import.meta.url),
+      "utf8"
+    );
+    expect(mainSource).toContain("await handleSessionCommands(");
+    expect(sessionSource).toContain(
       "command.payload.workspaceContext?.scriptWorkspace"
     );
-    expect(mainSource).toContain("creativeWorkspaceType");
-    expect(mainSource).toContain(
-      "creativeWorkspace,\n                creativeWorkspaceType"
+    expect(sessionSource).toContain("creativeWorkspaceType");
+    expectSourceToContain(
+      sessionSource,
+      "creativeWorkspace, creativeWorkspaceType"
     );
-    expect(mainSource).toContain("{ scriptAgentProfile: agentProfile }");
+    expect(sessionSource).toContain("{ scriptAgentProfile: agentProfile }");
   });
 
   it("routes idempotent draft-section batches through preload, main, and core", () => {

@@ -13,6 +13,7 @@ import {
   parseStoredToolTrace
 } from "./parse-runtime";
 import { parseStoredSubagentRun } from "./parse-subagent";
+import { parseStoredContextCompactions } from "./context-compaction";
 export function parseStoredMessage(value: unknown): ChatMessage | undefined {
   if (!isRecord(value)) return undefined;
   if (
@@ -78,6 +79,11 @@ export function parseStoredMessage(value: unknown): ChatMessage | undefined {
     }
   }
   if (value.activityOnly === true) message.activityOnly = true;
+  const contextCompactions = parseStoredContextCompactions(
+    value.contextCompactions
+  );
+  if (contextCompactions.length)
+    message.contextCompactions = contextCompactions;
 
   if (value.evaluationSnapshot !== undefined) {
     const parsedEvaluation = AgentEvaluationSnapshotSchema.safeParse(

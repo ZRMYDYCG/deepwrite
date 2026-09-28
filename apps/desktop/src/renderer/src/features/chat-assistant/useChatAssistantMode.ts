@@ -2,11 +2,15 @@ import { useChatAssistantRoleplays } from "./useChatAssistantRoleplays";
 import type {
   CatalogIndexSnapshot,
   ChatAssistantMode,
-  ChatAssistantProjectConfig,
   ChatAssistantProjectRef,
-  ChatAssistantRequestContext,
+  ExtrasChatTask,
   LongBookSummary
 } from "@deepwrite/contracts";
+import { chatAssistantProjectKey as projectKey } from "@deepwrite/contracts/renderer";
+import {
+  chatTaskWithWebSearch,
+  listChatProjects
+} from "./chatAssistantProfiles";
 import { computed, ref, shallowRef, type Ref } from "vue";
 import type { AgentConversationController } from "../../composables/useAgentConversation";
 
@@ -24,10 +28,6 @@ export interface ChatAssistantModeOptions {
   conversationForKey(key: string, scope?: string): AgentConversationController;
   catalogSnapshot: Readonly<Ref<CatalogIndexSnapshot | null>>;
   longBooks: Readonly<Ref<readonly LongBookSummary[]>>;
-}
-
-function projectKey(project: ChatAssistantProjectRef): string {
-  return `${project.projectType}:${project.projectId}`;
 }
 
 function readMode(): ChatAssistantMode {
@@ -81,7 +81,9 @@ export function useChatAssistantMode(options: ChatAssistantModeOptions) {
   const roles = useChatAssistantRoleplays();
   const mode = ref<ChatAssistantMode>(readMode());
   const selectedProject = ref<ChatAssistantProjectRef | null>(readProject());
-  const configuredProjects = ref<readonly ChatAssistantProjectRef[]>([]);
+  const configuredProjects = ref<
+    ReadonlyArray<{ project: ChatAssistantProjectRef; name: string }>
+  >([]);
   const controller = shallowRef<AgentConversationController | null>(null);
 
   const projectOptions = computed<readonly ChatAssistantProjectOption[]>(() => [
@@ -102,13 +104,13 @@ export function useChatAssistantMode(options: ChatAssistantModeOptions) {
   const configuredProjectOptions = computed<
     readonly ChatAssistantProjectOption[]
   >(() =>
-    configuredProjects.value.map((project) => {
+    configuredProjects.value.map(({ project, name }) => {
       const key = projectKey(project);
       const live = projectOptions.value.find((option) => option.key === key);
       return (
         live ?? {
           key,
-          label: `已失效项目（${project.projectId}）`,
+          label: `已失效项目（${name}）`,
           project,
           available: false
         }
@@ -135,15 +137,26 @@ export function useChatAssistantMode(options: ChatAssistantModeOptions) {
     () => mode.value !== "project" || selectedProjectOption.value !== null
   );
   const isBusy = computed(() => controller.value?.isBusy.value ?? false);
-  const requestContext = computed<ChatAssistantRequestContext | null>(() => {
-    if (mode.value === "normal") return { mode: "normal" };
+  /** The "更多功能" chat agent the next turn runs as; null when unusable. */
+  function currentChatTask(): ExtrasChatTask | null {
+    if (mode.value === "normal")
+      return { agentId: "chat-normal", profileId: "default", input: {} };
     if (mode.value === "roleplay")
       return roles.selectedRole.value
-        ? { mode: "roleplay", roleId: roles.selectedRole.value.id }
+        ? {
+            agentId: "chat-roleplay",
+            profileId: roles.selectedRole.value.id,
+            input: {}
+          }
         : null;
     if (!selectedProject.value || !projectAvailable.value) return null;
-    return { mode: "project", project: selectedProject.value };
-  });
+    return {
+      agentId: "chat-project",
+      profileId: projectKey(selectedProject.value),
+      input: { project: selectedProject.value }
+    };
+  }
+  const chatTask = computed(currentChatTask);
 
   function controllerIdentity(): { key: string; scope: string } {
     if (mode.value === "normal") {
@@ -200,10 +213,9 @@ export function useChatAssistantMode(options: ChatAssistantModeOptions) {
   }
 
   async function refreshConfiguredProjects(): Promise<boolean> {
-    const api = window.deepwrite?.chatAssistantProjectConfig;
-    if (!api) return false;
+    if (!window.deepwrite) return false;
     try {
-      configuredProjects.value = await api.list();
+      configuredProjects.value = await listChatProjects();
       return true;
     } catch {
       return false;
@@ -211,45 +223,11 @@ export function useChatAssistantMode(options: ChatAssistantModeOptions) {
   }
 
   async function sendAssistantMessage(webSearchEnabled = false): Promise<void> {
-    const context = requestContext.value;
-    if (!context || !controller.value) return;
+    const task = chatTask.value;
+    if (!task || !controller.value) return;
     await controller.value.sendAssistantMessage(
-      webSearchEnabled && context.mode !== "roleplay"
-        ? { ...context, webSearchEnabled: true }
-        : context
+      chatTaskWithWebSearch(task, webSearchEnabled)
     );
-  }
-
-  function requireProject(): ChatAssistantProjectRef {
-    if (!selectedProject.value || !projectAvailable.value) {
-      throw new Error("当前项目不可用，请重新选择项目。");
-    }
-    return selectedProject.value;
-  }
-
-  async function loadProjectConfig(
-    project: ChatAssistantProjectRef = requireProject()
-  ): Promise<ChatAssistantProjectConfig> {
-    const api = window.deepwrite?.chatAssistantProjectConfig;
-    if (!api) throw new Error("桌面桥接尚未就绪，请稍后重试。");
-    return api.get(project);
-  }
-
-  async function saveProjectConfig(
-    systemPrompt: string,
-    project: ChatAssistantProjectRef = requireProject()
-  ): Promise<ChatAssistantProjectConfig> {
-    const api = window.deepwrite?.chatAssistantProjectConfig;
-    if (!api) throw new Error("桌面桥接尚未就绪，请稍后重试。");
-    return api.save(project, systemPrompt);
-  }
-
-  async function resetProjectConfig(
-    project: ChatAssistantProjectRef = requireProject()
-  ): Promise<ChatAssistantProjectConfig> {
-    const api = window.deepwrite?.chatAssistantProjectConfig;
-    if (!api) throw new Error("桌面桥接尚未就绪，请稍后重试。");
-    return api.reset(project);
   }
 
   activateController();
@@ -270,20 +248,17 @@ export function useChatAssistantMode(options: ChatAssistantModeOptions) {
     selectedConfiguredProjectOption,
     projectOptions,
     configuredProjects: configuredProjects as Readonly<
-      Ref<readonly ChatAssistantProjectRef[]>
+      Ref<ReadonlyArray<{ project: ChatAssistantProjectRef; name: string }>>
     >,
     configuredProjectOptions,
     projectAvailable,
-    requestContext,
+    chatTask,
     controller: controller as Readonly<Ref<AgentConversationController>>,
     isBusy,
     setMode,
     selectProject,
     refreshConfiguredProjects,
-    sendAssistantMessage,
-    loadProjectConfig,
-    saveProjectConfig,
-    resetProjectConfig
+    sendAssistantMessage
   };
 }
 

@@ -1,3 +1,4 @@
+import type { ContextPolicy } from "./kernel/context";
 import type {
   AfterToolCallContext,
   AfterToolCallResult,
@@ -160,14 +161,25 @@ export interface BuildSpawnSubagentToolInput {
     streamFn: StreamFn;
     thinkingLevel: PiThinkingLevel;
   };
-  buildChildTools: () => AgentTool[];
+  buildChildTools: (
+    onContextCompacted?: (listener: () => void) => void
+  ) => AgentTool[];
   prepareChild?: (
     definition: RuntimeSubagentDefinition,
     libraryId: string | undefined,
     signal?: AbortSignal
-  ) => Promise<{ tools: AgentTool[]; systemPrompt: string }>;
+  ) => Promise<{
+    tools: AgentTool[];
+    systemPrompt: string;
+    contextPolicy?: ContextPolicy;
+  }>;
   toolExecutionHooks?: AgentToolExecutionHooks;
   retryPolicy?: AgentTurnRetryPolicyOptions;
+  /**
+   * Compaction for child runs: only between turns of a long run and after a
+   * context overflow, never by threshold, since the child's reply is short.
+   */
+  contextPolicy?: ContextPolicy;
   timeoutMs?: number;
   depth?: number;
   createRunId?: () => string;

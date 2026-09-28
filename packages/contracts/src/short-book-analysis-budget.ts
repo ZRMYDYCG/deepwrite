@@ -2,10 +2,12 @@ import type {
   ShortBookAnalysisProfile,
   ShortBookAnalysisRuntimeContext
 } from "./short-book-analysis";
+import {
+  CONSERVATIVE_TEXT_TOKEN_WEIGHTS,
+  estimateTextTokens
+} from "./token-estimate";
 export function shortAnalysisTokens(text: string): number {
-  let count = 0;
-  for (const char of text) count += char.codePointAt(0)! > 127 ? 1.5 : 0.25;
-  return Math.ceil(count);
+  return estimateTextTokens(text, CONSERVATIVE_TEXT_TOKEN_WEIGHTS);
 }
 /** Conservative estimate includes framework prompt, tool schema, output and safety margin. */
 export function assertShortAnalysisBudget(

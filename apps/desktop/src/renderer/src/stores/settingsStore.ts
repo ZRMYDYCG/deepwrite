@@ -4,7 +4,6 @@ import type {
   CloudBackupStatus,
   AgentTeamCatalogSnapshot,
   GeneralSettings,
-  LearningImitationSettings,
   LibraryAgentSettings,
   LongAgentSettings,
   ModelSettings,
@@ -31,7 +30,6 @@ export type SettingsLoadDomain =
   | "longAgents"
   | "agentTeams"
   | "libraryAgents"
-  | "learningImitation"
   | "workspaceDirectory"
   | "cloudBackup";
 
@@ -49,7 +47,6 @@ export interface SettingsDomainValueMap {
   longAgents: LongAgentSettings;
   agentTeams: AgentTeamCatalogSnapshot;
   libraryAgents: LibraryAgentSettings;
-  learningImitation: LearningImitationSettings;
   workspaceDirectory: WorkspaceDirectorySettings;
   cloudBackup: CloudBackupStatus;
 }
@@ -162,13 +159,6 @@ export const useSettingsStore = defineStore("settings", () => {
   const libraryAgentsLoaded = ref(false);
   const libraryAgentLoadError = ref<string | null>(null);
 
-  const learningImitationSettings =
-    shallowRef<LearningImitationSettings | null>(null);
-  const learningImitationLoading = ref(false);
-  const learningImitationSaving = ref(false);
-  const learningImitationLoaded = ref(false);
-  const learningImitationLoadError = ref<string | null>(null);
-
   const workspaceDirectorySettings =
     shallowRef<WorkspaceDirectorySettings | null>(null);
   const workspaceDirectoryPath = ref<string | null>(null);
@@ -217,11 +207,6 @@ export const useSettingsStore = defineStore("settings", () => {
       loading: libraryAgentLoading,
       error: libraryAgentLoadError
     },
-    learningImitation: {
-      loaded: learningImitationLoaded,
-      loading: learningImitationLoading,
-      error: learningImitationLoadError
-    },
     workspaceDirectory: {
       loaded: workspaceDirectoryLoaded,
       loading: workspaceDirectoryLoading,
@@ -243,7 +228,6 @@ export const useSettingsStore = defineStore("settings", () => {
     longAgents: 0,
     agentTeams: 0,
     libraryAgents: 0,
-    learningImitation: 0,
     workspaceDirectory: 0,
     cloudBackup: 0
   };
@@ -270,8 +254,6 @@ export const useSettingsStore = defineStore("settings", () => {
         return agentTeamCatalog.value as SettingsDomainValueMap[Domain];
       case "libraryAgents":
         return libraryAgentSettings.value as SettingsDomainValueMap[Domain];
-      case "learningImitation":
-        return learningImitationSettings.value as SettingsDomainValueMap[Domain];
       case "workspaceDirectory":
         return workspaceDirectorySettings.value as SettingsDomainValueMap[Domain];
       case "cloudBackup":
@@ -316,10 +298,6 @@ export const useSettingsStore = defineStore("settings", () => {
       case "libraryAgents":
         libraryAgentSettings.value =
           value as SettingsDomainValueMap["libraryAgents"];
-        break;
-      case "learningImitation":
-        learningImitationSettings.value =
-          value as SettingsDomainValueMap["learningImitation"];
         break;
       case "workspaceDirectory": {
         const settings = value as SettingsDomainValueMap["workspaceDirectory"];
@@ -427,12 +405,6 @@ export const useSettingsStore = defineStore("settings", () => {
     return ensureLoaded("libraryAgents", loader);
   }
 
-  function ensureLearningImitationLoaded(
-    loader: SettingsLoader<"learningImitation">
-  ) {
-    return ensureLoaded("learningImitation", loader);
-  }
-
   function ensureWorkspaceDirectoryLoaded(
     loader: SettingsLoader<"workspaceDirectory">
   ) {
@@ -496,11 +468,6 @@ export const useSettingsStore = defineStore("settings", () => {
     libraryAgentSaving,
     libraryAgentsLoaded,
     libraryAgentLoadError,
-    learningImitationSettings,
-    learningImitationLoading,
-    learningImitationSaving,
-    learningImitationLoaded,
-    learningImitationLoadError,
     workspaceDirectorySettings,
     workspaceDirectoryPath,
     workspaceDirectoryLoading,
@@ -517,7 +484,6 @@ export const useSettingsStore = defineStore("settings", () => {
     ensureLongAgentsLoaded,
     ensureAgentTeamsLoaded,
     ensureLibraryAgentsLoaded,
-    ensureLearningImitationLoaded,
     ensureWorkspaceDirectoryLoaded,
     ensureCloudBackupLoaded,
     invalidate,

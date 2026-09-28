@@ -159,10 +159,9 @@ describe("SettingsPage", () => {
     expect(generalPanelSource).toContain("flex: 0 1 210px;");
   });
 
-  it("provides a dedicated learning-imitation prompt category", () => {
-    expect(source).toContain('label: "短篇学习仿写设置"');
-    expect(source).toContain("<LearningImitationSettingsPanel");
-    expect(source).toContain("emit('saveLearningImitation', $event)");
+  it("no longer exposes the retired learning-imitation category", () => {
+    expect(source).not.toContain("短篇学习仿写设置");
+    expect(source).not.toContain("LearningImitation");
   });
 
   it("configures the default plot stages for newly created short books", () => {

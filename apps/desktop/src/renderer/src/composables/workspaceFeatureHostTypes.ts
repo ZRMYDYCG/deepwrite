@@ -9,7 +9,6 @@ import type { AppView, WorkspaceMainView } from "../stores/layoutStore";
 import type { useSettingsStore } from "../stores/settingsStore";
 import type { DialogMode } from "../types/workspace";
 import type {
-  LazyLearningImitationController,
   LazyLongBookAnalysisController,
   LazySubagentAuthoringController
 } from "./useLazyFeatureControllers";
@@ -40,10 +39,6 @@ export interface WorkspaceFeatureHostCoordinatorOptions {
   settingsStore: ReturnType<typeof useSettingsStore>;
   catalogSnapshot: Readonly<Ref<CatalogSnapshot | null>>;
   features: {
-    learningImitation: {
-      controller: LazyLearningImitationController["controller"];
-      ensureLoaded(): Promise<unknown>;
-    };
     revisionAnalysis: {
       controller: ReturnType<
         typeof import("./useLazyRevisionAnalysis").useLazyRevisionAnalysis
@@ -79,7 +74,6 @@ export interface WorkspaceFeatureHostCoordinatorOptions {
     loadWorkspaceAgentSettings(): Promise<unknown>;
     loadAgentTeamSettings(): Promise<unknown>;
     loadLibraryAgentSettings(): Promise<unknown>;
-    loadLearningImitationSettings(): Promise<unknown>;
     loadCatalogSnapshot(): Promise<unknown>;
   };
   notifications: WorkspaceFeatureHostNotifications;

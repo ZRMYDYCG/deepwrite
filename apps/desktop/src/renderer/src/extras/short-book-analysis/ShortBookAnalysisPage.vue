@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
 import {
-  ShortBookAnalysisSettingsInputSchema,
+  ShortBookAnalysisPresetSchema,
   type CatalogSnapshot,
   type LongBookAnalysisPreset,
   type ModelConfig
@@ -66,9 +66,7 @@ watch(
 async function savePresets(next: LongBookAnalysisPreset[]) {
   saving.value = true;
   try {
-    await c.savePresets(
-      ShortBookAnalysisSettingsInputSchema.parse({ presets: next }).presets
-    );
+    await c.savePresets(ShortBookAnalysisPresetSchema.array().parse(next));
     managerOpen.value = false;
     uiMessage.success("短篇拆书预设已保存。");
   } catch (error) {

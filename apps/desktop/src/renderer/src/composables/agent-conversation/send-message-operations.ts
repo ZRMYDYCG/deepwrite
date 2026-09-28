@@ -1,5 +1,5 @@
 import type {
-  ChatAssistantRequestContext,
+  ExtrasChatTask,
   UserPromptAttachment,
   WorkspaceRuntimeContext
 } from "@deepwrite/contracts";
@@ -13,8 +13,7 @@ export interface SendMessageOperations {
     attachments?: WorkspaceContextAttachments,
     promptAttachments?: UserPromptAttachment[],
     contextOverride?: WorkspaceRuntimeContext,
-    mode?: "workspace" | "chat-assistant",
-    chatAssistant?: ChatAssistantRequestContext,
+    chatTask?: ExtrasChatTask,
     rewriteRequest?: ConversationMessageRewriteRequest
   ): Promise<void>;
 }

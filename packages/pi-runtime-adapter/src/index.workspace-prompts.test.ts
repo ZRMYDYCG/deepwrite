@@ -16,21 +16,31 @@ import {
 } from "./index.test-support";
 
 describe("DeepWrite Pi runtime adapter: workspace-prompts", () => {
-  it("isolates chat-assistant prompts, tools and cached history from workspace agents", async () => {
+  it("isolates extras chat prompts, tools and cached history from workspace agents", async () => {
     const runtime = new PiAgentRuntimeAdapter({ tokensPerSecond: 0 });
     const sessionId = "session_shared_chat_boundary";
 
-    for (const [runId, prompt] of [
+    for (const [runId, message] of [
       ["run_chat_1", "你好，只聊聊天"],
       ["run_chat_2", "继续刚才的话题"]
     ] as const) {
-      for await (const _event of runtime.start({
+      for await (const _event of runtime.startExtras({
         runId,
-        sessionId,
-        prompt,
-        mode: "chat-assistant",
-        chatAssistantRuntimeContext: normalChatContext(),
-        thinkingLevel: "off"
+        spec: {
+          sessionId,
+          thinkingLevel: "off",
+          task: {
+            agentId: "chat-normal",
+            profile: {
+              id: "default",
+              name: "普通聊天",
+              description: "测试",
+              systemPrompt: "你是普通聊天助手。"
+            },
+            input: { runtime: normalChatContext() }
+          },
+          conversation: { message }
+        }
       })) {
         // Consume the isolated chat turn before inspecting the cache.
       }
@@ -71,12 +81,12 @@ describe("DeepWrite Pi runtime adapter: workspace-prompts", () => {
     ).conversationAgents;
     expect([...cache.keys()]).toEqual(
       expect.arrayContaining([
-        `${sessionId}:chat-assistant:normal`,
+        `${sessionId}:extras:chat-normal:normal`,
         `${sessionId}:default`
       ])
     );
 
-    const chat = cache.get(`${sessionId}:chat-assistant:normal`)!;
+    const chat = cache.get(`${sessionId}:extras:chat-normal:normal`)!;
     expect(chat.state.tools.map(({ name }) => name)).toEqual(
       expect.arrayContaining([
         "list_creation_projects",
@@ -88,7 +98,7 @@ describe("DeepWrite Pi runtime adapter: workspace-prompts", () => {
     expect(chat.state.tools.map(({ name }) => name)).not.toEqual(
       expect.arrayContaining(["read_workspace_content", "edit_text"])
     );
-    expect(chat.state.systemPrompt).toContain("普通聊天模式");
+    expect(chat.state.systemPrompt).toContain("【普通聊天运行边界】");
     expect(chat.state.systemPrompt).not.toContain("本地创作协作智能体");
     const chatUserMessages = chat.state.messages.filter(
       (message) => message.role === "user"

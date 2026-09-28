@@ -128,6 +128,8 @@ function buildUnifiedWritingWorkspaceTools(
     input.sharedState ?? createWritingWorkspaceToolSharedState(input.workspace);
   const toolInput = { ...input, sharedState };
   const readState = createShortUnifiedReadState();
+  // Reads summarized away no longer authorize edits of existing text.
+  input.onContextCompacted?.(() => readState.fullyRead.clear());
   return [
     buildShortUnifiedReadTool(toolInput, sharedState, readState),
     buildShortUnifiedCreateTool(toolInput, sharedState),

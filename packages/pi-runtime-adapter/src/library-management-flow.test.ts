@@ -47,7 +47,6 @@ function input(
     sessionId: "session",
     runId: "run",
     prompt: "将刚才的情节记录为素材",
-    mode: "workspace",
     ...(kind === "short"
       ? {
           agentProfile: shortProfile(),

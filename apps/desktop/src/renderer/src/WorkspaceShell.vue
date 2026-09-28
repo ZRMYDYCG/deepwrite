@@ -47,10 +47,7 @@ import { useDraftRecoveryPersistence } from "./composables/useDraftRecoveryPersi
 import { useEditorAutoSaveCoordinator } from "./composables/useEditorAutoSaveCoordinator";
 import { useGeneralSettingsCoordinator } from "./composables/useGeneralSettingsCoordinator";
 import { useWorkspaceLifecycleCoordinator } from "./composables/useWorkspaceLifecycleCoordinator";
-import {
-  useLazyLearningImitationController,
-  useLazySubagentAuthoringController
-} from "./composables/useLazyFeatureControllers";
+import { useLazySubagentAuthoringController } from "./composables/useLazyFeatureControllers";
 import { useLazyApprovalNavigationCoordinator } from "./composables/useLazyApprovalNavigationCoordinator";
 import { useLazyLongBookLifecycleCoordinator } from "./composables/useLazyLongBookLifecycleCoordinator";
 import { useLazyShortBookLifecycleCoordinator } from "./composables/useLazyShortBookLifecycleCoordinator";
@@ -177,10 +174,6 @@ const pendingEditorReferences = ref<EditorTextReference[]>([]);
 const editorReferenceNavigation = ref<EditorTextReferenceNavigation>();
 const acceptingAgentEditDocumentIds = ref<Set<string>>(new Set());
 const acceptingAgentEditWorkspaceIds = ref<Set<string>>(new Set());
-const learningImitationFeature = useLazyLearningImitationController({
-  api: () => window.deepwrite
-});
-const learningImitationRunning = learningImitationFeature.isBusy;
 const {
   longBookAnalysisFeature,
   shortBookAnalysisFeature,
@@ -317,6 +310,7 @@ const {
   updateLanguage: updateAppLanguage,
   updatePermissionMode,
   updateShowContextUsage,
+  updateContextCompaction,
   updateShowInMenuBar,
   updateUseNetworkProxy,
   updateWorkspacePaneLayout
@@ -506,7 +500,6 @@ const featureHost = useWorkspaceFeatureHostCoordinator({
   settingsStore,
   catalogSnapshot,
   features: {
-    learningImitation: learningImitationFeature,
     longBookAnalysis: longBookAnalysisFeature,
     shortBookAnalysis: shortBookAnalysisFeature,
     revisionAnalysis: revisionAnalysisFeature,
@@ -539,7 +532,6 @@ const featureHost = useWorkspaceFeatureHostCoordinator({
     loadWorkspaceAgentSettings: () => loadWorkspaceAgentSettings(),
     loadAgentTeamSettings: () => loadAgentTeamSettings(),
     loadLibraryAgentSettings: () => loadLibraryAgentSettings(),
-    loadLearningImitationSettings: () => loadLearningImitationSettings(),
     loadCatalogSnapshot: () => loadCatalogSnapshot()
   },
   notifications: uiMessage
@@ -1409,19 +1401,12 @@ const {
   saveAgentTeamSettings,
   loadLibraryAgentSettings,
   saveLibraryAgentSettings,
-  resetLibraryAgentSettings,
-  loadLearningImitationSettings,
-  saveLearningImitationSettings,
-  resetLearningImitationSettings
+  resetLibraryAgentSettings
 } = useSettingsFeatureCoordinator({
   api: () => window.deepwrite,
   settingsStore,
   notifications: uiMessage,
   onModelsLoaded(settings) {
-    learningImitationFeature.setConfiguredModels(
-      settings.models,
-      settings.defaultModelId
-    );
     configureAnalysisModels(settings.models, settings.defaultModelId);
     applyModelSettingsToConversations(settings);
   }
@@ -2228,7 +2213,6 @@ const navigateToWorkspaceStage = useWorkspaceStageNavigator({
 
 function startWorkspaceSystemEvents(): () => void {
   const removeRoutes = registerWorkspaceSystemEventRoutes(systemEventCenter, {
-    learningImitation: learningImitationFeature,
     longBookAnalysis: longBookAnalysisFeature,
     shortBookAnalysis: shortBookAnalysisFeature,
     revisionAnalysis: revisionAnalysisFeature,
@@ -2370,7 +2354,6 @@ const workspaceLifecycle = useWorkspaceLifecycleCoordinator({
       conversationStore.dispose({
         flush: conversationPersistenceEnabled
       }),
-    () => learningImitationFeature.dispose(),
     () => disposeAnalysisFeatures(),
     () => subagentAuthoringFeature.dispose()
   ],
@@ -2404,6 +2387,7 @@ onBeforeUnmount(() => {
     @update-auto-save="updateEditorAutoSave"
     @update-language="updateAppLanguage"
     @update-show-context-usage="updateShowContextUsage"
+    @update-context-compaction="updateContextCompaction"
     @update-show-in-menu-bar="updateShowInMenuBar"
     @update-use-network-proxy="updateUseNetworkProxy"
     @update-workspace-pane-layout="updateWorkspacePaneLayout"
@@ -2414,8 +2398,6 @@ onBeforeUnmount(() => {
     @save-long-agents="saveLongAgentSettings"
     @save-library-agents="saveLibraryAgentSettings"
     @reset-library-agent="resetLibraryAgentSettings"
-    @save-learning-imitation="saveLearningImitationSettings"
-    @reset-learning-imitation="resetLearningImitationSettings"
     @load-model-usage="loadModelUsage"
     @load-models="loadModelSettings"
     @save-models="saveModelSettings"
@@ -2450,7 +2432,6 @@ onBeforeUnmount(() => {
       v-if="!leftCollapsed"
       :sections="resourceTreeSections"
       :selected-id="selectedResourceId"
-      :imitation-running="learningImitationRunning"
       :long-book-analysis-running="longBookAnalysisRunning"
       :revision-analysis-running="revisionAnalysisRunning"
       :short-book-analysis-running="shortBookAnalysisRunning"

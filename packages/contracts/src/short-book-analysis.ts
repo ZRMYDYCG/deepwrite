@@ -1,7 +1,3 @@
-import type {
-  ShortBookAnalysisSettings,
-  ShortBookAnalysisSettingsInput
-} from "./short-book-analysis-presets";
 export * from "./short-book-analysis-presets";
 import { z } from "zod";
 import { LongBookAnalysisResultSchema } from "./long-book-analysis";
@@ -38,7 +34,6 @@ export const ShortBookAnalysisCatalogSchema = z.object({
 export const ShortBookAnalysisRuntimeContextSchema = z
   .object({
     jobId: Id,
-    presetId: Id,
     books: ShortBookAnalysisSourcesSchema.min(1)
   })
   .superRefine((value, ctx) => {
@@ -72,12 +67,5 @@ export interface ShortBookAnalysisApi {
     list(): Promise<z.infer<typeof ShortBookAnalysisCatalogSchema>>;
     load(sourceId: string): Promise<ShortBookAnalysisSource>;
     delete(sourceId: string): Promise<ShortBookAnalysisSource["id"]>;
-  };
-  presets: {
-    list(): Promise<ShortBookAnalysisSettings>;
-    save(
-      input: ShortBookAnalysisSettingsInput
-    ): Promise<ShortBookAnalysisSettings>;
-    reset(presetId?: string): Promise<ShortBookAnalysisSettings>;
   };
 }

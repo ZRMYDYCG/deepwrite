@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import type {
   AppLanguage,
+  ContextCompactionSettings,
   GeneralPermissionMode,
+  ModelSettings,
   WorkspacePaneLayout
 } from "@deepwrite/contracts";
+import ContextCompactionSettingsCard from "./ContextCompactionSettingsCard.vue";
 import PopupSelect from "./PopupSelect.vue";
 
 defineProps<{
@@ -12,6 +15,8 @@ defineProps<{
   autoSaveEnabled: boolean;
   language: AppLanguage;
   showContextUsage: boolean;
+  contextCompaction: ContextCompactionSettings;
+  modelSettings: ModelSettings | null;
   showInMenuBar: boolean;
   useNetworkProxy: boolean;
   workspacePaneLayout: WorkspacePaneLayout;
@@ -23,6 +28,7 @@ const emit = defineEmits<{
   updateAutoSave: [enabled: boolean];
   updateLanguage: [language: AppLanguage];
   updateShowContextUsage: [enabled: boolean];
+  updateContextCompaction: [settings: ContextCompactionSettings];
   updateShowInMenuBar: [enabled: boolean];
   updateUseNetworkProxy: [enabled: boolean];
   updateWorkspacePaneLayout: [layout: WorkspacePaneLayout];
@@ -194,6 +200,12 @@ const workspacePaneLayoutOptions: Array<{
             " /></span
       ></label>
     </div>
+
+    <ContextCompactionSettingsCard
+      :settings="contextCompaction"
+      :model-settings="modelSettings"
+      @update="emit('updateContextCompaction', $event)"
+    />
 
     <h2 class="settings-group-title">网络设置</h2>
     <div class="settings-card">

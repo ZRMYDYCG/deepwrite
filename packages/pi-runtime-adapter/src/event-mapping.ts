@@ -1,4 +1,4 @@
-import { analysisToolEvents } from "./analysis-tool-events";
+import { isExtrasAgentOutputDetails } from "./extras/output";
 import type {
   AgentRuntimeRef,
   AgentUsage,
@@ -7,10 +7,9 @@ import type {
 import type { AgentEvent, AgentMessage } from "@earendil-works/pi-agent-core";
 import type { AssistantMessage, Usage } from "@earendil-works/pi-ai";
 import type { AgentTurnAttempt } from "./agent-turn-retry";
-import { isLearningImitationToolDetails } from "./learning-imitation-tools";
 import { isLibraryAgentToolDetails } from "./library-agent-tools";
 import { isLongAgentToolDetails } from "./long-agent-tools";
-import type { AgentRunInput, AgentRuntimeEvent } from "./runtime-types";
+import type { AgentRunEventSource, AgentRuntimeEvent } from "./runtime-types";
 import { isShortWorkspaceToolDetails } from "./short-agent-tools";
 import { isSubagentAuthoringToolDetails } from "./subagent-authoring-tools";
 import { toSubagentRuntimeEvents } from "./subagent-events";
@@ -20,7 +19,7 @@ import type { ToolCallAssistantEvent } from "./tool-stream";
 /** @internal Exported for protocol regression tests. */
 export function toToolStreamRuntimeEvent(
   streamEvent: ToolCallAssistantEvent,
-  input: AgentRunInput,
+  input: AgentRunEventSource,
   runtime: AgentRuntimeRef,
   messageId: string,
   assistantTurnIndex: number
@@ -123,7 +122,7 @@ export function reconcileToolCallArguments(
  */
 export function toUsageObservedRuntimeEvent(
   message: AssistantMessage,
-  input: AgentRunInput,
+  input: AgentRunEventSource,
   runtime: AgentRuntimeRef,
   messageId: string,
   attempt: AgentTurnAttempt
@@ -157,7 +156,7 @@ export function toUsageObservedRuntimeEvent(
 /** @internal Exported for runtime event contract tests. */
 export function toRuntimeEvents(
   event: AgentEvent,
-  input: AgentRunInput,
+  input: AgentRunEventSource,
   runtime: AgentRuntimeRef,
   messageId: string
 ): AgentRuntimeEvent[] {
@@ -208,14 +207,19 @@ export function toRuntimeEvents(
     ];
     const details = (event.result as { details?: unknown } | undefined)
       ?.details;
-    const analysisEvents = analysisToolEvents(
-      details,
-      event.toolCallId,
-      input,
-      runtime
-    );
-    if (analysisEvents && !event.isError) {
-      events.push(...analysisEvents);
+    if (isExtrasAgentOutputDetails(details) && !event.isError) {
+      events.push({
+        type: "extras_agent.output_updated",
+        runId: input.runId,
+        sessionId: input.sessionId,
+        payload: {
+          agentId: details.agentId,
+          jobId: details.jobId,
+          toolCallId: event.toolCallId,
+          output: details.output,
+          runtime
+        }
+      });
     } else if (isShortWorkspaceToolDetails(details)) {
       if (
         details.kind === "workspace-editor-mutation" ||
@@ -404,18 +408,6 @@ export function toRuntimeEvents(
                   summary: details.summary,
                   runtime
                 }
-      });
-    } else if (isLearningImitationToolDetails(details)) {
-      events.push({
-        type: "learning_imitation.result_updated",
-        runId: input.runId,
-        sessionId: input.sessionId,
-        payload: {
-          toolCallId: event.toolCallId,
-          stageId: details.stageId,
-          update: details.update,
-          runtime
-        }
       });
     } else if (isSubagentAuthoringToolDetails(details)) {
       events.push({

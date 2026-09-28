@@ -1,5 +1,4 @@
 import { handleBookTemplateCommands } from "./book-template-commands";
-import { handleChatAssistantConfigCommands } from "./chat-assistant-config-commands";
 import { handleConversationExportCommands } from "./conversation-export-commands";
 import {
   SystemHealthPayloadSchema,
@@ -44,7 +43,6 @@ export async function dispatchCommand(
     (await handleBookTemplateCommands(ctx, command)) ??
     (await handleManuscriptCommands(ctx, command)) ??
     (await handleSettingsCommands(ctx, command)) ??
-    (await handleChatAssistantConfigCommands(ctx, command)) ??
     (await handleLongCommands(ctx, command)) ??
     (await handleCatalogCommands(ctx, command)) ??
     (await handleRendererStateCommands(ctx, command)) ??

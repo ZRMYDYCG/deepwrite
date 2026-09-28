@@ -16,6 +16,7 @@ export type {
   AgentRuntime,
   PiRuntimeAdapterOptions
 } from "./runtime-types";
+export type { ExtrasAgentRunInput } from "./extras/run-plan";
 export { interceptToolCallStream } from "./tool-stream";
 export { PiAgentRuntimeAdapter } from "./adapter";
 export { createOpenCodeRequestHeaders } from "./opencode-request-headers";

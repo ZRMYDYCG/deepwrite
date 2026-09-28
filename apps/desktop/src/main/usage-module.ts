@@ -2,10 +2,10 @@ import type {
   SessionPromptCommandPayload,
   ModelUsageModule
 } from "@deepwrite/contracts";
+/** Usage module of a `session.prompt` run; extras runs map by agent id. */
 export function usageModuleForPrompt(
   payload: SessionPromptCommandPayload
 ): ModelUsageModule {
-  if (payload.mode === "chat-assistant") return "assistant-chat";
   const context = payload.workspaceContext;
   if (!context) return "unknown";
   if (context.shortWorkspace) return "short-writing";
@@ -16,10 +16,6 @@ export function usageModuleForPrompt(
       ? "skill-library"
       : "material-library";
   }
-  if (context.learningImitation) return "learning-imitation";
-  if (context.longBookAnalysis) return "long-book-analysis";
-  if (context.revisionAnalysis) return "revision-analysis";
-  if (context.shortBookAnalysis) return "short-book-analysis";
   if (context.subagentAuthoring) return "subagent-authoring";
   return "unknown";
 }

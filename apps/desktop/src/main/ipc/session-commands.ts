@@ -1,5 +1,3 @@
-import { assertRevisionAnalysisBudget } from "@deepwrite/contracts";
-import { resolveShortAnalysisProfile } from "../extras/short-book-analysis/run-profile";
 import { acquireConversationOperation } from "./conversation-operation-guard";
 import { resolveAgentTeamRuntime } from "../agent-team-run-mode";
 import { prepareLibraryManagementRunContext } from "../library-management-run-context";
@@ -14,14 +12,30 @@ import {
   type CommandEnvelope,
   type CommandResult
 } from "@deepwrite/contracts";
-import { resolveChatAssistantRuntimeContext } from "../chat-assistant-runtime-context";
+import {
+  resolveContextCompactionRun,
+  withCompactionUsageConfig
+} from "../context-compaction-run";
 import { resolveModelRunSettings } from "../model-run-settings";
 import { createUsageRunContext } from "../usage-observation";
+import { usageModuleForPrompt } from "../usage-module";
 import { safeErrorDetails } from "./errors";
 import type { IpcCommandContext } from "./command-types";
 
 export async function handleSessionCommands(
-  ctx: IpcCommandContext,
+  ctx: Pick<
+    IpcCommandContext,
+    | "activeRuns"
+    | "supervisor"
+    | "pendingUsageContexts"
+    | "terminalRuns"
+    | "requireModelConfigStore"
+    | "requireWorkspaceAgentConfigStore"
+    | "requireLongAgentConfigStore"
+    | "requireAgentTeamConfigStore"
+    | "requireLibraryAgentConfigStore"
+    | "requireGeneralSettingsStore"
+  >,
   command: CommandEnvelope
 ): Promise<CommandResult | undefined> {
   if (command.type === "session.user_input_response") {
@@ -147,29 +161,11 @@ export async function handleSessionCommands(
           );
         }
       }
-      const chatAssistantRuntimeContext =
-        command.payload.mode === "chat-assistant"
-          ? await resolveChatAssistantRuntimeContext(
-              ctx.supervisor,
-              command.payload,
-              {
-                requireModelConfigStore: ctx.requireModelConfigStore,
-                requireModelUsageStore: ctx.requireModelUsageStore,
-                requireChatAssistantProjectConfigStore:
-                  ctx.requireChatAssistantProjectConfigStore,
-                getAppVersion: ctx.getAppVersion
-              }
-            )
-          : undefined;
       const shortWorkspace = command.payload.workspaceContext?.shortWorkspace;
       const scriptWorkspace = command.payload.workspaceContext?.scriptWorkspace;
       const longWorkspace = command.payload.workspaceContext?.longWorkspace;
       const libraryWorkspace =
         command.payload.workspaceContext?.libraryWorkspace;
-      const learningImitation =
-        command.payload.workspaceContext?.learningImitation;
-      const longBookAnalysis =
-        command.payload.workspaceContext?.longBookAnalysis;
       const creativeWorkspace = shortWorkspace ?? scriptWorkspace;
       const creativeWorkspaceType = scriptWorkspace ? "script" : "short";
       const agentProfile = creativeWorkspace
@@ -207,29 +203,6 @@ export async function handleSessionCommands(
             .requireLibraryAgentConfigStore()
             .resolve(libraryWorkspace.domain)
         : undefined;
-      const learningImitationProfile = learningImitation
-        ? await ctx
-            .requireLearningImitationConfigStore()
-            .resolve(learningImitation.stageId)
-        : undefined;
-      if (command.payload.workspaceContext?.revisionAnalysis && runtimeConfig)
-        assertRevisionAnalysisBudget(
-          command.payload.workspaceContext.revisionAnalysis,
-          runtimeConfig
-        );
-      const shortBookAnalysisProfile = command.payload.workspaceContext
-        ?.shortBookAnalysis
-        ? await resolveShortAnalysisProfile(
-            command.payload.workspaceContext.shortBookAnalysis,
-            ctx.requireShortBookAnalysisConfigStore(),
-            runtimeConfig
-          )
-        : undefined;
-      const longBookAnalysisProfile = longBookAnalysis
-        ? await ctx
-            .requireLongBookAnalysisConfigStore()
-            .resolve(longBookAnalysis.presetId)
-        : undefined;
       const { thinkingLevel, temperature } = resolveModelRunSettings(
         runtimeConfig,
         {
@@ -243,10 +216,15 @@ export async function handleSessionCommands(
         temperature: _requestedTemperature,
         ...promptPayload
       } = command.payload;
+      const compaction = await resolveContextCompactionRun(
+        async () => (await ctx.requireGeneralSettingsStore().list()).settings,
+        (modelId) => ctx.requireModelConfigStore().resolve(modelId),
+        runtimeConfig?.id
+      );
       const usageContext = createUsageRunContext(
-        command.payload,
+        usageModuleForPrompt(command.payload),
         runtimeConfig,
-        subagentRuntimeConfigs
+        withCompactionUsageConfig(subagentRuntimeConfigs, compaction)
       );
       ctx.pendingUsageContexts.set(command.context.correlationId, usageContext);
       const libraryManagement = await prepareLibraryManagementRunContext(
@@ -276,9 +254,7 @@ export async function handleSessionCommands(
             ...(thinkingLevel ? { thinkingLevel } : {}),
             ...(temperature !== undefined ? { temperature } : {}),
             ...(runtimeConfig ? { runtimeConfig } : {}),
-            ...(chatAssistantRuntimeContext
-              ? { chatAssistantRuntimeContext }
-              : {}),
+            ...compaction,
             ...(agentProfile
               ? scriptWorkspace
                 ? { scriptAgentProfile: agentProfile }
@@ -289,10 +265,7 @@ export async function handleSessionCommands(
             ...(Object.keys(subagentRuntimeConfigs).length > 0
               ? { subagentRuntimeConfigs }
               : {}),
-            ...(libraryAgentProfile ? { libraryAgentProfile } : {}),
-            ...(learningImitationProfile ? { learningImitationProfile } : {}),
-            ...(shortBookAnalysisProfile ? { shortBookAnalysisProfile } : {}),
-            ...(longBookAnalysisProfile ? { longBookAnalysisProfile } : {})
+            ...(libraryAgentProfile ? { libraryAgentProfile } : {})
           },
           { id: command.id, context: command.context }
         )
@@ -347,14 +320,7 @@ export async function handleSessionCommands(
                 }
               : {}),
             usageContext,
-            ...(longWorkspace
-              ? { resourceId: longWorkspace.bookId }
-              : chatAssistantRuntimeContext?.mode === "project" &&
-                  chatAssistantRuntimeContext.project.projectType === "long"
-                ? {
-                    resourceId: chatAssistantRuntimeContext.project.projectId
-                  }
-                : {})
+            ...(longWorkspace ? { resourceId: longWorkspace.bookId } : {})
           });
         }
         ctx.pendingUsageContexts.delete(command.context.correlationId);

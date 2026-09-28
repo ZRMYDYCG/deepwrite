@@ -6,35 +6,89 @@ import {
   PREVIOUS_DEFAULT_STYLE_COMPARISON_METHOD
 } from "./method";
 import { uiMessage } from "../../ui-feedback";
+import { createPromptProfile } from "../agent-runtime/promptProfile";
 import { createStyleComparisonController } from "./controller";
 
-const METHOD_KEY = "deepwrite.style-comparison.method.v1";
+/** Where the method lived before the unified extras agent settings. */
+const LEGACY_METHOD_KEY = "deepwrite.style-comparison.method.v1";
+const AUTO_SAVE_DELAY_MS = 800;
+
+function runtimeApi() {
+  return globalThis.window?.deepwrite;
+}
+
+function api() {
+  const current = runtimeApi();
+  if (!current) throw new Error("当前环境无法调用智能体。");
+  return current;
+}
+
+function takeLegacyMethod(): string | null {
+  try {
+    const saved = localStorage.getItem(LEGACY_METHOD_KEY);
+    localStorage.removeItem(LEGACY_METHOD_KEY);
+    return saved;
+  } catch {
+    return null;
+  }
+}
 
 export const useStyleComparisonStore = defineStore("style-comparison", () => {
+  const method = createPromptProfile(api, "style-comparison");
   const controller = createStyleComparisonController({
-    api: () => window.deepwrite,
+    api: runtimeApi,
+    method,
     notifyError: (message) => uiMessage.error(message)
   });
-  try {
-    const saved = localStorage.getItem(METHOD_KEY);
-    if (
-      saved === null ||
-      saved.trim() === PREVIOUS_DEFAULT_STYLE_COMPARISON_METHOD
-    ) {
-      localStorage.setItem(METHOD_KEY, DEFAULT_STYLE_COMPARISON_METHOD);
-    } else if (saved.length <= STYLE_COMPARISON_METHOD_LIMIT) {
-      controller.method.value = saved;
-    }
-  } catch {
-    controller.method.value = DEFAULT_STYLE_COMPARISON_METHOD;
-  }
-  watch(controller.method, (method) => {
+  let autoSave: ReturnType<typeof setTimeout> | undefined;
+  let ready = false;
+
+  async function saveMethod(): Promise<void> {
     try {
-      localStorage.setItem(METHOD_KEY, method);
-    } catch {
-      /* In-memory editing remains available. */
+      if (method.dirty.value) await method.save();
+    } catch (error) {
+      uiMessage.error(
+        error instanceof Error ? error.message : "比对方法保存失败。"
+      );
     }
+  }
+
+  async function initialize(): Promise<void> {
+    if (!runtimeApi()) return;
+    try {
+      await method.load();
+    } catch (error) {
+      uiMessage.error(
+        error instanceof Error ? error.message : "比对方法加载失败。"
+      );
+      return;
+    }
+    const legacy = takeLegacyMethod();
+    // A customized localStorage method is imported once, unless the saved
+    // profile was already customized.
+    if (
+      legacy !== null &&
+      legacy.length <= STYLE_COMPARISON_METHOD_LIMIT &&
+      legacy.trim() !== PREVIOUS_DEFAULT_STYLE_COMPARISON_METHOD &&
+      legacy.trim() !== DEFAULT_STYLE_COMPARISON_METHOD &&
+      method.profile.value?.systemPrompt === DEFAULT_STYLE_COMPARISON_METHOD
+    ) {
+      method.systemPrompt.value = legacy;
+      await saveMethod();
+    }
+    ready = true;
+  }
+
+  watch(method.systemPrompt, () => {
+    if (!ready || !method.dirty.value) return;
+    clearTimeout(autoSave);
+    autoSave = setTimeout(() => void saveMethod(), AUTO_SAVE_DELAY_MS);
   });
-  onScopeDispose(controller.dispose);
+  void initialize();
+  onScopeDispose(() => {
+    clearTimeout(autoSave);
+    if (ready) void saveMethod();
+    controller.dispose();
+  });
   return controller;
 });

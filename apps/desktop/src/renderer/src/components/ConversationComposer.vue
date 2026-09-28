@@ -25,6 +25,7 @@ import { useConversationComposer } from "../composables/useConversationComposer"
 import { useSettingsStore } from "../stores/settingsStore";
 import AppIcon from "./AppIcon.vue";
 import AgentTeamModeSelect from "./AgentTeamModeSelect.vue";
+import ContextCompactionButton from "./ContextCompactionButton.vue";
 import ContextWindowIndicator from "./ContextWindowIndicator.vue";
 import ConversationModelConfigSelect from "./ConversationModelConfigSelect.vue";
 import PopupSelect from "./PopupSelect.vue";
@@ -378,6 +379,11 @@ defineExpose({ focusInput });
                   v-if="settingsStore.generalSettings.showContextUsage"
                   :messages="messages"
                   :model="selectedModel"
+                />
+                <ContextCompactionButton
+                  v-if="!messagesEmpty"
+                  :session-id="currentSessionId"
+                  :disabled="responding"
                 />
                 <AgentTeamModeSelect
                   v-if="agentWorkspaceType && agentId"

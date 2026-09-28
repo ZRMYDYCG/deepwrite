@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import type { ModelConfig, SystemEventEnvelope } from "@deepwrite/contracts";
-import type { LearningImitationController } from "./useLearningImitation";
+import type { LongBookAnalysisController } from "../extras/long-book-analysis/useLongBookAnalysis";
 import type { SubagentAuthoringController } from "./useSubagentAuthoring";
 import {
-  useLazyLearningImitationController,
+  useLazyLongBookAnalysisController,
   useLazySubagentAuthoringController
 } from "./useLazyFeatureControllers";
 
@@ -21,17 +21,17 @@ function deferred<T>(): {
   return { promise, resolve, reject };
 }
 
-function learningModule(controller: LearningImitationController) {
+function analysisModule(controller: LongBookAnalysisController) {
   return {
-    useLearningImitation: vi.fn(() => controller)
+    useLongBookAnalysis: vi.fn(() => controller)
   };
 }
 
-function learningController(): LearningImitationController {
+function analysisController(): LongBookAnalysisController {
   return {
     setConfiguredModels: vi.fn(),
     dispose: vi.fn()
-  } as unknown as LearningImitationController;
+  } as unknown as LongBookAnalysisController;
 }
 
 function authoringModule(controller: SubagentAuthoringController) {
@@ -49,32 +49,38 @@ function authoringController(): SubagentAuthoringController {
 describe("lazy feature controllers", () => {
   it("does not create feature state before the feature is requested", () => {
     const api = () => undefined;
-    const learning = useLazyLearningImitationController({ api });
+    const analysis = useLazyLongBookAnalysisController({ api });
     const authoring = useLazySubagentAuthoringController({ api });
 
-    expect(learning.controller.value).toBeNull();
-    expect(learning.isBusy.value).toBe(false);
+    expect(analysis.controller.value).toBeNull();
+    expect(analysis.isBusy.value).toBe(false);
     expect(authoring.controller.value).toBeNull();
   });
 
-  it("coalesces concurrent learning-controller imports and applies cached models", async () => {
-    const learning = useLazyLearningImitationController({
-      api: () => undefined
+  it("coalesces concurrent analysis-controller imports and applies cached models", async () => {
+    const loaded = analysisController();
+    const loadModule = vi.fn(async () => analysisModule(loaded));
+    const analysis = useLazyLongBookAnalysisController({
+      api: () => undefined,
+      loadModule
     });
-    learning.setConfiguredModels(
-      [{ id: "model-placeholder" } as ModelConfig],
-      "model-placeholder"
-    );
+    const models = [{ id: "model-placeholder" } as ModelConfig];
+    analysis.setConfiguredModels(models, "model-placeholder");
 
     const [first, second] = await Promise.all([
-      learning.ensureLoaded(),
-      learning.ensureLoaded()
+      analysis.ensureLoaded(),
+      analysis.ensureLoaded()
     ]);
     expect(first).toBe(second);
-    expect(learning.controller.value).toBe(first);
-    expect(first.selectedModelId.value).toBe("model-placeholder");
-    learning.dispose();
-    expect(learning.controller.value).toBeNull();
+    expect(loadModule).toHaveBeenCalledOnce();
+    expect(analysis.controller.value).toBe(first);
+    expect(loaded.setConfiguredModels).toHaveBeenCalledWith(
+      models,
+      "model-placeholder"
+    );
+    analysis.dispose();
+    expect(loaded.dispose).toHaveBeenCalledOnce();
+    expect(analysis.controller.value).toBeNull();
   });
 
   it("forwards events only after authoring has been initialized", async () => {
@@ -92,32 +98,32 @@ describe("lazy feature controllers", () => {
     expect(handleEvent).toHaveBeenCalledWith(event);
   });
 
-  it("disposes a late learning controller and can reactivate with a new generation", async () => {
-    const firstImport = deferred<ReturnType<typeof learningModule>>();
-    const lateController = learningController();
-    const reactivatedController = learningController();
+  it("disposes a late analysis controller and can reactivate with a new generation", async () => {
+    const firstImport = deferred<ReturnType<typeof analysisModule>>();
+    const lateController = analysisController();
+    const reactivatedController = analysisController();
     let loadAttempt = 0;
-    const learning = useLazyLearningImitationController({
+    const analysis = useLazyLongBookAnalysisController({
       api: () => undefined,
       loadModule: async () => {
         loadAttempt += 1;
         if (loadAttempt === 1) return await firstImport.promise;
-        return learningModule(reactivatedController);
+        return analysisModule(reactivatedController);
       }
     });
 
-    const staleLoad = learning.ensureLoaded();
+    const staleLoad = analysis.ensureLoaded();
     const staleRejection = expect(staleLoad).rejects.toThrow(
-      "Learning imitation controller load was cancelled."
+      "Long book analysis controller load was cancelled."
     );
-    learning.dispose();
-    const reactivatedLoad = learning.ensureLoaded();
-    firstImport.resolve(learningModule(lateController));
+    analysis.dispose();
+    const reactivatedLoad = analysis.ensureLoaded();
+    firstImport.resolve(analysisModule(lateController));
 
     await staleRejection;
     await expect(reactivatedLoad).resolves.toBe(reactivatedController);
     expect(lateController.dispose).toHaveBeenCalledOnce();
-    expect(learning.controller.value).toBe(reactivatedController);
+    expect(analysis.controller.value).toBe(reactivatedController);
   });
 
   it("does not publish a late authoring controller after disposal", async () => {
@@ -147,38 +153,38 @@ describe("lazy feature controllers", () => {
     expect(authoring.controller.value).toBe(reactivatedController);
   });
 
-  it("retries learning and authoring module imports after a failure", async () => {
-    const learningLoaded = learningController();
+  it("retries analysis and authoring module imports after a failure", async () => {
+    const analysisLoaded = analysisController();
     const authoringLoaded = authoringController();
-    const learningLoadModule = vi
+    const analysisLoadModule = vi
       .fn()
-      .mockRejectedValueOnce(new Error("learning import failed"))
-      .mockResolvedValueOnce(learningModule(learningLoaded));
+      .mockRejectedValueOnce(new Error("analysis import failed"))
+      .mockResolvedValueOnce(analysisModule(analysisLoaded));
     const authoringLoadModule = vi
       .fn()
       .mockRejectedValueOnce(new Error("authoring import failed"))
       .mockResolvedValueOnce(authoringModule(authoringLoaded));
-    const learning = useLazyLearningImitationController({
+    const analysis = useLazyLongBookAnalysisController({
       api: () => undefined,
-      loadModule: learningLoadModule
+      loadModule: analysisLoadModule
     });
     const authoring = useLazySubagentAuthoringController({
       api: () => undefined,
       loadModule: authoringLoadModule
     });
 
-    await expect(learning.ensureLoaded()).rejects.toThrow(
-      "learning import failed"
+    await expect(analysis.ensureLoaded()).rejects.toThrow(
+      "analysis import failed"
     );
     await expect(authoring.ensureLoaded()).rejects.toThrow(
       "authoring import failed"
     );
-    expect(learning.controller.value).toBeNull();
+    expect(analysis.controller.value).toBeNull();
     expect(authoring.controller.value).toBeNull();
 
-    await expect(learning.ensureLoaded()).resolves.toBe(learningLoaded);
+    await expect(analysis.ensureLoaded()).resolves.toBe(analysisLoaded);
     await expect(authoring.ensureLoaded()).resolves.toBe(authoringLoaded);
-    expect(learningLoadModule).toHaveBeenCalledTimes(2);
+    expect(analysisLoadModule).toHaveBeenCalledTimes(2);
     expect(authoringLoadModule).toHaveBeenCalledTimes(2);
   });
 });

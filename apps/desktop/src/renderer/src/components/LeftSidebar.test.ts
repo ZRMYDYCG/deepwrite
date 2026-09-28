@@ -43,8 +43,8 @@ describe("LeftSidebar account controls", () => {
     expectSourceToContain(source, "{{ displayedUserName }}");
   });
 
-  it("shows a background-running marker for learning imitation", () => {
-    expect(source).toContain("imitationRunning");
+  it("shows a background-running marker for running analyses", () => {
+    expect(source).toContain("revisionAnalysisRunning");
     expect(source).toContain("nav-background-status");
     expect(source).toContain("后台中");
   });
@@ -66,22 +66,14 @@ describe("LeftSidebar account controls", () => {
     expect(source).toContain("'page'");
   });
 
-  it("moves learning imitation into more features and keeps its state feedback", () => {
-    const primaryFeatures = sidebarSource.slice(
-      sidebarSource.indexOf("const navItems"),
-      sidebarSource.indexOf("function activateMoreFeature")
-    );
-    const moreFeatures = moreFeaturesSource;
-
-    expect(primaryFeatures).not.toContain('label: "短篇学习仿写"');
-    expectSourceToContain(
-      moreFeatures,
-      '{ id: "imitation", label: "短篇学习仿写"'
-    );
-    expect(source).toContain('emit("openDialog", "imitation")');
+  it("no longer offers the retired learning-imitation feature", () => {
+    expect(moreFeaturesSource).not.toContain("短篇学习仿写");
+    expect(moreFeaturesSource).not.toContain('"imitation"');
+    expect(source).not.toContain("imitation");
     expect(source).toContain("feature.id === props.activePrimaryFeature");
-    expect(source).toContain(
-      "feature.id === 'imitation' && props.imitationRunning"
+    expectSourceToContain(
+      source,
+      "feature.id === 'long-book-analysis' && props.longBookAnalysisRunning"
     );
   });
 

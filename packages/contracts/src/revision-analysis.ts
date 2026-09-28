@@ -6,9 +6,6 @@ const text = z
   .string()
   .max(REVISION_TEXT_LIMIT)
   .refine((v) => Boolean(v.trim()), "请粘贴正文。");
-export const RevisionAnalysisSettingsSchema = z.object({
-  systemPrompt: z.string().trim().min(1).max(REVISION_METHOD_LIMIT)
-});
 export const RevisionChangeSchema = z.object({
   id: z.string().min(1).max(120),
   before: z.string().max(REVISION_TEXT_LIMIT),
@@ -23,8 +20,7 @@ export const RevisionAnalysisInputSchema = z
     beforeText: text,
     afterText: text,
     changes: z.array(RevisionChangeSchema).min(1).max(100_000),
-    overallReason: z.string().max(REVISION_REASON_LIMIT),
-    systemPrompt: RevisionAnalysisSettingsSchema.shape.systemPrompt
+    overallReason: z.string().max(REVISION_REASON_LIMIT)
   })
   .superRefine((v, ctx) => {
     if (new Set(v.changes.map((c) => c.id)).size !== v.changes.length)
@@ -62,11 +58,3 @@ export type RevisionAnalysisRuntimeContext = z.infer<
 export type RevisionAnalysisResult = z.infer<
   typeof RevisionAnalysisResultSchema
 >;
-export type RevisionAnalysisSettings = z.infer<
-  typeof RevisionAnalysisSettingsSchema
->;
-export interface RevisionAnalysisApi {
-  list(): Promise<RevisionAnalysisSettings>;
-  save(input: RevisionAnalysisSettings): Promise<RevisionAnalysisSettings>;
-  reset(): Promise<RevisionAnalysisSettings>;
-}

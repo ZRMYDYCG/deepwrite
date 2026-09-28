@@ -19,9 +19,6 @@ export const AuthorSupportDialog = lazyFeature((features) =>
 export const AgentTeamSettingsPanel = lazyFeature((features) =>
   features.loadAgentTeamSettingsPanel()
 );
-export const LearningImitationDialog = lazyFeature((features) =>
-  features.loadLearningImitationDialog()
-);
 export const ShortBookAnalysisPage = lazyFeature((features) =>
   features.loadShortBookAnalysisPage()
 );

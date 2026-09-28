@@ -104,6 +104,8 @@ export interface BuildLongWorkspaceToolsInput {
   requestUserInput?: AgentUserInputRequester;
   includeAskUserQuestion?: boolean;
   sharedState?: LongWorkspaceToolSharedState;
+  /** Called with a reset hook for when compaction drops earlier reads. */
+  onContextCompacted?: (listener: () => void) => void;
 }
 
 /**

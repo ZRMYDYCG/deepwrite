@@ -53,6 +53,18 @@ export function latestModelContextTokens(
       continue;
     }
 
+    const compaction = [...(message.contextCompactions ?? [])]
+      .reverse()
+      .find(
+        (item) => item.status === "completed" && item.tokensAfter !== undefined
+      );
+    if (
+      compaction &&
+      (message.status === "streaming" ||
+        compaction.reason === "idle" ||
+        !message.usage)
+    )
+      return compaction.tokensAfter;
     const usedTokens = contextTokensFromUsage(message.usage);
     if (usedTokens !== undefined) return usedTokens;
 

@@ -1,7 +1,7 @@
 import { analysisResultEntry } from "../long-book-analysis/analysis-result-content";
 import { computed, ref, shallowRef, watch } from "vue";
 import {
-  ShortBookAnalysisSettingsInputSchema,
+  ExtrasAgentSettingsInputSchema,
   type DeepWriteApi,
   type ModelConfig,
   type ShortBookAnalysisPreset,
@@ -70,9 +70,11 @@ export function useShortBookAnalysis(options: {
     if (!disposed) savedSources.value = catalog.sources;
   }
   async function loadPresets() {
-    const settings = await api().shortBookAnalysis.presets.list();
+    const settings = await api().extrasAgents.profiles.list(
+      "short-book-analysis"
+    );
     if (disposed) return;
-    presets.value = settings.presets;
+    presets.value = settings.profiles;
     if (!presets.value.some((p) => p.id === selectedPresetId.value))
       selectedPresetId.value = presets.value[0]?.id ?? "";
   }
@@ -200,19 +202,24 @@ export function useShortBookAnalysis(options: {
     },
     async savePresets(next: readonly ShortBookAnalysisPreset[]) {
       editable();
-      const input = ShortBookAnalysisSettingsInputSchema.parse({
-        presets: next
+      const input = ExtrasAgentSettingsInputSchema.parse({
+        agentId: "short-book-analysis",
+        profiles: next.map(({ builtin, ...preset }) => {
+          void builtin;
+          return preset;
+        })
       });
+      if (input.agentId !== "short-book-analysis") return;
       run.clear();
-      presets.value = (
-        await api().shortBookAnalysis.presets.save(input)
-      ).presets;
+      presets.value = (await api().extrasAgents.profiles.save(input)).profiles;
       await loadPresets();
     },
     async resetPresets(id?: string) {
       editable();
       run.clear();
-      presets.value = (await api().shortBookAnalysis.presets.reset(id)).presets;
+      presets.value = (
+        await api().extrasAgents.profiles.reset("short-book-analysis", id)
+      ).profiles;
       await loadPresets();
     },
     start() {

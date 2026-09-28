@@ -5,9 +5,6 @@ import {
   ExportShortManuscriptResultSchema,
   GeneralSettingsSchema,
   GeneralSettingsSnapshotSchema,
-  LearningImitationSettingsInputSchema,
-  LearningImitationSettingsSchema,
-  LearningImitationStageIdSchema,
   LibraryAgentDomainSchema,
   LibraryAgentSettingsInputSchema,
   LibraryAgentSettingsSchema,
@@ -27,9 +24,6 @@ import {
   type ExportShortManuscriptResult,
   type GeneralSettings,
   type GeneralSettingsSnapshot,
-  type LearningImitationSettings,
-  type LearningImitationSettingsInput,
-  type LearningImitationStageId,
   type LibraryAgentDomain,
   type LibraryAgentSettings,
   type LibraryAgentSettingsInput,
@@ -190,52 +184,6 @@ export async function resetLibraryAgents(
       createEnvelope(
         "libraryAgents.reset",
         { ...(domain ? { domain } : {}) },
-        { id, correlationId: id }
-      )
-    )
-  );
-}
-
-export async function listLearningImitationSettings(): Promise<LearningImitationSettings> {
-  const id = browserId("cmd_learning_imitation_settings_list");
-  return LearningImitationSettingsSchema.parse(
-    await invokeCommand<LearningImitationSettings>(
-      createEnvelope(
-        "learningImitationSettings.list",
-        {},
-        { id, correlationId: id }
-      )
-    )
-  );
-}
-
-export async function saveLearningImitationSettings(
-  rawSettings: LearningImitationSettingsInput
-): Promise<LearningImitationSettings> {
-  const settings = LearningImitationSettingsInputSchema.parse(rawSettings);
-  const id = browserId("cmd_learning_imitation_settings_save");
-  return LearningImitationSettingsSchema.parse(
-    await invokeCommand<LearningImitationSettings>(
-      createEnvelope("learningImitationSettings.save", settings, {
-        id,
-        correlationId: id
-      })
-    )
-  );
-}
-
-export async function resetLearningImitationSettings(
-  rawStageId?: LearningImitationStageId
-): Promise<LearningImitationSettings> {
-  const stageId = rawStageId
-    ? LearningImitationStageIdSchema.parse(rawStageId)
-    : undefined;
-  const id = browserId("cmd_learning_imitation_settings_reset");
-  return LearningImitationSettingsSchema.parse(
-    await invokeCommand<LearningImitationSettings>(
-      createEnvelope(
-        "learningImitationSettings.reset",
-        { ...(stageId ? { stageId } : {}) },
         { id, correlationId: id }
       )
     )

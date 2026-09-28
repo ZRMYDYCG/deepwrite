@@ -1,20 +1,36 @@
 import { computed, ref } from "vue";
 import { createId } from "@deepwrite/shared";
 import {
-  assertRevisionAnalysisBudget,
   RevisionAnalysisRuntimeContextSchema,
+  assertExtrasAgentBudget,
   type DeepWriteApi,
   type ModelConfig,
-  type RevisionAnalysisResult,
   type RevisionAnalysisInput,
+  type RevisionAnalysisProfile,
+  type RevisionAnalysisResult,
   type SystemEventEnvelope,
   type ThinkingLevel
 } from "@deepwrite/contracts/renderer";
+import {
+  startExtrasAgentTask,
+  type ExtrasAgentTaskHandle
+} from "../agent-runtime/extrasAgentTask";
+
 interface Job {
-  context: ReturnType<typeof RevisionAnalysisRuntimeContextSchema.parse>;
+  input: ReturnType<typeof RevisionAnalysisRuntimeContextSchema.parse>;
+  profile: RevisionAnalysisProfile;
   model: ModelConfig;
   thinkingLevel: ThinkingLevel;
 }
+
+/** Identifies the input and method a result was produced from. */
+export function revisionAnalysisInputKey(
+  input: RevisionAnalysisInput,
+  systemPrompt: string
+): string {
+  return JSON.stringify({ ...input, systemPrompt });
+}
+
 export function createRevisionAnalysisRun(api: () => DeepWriteApi) {
   const status = ref<
     "idle" | "running" | "stopping" | "stopped" | "error" | "completed"
@@ -28,17 +44,12 @@ export function createRevisionAnalysisRun(api: () => DeepWriteApi) {
   const isBusy = computed(
     () => status.value === "running" || status.value === "stopping"
   );
-  let job: Job | null = null;
-  let pending: {
-    sessionId: string;
-    runId?: string;
-    result?: RevisionAnalysisResult;
-  } | null = null;
-  let disposed = false;
-  const stopping = () => status.value === "stopping";
   const canRetry = computed(
     () => status.value === "stopped" || status.value === "error"
   );
+  let job: Job | null = null;
+  let task: ExtrasAgentTaskHandle | null = null;
+  let disposed = false;
   function log(message: string) {
     activity.value = message;
     entries.value.push(message);
@@ -57,76 +68,93 @@ export function createRevisionAnalysisRun(api: () => DeepWriteApi) {
     status.value = "error";
     error.value = cause instanceof Error ? cause.message : "修改分析失败。";
     log(error.value);
-    pending = null;
   }
-  async function execute() {
+  function execute() {
     if (!job || disposed) return;
     const current = job;
-    assertRevisionAnalysisBudget(current.context, current.model);
+    assertExtrasAgentBudget(
+      {
+        agentId: "revision-analysis",
+        profile: current.profile,
+        input: current.input
+      },
+      current.model
+    );
     status.value = "running";
     error.value = null;
     liveOutput.value = "";
     entries.value = [];
-    log(`正在学习 ${current.context.changes.length} 组修改`);
-    const unit: {
-      sessionId: string;
-      runId?: string;
-      result?: RevisionAnalysisResult;
-    } = { sessionId: createId("revision_analysis_session") };
-    pending = unit;
-    try {
-      const accepted = await api().session.prompt({
-        sessionId: unit.sessionId,
-        message: "学习完整前后正文与差异，同时生成分析报告及可复用技能。",
+    log(`正在学习 ${current.input.changes.length} 组修改`);
+    let draft: RevisionAnalysisResult | undefined;
+    const running = startExtrasAgentTask(
+      api(),
+      {
         modelId: current.model.id,
         thinkingLevel: current.thinkingLevel,
-        writeApprovalMode: "request-approval",
-        workspaceContext: { revisionAnalysis: current.context }
-      });
-      if (pending !== unit) {
-        if (disposed)
-          await api().session.abort({
-            sessionId: unit.sessionId,
-            runId: accepted.runId
-          });
-        return;
+        task: {
+          agentId: "revision-analysis",
+          profileId: current.profile.id,
+          input: current.input
+        }
+      },
+      {
+        onDelta(delta) {
+          liveOutput.value = (liveOutput.value + delta).slice(-200000);
+        },
+        onThinking() {
+          activity.value = "模型正在思考";
+        },
+        onToolRequested() {
+          log("正在新建技能草稿");
+        },
+        onOutput(output) {
+          if (output.kind !== "revision-analysis-result") return;
+          draft = {
+            ...output.result,
+            report: output.result.report || liveOutput.value.trim()
+          };
+        }
       }
-      unit.runId = accepted.runId;
-      if (stopping()) await abortPending();
-    } catch (cause) {
-      if (pending === unit && !disposed) {
-        if (stopping()) {
-          pending = null;
+    );
+    task = running;
+    void running.outcome.then(
+      (outcome) => {
+        if (task !== running) return;
+        task = null;
+        if (outcome.status === "stopped") {
           status.value = "stopped";
           log("已停止，可重新分析");
-        } else fail(cause);
+          return;
+        }
+        if (!draft) {
+          fail(new Error("模型未调用工具新建技能草稿，请重试上次任务。"));
+          return;
+        }
+        result.value = {
+          ...draft,
+          report:
+            draft.report ||
+            (outcome.content || liveOutput.value).trim().slice(0, 200000)
+        };
+        const { jobId, ...input } = current.input;
+        void jobId;
+        completedInput.value = revisionAnalysisInputKey(
+          input,
+          current.profile.systemPrompt
+        );
+        status.value = "completed";
+        log("分析完成，结果可编辑并保存");
+      },
+      (cause: unknown) => {
+        if (task !== running) return;
+        task = null;
+        fail(cause);
       }
-    }
-  }
-  async function abortPending() {
-    const unit = pending;
-    if (!unit?.runId) return;
-    try {
-      await api().session.abort({
-        sessionId: unit.sessionId,
-        runId: unit.runId
-      });
-      if (pending === unit) {
-        pending = null;
-        status.value = "stopped";
-        log("已停止，可重新分析");
-      }
-    } catch (cause) {
-      if (pending === unit) {
-        status.value = "running";
-        error.value =
-          cause instanceof Error ? cause.message : "停止失败，请重试。";
-        log(error.value);
-      }
-    }
+    );
   }
   function start(
     input: RevisionAnalysisInput,
+    profile: RevisionAnalysisProfile,
     model: ModelConfig,
     thinkingLevel: ThinkingLevel
   ) {
@@ -140,78 +168,14 @@ export function createRevisionAnalysisRun(api: () => DeepWriteApi) {
       ...input,
       jobId: createId("revision_analysis_job")
     });
-    assertRevisionAnalysisBudget(context, model);
-    job = JSON.parse(JSON.stringify({ context, model, thinkingLevel })) as Job;
-    void execute();
-  }
-  function handleEvent(event: SystemEventEnvelope) {
-    const unit = pending;
-    if (!unit || disposed) return;
-    if (
-      (event.type === "system.worker_restarting" ||
-        event.type === "system.worker_restarted") &&
-      event.payload.worker === "agent"
-    ) {
-      fail(new Error("分析进程已重启，请重新分析。"));
-      return;
-    }
-    if (
-      !("sessionId" in event.payload) ||
-      event.payload.sessionId !== unit.sessionId
-    )
-      return;
-    if ("runId" in event.payload) {
-      if (unit.runId && event.payload.runId !== unit.runId) return;
-      unit.runId = event.payload.runId;
-    }
-    if (stopping()) {
-      if (
-        event.type === "agent.message_completed" ||
-        event.type === "agent.error"
-      ) {
-        pending = null;
-        status.value = "stopped";
-        log("已停止，可重新分析");
-      }
-      return;
-    }
-    if (event.type === "agent.message_delta")
-      liveOutput.value = (liveOutput.value + event.payload.delta).slice(
-        -200000
-      );
-    else if (event.type === "agent.thinking_delta")
-      activity.value = "模型正在思考";
-    else if (event.type === "tool.call_requested") log("正在新建技能草稿");
-    else if (
-      event.type === "revision_analysis.result_updated" &&
-      event.payload.jobId === job?.context.jobId
-    )
-      unit.result = {
-        ...event.payload.result,
-        report: event.payload.result.report || liveOutput.value.trim()
-      };
-    else if (event.type === "agent.error")
-      fail(new Error(event.payload.message));
-    else if (event.type === "agent.message_completed") {
-      if (!unit.result) {
-        fail(new Error("模型未调用工具新建技能草稿，请重试上次任务。"));
-        return;
-      }
-      result.value = {
-        ...unit.result,
-        report:
-          unit.result.report ||
-          (event.payload.content || liveOutput.value).trim().slice(0, 200000)
-      };
-      if (job) {
-        const { jobId, ...input } = job.context;
-        void jobId;
-        completedInput.value = JSON.stringify(input);
-      }
-      pending = null;
-      status.value = "completed";
-      log("分析完成，结果可编辑并保存");
-    }
+    assertExtrasAgentBudget(
+      { agentId: "revision-analysis", profile, input: context },
+      model
+    );
+    job = JSON.parse(
+      JSON.stringify({ input: context, profile, model, thinkingLevel })
+    ) as Job;
+    execute();
   }
   return {
     completedInput,
@@ -225,24 +189,30 @@ export function createRevisionAnalysisRun(api: () => DeepWriteApi) {
     canRetry,
     clear,
     start,
-    handleEvent,
+    handleEvent(event: SystemEventEnvelope) {
+      task?.handleEvent(event);
+    },
     retry() {
-      if (canRetry.value && !isBusy.value) void execute();
+      if (canRetry.value && !isBusy.value) execute();
     },
     async stop() {
-      if (!isBusy.value) return;
+      if (!isBusy.value || !task) return;
       status.value = "stopping";
       log("正在停止");
-      await abortPending();
+      try {
+        await task.stop();
+      } catch (cause: unknown) {
+        status.value = "running";
+        error.value =
+          cause instanceof Error ? cause.message : "停止失败，请重试。";
+        log(error.value);
+      }
     },
     dispose() {
       disposed = true;
-      const unit = pending;
-      pending = null;
-      if (unit?.runId)
-        void api()
-          .session.abort({ sessionId: unit.sessionId, runId: unit.runId })
-          .catch(() => undefined);
+      const current = task;
+      task = null;
+      current?.dispose();
     }
   };
 }

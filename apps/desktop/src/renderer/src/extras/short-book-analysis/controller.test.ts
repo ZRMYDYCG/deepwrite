@@ -6,6 +6,7 @@ import type {
   ShortBookAnalysisPreset,
   ShortBookAnalysisSource
 } from "@deepwrite/contracts/renderer";
+import { createExtrasAgentsFake } from "../agent-runtime/extrasAgent.test-support";
 import { useShortBookAnalysis } from "./useShortBookAnalysis";
 const preset: ShortBookAnalysisPreset = {
   id: "preset",
@@ -163,22 +164,16 @@ it("blocks deletion during analysis and while another source operation is pendin
 it("retains selections on preset change, enforces ten and saves edited results through catalog", async () => {
   const scope = effectScope();
   const createLibraryEntry = vi.fn(async () => ({}));
+  const fake = createExtrasAgentsFake({
+    "short-book-analysis": [
+      preset,
+      { ...preset, id: "single", selectionMode: "single" }
+    ]
+  });
   const api = {
     catalog: { createLibraryEntry },
-    shortBookAnalysis: {
-      presets: {
-        list: async () => ({
-          presets: [
-            preset,
-            { ...preset, id: "single", selectionMode: "single" }
-          ]
-        })
-      }
-    },
-    session: {
-      prompt: vi.fn(async () => ({ runId: "run" })),
-      abort: vi.fn(async () => ({}))
-    }
+    extrasAgents: fake.extrasAgents,
+    session: { abort: vi.fn(async () => ({})) }
   } as unknown as DeepWriteApi;
   const c = scope.run(() => useShortBookAnalysis({ api: () => api }))!;
   try {
@@ -206,6 +201,10 @@ it("retains selections on preset change, enforces ten and saves edited results t
       } as ModelConfig
     ]);
     c.start();
+    expect(fake.run.mock.calls[0]![0].task).toMatchObject({
+      agentId: "short-book-analysis",
+      profileId: "preset"
+    });
     expect(() =>
       c.updateBook("book-0", { title: "修改", text: "修改" })
     ).toThrow("正在处理");
@@ -226,6 +225,33 @@ it("retains selections on preset change, enforces ten and saves edited results t
       stageId: "pacing",
       baseProjectRevision: 7
     });
+  } finally {
+    c.dispose();
+    scope.stop();
+  }
+});
+it("saves and resets presets through the unified extras agent profiles", async () => {
+  const scope = effectScope();
+  const fake = createExtrasAgentsFake({ "short-book-analysis": [preset] });
+  const api = {
+    extrasAgents: fake.extrasAgents
+  } as unknown as DeepWriteApi;
+  const c = scope.run(() => useShortBookAnalysis({ api: () => api }))!;
+  try {
+    await c.loadPresets();
+    expect(c.presets.value).toEqual([{ ...preset, builtin: true }]);
+    const custom = { ...preset, id: "custom", name: "自定义" };
+    await c.savePresets([...c.presets.value, custom]);
+    expect(fake.save).toHaveBeenCalledWith({
+      agentId: "short-book-analysis",
+      profiles: [preset, custom]
+    });
+    expect(c.presets.value.map((item) => item.id)).toEqual([
+      "preset",
+      "custom"
+    ]);
+    await c.resetPresets();
+    expect(c.presets.value.map((item) => item.id)).toEqual(["preset"]);
   } finally {
     c.dispose();
     scope.stop();

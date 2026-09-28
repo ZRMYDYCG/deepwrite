@@ -61,7 +61,7 @@ describe("library management agent wiring", () => {
   it("loads and saves both library agent settings without loading the catalog again", () => {
     expect(appSource).toContain("loadLibraryAgentSettings,");
     expect(appSource).toContain("saveLibraryAgentSettings,");
-    expect(appSource).toContain("resetLibraryAgentSettings,");
+    expect(appSource).toMatch(/\bresetLibraryAgentSettings\b/u);
     expect(settingsCoordinatorSource).toContain("api.libraryAgents.list()");
     expect(settingsCoordinatorSource).toContain(
       "settingsStore.ensureLibraryAgentsLoaded"

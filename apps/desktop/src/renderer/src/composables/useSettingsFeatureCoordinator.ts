@@ -5,8 +5,6 @@ import type {
   AgentTeamProfileSaveInput,
   AgentTeamProfileSetEnabledInput,
   AgentTeamProfileTargetInput,
-  LearningImitationSettingsInput,
-  LearningImitationStageId,
   LibraryAgentDomain,
   LibraryAgentSettingsInput,
   LongAgentSettingsInput,
@@ -292,52 +290,6 @@ export function useSettingsFeatureCoordinator(
     }
   }
 
-  async function loadLearningImitationSettings(): Promise<void> {
-    const api = context.api();
-    if (!api) return;
-    try {
-      await settingsStore.ensureLearningImitationLoaded(() =>
-        api.learningImitationSettings.list()
-      );
-    } catch (error: unknown) {
-      uiMessage.error(errorMessage(error, "加载学习仿写设置失败。"));
-    }
-  }
-
-  async function saveLearningImitationSettings(
-    settings: LearningImitationSettingsInput
-  ): Promise<void> {
-    const api = context.api();
-    if (!api || settingsStore.learningImitationSaving) return;
-    settingsStore.learningImitationSaving = true;
-    try {
-      const saved = await api.learningImitationSettings.save(settings);
-      settingsStore.markLoaded("learningImitation", saved);
-      uiMessage.success("学习仿写提示词已保存，下一次运行对应阶段时生效。");
-    } catch (error: unknown) {
-      uiMessage.error(errorMessage(error, "保存学习仿写设置失败。"));
-    } finally {
-      settingsStore.learningImitationSaving = false;
-    }
-  }
-
-  async function resetLearningImitationSettings(
-    stageId: LearningImitationStageId
-  ): Promise<void> {
-    const api = context.api();
-    if (!api || settingsStore.learningImitationSaving) return;
-    settingsStore.learningImitationSaving = true;
-    try {
-      const saved = await api.learningImitationSettings.reset(stageId);
-      settingsStore.markLoaded("learningImitation", saved);
-      uiMessage.success("当前阶段已恢复默认提示词。");
-    } catch (error: unknown) {
-      uiMessage.error(errorMessage(error, "恢复学习仿写默认设置失败。"));
-    } finally {
-      settingsStore.learningImitationSaving = false;
-    }
-  }
-
   return {
     ...modelSettingsCoordinator,
     loadShortAndScriptAgentSettings,
@@ -356,9 +308,6 @@ export function useSettingsFeatureCoordinator(
     installAgentTeam,
     loadLibraryAgentSettings,
     saveLibraryAgentSettings,
-    resetLibraryAgentSettings,
-    loadLearningImitationSettings,
-    saveLearningImitationSettings,
-    resetLearningImitationSettings
+    resetLibraryAgentSettings
   };
 }

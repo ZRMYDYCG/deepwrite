@@ -1,36 +1,19 @@
 import { describe, expect, it } from "vitest";
 import {
-  SessionPromptCommandPayloadSchema,
-  AgentPromptCommandPayloadSchema
-} from "./session/commands";
-import { WorkspaceRuntimeContextSchema } from "./session/runtime";
-import {
   StyleComparisonInputSchema,
-  StyleComparisonResultSchema
+  StyleComparisonResultSchema,
+  assertStyleComparisonBudget
 } from "./style-comparison";
 
 const styleComparison = {
   referenceText: "雨停了。街上很静。",
-  comparisonText: "风停了。屋里没有声音。",
-  method: "重点比较节奏。"
+  comparisonText: "风停了。屋里没有声音。"
 };
 describe("文风比对契约", () => {
-  it("preserves both complete samples and instructions across the session and agent commands", () => {
-    const request = {
-      sessionId: "comparison-session",
-      message: "比对文风",
-      workspaceContext: { styleComparison }
-    };
-    expect(
-      SessionPromptCommandPayloadSchema.parse(request).workspaceContext
-        ?.styleComparison
-    ).toEqual(styleComparison);
-    expect(
-      AgentPromptCommandPayloadSchema.parse(request).workspaceContext
-        ?.styleComparison
-    ).toEqual(styleComparison);
-  });
   it("rejects missing, blank and oversized samples", () => {
+    expect(StyleComparisonInputSchema.safeParse(styleComparison).success).toBe(
+      true
+    );
     for (const referenceText of ["", "  ", "文".repeat(30_001)])
       expect(
         StyleComparisonInputSchema.safeParse({
@@ -38,28 +21,19 @@ describe("文风比对契约", () => {
           referenceText
         }).success
       ).toBe(false);
-    expect(
-      StyleComparisonInputSchema.safeParse({
-        ...styleComparison,
-        method: "文".repeat(8001)
-      }).success
-    ).toBe(false);
   });
-  it("cannot combine comparison with a managed writing context", () => {
-    expect(
-      WorkspaceRuntimeContextSchema.safeParse({
+  it("counts an empty method at its limit when estimating the budget", () => {
+    const model = { contextWindow: 18_000, maxTokens: 1_000 };
+    expect(() =>
+      assertStyleComparisonBudget(
         styleComparison,
-        subagentAuthoring: {
-          parentAgentId: "short",
-          parentAgentLabel: "短篇",
-          outputMode: "handoff",
-          skills: [
-            { id: "s", title: "节奏", libraryTitle: "写作", body: "短句" }
-          ],
-          existingSubagentNames: []
-        }
-      }).success
-    ).toBe(false);
+        { systemPrompt: "关注节奏" },
+        model
+      )
+    ).not.toThrow();
+    expect(() =>
+      assertStyleComparisonBudget(styleComparison, { systemPrompt: "" }, model)
+    ).toThrow("上下文");
   });
   it("requires an actual bounded score and nonempty findings", () => {
     const result = {

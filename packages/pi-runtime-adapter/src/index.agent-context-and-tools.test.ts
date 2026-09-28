@@ -199,8 +199,7 @@ describe("DeepWrite Pi runtime adapter: agent-context-and-tools", () => {
       } as never,
       {
         runId: "parent-run",
-        sessionId: "parent-session",
-        prompt: "委派修改"
+        sessionId: "parent-session"
       },
       providerRuntime,
       "parent-assistant"
@@ -452,8 +451,7 @@ describe("DeepWrite Pi runtime adapter: agent-context-and-tools", () => {
         } as never,
         {
           runId: "parent-long-run",
-          sessionId: "parent-long-session",
-          prompt: "委派长篇修改"
+          sessionId: "parent-long-session"
         },
         providerRuntime,
         "parent-long-assistant"
@@ -516,8 +514,7 @@ describe("DeepWrite Pi runtime adapter: agent-context-and-tools", () => {
       } as never,
       {
         runId: "run-create-chapters",
-        sessionId: "session-create-chapters",
-        prompt: "初始化正文"
+        sessionId: "session-create-chapters"
       },
       providerRuntime,
       "assistant-create-chapters"

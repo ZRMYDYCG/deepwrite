@@ -1,5 +1,5 @@
 import type {
-  ChatAssistantRequestContext,
+  ExtrasChatTask,
   LongWorkspaceRuntimeContext,
   UserPromptAttachment,
   WorkspaceRuntimeContext
@@ -8,7 +8,7 @@ import type { ConversationMessageRewriteRequest } from "../../types/conversation
 import type { WorkspaceDocument } from "../../types/workspace";
 import type { WorkspaceContextAttachments } from "./types";
 export interface SendEntrypointsOperations {
-  sendAssistantMessage(context?: ChatAssistantRequestContext): Promise<void>;
+  sendAssistantMessage(task: ExtrasChatTask): Promise<void>;
   resendMessage(
     request: ConversationMessageRewriteRequest,
     activeDocument: WorkspaceDocument,

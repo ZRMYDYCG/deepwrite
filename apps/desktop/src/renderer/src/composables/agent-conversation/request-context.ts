@@ -19,7 +19,7 @@ export function preparePromptContext(
   workspaceDocuments: WorkspaceDocument[],
   attachments: WorkspaceContextAttachments,
   contextOverride: WorkspaceRuntimeContext | undefined,
-  mode: "workspace" | "chat-assistant",
+  chat: boolean,
   sendEpoch: number,
   sendSessionId: string
 ): RequestContext | Promise<RequestContext> {
@@ -31,28 +31,28 @@ export function preparePromptContext(
     activeDocument.stageId === "draft"
       ? activeDocument.content
       : (activeDocument?.content.slice(0, 20000) ?? "");
-  const contextSnapshot: WorkspaceRuntimeContext | undefined =
-    mode === "chat-assistant"
-      ? undefined
-      : (contextOverride ??
-        (activeDocument
-          ? {
-              activeResource: {
-                id: activeDocument.id,
-                domain: activeDocument.domain,
-                title: activeDocument.title,
-                path: [...activeDocument.path],
-                ...(activeDocument.format
-                  ? { format: activeDocument.format }
-                  : {}),
-                source: "live-editor" as const,
-                content: snapshotContent,
-                ...(originalLength > snapshotContent.length
-                  ? { truncated: true as const, originalLength }
-                  : {})
-              }
+  // Chat agents get their context from Main, never from the editor.
+  const contextSnapshot: WorkspaceRuntimeContext | undefined = chat
+    ? undefined
+    : (contextOverride ??
+      (activeDocument
+        ? {
+            activeResource: {
+              id: activeDocument.id,
+              domain: activeDocument.domain,
+              title: activeDocument.title,
+              path: [...activeDocument.path],
+              ...(activeDocument.format
+                ? { format: activeDocument.format }
+                : {}),
+              source: "live-editor" as const,
+              content: snapshotContent,
+              ...(originalLength > snapshotContent.length
+                ? { truncated: true as const, originalLength }
+                : {})
             }
-          : undefined));
+          }
+        : undefined));
   if (contextSnapshot && attachments.attachedSkills?.length) {
     contextSnapshot.attachedSkills = attachments.attachedSkills.map(
       (skill) => ({

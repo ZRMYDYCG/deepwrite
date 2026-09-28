@@ -1,5 +1,3 @@
-import { revisionAnalysisUserPrompt } from "./revision-analysis";
-import { shortAnalysisUserPrompt } from "./short-book-analysis";
 import { materialCatalogEntries } from "./material-query-runtime";
 import {
   buildWorkspaceMaterialContext,
@@ -11,9 +9,12 @@ import {
   buildLongFollowUpContextLines
 } from "./prompts-long";
 import type { UserMessage } from "@earendil-works/pi-ai";
-import { buildRawUserText, imageContentBlocks } from "./prompts-user-message";
+import {
+  buildRawUserText,
+  imageContentBlocks,
+  rawUserMessageContent
+} from "./prompts-user-message";
 import type { AgentRunInput } from "./runtime-types";
-import { buildStyleComparisonUserPrompt } from "./style-comparison";
 
 export {
   scriptRuntimeFormatRequirements,
@@ -28,15 +29,6 @@ export {
 
 /** @internal Exported for prompt-boundary regression tests. */
 export function buildRuntimeUserPrompt(input: AgentRunInput): string {
-  if (input.workspaceContext?.revisionAnalysis)
-    return revisionAnalysisUserPrompt(input.workspaceContext.revisionAnalysis);
-  if (input.workspaceContext?.shortBookAnalysis)
-    return shortAnalysisUserPrompt(input.workspaceContext.shortBookAnalysis);
-  if (input.workspaceContext?.styleComparison) {
-    return buildStyleComparisonUserPrompt(
-      input.workspaceContext.styleComparison
-    );
-  }
   const active = input.workspaceContext?.activeResource;
   const libraryContext = input.workspaceContext?.libraryWorkspace;
   const shortWorkspace = input.workspaceContext?.shortWorkspace;
@@ -56,8 +48,6 @@ export function buildRuntimeUserPrompt(input: AgentRunInput): string {
   // The unified long agent owns every stage, so all fixed context is injected
   // and no implementation-level ids are exposed.
   const isLongRun = Boolean(longWorkspace && longProfile);
-  const learningContext = input.workspaceContext?.learningImitation;
-  const longBookAnalysisContext = input.workspaceContext?.longBookAnalysis;
   const readableSkills = writingProfile
     ? skills.filter(
         (item) =>
@@ -154,17 +144,7 @@ export function buildRuntimeUserPrompt(input: AgentRunInput): string {
         ? `当前智能体: ${longProfile.label}`
         : input.libraryAgentProfile
           ? `当前智能体: ${input.libraryAgentProfile.label} (${input.libraryAgentProfile.domain})`
-          : input.learningImitationProfile
-            ? `当前智能体: ${input.learningImitationProfile.label} (${input.learningImitationProfile.id})`
-            : input.longBookAnalysisProfile
-              ? `当前智能体: ${input.longBookAnalysisProfile.name} (${input.longBookAnalysisProfile.id})`
-              : "",
-    learningContext
-      ? `学习阶段: ${learningContext.stageId}；样本文档: ${learningContext.documents.length} 篇`
-      : "",
-    longBookAnalysisContext
-      ? `拆书阶段: ${longBookAnalysisContext.phase}；选择范围: 第 ${longBookAnalysisContext.selectionStart}-${longBookAnalysisContext.selectionEnd} 章`
-      : "",
+          : "",
     libraryContext
       ? `当前资料库: 《${libraryContext.title}》 (${libraryContext.domain} / ${libraryContext.kind}；短篇、剧本、长篇共用)`
       : "",
@@ -191,11 +171,7 @@ export function buildRuntimeUserPrompt(input: AgentRunInput): string {
       : "",
     active
       ? `当前资源: ${active.title} (${active.domain}${active.format ? ` / ${active.format}` : ""})`
-      : learningContext
-        ? "当前资源: 学习仿写样本文档（正文请通过工具按需读取）"
-        : longBookAnalysisContext
-          ? "当前资源: 长篇拆书输入（章节正文或中间笔记请通过工具按需读取）"
-          : "当前资源: 未提供",
+      : "当前资源: 未提供",
     active && !isLongRun ? `资源路径: ${active.path.join(" / ")}` : "",
     active &&
     !writingWorkspace &&
@@ -259,11 +235,5 @@ export function buildRawUserMessage(
   input: AgentRunInput,
   timestamp = Date.now()
 ): UserMessage {
-  const text = buildRawUserText(input);
-  const images = imageContentBlocks(input);
-  return {
-    role: "user",
-    content: images.length ? [{ type: "text", text }, ...images] : text,
-    timestamp
-  };
+  return { role: "user", content: rawUserMessageContent(input), timestamp };
 }

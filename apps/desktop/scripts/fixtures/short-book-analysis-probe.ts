@@ -8,8 +8,8 @@ import {
 import {
   ShortBookAnalysisPresetSchema,
   type DeepWriteApi,
+  type ExtrasAgentRunRequest,
   type ModelConfig,
-  type SessionPromptCommandPayload,
   type SystemEventEnvelope
 } from "@deepwrite/contracts/renderer";
 import "../../src/renderer/src/styles.css";
@@ -56,14 +56,29 @@ const sources = Array.from({ length: 11 }, (_, i) => ({
   kind: "paste" as const,
   importedAt: "2026-01-01T00:00:00.000Z"
 }));
-let request: SessionPromptCommandPayload | undefined;
+let request: ExtrasAgentRunRequest | undefined;
+const presetSettings = {
+  agentId: "short-book-analysis",
+  profiles: presets
+};
 const api = {
-  shortBookAnalysis: {
-    presets: {
-      list: async () => ({ presets }),
-      save: async (input: unknown) => input,
-      reset: async () => ({ presets })
+  extrasAgents: {
+    run: async (input: ExtrasAgentRunRequest) => {
+      request = input;
+      return {
+        sessionId: input.sessionId,
+        runId: "probe-run",
+        acceptedAt: new Date().toISOString(),
+        runtime: { provider: "test", model: "test", mode: "provider" }
+      };
     },
+    profiles: {
+      list: async () => presetSettings,
+      save: async () => presetSettings,
+      reset: async () => presetSettings
+    }
+  },
+  shortBookAnalysis: {
     sources: {
       list: async () => ({
         sources: sources.map(({ text, ...s }) => ({
@@ -81,13 +96,7 @@ const api = {
     }),
     chooseSources: async () => [sources[0]]
   },
-  session: {
-    prompt: async (input: SessionPromptCommandPayload) => {
-      request = input;
-      return { sessionId: input.sessionId, runId: "probe-run" };
-    },
-    abort: async () => ({})
-  }
+  session: { abort: async () => ({}) }
 } as unknown as DeepWriteApi;
 const c = useShortBookAnalysis({ api: () => api });
 c.setConfiguredModels(models);
@@ -265,7 +274,9 @@ async function run() {
   button("执行“剧情结构”预设").click();
   await frame();
   check(
-    request?.workspaceContext?.shortBookAnalysis?.books.length === 10,
+    request?.task.agentId === "short-book-analysis" &&
+      request.task.profileId === "plot" &&
+      request.task.input.books.length === 10,
     "Ten complete texts submitted"
   );
   check(
@@ -313,13 +324,17 @@ async function run() {
   );
   visible.value = false;
   await frame();
-  emit("short_book_analysis.result_updated", {
-    jobId: request!.workspaceContext!.shortBookAnalysis!.jobId,
-    result: {
-      name: "综合分析",
-      description: "用于提炼写作方法。",
-      content:
-        "# 核心发现\n\n两篇都通过迟到的消息引出人物选择，结尾呈现不同代价。"
+  emit("extras_agent.output_updated", {
+    agentId: "short-book-analysis",
+    jobId: request!.task.input.jobId,
+    output: {
+      kind: "book-analysis-result",
+      result: {
+        name: "综合分析",
+        description: "用于提炼写作方法。",
+        content:
+          "# 核心发现\n\n两篇都通过迟到的消息引出人物选择，结尾呈现不同代价。"
+      }
     }
   });
   emit("agent.message_completed");

@@ -13,11 +13,10 @@ import {
   SCRIPT_SCREENPLAY_FORMAT_REQUIREMENTS,
   SCRIPT_WORKSPACE_TEXT_STAGE_IDS,
   SHORT_WORKSPACE_TEXT_STAGE_IDS,
-  cloneEmptyLearningImitationResult,
   createDefaultCreativePlotStages,
   createShortWorkspaceContentRevision,
   type AgentProviderRuntimeConfig,
-  type ChatAssistantRuntimeContext,
+  type ChatAssistantRuntimeSnapshot,
   type LongWorkspaceRuntimeContext,
   type ScriptWorkspaceAgentProfile,
   type ScriptWorkspaceSnapshot,
@@ -46,7 +45,7 @@ const providerRuntime = {
   mode: "provider" as const
 };
 
-function normalChatContext(): ChatAssistantRuntimeContext {
+function normalChatContext(): ChatAssistantRuntimeSnapshot {
   const generatedAt = "2026-08-17T08:00:00.000Z";
   const totals = {
     inputTokens: 0,
@@ -66,7 +65,6 @@ function normalChatContext(): ChatAssistantRuntimeContext {
     recentCalls: []
   };
   return {
-    mode: "normal",
     software: {
       name: "DeepWrite",
       version: "1.2.3",
@@ -322,7 +320,6 @@ export {
   captureDisabledThinkingPayload,
   captureThinkingPayload,
   captureToolPayload,
-  cloneEmptyLearningImitationResult,
   createAssistantMessageEventStream,
   createDefaultCreativePlotStages,
   createShortWorkspaceContentRevision,
@@ -348,7 +345,7 @@ export type {
   AgentRuntimeEvent,
   AgentTool,
   AssistantMessage,
-  ChatAssistantRuntimeContext,
+  ChatAssistantRuntimeSnapshot,
   LongWorkspaceRuntimeContext,
   ScriptWorkspaceAgentProfile,
   ScriptWorkspaceSnapshot,

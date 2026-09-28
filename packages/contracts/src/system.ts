@@ -1,28 +1,17 @@
 import { BookTemplateCommandSchemas } from "./book-templates";
-import { ChatAssistantRoleplayCommandSchemas } from "./chat-assistant-config-api";
 import { ConversationExportCommandEnvelopeSchemas } from "./conversation-export";
 import { SiteOfficialModelCommandSchemas } from "./site-official-models";
 import { DeviceSyncWorkspaceCommandEnvelopeSchema } from "./device-sync-commands";
 import { AgentTeamsSaveBuiltinsCommandEnvelopeSchema } from "./builtin-subagents";
 import { CatalogQueryLibraryManagementCommandEnvelopeSchema } from "./library-management";
 import { z } from "zod";
-import {
-  ShortBookAnalysisResultEventSchema,
-  type ShortBookAnalysisResultEvent
-} from "./short-book-analysis-events";
-import { RevisionAnalysisCommandSchemas } from "./revision-analysis-commands";
-import {
-  RevisionAnalysisResultEventSchema,
-  type RevisionAnalysisResultEvent
-} from "./revision-analysis-events";
 import { ShortBookAnalysisCommandSchemas } from "./short-book-analysis-commands";
-import { CatalogQueryMaterialsCommandEnvelopeSchema } from "./material-query";
 import {
-  ChatAssistantProjectConfigGetCommandEnvelopeSchema,
-  ChatAssistantProjectConfigListCommandEnvelopeSchema,
-  ChatAssistantProjectConfigResetCommandEnvelopeSchema,
-  ChatAssistantProjectConfigSaveCommandEnvelopeSchema
-} from "./chat-assistant";
+  ExtrasAgentCommandSchemas,
+  ExtrasAgentOutputUpdatedEventEnvelopeSchema,
+  type ExtrasAgentOutputUpdatedEventEnvelope
+} from "./extras-agent";
+import { CatalogQueryMaterialsCommandEnvelopeSchema } from "./material-query";
 import { EnvelopeBaseSchema, type Envelope } from "./envelope";
 import {
   AgentAbortCommandEnvelopeSchema,
@@ -33,6 +22,7 @@ import {
   AgentMessageDeltaEventEnvelopeSchema,
   AgentUsageObservedEventEnvelopeSchema,
   AgentRetryScheduledEventEnvelopeSchema,
+  AgentContextCompactionEventEnvelopeSchema,
   AgentThinkingDeltaEventEnvelopeSchema,
   AgentTurnStartedEventEnvelopeSchema,
   AgentPromptCommandEnvelopeSchema,
@@ -43,9 +33,6 @@ import {
   AgentUserInputRequestedEventEnvelopeSchema,
   AgentToolCallStreamEventEnvelopeSchema,
   AgentToolRequestedEventEnvelopeSchema,
-  LearningImitationResultUpdatedEventEnvelopeSchema,
-  LongBookAnalysisNoteUpdatedEventEnvelopeSchema,
-  LongBookAnalysisResultUpdatedEventEnvelopeSchema,
   LongChapterWriteProposalEventEnvelopeSchema,
   LongCharacterFileProposalEventEnvelopeSchema,
   LongContinuityFileProposalEventEnvelopeSchema,
@@ -65,6 +52,7 @@ import {
   type AgentMessageDeltaEventEnvelope,
   type AgentUsageObservedEventEnvelope,
   type AgentRetryScheduledEventEnvelope,
+  type AgentContextCompactionEventEnvelope,
   type AgentThinkingDeltaEventEnvelope,
   type AgentTurnStartedEventEnvelope,
   type AgentToolCompletedEventEnvelope,
@@ -74,9 +62,6 @@ import {
   type SubagentActivityEventEnvelope,
   type SubagentCompletedEventEnvelope,
   type SubagentStartedEventEnvelope,
-  type LearningImitationResultUpdatedEventEnvelope,
-  type LongBookAnalysisNoteUpdatedEventEnvelope,
-  type LongBookAnalysisResultUpdatedEventEnvelope,
   type LongChapterWriteProposalEventEnvelope,
   type LongCharacterFileProposalEventEnvelope,
   type LongContinuityFileProposalEventEnvelope,
@@ -99,17 +84,9 @@ import {
   AgentTeamsSaveCommandEnvelopeSchema
 } from "./agent-team-catalog";
 import {
-  LearningImitationSettingsListCommandEnvelopeSchema,
-  LearningImitationSettingsResetCommandEnvelopeSchema,
-  LearningImitationSettingsSaveCommandEnvelopeSchema
-} from "./learning-imitation";
-import {
   LongBookAnalysisChooseSourceCommandEnvelopeSchema,
   LongBookAnalysisListSourcesCommandEnvelopeSchema,
-  LongBookAnalysisLoadSourceCommandEnvelopeSchema,
-  LongBookAnalysisSettingsListCommandEnvelopeSchema,
-  LongBookAnalysisSettingsResetCommandEnvelopeSchema,
-  LongBookAnalysisSettingsSaveCommandEnvelopeSchema
+  LongBookAnalysisLoadSourceCommandEnvelopeSchema
 } from "./long-book-analysis";
 import {
   AgentModelCapacityCommandEnvelopeSchema,
@@ -312,17 +289,11 @@ export const CommandEnvelopeSchema = z.discriminatedUnion("type", [
   LibraryAgentsListCommandEnvelopeSchema,
   LibraryAgentsSaveCommandEnvelopeSchema,
   LibraryAgentsResetCommandEnvelopeSchema,
-  LearningImitationSettingsListCommandEnvelopeSchema,
-  LearningImitationSettingsSaveCommandEnvelopeSchema,
-  LearningImitationSettingsResetCommandEnvelopeSchema,
-  ...RevisionAnalysisCommandSchemas,
+  ...ExtrasAgentCommandSchemas,
   ...ShortBookAnalysisCommandSchemas,
   LongBookAnalysisChooseSourceCommandEnvelopeSchema,
   LongBookAnalysisListSourcesCommandEnvelopeSchema,
   LongBookAnalysisLoadSourceCommandEnvelopeSchema,
-  LongBookAnalysisSettingsListCommandEnvelopeSchema,
-  LongBookAnalysisSettingsSaveCommandEnvelopeSchema,
-  LongBookAnalysisSettingsResetCommandEnvelopeSchema,
   AgentTeamsSaveBuiltinsCommandEnvelopeSchema,
   CatalogQueryLibraryManagementCommandEnvelopeSchema,
   AgentTeamsListCommandEnvelopeSchema,
@@ -342,11 +313,6 @@ export const CommandEnvelopeSchema = z.discriminatedUnion("type", [
   AppearanceFontsRemoveCommandEnvelopeSchema,
   GeneralSettingsListCommandEnvelopeSchema,
   GeneralSettingsSaveCommandEnvelopeSchema,
-  ...ChatAssistantRoleplayCommandSchemas,
-  ChatAssistantProjectConfigListCommandEnvelopeSchema,
-  ChatAssistantProjectConfigGetCommandEnvelopeSchema,
-  ChatAssistantProjectConfigSaveCommandEnvelopeSchema,
-  ChatAssistantProjectConfigResetCommandEnvelopeSchema,
   ExportLongManuscriptCommandEnvelopeSchema,
   ExportShortManuscriptCommandEnvelopeSchema,
   AgentPromptCommandEnvelopeSchema,
@@ -414,6 +380,7 @@ export const SystemEventEnvelopeSchema = z.discriminatedUnion("type", [
   AgentEvaluationSnapshotEventEnvelopeSchema,
   AgentTurnStartedEventEnvelopeSchema,
   AgentRetryScheduledEventEnvelopeSchema,
+  AgentContextCompactionEventEnvelopeSchema,
   AgentMessageDeltaEventEnvelopeSchema,
   AgentThinkingDeltaEventEnvelopeSchema,
   AgentMessageCompletedEventEnvelopeSchema,
@@ -425,11 +392,7 @@ export const SystemEventEnvelopeSchema = z.discriminatedUnion("type", [
   SubagentStartedEventEnvelopeSchema,
   SubagentActivityEventEnvelopeSchema,
   SubagentCompletedEventEnvelopeSchema,
-  LearningImitationResultUpdatedEventEnvelopeSchema,
-  RevisionAnalysisResultEventSchema,
-  ShortBookAnalysisResultEventSchema,
-  LongBookAnalysisNoteUpdatedEventEnvelopeSchema,
-  LongBookAnalysisResultUpdatedEventEnvelopeSchema,
+  ExtrasAgentOutputUpdatedEventEnvelopeSchema,
   SubagentAuthoringDraftUpdatedEventEnvelopeSchema,
   LongMutationProposalEventEnvelopeSchema,
   LongWorldbuildingFileProposalEventEnvelopeSchema,
@@ -456,8 +419,7 @@ export type SystemWorkerRestartingEventEnvelope = Envelope<
   "system.worker_restarting"
 >;
 export type SystemEventEnvelope =
-  | RevisionAnalysisResultEvent
-  | ShortBookAnalysisResultEvent
+  | ExtrasAgentOutputUpdatedEventEnvelope
   | z.infer<typeof RendererStateFlushRequestedEventEnvelopeSchema>
   | SystemReadyEventEnvelope
   | SystemWorkerRestartingEventEnvelope
@@ -465,6 +427,7 @@ export type SystemEventEnvelope =
   | AgentEvaluationSnapshotEventEnvelope
   | AgentTurnStartedEventEnvelope
   | AgentRetryScheduledEventEnvelope
+  | AgentContextCompactionEventEnvelope
   | AgentMessageDeltaEventEnvelope
   | AgentThinkingDeltaEventEnvelope
   | AgentMessageCompletedEventEnvelope
@@ -476,9 +439,6 @@ export type SystemEventEnvelope =
   | SubagentStartedEventEnvelope
   | SubagentActivityEventEnvelope
   | SubagentCompletedEventEnvelope
-  | LearningImitationResultUpdatedEventEnvelope
-  | LongBookAnalysisNoteUpdatedEventEnvelope
-  | LongBookAnalysisResultUpdatedEventEnvelope
   | SubagentAuthoringDraftUpdatedEventEnvelope
   | LongMutationProposalEventEnvelope
   | LongWorldbuildingFileProposalEventEnvelope

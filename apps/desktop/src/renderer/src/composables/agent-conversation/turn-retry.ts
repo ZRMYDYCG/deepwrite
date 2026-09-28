@@ -73,6 +73,8 @@ export function restoreMessageCheckpoint(
         runtime: { ...eventRuntime }
       };
   preserveLiveEditProposals(current, restored);
+  if (current.contextCompactions)
+    restored.contextCompactions = cloneMessage(current).contextCompactions!;
   restored.status = "streaming";
   restored.runtime = { ...eventRuntime };
   restored.retry = retry;

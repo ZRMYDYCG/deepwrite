@@ -9,7 +9,10 @@ export const MODULE_META: Record<
   "long-writing": { label: "长篇创作", detail: "长篇创作空间" },
   "skill-library": { label: "技能库", detail: "技能库对话与处理" },
   "material-library": { label: "素材库", detail: "素材库对话与处理" },
-  "learning-imitation": { label: "学习仿写", detail: "学习和仿写流程" },
+  "learning-imitation": {
+    label: "学习仿写（已下线）",
+    detail: "已下线的学习仿写流程"
+  },
   "style-comparison": { label: "文风比对", detail: "两份文本的文风相似度分析" },
   "revision-analysis": { label: "修改分析", detail: "学习文稿修改方向" },
   "short-book-analysis": { label: "短篇拆书", detail: "短篇全文联合分析" },

@@ -1,11 +1,10 @@
 import { describe, it, expect } from "vitest";
 import {
   ShortBookAnalysisPresetSchema,
-  ShortBookAnalysisRuntimeContextSchema,
-  ShortBookAnalysisSettingsInputSchema
+  ShortBookAnalysisRuntimeContextSchema
 } from "./short-book-analysis";
+import { ExtrasAgentSettingsInputSchema } from "./extras-agent";
 import { assertShortAnalysisBudget } from "./short-book-analysis-budget";
-import { WorkspaceRuntimeContextSchema } from "./session/runtime";
 const book = {
   id: "book-1",
   title: "测试短篇",
@@ -23,7 +22,6 @@ const preset = ShortBookAnalysisPresetSchema.parse({
 });
 const context = (count: number) => ({
   jobId: "job",
-  presetId: "preset",
   books: Array.from({ length: count }, (_, i) => ({ ...book, id: `book-${i}` }))
 });
 describe("short analysis contracts and budget", () => {
@@ -48,8 +46,9 @@ describe("short analysis contracts and budget", () => {
       }).success
     ).toBe(false);
     expect(
-      ShortBookAnalysisSettingsInputSchema.safeParse({
-        presets: [preset, preset]
+      ExtrasAgentSettingsInputSchema.safeParse({
+        agentId: "short-book-analysis",
+        profiles: [preset, preset]
       }).success
     ).toBe(false);
     expect(
@@ -86,11 +85,5 @@ describe("short analysis contracts and budget", () => {
         maxTokens: 32000
       })
     ).toThrow("上下文");
-  });
-  it("does not share a run with another managed workspace", () => {
-    expect(
-      WorkspaceRuntimeContextSchema.safeParse({ shortBookAnalysis: context(1) })
-        .success
-    ).toBe(true);
   });
 });

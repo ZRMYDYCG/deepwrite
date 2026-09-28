@@ -4,8 +4,6 @@ import {
   ShortBookAnalysisCatalogSchema,
   ShortBookAnalysisSourceSchema,
   ShortBookAnalysisSourcesSchema,
-  ShortBookAnalysisSettingsSchema,
-  ShortBookAnalysisSettingsInputSchema,
   ShortBookAnalysisTextInputSchema,
   type ShortBookAnalysisApi,
   type CommandEnvelope
@@ -46,23 +44,6 @@ export const shortBookAnalysisApi: ShortBookAnalysisApi = {
     delete: async (sourceId) =>
       ShortBookAnalysisSourceSchema.shape.id.parse(
         await request("shortBookAnalysis.deleteSource", { sourceId })
-      )
-  },
-  presets: {
-    list: async () =>
-      ShortBookAnalysisSettingsSchema.parse(
-        await request("shortBookAnalysisSettings.list", {})
-      ),
-    save: async (input) =>
-      ShortBookAnalysisSettingsSchema.parse(
-        await request(
-          "shortBookAnalysisSettings.save",
-          ShortBookAnalysisSettingsInputSchema.parse(input)
-        )
-      ),
-    reset: async (presetId) =>
-      ShortBookAnalysisSettingsSchema.parse(
-        await request("shortBookAnalysisSettings.reset", { presetId })
       )
   }
 };

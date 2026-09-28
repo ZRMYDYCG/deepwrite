@@ -16,7 +16,8 @@ function abortedError(): Error {
   return error;
 }
 
-function createCoreCommandExecutor(
+/** Agent -> Core query bridge; Main authorizes each command per run. */
+export function createCoreCommandExecutor(
   context: UtilityCommandHandlerContext
 ): (
   command:
@@ -58,10 +59,6 @@ export function createAgentRunInput(
   signal: AbortSignal,
   context?: UtilityCommandHandlerContext
 ): AgentRunInput {
-  const needsLongCommandExecutor =
-    payload.longAgentProfile ||
-    (payload.chatAssistantRuntimeContext?.mode === "project" &&
-      payload.chatAssistantRuntimeContext.project.projectType === "long");
   return {
     runId,
     sessionId: payload.sessionId,
@@ -72,7 +69,18 @@ export function createAgentRunInput(
     ...(payload.conversationHistoryMode
       ? { conversationHistoryMode: payload.conversationHistoryMode }
       : {}),
-    ...(payload.mode ? { mode: payload.mode } : {}),
+    ...(payload.conversationCheckpoint
+      ? { conversationCheckpoint: payload.conversationCheckpoint }
+      : {}),
+    ...(payload.contextCompaction
+      ? { contextCompaction: payload.contextCompaction }
+      : {}),
+    ...(payload.contextCompactionSettings
+      ? { contextCompactionSettings: payload.contextCompactionSettings }
+      : {}),
+    ...(payload.compactionRuntimeConfig
+      ? { compactionRuntimeConfig: payload.compactionRuntimeConfig }
+      : {}),
     ...(payload.attachments?.length
       ? { attachments: payload.attachments }
       : {}),
@@ -90,15 +98,7 @@ export function createAgentRunInput(
       ? { temperature: payload.temperature }
       : {}),
     ...(payload.runtimeConfig ? { runtimeConfig: payload.runtimeConfig } : {}),
-    ...(payload.chatAssistantRuntimeContext
-      ? { chatAssistantRuntimeContext: payload.chatAssistantRuntimeContext }
-      : {}),
-    ...(payload.webSearchEnabled === true ||
-    (payload.mode === "chat-assistant" &&
-      payload.chatAssistant?.mode !== "roleplay" &&
-      payload.chatAssistant?.webSearchEnabled === true)
-      ? { webSearchEnabled: true }
-      : {}),
+    ...(payload.webSearchEnabled === true ? { webSearchEnabled: true } : {}),
     ...(payload.agentProfile ? { agentProfile: payload.agentProfile } : {}),
     ...(payload.scriptAgentProfile
       ? { scriptAgentProfile: payload.scriptAgentProfile }
@@ -106,7 +106,7 @@ export function createAgentRunInput(
     ...(payload.longAgentProfile
       ? { longAgentProfile: payload.longAgentProfile }
       : {}),
-    ...(needsLongCommandExecutor && context
+    ...(payload.longAgentProfile && context
       ? { longCommandExecutor: createCoreCommandExecutor(context) }
       : {}),
     ...(payload.workspaceContext?.materialCatalog && context
@@ -126,15 +126,6 @@ export function createAgentRunInput(
       : {}),
     ...(payload.libraryAgentProfile
       ? { libraryAgentProfile: payload.libraryAgentProfile }
-      : {}),
-    ...(payload.learningImitationProfile
-      ? { learningImitationProfile: payload.learningImitationProfile }
-      : {}),
-    ...(payload.shortBookAnalysisProfile
-      ? { shortBookAnalysisProfile: payload.shortBookAnalysisProfile }
-      : {}),
-    ...(payload.longBookAnalysisProfile
-      ? { longBookAnalysisProfile: payload.longBookAnalysisProfile }
       : {}),
     ...(payload.workspaceContext
       ? { workspaceContext: payload.workspaceContext }

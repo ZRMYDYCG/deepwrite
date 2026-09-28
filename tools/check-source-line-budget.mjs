@@ -62,7 +62,7 @@ const NEW_MODULE_FILES = [
   "packages/pi-runtime-adapter/src/long-agent-tools/setting-worldbuilding-tools.ts",
   "packages/pi-runtime-adapter/src/long-agent-tools/setting-character-tools.ts",
   "packages/pi-runtime-adapter/src/long-agent-tools/setting-alias-tools.ts",
-  "apps/desktop/src/main/chat-assistant-runtime-context.ts",
+  "apps/desktop/src/extras/agents/chat/runtime-snapshot.ts",
   "apps/desktop/src/main/usage-observation.ts",
   "apps/desktop/src/preload/invoke.ts",
   "apps/desktop/src/preload/catalog-api.ts",

@@ -9,7 +9,6 @@ import { useSettingsStore } from "../stores/settingsStore";
 import { loadSettingsFeature } from "../components/loadSettingsFeature";
 import { buildSettingsFeatureModule } from "./settingsFeatureModule";
 import type { WorkspaceMainView } from "../stores/layoutStore";
-import type { LearningImitationController } from "./useLearningImitation";
 import type { LongBookAnalysisController } from "../extras/long-book-analysis/useLongBookAnalysis";
 import type { SubagentAuthoringController } from "./useSubagentAuthoring";
 import {
@@ -59,7 +58,7 @@ function signedInSession(displayName: string): MarketplaceSession {
 interface HarnessOverrides {
   runtimeAvailable?: boolean;
   saveBeforeLeaving?: () => Promise<boolean>;
-  ensureLearningLoaded?: () => Promise<unknown>;
+  ensureShortAnalysisLoaded?: () => Promise<unknown>;
   ensureAuthoringLoaded?: () => Promise<unknown>;
   loadDirectory?: () => Promise<WorkspaceDirectorySettings>;
   chooseDirectory?: () => Promise<WorkspaceDirectorySettings | null>;
@@ -75,9 +74,6 @@ function createHarness(overrides: HarnessOverrides = {}) {
   const activeLongBookId = ref<string | null>(null);
   const settingsStore = useSettingsStore();
   const catalogSnapshot = shallowRef(null);
-  const learningController = shallowRef<LearningImitationController | null>(
-    null
-  );
   const longBookAnalysisController =
     shallowRef<LongBookAnalysisController | null>(null);
   const authoringController = shallowRef<SubagentAuthoringController | null>(
@@ -88,8 +84,8 @@ function createHarness(overrides: HarnessOverrides = {}) {
   );
   const newShortConversation = vi.fn();
   const newLongConversation = vi.fn();
-  const ensureLearningLoaded = vi.fn(
-    overrides.ensureLearningLoaded ?? (async () => undefined)
+  const ensureShortAnalysisLoaded = vi.fn(
+    overrides.ensureShortAnalysisLoaded ?? (async () => undefined)
   );
   const ensureAuthoringLoaded = vi.fn(
     overrides.ensureAuthoringLoaded ?? (async () => undefined)
@@ -119,7 +115,6 @@ function createHarness(overrides: HarnessOverrides = {}) {
     loadWorkspaceAgentSettings: vi.fn(async () => undefined),
     loadAgentTeamSettings: vi.fn(async () => undefined),
     loadLibraryAgentSettings: vi.fn(async () => undefined),
-    loadLearningImitationSettings: vi.fn(async () => undefined),
     loadCatalogSnapshot: vi.fn(async () => undefined),
     ...overrides.loaderOverrides
   } satisfies WorkspaceFeatureHostCoordinatorOptions["loaders"];
@@ -136,17 +131,13 @@ function createHarness(overrides: HarnessOverrides = {}) {
     settingsStore,
     catalogSnapshot,
     features: {
-      learningImitation: {
-        controller: learningController,
-        ensureLoaded: ensureLearningLoaded
-      },
       revisionAnalysis: {
         controller: shallowRef(null),
         ensureLoaded: vi.fn(async () => {})
       },
       shortBookAnalysis: {
         controller: shallowRef(null),
-        ensureLoaded: vi.fn(async () => {})
+        ensureLoaded: ensureShortAnalysisLoaded
       },
       longBookAnalysis: {
         controller: longBookAnalysisController,
@@ -177,9 +168,8 @@ function createHarness(overrides: HarnessOverrides = {}) {
     coordinator,
     currentView,
     ensureAuthoringLoaded,
-    ensureLearningLoaded,
+    ensureShortAnalysisLoaded,
     errors,
-    learningController,
     listDirectory,
     loaders,
     marketplaceSession,
@@ -222,7 +212,6 @@ describe("useWorkspaceFeatureHostCoordinator", () => {
 
     const featureKinds = [
       "directory",
-      "imitation",
       "style-comparison",
       "revision-analysis",
       "agent-team",
@@ -280,7 +269,7 @@ describe("useWorkspaceFeatureHostCoordinator", () => {
 
     await harness.coordinator.openWorkspaceDialog("directory");
     await harness.coordinator.openSettings("custom-models");
-    await harness.coordinator.openWorkspaceDialog("imitation");
+    await harness.coordinator.openWorkspaceDialog("short-book-analysis");
     await harness.coordinator.openSettings();
     await harness.coordinator.openAgentTeams();
     await harness.coordinator.openMarketplace();
@@ -288,7 +277,7 @@ describe("useWorkspaceFeatureHostCoordinator", () => {
 
     expect(harness.currentView.value).toBe("workspace");
     expect(harness.workspaceMainView.value).toBe("conversation");
-    expect(harness.ensureLearningLoaded).not.toHaveBeenCalled();
+    expect(harness.ensureShortAnalysisLoaded).not.toHaveBeenCalled();
     expect(harness.ensureAuthoringLoaded).not.toHaveBeenCalled();
     expect(harness.listDirectory).not.toHaveBeenCalled();
     expect(
@@ -298,20 +287,21 @@ describe("useWorkspaceFeatureHostCoordinator", () => {
     ).toBe(true);
   });
 
-  it("does not let a late imitation or team load replace a newer page", async () => {
-    const learning = deferred<void>();
+  it("does not let a late analysis or team load replace a newer page", async () => {
+    const analysis = deferred<void>();
     const authoring = deferred<void>();
     const harness = createHarness({
-      ensureLearningLoaded: () => learning.promise,
+      ensureShortAnalysisLoaded: () => analysis.promise,
       ensureAuthoringLoaded: () => authoring.promise
     });
 
-    const imitationNavigation =
-      harness.coordinator.openWorkspaceDialog("imitation");
+    const analysisNavigation = harness.coordinator.openWorkspaceDialog(
+      "short-book-analysis"
+    );
     await Promise.resolve();
     await harness.coordinator.openCloudBackup();
-    learning.resolve();
-    await imitationNavigation;
+    analysis.resolve();
+    await analysisNavigation;
     expect(harness.workspaceMainView.value).toBe("cloud-backup");
 
     const teamNavigation = harness.coordinator.openAgentTeams();
@@ -324,18 +314,19 @@ describe("useWorkspaceFeatureHostCoordinator", () => {
   });
 
   it("does not let a lazy feature replace an external conversation navigation", async () => {
-    const learning = deferred<void>();
+    const analysis = deferred<void>();
     const harness = createHarness({
-      ensureLearningLoaded: () => learning.promise
+      ensureShortAnalysisLoaded: () => analysis.promise
     });
 
     harness.workspaceMainView.value = "directory";
-    const imitationNavigation =
-      harness.coordinator.openWorkspaceDialog("imitation");
+    const analysisNavigation = harness.coordinator.openWorkspaceDialog(
+      "short-book-analysis"
+    );
     await Promise.resolve();
     harness.coordinator.showConversation();
-    learning.resolve();
-    await imitationNavigation;
+    analysis.resolve();
+    await analysisNavigation;
 
     expect(harness.workspaceMainView.value).toBe("conversation");
     expect(harness.loaders.loadModelSettings).not.toHaveBeenCalled();
@@ -343,12 +334,12 @@ describe("useWorkspaceFeatureHostCoordinator", () => {
 
   it("reports an active lazy-feature failure but suppresses a stale failure", async () => {
     const activeHarness = createHarness({
-      ensureLearningLoaded: async () => {
-        throw new Error("仿写模块不可用");
+      ensureShortAnalysisLoaded: async () => {
+        throw new Error("短篇拆书模块不可用");
       }
     });
-    await activeHarness.coordinator.openWorkspaceDialog("imitation");
-    expect(activeHarness.errors).toEqual(["仿写模块不可用"]);
+    await activeHarness.coordinator.openWorkspaceDialog("short-book-analysis");
+    expect(activeHarness.errors).toEqual(["短篇拆书模块不可用"]);
     expect(activeHarness.workspaceMainView.value).toBe("conversation");
 
     const pending = deferred<void>();
@@ -393,9 +384,6 @@ describe("useWorkspaceFeatureHostCoordinator", () => {
     expect(harness.loaders.loadOfficialModels).not.toHaveBeenCalled();
     expect(harness.loaders.loadWorkspaceAgentSettings).toHaveBeenCalledOnce();
     expect(harness.loaders.loadLibraryAgentSettings).toHaveBeenCalledOnce();
-    expect(
-      harness.loaders.loadLearningImitationSettings
-    ).toHaveBeenCalledOnce();
 
     harness.coordinator.closeSettings();
     await harness.coordinator.openSettings("official-models");

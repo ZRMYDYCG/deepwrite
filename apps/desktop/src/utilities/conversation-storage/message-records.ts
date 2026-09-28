@@ -18,6 +18,7 @@ const DETAIL_FIELDS = new Set([
   "processingSteps",
   "subagentRuns",
   "editProposals",
+  "contextCompactions",
   "evaluationSnapshot"
 ]);
 

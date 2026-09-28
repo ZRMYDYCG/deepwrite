@@ -3,9 +3,9 @@ import type {
   BodyTextFormats,
   AgentTeamCatalogSnapshot,
   CatalogSnapshot,
+  ContextCompactionSettings,
   CreativePlotStage,
   GeneralPermissionMode,
-  LearningImitationSettings,
   LibraryAgentSettings,
   LongAgentSettings,
   ModelConfig,
@@ -19,7 +19,6 @@ import type {
   WorkspacePaneLayout,
   WorkspaceAgentSettings
 } from "@deepwrite/contracts";
-import type { LearningImitationController } from "../composables/useLearningImitation";
 import type { LongBookAnalysisController } from "../extras/long-book-analysis/useLongBookAnalysis";
 import type { SubagentAuthoringController } from "../composables/useSubagentAuthoring";
 
@@ -33,6 +32,7 @@ export interface SettingsFeatureModule {
   autoSaveEnabled: boolean;
   language: AppLanguage;
   showContextUsage: boolean;
+  contextCompaction: ContextCompactionSettings;
   showInMenuBar: boolean;
   useNetworkProxy: boolean;
   workspacePaneLayout: WorkspacePaneLayout;
@@ -49,9 +49,6 @@ export interface SettingsFeatureModule {
   libraryAgentSettings: LibraryAgentSettings | null;
   libraryAgentLoading: boolean;
   libraryAgentSaving: boolean;
-  learningImitationSettings: LearningImitationSettings | null;
-  learningImitationLoading: boolean;
-  learningImitationSaving: boolean;
   modelUsageDashboard: ModelUsageDashboard | null;
   modelUsageLoading: boolean;
   modelSettings: ModelSettings | null;
@@ -90,14 +87,6 @@ export interface DirectoryFeatureModule {
   kind: "directory";
   path: string | null;
   loading: boolean;
-}
-
-export interface ImitationFeatureModule {
-  kind: "imitation";
-  controller: LearningImitationController | null;
-  models: readonly ModelConfig[];
-  catalogSnapshot: CatalogSnapshot | null;
-  approvalMode: GeneralPermissionMode;
 }
 
 export interface LongBookAnalysisFeatureModule {
@@ -147,7 +136,6 @@ export type WorkspaceFeatureModule =
   | SettingsFeatureModule
   | AgentTeamFeatureModule
   | DirectoryFeatureModule
-  | ImitationFeatureModule
   | {
       kind: "style-comparison";
       models: readonly ModelConfig[];

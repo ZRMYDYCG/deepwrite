@@ -53,8 +53,7 @@ describe("DeepWrite Pi runtime adapter: subagent-event-projection", () => {
       } as never,
       {
         runId: "run-delete-chapter",
-        sessionId: "session-delete-chapter",
-        prompt: "删除"
+        sessionId: "session-delete-chapter"
       },
       providerRuntime,
       "assistant-delete-chapter"
@@ -107,8 +106,7 @@ describe("DeepWrite Pi runtime adapter: subagent-event-projection", () => {
       } as never,
       {
         runId: "run-rename-chapter",
-        sessionId: "session-rename-chapter",
-        prompt: "改名"
+        sessionId: "session-rename-chapter"
       },
       providerRuntime,
       "assistant-rename-chapter"

@@ -1,7 +1,10 @@
 import type { LibraryManagementScope } from "@deepwrite/contracts";
 import type {
+  AgentContextCompactionLevel,
+  AgentContextCompactionReason,
   AgentEvaluationSnapshot,
   AgentRuntimeRef,
+  ConversationCheckpoint,
   AgentUsage,
   CharacterStructureMutation,
   LongCharacterFileChange,
@@ -288,6 +291,20 @@ export type AgentProcessingStep =
       createdAt: string;
     };
 
+/** One context compaction observed during an assistant run. */
+export interface ChatContextCompaction {
+  id: string;
+  status: "running" | "completed" | "failed";
+  reason: AgentContextCompactionReason;
+  level?: AgentContextCompactionLevel;
+  tokensBefore?: number;
+  tokensAfter?: number;
+  /** The summary that replaced older turns; restores the conversation later. */
+  checkpoint?: ConversationCheckpoint;
+  errorMessage?: string;
+  createdAt: string;
+}
+
 export interface ChatMessage {
   id: string;
   role: "user" | "assistant";
@@ -309,6 +326,7 @@ export interface ChatMessage {
   subagentRuns?: AgentSubagentRun[];
   editProposals?: AgentEditProposal[];
   retry?: AgentRetryMetadata;
+  contextCompactions?: ChatContextCompaction[];
   /** Present only for runs captured in the opt-in evaluation mode. */
   evaluationSnapshot?: AgentEvaluationSnapshot;
 }

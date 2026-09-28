@@ -1,12 +1,17 @@
 import { describe, it, expect, vi } from "vitest";
 import type {
   DeepWriteApi,
+  ExtrasAgentRunRequest,
   ModelConfig,
   ShortBookAnalysisPreset,
   ShortBookAnalysisSource,
-  SessionPromptCommandPayload,
   SystemEventEnvelope
 } from "@deepwrite/contracts/renderer";
+import {
+  createExtrasAgentsFake,
+  outputEvent,
+  runEvent
+} from "../agent-runtime/extrasAgent.test-support";
 import { createShortAnalysisRun } from "./analysis-run";
 const model = {
   id: "model",
@@ -31,29 +36,31 @@ const book: ShortBookAnalysisSource = {
   importedAt: "2026-01-01T00:00:00.000Z"
 };
 function fixture() {
-  const prompt = vi.fn(async (input: SessionPromptCommandPayload) => ({
-    sessionId: input.sessionId,
-    runId: `${input.sessionId}-run`,
-    acceptedAt: new Date().toISOString()
-  }));
+  const fake = createExtrasAgentsFake();
   const abort = vi.fn(async () => ({}));
-  const api = { session: { prompt, abort } } as unknown as DeepWriteApi;
-  return { prompt, abort, run: createShortAnalysisRun(() => api) };
+  const api = {
+    session: { abort },
+    extrasAgents: fake.extrasAgents
+  } as unknown as DeepWriteApi;
+  return { prompt: fake.run, abort, run: createShortAnalysisRun(() => api) };
 }
 function event(
   type: string,
-  prompt: SessionPromptCommandPayload,
+  request: ExtrasAgentRunRequest,
   body: Record<string, unknown> = {}
 ): SystemEventEnvelope {
-  return {
-    type,
-    payload: {
-      sessionId: prompt.sessionId,
-      runId: `${prompt.sessionId}-run`,
-      ...body
-    }
-  } as SystemEventEnvelope;
+  return runEvent(type, request, body);
 }
+function shortInput(request: ExtrasAgentRunRequest) {
+  if (request.task.agentId !== "short-book-analysis")
+    throw new Error("unexpected agent");
+  return request.task.input;
+}
+const submitted = {
+  name: "联合结果",
+  description: "用于提炼写作方法。",
+  content: "分析两本的异同"
+};
 const flush = async () => {
   await Promise.resolve();
   await Promise.resolve();
@@ -83,6 +90,7 @@ describe("short analysis run", () => {
       )
     ).toHaveLength(1);
     f.run.handleEvent(event("agent.error", input, { message: "测试请求失败" }));
+    await flush();
     expect(f.run.entries.value.at(-1)?.tone).toBe("error");
     expect(f.run.liveOutput.value).toBe("公开分析说明");
     expect(
@@ -108,6 +116,7 @@ describe("short analysis run", () => {
         content: "供用户查看的公开说明"
       })
     );
+    await flush();
     expect(f.run.liveOutput.value).toBe("供用户查看的公开说明");
     expect(f.run.status.value).toBe("error");
   });
@@ -119,33 +128,27 @@ describe("short analysis run", () => {
     const input = f.prompt.mock.calls[0]![0];
     books[0]!.text = "修改";
     mutable.name = "修改";
-    expect(input.workspaceContext?.shortBookAnalysis?.books[0]?.text).toBe(
-      book.text
-    );
+    expect(input.task).toMatchObject({
+      agentId: "short-book-analysis",
+      profileId: "preset"
+    });
+    expect(shortInput(input).books[0]?.text).toBe(book.text);
     expect(f.run.preset.value?.name).toBe("综合");
     await flush();
     f.run.handleEvent(
-      event("long_book_analysis.result_updated", input, {
-        result: {
-          name: "错误",
-          description: "用于提炼写作方法。",
-          content: "来自长篇"
-        }
+      outputEvent(input, {
+        kind: "book-analysis-note",
+        unitId: "unit",
+        note: { text: "中间笔记" }
       })
     );
     expect(f.run.result.value).toBeNull();
     f.run.handleEvent(
-      event("short_book_analysis.result_updated", input, {
-        jobId: input.workspaceContext!.shortBookAnalysis!.jobId,
-        result: {
-          name: "联合结果",
-          description: "用于提炼写作方法。",
-          content: "分析两本的异同"
-        }
-      })
+      outputEvent(input, { kind: "book-analysis-result", result: submitted })
     );
     expect(f.run.result.value).toBeNull();
     f.run.handleEvent(event("agent.message_completed", input));
+    await flush();
     expect(f.run.status.value).toBe("completed");
     expect(f.run.result.value?.name).toBe("联合结果");
     expect(f.prompt).toHaveBeenCalledTimes(1);
@@ -180,24 +183,24 @@ describe("short analysis run", () => {
     f.run.handleEvent(
       event("agent.message_completed", input, { content: "普通回复" })
     );
+    await flush();
     expect(f.run.status.value).toBe("error");
     expect(f.run.result.value).toBeNull();
     f.run.retry();
     await flush();
     const next = f.prompt.mock.calls[1]![0];
     expect(next.sessionId).not.toBe(input.sessionId);
-    expect(next.workspaceContext).toEqual(input.workspaceContext);
+    expect(next.task).toEqual(input.task);
     f.run.handleEvent(
-      event("short_book_analysis.result_updated", input, {
-        jobId: input.workspaceContext!.shortBookAnalysis!.jobId,
-        result: {
-          name: "旧结果",
-          description: "用于提炼写作方法。",
-          content: "旧输出"
-        }
+      outputEvent(input, {
+        kind: "book-analysis-result",
+        result: { ...submitted, name: "旧结果" }
       })
     );
+    f.run.handleEvent(event("agent.message_completed", input));
+    await flush();
     expect(f.run.result.value).toBeNull();
+    expect(f.run.status.value).toBe("running");
   });
   it("stops before prompt acceptance and ignores late output", async () => {
     const f = fixture();
@@ -215,7 +218,8 @@ describe("short analysis run", () => {
     accept({
       sessionId: input.sessionId,
       runId: `${input.sessionId}-run`,
-      acceptedAt: new Date().toISOString()
+      acceptedAt: new Date().toISOString(),
+      runtime: { provider: "test", model: "test", mode: "provider" }
     });
     await flush();
     await flush();
@@ -255,6 +259,7 @@ describe("short analysis run", () => {
         detectedAt: new Date().toISOString()
       }
     } as SystemEventEnvelope);
+    await flush();
     expect(f.run.status.value).toBe("error");
     expect(f.run.error.value).toContain("重启");
     expect(f.run.canRetry.value).toBe(true);

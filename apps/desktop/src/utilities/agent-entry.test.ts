@@ -16,7 +16,8 @@ import {
 } from "@deepwrite/contracts";
 import type {
   AgentRunInput,
-  AgentRuntimeEvent
+  AgentRuntimeEvent,
+  ExtrasAgentRunInput
 } from "@deepwrite/pi-runtime-adapter";
 import type {
   UtilityCommandHandlerContext,
@@ -28,6 +29,7 @@ type AgentCommandHandler = NonNullable<UtilityRuntimeOptions["commandHandler"]>;
 const captured = vi.hoisted(() => ({
   commandHandler: undefined as AgentCommandHandler | undefined,
   startInputs: [] as AgentRunInput[],
+  extrasInputs: [] as ExtrasAgentRunInput[],
   runtimeEvents: [] as AgentRuntimeEvent[]
 }));
 
@@ -63,6 +65,15 @@ vi.mock("@deepwrite/pi-runtime-adapter", () => ({
       }
     }
 
+    async *startExtras(
+      input: ExtrasAgentRunInput
+    ): AsyncIterable<AgentRuntimeEvent> {
+      captured.extrasInputs.push(input);
+      for (const event of captured.runtimeEvents.splice(0)) {
+        yield event;
+      }
+    }
+
     async testConnection(): Promise<never> {
       throw new Error("Not used by this test.");
     }
@@ -87,64 +98,87 @@ vi.mock("@deepwrite/pi-runtime-adapter", () => ({
 describe("Agent Utility prompt forwarding", () => {
   beforeEach(() => {
     captured.startInputs.length = 0;
+    captured.extrasInputs.length = 0;
     captured.runtimeEvents.length = 0;
   });
 
-  it("forwards web search for a chat-assistant prompt", async () => {
+  it("forwards a chat turn and gives only long project chats the Core bridge", async () => {
     await import("./agent-entry");
-    const command = CommandEnvelopeSchema.parse(
-      createEnvelope(
-        "agent.prompt",
-        {
-          sessionId: "session-chat-web-search",
-          message: "查询今天的行业动态",
-          conversationHistory: [
-            {
-              role: "user" as const,
-              content: "先聊聊出版趋势",
-              createdAt: "2026-08-17T07:58:00.000Z"
-            },
-            {
-              role: "assistant" as const,
-              content: "可以先比较纸书与电子书市场。",
-              createdAt: "2026-08-17T07:59:00.000Z"
+    const history = [
+      {
+        role: "user" as const,
+        content: "先聊聊出版趋势",
+        createdAt: "2026-08-17T07:58:00.000Z"
+      },
+      {
+        role: "assistant" as const,
+        content: "可以先比较纸书与电子书市场。",
+        createdAt: "2026-08-17T07:59:00.000Z"
+      }
+    ];
+    const project = { projectType: "long" as const, projectId: "longbook_a" };
+    const chatRun = (sessionId: string, task: unknown) =>
+      CommandEnvelopeSchema.parse(
+        createEnvelope(
+          "agent.extras_run",
+          {
+            sessionId,
+            task,
+            conversation: {
+              message: "查询今天的行业动态",
+              history,
+              historyMode: "replace"
             }
-          ],
-          conversationHistoryMode: "replace" as const,
-          mode: "chat-assistant" as const,
-          chatAssistant: {
-            mode: "normal" as const,
-            webSearchEnabled: true
           },
-          chatAssistantRuntimeContext: { mode: "normal" as const }
-        },
-        {
-          id: "command-chat-web-search",
-          context: {
-            correlationId: "correlation-chat-web-search",
-            sessionId: "session-chat-web-search"
+          {
+            id: `command-${sessionId}`,
+            context: { correlationId: `correlation-${sessionId}`, sessionId }
           }
-        }
-      )
-    );
+        )
+      );
+    const utilityContext: UtilityCommandHandlerContext = {
+      worker: "agent",
+      requestId: "command-chat",
+      requestInternalCommand: vi.fn()
+    };
+    const profile = { id: "default", name: "默认", systemPrompt: "只读顾问。" };
 
     await expect(
-      captured.commandHandler!(command, vi.fn())
-    ).resolves.toMatchObject({
-      status: "accepted"
-    });
-    await vi.waitFor(() => expect(captured.startInputs).toHaveLength(1));
+      captured.commandHandler!(
+        chatRun("session-chat-long", {
+          agentId: "chat-project",
+          profile,
+          input: {
+            project,
+            webSearchEnabled: true,
+            runtime: { projectBook: { id: "longbook_a", bookType: "long" } }
+          }
+        }),
+        vi.fn(),
+        utilityContext
+      )
+    ).resolves.toMatchObject({ status: "accepted" });
+    await expect(
+      captured.commandHandler!(
+        chatRun("session-chat-roleplay", {
+          agentId: "chat-roleplay",
+          profile: { id: "role", name: "守望者", systemPrompt: "你是守望者。" },
+          input: {}
+        }),
+        vi.fn(),
+        utilityContext
+      )
+    ).resolves.toMatchObject({ status: "accepted" });
+    await vi.waitFor(() => expect(captured.extrasInputs).toHaveLength(2));
 
-    expect(captured.startInputs[0]).toMatchObject({
-      mode: "chat-assistant",
-      conversationHistory: [
-        { role: "user", content: "先聊聊出版趋势" },
-        { role: "assistant", content: "可以先比较纸书与电子书市场。" }
-      ],
-      conversationHistoryMode: "replace",
-      webSearchEnabled: true
+    const [longChat, roleplay] = captured.extrasInputs;
+    expect(longChat?.spec).toMatchObject({
+      task: { agentId: "chat-project", input: { webSearchEnabled: true } },
+      conversation: { history, historyMode: "replace" }
     });
-    expect(captured.startInputs[0]?.subagentRuntimeConfigs).toBeUndefined();
+    expect(longChat?.longCommandExecutor).toBeTypeOf("function");
+    expect(roleplay?.longCommandExecutor).toBeUndefined();
+    expect(captured.startInputs).toHaveLength(0);
   });
 
   it("forwards workspace web search from the command payload", async () => {

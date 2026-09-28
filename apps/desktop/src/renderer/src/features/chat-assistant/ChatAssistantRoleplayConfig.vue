@@ -3,8 +3,8 @@ import { nextTick, ref } from "vue";
 import {
   CHAT_ASSISTANT_PROJECT_PROMPT_MAX_LENGTH,
   CHAT_ASSISTANT_ROLEPLAY_PROMPT_SUFFIX,
-  ChatAssistantRoleplayConfigSchema,
-  type ChatAssistantRoleplayConfig
+  ChatRoleplayProfileSchema,
+  type ChatRoleplayProfile
 } from "@deepwrite/contracts/renderer";
 import { uiMessage } from "../../ui-feedback";
 import type { ChatAssistantModeFeature } from "./useChatAssistantMode";
@@ -15,7 +15,7 @@ const editingId = ref("");
 const name = ref("");
 const prompt = ref("");
 const nameInput = ref<HTMLInputElement | null>(null);
-function open(config?: ChatAssistantRoleplayConfig): void {
+function open(config?: ChatRoleplayProfile): void {
   if (props.assistant.isBusy.value) return;
   editingId.value = config?.id ?? "";
   name.value = config?.name ?? "";
@@ -33,7 +33,7 @@ async function save(): Promise<void> {
     uiMessage.warning("请填写人物提示词");
     return;
   }
-  const config = ChatAssistantRoleplayConfigSchema.safeParse({
+  const config = ChatRoleplayProfileSchema.omit({ builtin: true }).safeParse({
     id: editingId.value || crypto.randomUUID(),
     name: name.value,
     systemPrompt: prompt.value

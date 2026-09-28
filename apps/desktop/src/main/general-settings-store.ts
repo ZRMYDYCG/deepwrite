@@ -15,6 +15,7 @@ interface DiskGeneralSettings extends Omit<
   | "defaultTextViewMode"
   | "bodyTextFormats"
   | "showContextUsage"
+  | "contextCompaction"
   | "useNetworkProxy"
 > {
   version: 1 | 2;
@@ -23,6 +24,7 @@ interface DiskGeneralSettings extends Omit<
   bodyTextFormats?: GeneralSettings["bodyTextFormats"];
   defaultTextViewMode?: GeneralSettings["defaultTextViewMode"];
   showContextUsage?: boolean;
+  contextCompaction?: GeneralSettings["contextCompaction"];
   useNetworkProxy?: boolean;
 }
 
@@ -87,6 +89,7 @@ export class GeneralSettingsStore {
         language: candidate.language,
         showInMenuBar: candidate.showInMenuBar,
         showContextUsage: candidate.showContextUsage,
+        contextCompaction: candidate.contextCompaction,
         useNetworkProxy: candidate.useNetworkProxy,
         workspacePaneLayout: candidate.workspacePaneLayout,
         defaultTextViewMode: candidate.defaultTextViewMode,

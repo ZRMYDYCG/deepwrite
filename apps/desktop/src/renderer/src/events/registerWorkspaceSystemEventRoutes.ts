@@ -16,9 +16,6 @@ export interface QueuedAgentEditRun {
 }
 
 export interface WorkspaceSystemEventRouteDependencies {
-  learningImitation: {
-    handleEvent(event: SystemEventEnvelope): void;
-  };
   revisionAnalysis: { handleEvent(event: SystemEventEnvelope): void };
   shortBookAnalysis: { handleEvent(event: SystemEventEnvelope): void };
   longBookAnalysis: {
@@ -62,9 +59,6 @@ export function registerWorkspaceSystemEventRoutes(
   dependencies: WorkspaceSystemEventRouteDependencies
 ): () => void {
   const disposers = [
-    center.subscribeAll((event) => {
-      dependencies.learningImitation.handleEvent(event);
-    }),
     center.subscribeAll((event) => {
       dependencies.longBookAnalysis.handleEvent(event);
       dependencies.shortBookAnalysis.handleEvent(event);

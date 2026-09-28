@@ -1,13 +1,19 @@
 import type { DeepWriteApi } from "@deepwrite/contracts/renderer";
 export function createBookAnalysisTestApi(): Pick<
   DeepWriteApi,
-  "revisionAnalysis" | "shortBookAnalysis" | "longBookAnalysis"
+  "extrasAgents" | "shortBookAnalysis" | "longBookAnalysis"
 > {
+  const unused = (): never => {
+    throw new Error("Extras agents are not used by conversation tests.");
+  };
   return {
-    revisionAnalysis: {
-      list: async () => ({ systemPrompt: "测试方法" }),
-      save: async (input) => input,
-      reset: async () => ({ systemPrompt: "测试方法" })
+    extrasAgents: {
+      run: async () => unused(),
+      profiles: {
+        list: async () => unused(),
+        save: async () => unused(),
+        reset: async () => unused()
+      }
     },
     shortBookAnalysis: {
       chooseSources: async () => null,
@@ -20,11 +26,6 @@ export function createBookAnalysisTestApi(): Pick<
         load: async () => {
           throw new Error("not used");
         }
-      },
-      presets: {
-        list: async () => ({ presets: [] }),
-        save: async (input) => input,
-        reset: async () => ({ presets: [] })
       }
     },
     longBookAnalysis: {
@@ -40,23 +41,6 @@ export function createBookAnalysisTestApi(): Pick<
           );
         },
         async load() {
-          throw new Error(
-            "Long book analysis is not used by conversation tests."
-          );
-        }
-      },
-      presets: {
-        async list() {
-          throw new Error(
-            "Long book analysis is not used by conversation tests."
-          );
-        },
-        async save() {
-          throw new Error(
-            "Long book analysis is not used by conversation tests."
-          );
-        },
-        async reset() {
           throw new Error(
             "Long book analysis is not used by conversation tests."
           );

@@ -16,6 +16,7 @@ import {
 } from "./conversationToolPresentation";
 import AgentEditProposalCard from "./AgentEditProposalCard.vue";
 import AppIcon from "./AppIcon.vue";
+import ConversationContextCompactionNotice from "./ConversationContextCompactionNotice.vue";
 import ConversationProcessingTimeline from "./ConversationProcessingTimeline.vue";
 import ConversationUserMessageEditor from "./ConversationUserMessageEditor.vue";
 import LongProposalReview from "./LongProposalReview.vue";
@@ -117,6 +118,12 @@ onBeforeUnmount(() => {
     ]"
   >
     <div class="message-body">
+      <ConversationContextCompactionNotice
+        v-if="
+          message.role === 'assistant' && message.contextCompactions?.length
+        "
+        :compactions="message.contextCompactions"
+      />
       <ConversationProcessingTimeline
         v-if="message.role === 'assistant'"
         :message="message"

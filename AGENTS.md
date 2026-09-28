@@ -14,7 +14,7 @@ DeepWrite 的基础核心能力是创作空间、素材库、技能库和设置�
 | 设置页面 | 管理模型、智能体、正文文本、外观等基础配置。 |
 
 - **支撑机制：**基础能力共用智能体机制（模型与提示词配置、作品上下文、素材与技能读取、受控工具和修改提案）及文本机制（本地 Markdown、编辑与预览、正文格式、差异审阅和版本安全保存）。修改这些机制时，应检查其对四项基础能力的影响。
-- **扩展能力：**侧边栏“更多功能”中的聊天、学习仿写、拆书分析、文风比对、同步与备份等建立在基础能力之上；扩展功能复用既有的智能体、文本、协议和存储机制，不另建平行实现。
+- **扩展能力：**侧边栏“更多功能”中的聊天、修改分析、短篇/长篇拆书、文风比对、同步与备份等建立在基础能力之上；扩展功能复用既有的智能体、文本、协议和存储机制，不另建平行实现。其中需要智能体的能力统一走下文的扩展智能体服务。
 
 ## 项目布局与职责
 
@@ -26,10 +26,10 @@ DeepWrite 是 pnpm workspace，`apps/desktop/` 是唯一桌面客户端。根目
 | `apps/desktop/src/preload/` | `window.deepwrite` 专用 API 与请求、响应校验 |
 | `apps/desktop/src/utilities/` | Core 本地存储、Agent 运行、Tool 受控执行 |
 | `apps/desktop/src/renderer/` | Vue 工作台、界面状态与会话编排 |
-| `apps/desktop/src/extras/` | 由 Main 注册的可选能力；对应界面放在 Renderer 的 `extras/` |
+| `apps/desktop/src/extras/` | 由 Main 注册的可选能力，含扩展智能体服务 `extras/agents/`；对应界面放在 Renderer 的 `extras/` |
 | `apps/desktop/scripts/` | Electron 冒烟、安装包验证与构建钩子 |
 | `packages/contracts/` | 命令、事件和领域模型的 Zod 契约 |
-| `packages/pi-runtime-adapter/` | Pi 运行时、工具 schema 与受控工具适配 |
+| `packages/pi-runtime-adapter/` | Pi 运行时、工具 schema 与受控工具适配；`kernel/` 为共享运行内核，`extras/` 为扩展智能体定义 |
 | `packages/shared/` | 无业务语义的共用工具 |
 | `tools/` | 边界检查、运行时与打包编排 |
 
@@ -39,6 +39,13 @@ DeepWrite 是 pnpm workspace，`apps/desktop/` 是唯一桌面客户端。根目
 - **契约变更：**新增命令、事件、清单字段或 Preload API 时，先更新 `packages/contracts` 的类型与 schema，再接通 Preload、Main 路由和相应 Utility；Renderer 所需的契约运行时值还要从 `packages/contracts/src/renderer.ts` 导出。Preload 只暴露经过双向校验的专用方法。
 - **本地写入：**Core Utility 是本地项目与路径注册表的唯一写入者，写入须保持原子性。本地作品以文件夹存放，清单为 `deepwrite.json`，正文与设定为 UTF-8 Markdown；短篇、剧本、素材库和技能库由 `folder-catalog-store` 管理，长篇由 `long-project-store` / `long-workspace-service` 管理。Agent 读取作品须经 Main 授权的 Core 只读桥；修改文稿须先展示 proposal 差异，用户接受后才由 Core 落盘，并处理版本冲突。
 - **界面组织：**`WorkspaceShell.vue` 是工作台壳，默认三栏写作面留在入口，其他领域界面按现有 `lazyAppComponents` 按需加载。界面状态放 `stores/`，跨组件流程放 `composables/`，领域页面放 `features/` 或 `extras/`；业务写入留在 coordinator / Utility handler。可选能力沿用 Main `extras/`、Renderer `extras/` 和同一套 contracts。
+- **智能体运行分域：**所有智能体共用 `pi-runtime-adapter/src/kernel/` 的运行内核（模型接入、重试、超时、工具流、用量事件、中止）。创作空间和资料库经 `session.prompt` 进入创作域（`workspace-run-plan.ts`）；“更多功能”的智能体（聊天与各类分析）经 `extrasAgent.run` 进入扩展域，不得再向 `session.prompt` 载荷或 `WorkspaceRuntimeContext` 添加扩展功能字段。
+- **扩展智能体服务：**
+  - **协议：**contracts 的 `extras-agent/` 定义智能体 ID、档案、任务输入、结果和命令。Renderer 只传 `profileId`，档案由 Main 的 `ExtrasAgentConfigStore`（`config/extras-agents/<agentId>.json`）权威解析，聊天所需的作品、模型和用量快照也只由 Main 的 `resolveExtrasTask` 读取；预算经 `assertExtrasAgentBudget` 在 Renderer 预检、Main 与 Agent 复核。
+  - **两种交互：**分析类是一次性任务（`ExtrasTaskAgentDefinition`），每次运行由任务生成用户消息；聊天是对话（`ExtrasConversationAgentDefinition`，ID 见 `EXTRAS_CONVERSATION_AGENT_IDS`），运行请求必须携带 `conversation` 轮次（消息、历史、附件），Agent Utility 按 `conversationKey` 缓存对话。
+  - **定义：**每个智能体在 `pi-runtime-adapter/src/extras/agents/` 有一份定义。系统提示词统一为“档案提示词 + 不可编辑的 `【名称运行边界】`”；工具只能由开发者在定义里从 `extras/tools/` 组合，不向用户开放。分析结果经结果工具或 `finalOutput` 统一发出 `extras_agent.output_updated`。
+  - **界面：**分析页面用 `extras/agent-runtime/startExtrasAgentTask` 运行任务，不在页面里重复会话、事件过滤、停止与销毁逻辑；聊天复用 `useAgentConversation`，由 `sendAssistantMessage(task)` 经 `send-transport.ts` 发往扩展域。
+  - **新增步骤：**依次补 contracts 的 ID、档案与输入 schema、结果类型和用量模块映射，`profile-catalogs.ts` 的内置档案（需要 Main 权威数据时再补 `task-resolver.ts`），`extras/agents/` 的定义与 Faux 响应，`resolveExtrasAgent` 注册，最后接页面。
 - **进程与打包：**打包入口包括 Main `src/main/index.ts`、`core-entry` / `agent-entry` / `tool-entry`、Preload 和 Renderer。改动进程入口、Utility 或安装包 `files` 时，同步检查 `apps/desktop/electron.vite.config.ts`、supervisor 启动路径、冒烟脚本和 `pnpm lint:boundary`；改变运行时依赖的打包方式时还要检查 before-build 钩子与安装包内运行。
 
 ## 代码质量与验证
@@ -71,7 +78,7 @@ DeepWrite 是 pnpm workspace，`apps/desktop/` 是唯一桌面客户端。根目
 
 ## 前端视觉、主题与控件
 
-- 新页面和弹窗沿用现有容器层级、间距、圆角与控件样式；学习仿写等复杂页面以设置页为参照。颜色优先使用 `--surface-main`、`--surface-raised`、`--surface-muted`、`--surface-hover`、`--surface-selected`、`--theme-line`、`--theme-line-soft`、`--text-primary`、`--text-secondary`、`--text-tertiary`、`--accent`、`--accent-soft`，避免给普通容器另设固定色板。
+- 新页面和弹窗沿用现有容器层级、间距、圆角与控件样式；拆书分析等复杂页面以设置页为参照。颜色优先使用 `--surface-main`、`--surface-raised`、`--surface-muted`、`--surface-hover`、`--surface-selected`、`--theme-line`、`--theme-line-soft`、`--text-primary`、`--text-secondary`、`--text-tertiary`、`--accent`、`--accent-soft`，避免给普通容器另设固定色板。
 - 与“设置 → 外观”实时联动：主题模式、强调色、背景色、前景色、UI 字号和可读性设置变化后应即时生效。`Teleport` 弹层同样使用根节点主题变量；检查浅色、深色和自定义强调色下的对比度，以及紧凑窗口和允许的字号范围，避免固定高度导致裁切。
 - 业务表单中的列表选择框复用 Renderer 的 `PopupSelect`，保持尺寸、焦点、禁用态和交互一致，不混用原生 `<select>`；弹窗中的菜单须高于弹窗且不被裁切。
-- 保存、创建、确认等主操作使用现有中性深色实心按钮；红色危险按钮只用于删除持久数据或不可恢复的覆盖。“新建学习”只清空临时内容，因此“确认新建”使用普通主按钮。
+- 保存、创建、确认等主操作使用现有中性深色实心按钮；红色危险按钮只用于删除持久数据或不可恢复的覆盖；只清空临时内容的操作（如重新开始一次分析）使用普通主按钮。

@@ -3,8 +3,6 @@ export const loadAuthorSupportDialog = () =>
   import("./AuthorSupportDialog.vue");
 export const loadAgentTeamSettingsPanel = () =>
   import("./AgentTeamCatalogFeature.vue");
-export const loadLearningImitationDialog = () =>
-  import("./LearningImitationDialog.vue");
 export const loadShortBookAnalysisPage = async () =>
   (await import("../extras/short-book-analysis/loader")).loadPage();
 export const loadLongBookAnalysisPage = async () =>

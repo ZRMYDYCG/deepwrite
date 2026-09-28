@@ -191,102 +191,23 @@ describe("DeepWrite desktop contracts: commands-models-and-prompts", () => {
     ).toThrow();
   });
 
-  it("keeps chat-assistant prompts isolated from workspace and write context", () => {
-    const accepted = createEnvelope(
+  it("keeps chat out of session.prompt and allows workspace web search", () => {
+    // Chat runs as a "更多功能" agent through extrasAgent.run now.
+    const legacyChat = createEnvelope(
       "session.prompt",
       {
         sessionId: "session_chat_1",
         message: "聊聊今天的计划",
-        mode: "chat-assistant" as const,
-        thinkingLevel: "medium" as const,
-        chatAssistant: {
-          mode: "normal" as const,
-          webSearchEnabled: true
-        }
+        mode: "chat-assistant",
+        chatAssistant: { mode: "normal", webSearchEnabled: true }
       },
       { id: "cmd_chat", context: { sessionId: "session_chat_1" } }
     );
-    expect(CommandEnvelopeSchema.parse(accepted)).toMatchObject({
-      payload: {
-        mode: "chat-assistant",
-        chatAssistant: { mode: "normal", webSearchEnabled: true }
-      }
-    });
-
-    const project = createEnvelope(
-      "session.prompt",
-      {
-        sessionId: "session_chat_project",
-        message: "核对第一章伏笔",
-        mode: "chat-assistant" as const,
-        chatAssistant: {
-          mode: "project" as const,
-          project: { projectType: "long" as const, projectId: "book-1" },
-          webSearchEnabled: true
-        }
-      },
-      { id: "cmd_chat_project", context: { sessionId: "session_chat_project" } }
-    );
-    expect(CommandEnvelopeSchema.parse(project)).toMatchObject({
-      payload: {
-        chatAssistant: {
-          mode: "project",
-          project: { projectType: "long", projectId: "book-1" },
-          webSearchEnabled: true
-        }
-      }
-    });
-
-    const invalidProject = createEnvelope(
-      "session.prompt",
-      {
-        sessionId: "session_chat_project",
-        message: "缺少项目",
-        mode: "chat-assistant" as const,
-        chatAssistant: { mode: "project" as const }
-      },
-      {
-        id: "cmd_chat_project_invalid",
-        context: { sessionId: "session_chat_project" }
-      }
-    );
-    expect(() => CommandEnvelopeSchema.parse(invalidProject)).toThrow();
-
-    for (const forbidden of [
-      { workspaceContext: {} },
-      { writeApprovalMode: "request-approval" as const },
-      { agentTeamMode: "team" as const },
-      { autoApproveCrossStageOperations: true }
-    ]) {
-      const envelope = createEnvelope(
-        "session.prompt",
-        {
-          sessionId: "session_chat_1",
-          message: "不要读取工作区",
-          mode: "chat-assistant" as const,
-          ...forbidden
-        },
-        { id: "cmd_chat_forbidden", context: { sessionId: "session_chat_1" } }
-      );
-      expect(() => CommandEnvelopeSchema.parse(envelope)).toThrow();
-    }
-
-    const nonChatSearch = createEnvelope(
-      "session.prompt",
-      {
-        sessionId: "session_non_chat_search",
-        message: "不应启用搜索",
-        chatAssistant: {
-          mode: "normal" as const,
-          webSearchEnabled: true
-        }
-      },
-      {
-        id: "cmd_non_chat_search",
-        context: { sessionId: "session_non_chat_search" }
-      }
-    );
-    expect(() => CommandEnvelopeSchema.parse(nonChatSearch)).toThrow();
+    const parsed = CommandEnvelopeSchema.parse(legacyChat) as {
+      payload: Record<string, unknown>;
+    };
+    expect(parsed.payload).not.toHaveProperty("mode");
+    expect(parsed.payload).not.toHaveProperty("chatAssistant");
 
     const workspaceSearch = createEnvelope(
       "session.prompt",
@@ -304,22 +225,6 @@ describe("DeepWrite desktop contracts: commands-models-and-prompts", () => {
     expect(CommandEnvelopeSchema.parse(workspaceSearch)).toMatchObject({
       payload: { webSearchEnabled: true }
     });
-
-    const chatTopLevelSearch = createEnvelope(
-      "session.prompt",
-      {
-        sessionId: "session_chat_top_level_search",
-        message: "不要走顶层搜索开关",
-        mode: "chat-assistant" as const,
-        chatAssistant: { mode: "normal" as const },
-        webSearchEnabled: true
-      },
-      {
-        id: "cmd_chat_top_level_search",
-        context: { sessionId: "session_chat_top_level_search" }
-      }
-    );
-    expect(() => CommandEnvelopeSchema.parse(chatTopLevelSearch)).toThrow();
   });
 
   it("restricts DeepSeek web search to the two server-tool APIs", () => {

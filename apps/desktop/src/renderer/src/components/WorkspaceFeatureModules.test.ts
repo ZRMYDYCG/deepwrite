@@ -12,7 +12,6 @@ describe("WorkspaceFeatureModules boundary", () => {
       "settings",
       "agent-team",
       "directory",
-      "imitation",
       "marketplace",
       "cloud-backup",
       "zhuque-detection"
@@ -23,7 +22,7 @@ describe("WorkspaceFeatureModules boundary", () => {
     expect(source).toContain("<AgentTeamSettingsPanel");
     expect(source).toContain("<WorkspaceDirectoryFeature");
     expect(source).not.toContain("<ModelSettingsFeature");
-    expect(source).toContain("<LearningImitationDialog");
+    expect(source).not.toContain("LearningImitation");
     expect(source).toContain("<SkillMarketplacePage");
     expect(source).toContain("<CloudBackupPage");
     expect(source).toContain("<ZhuqueDetectionPage");
@@ -34,7 +33,7 @@ describe("WorkspaceFeatureModules boundary", () => {
   it("keeps feature pages behind the existing lazy component registry", () => {
     expect(source).toContain('from "./lazyAppComponents"');
     expect(source).not.toMatch(
-      /import\s+\w+\s+from\s+"\.\/(?:SettingsPage|AgentTeamSettingsPanel|WorkspaceDirectoryFeature|ModelSettingsFeature|LearningImitationDialog|SkillMarketplacePage)\.vue"/u
+      /import\s+\w+\s+from\s+"\.\/(?:SettingsPage|AgentTeamSettingsPanel|WorkspaceDirectoryFeature|ModelSettingsFeature|SkillMarketplacePage)\.vue"/u
     );
     expect(source).not.toContain(
       'from "../extras/cloud-backup/CloudBackupPage.vue"'
@@ -50,9 +49,6 @@ describe("WorkspaceFeatureModules boundary", () => {
     expect(source).toContain("module: WorkspaceFeatureModule");
     expect(typesSource).toContain(
       "authoring: SubagentAuthoringController | null"
-    );
-    expect(typesSource).toContain(
-      "controller: LearningImitationController | null"
     );
     expect(source).not.toMatch(/\bany\b/u);
     expect(typesSource).not.toMatch(/\bany\b/u);

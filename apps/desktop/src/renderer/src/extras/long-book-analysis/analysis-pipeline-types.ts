@@ -25,17 +25,6 @@ export interface LongBookAnalysisPipelineState extends LongBookAnalysisProcessSt
 
 export type { LongBookAnalysisProcessEntry };
 
-export interface LongBookAnalysisPendingUnit {
-  sessionId: string;
-  unitId: string;
-  phase: LongBookAnalysisPhase;
-  runId?: string;
-  note?: string;
-  result?: LongBookAnalysisResult;
-  resolve(value: string | LongBookAnalysisResult): void;
-  reject(error: Error): void;
-}
-
 export interface LongBookAnalysisJob {
   id: string;
   sourceTitle: string;

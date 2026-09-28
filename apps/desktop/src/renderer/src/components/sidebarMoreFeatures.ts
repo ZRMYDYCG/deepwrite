@@ -2,7 +2,6 @@ import type { IconName } from "../types/workspace";
 export const moreFeatures: Array<{
   id:
     | "chat-assistant"
-    | "imitation"
     | "long-book-analysis"
     | "revision-analysis"
     | "short-book-analysis"
@@ -20,12 +19,6 @@ export const moreFeatures: Array<{
     label: "聊天",
     description: "打开独立聊天助手",
     icon: "message"
-  },
-  {
-    id: "imitation",
-    label: "短篇学习仿写",
-    description: "学习范文并生成同类短篇",
-    icon: "wand"
   },
   {
     id: "revision-analysis",

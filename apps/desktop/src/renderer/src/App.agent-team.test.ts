@@ -66,9 +66,6 @@ describe("App agent-team integration", () => {
     expect(featureModulesSource).toContain(
       'class="workspace-settings-main-view"'
     );
-    expect(featureModulesSource).toContain(
-      'class="learning-imitation-main-view"'
-    );
     expectSourceToContain(
       source,
       ":active-primary-feature=\"chatAssistant.active.value ? 'chat-assistant' : activePrimaryFeature\""
@@ -131,7 +128,6 @@ describe("App agent-team integration", () => {
     expect(lifecycleSource).not.toContain(
       "loadShortAndScriptAgentTeamSettings"
     );
-    expect(lifecycleSource).not.toContain("loadLearningImitationSettings");
     expect(lifecycleSource).not.toContain("loadWorkspaceDirectory");
     expect(
       lifecycleSource.indexOf("options.scheduleDirtyDraftAutoSave()")

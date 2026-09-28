@@ -20,7 +20,6 @@ import { createTransientScrollbarController } from "../utils/transientScrollbar"
 const props = defineProps<{
   sections: ResourceTreeSection[];
   selectedId: string;
-  imitationRunning?: boolean;
   longBookAnalysisRunning?: boolean;
   shortBookAnalysisRunning?: boolean;
   revisionAnalysisRunning?: boolean;
@@ -106,7 +105,6 @@ const moreExpanded = ref(false);
 function activateMoreFeature(
   id:
     | "chat-assistant"
-    | "imitation"
     | "long-book-analysis"
     | "revision-analysis"
     | "short-book-analysis"
@@ -127,10 +125,6 @@ function activateMoreFeature(
   }
   if (id === "style-comparison") {
     emit("openDialog", "style-comparison");
-    return;
-  }
-  if (id === "imitation") {
-    emit("openDialog", "imitation");
     return;
   }
   if (id === "short-book-analysis") {
@@ -273,19 +267,16 @@ function activateNav(id: "create-book" | PrimaryFeatureId): void {
                   props.revisionAnalysisRunning) ||
                 (feature.id === 'short-book-analysis' &&
                   props.shortBookAnalysisRunning) ||
-                (feature.id === 'imitation' && props.imitationRunning) ||
                 (feature.id === 'long-book-analysis' &&
                   props.longBookAnalysisRunning)
               "
               class="nav-background-status"
               :title="
-                feature.id === 'imitation'
-                  ? '学习仿写正在后台运行'
-                  : feature.id === 'revision-analysis'
-                    ? '修改分析正在后台运行'
-                    : feature.id === 'short-book-analysis'
-                      ? '短篇拆书正在后台运行'
-                      : '长篇拆书正在后台运行'
+                feature.id === 'revision-analysis'
+                  ? '修改分析正在后台运行'
+                  : feature.id === 'short-book-analysis'
+                    ? '短篇拆书正在后台运行'
+                    : '长篇拆书正在后台运行'
               "
             >
               <i aria-hidden="true" />后台中

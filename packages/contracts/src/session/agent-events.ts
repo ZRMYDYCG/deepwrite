@@ -1,13 +1,5 @@
 import { z } from "zod";
 import { AgentUsageSchema } from "../agent-usage";
-import {
-  LearningImitationStageIdSchema,
-  LearningImitationWritePayloadSchema
-} from "../learning-imitation";
-import {
-  LongBookAnalysisNoteWriteSchema,
-  LongBookAnalysisResultSchema
-} from "../long-book-analysis";
 import { SubagentAuthoringDraftSchema } from "../subagent-authoring";
 import { AgentRuntimeRefSchema } from "./runtime";
 
@@ -180,43 +172,6 @@ export const AgentToolCompletedPayloadSchema = z.object({
 });
 export type AgentToolCompletedPayload = z.infer<
   typeof AgentToolCompletedPayloadSchema
->;
-
-export const LearningImitationResultUpdatedPayloadSchema = z.object({
-  sessionId: z.string().min(1),
-  runId: z.string().min(1),
-  toolCallId: z.string().min(1),
-  stageId: LearningImitationStageIdSchema,
-  update: LearningImitationWritePayloadSchema,
-  runtime: AgentRuntimeRefSchema
-});
-export type LearningImitationResultUpdatedPayload = z.infer<
-  typeof LearningImitationResultUpdatedPayloadSchema
->;
-
-const LongBookAnalysisUpdateIdentitySchema = z.object({
-  sessionId: z.string().min(1),
-  runId: z.string().min(1),
-  toolCallId: z.string().min(1),
-  jobId: z.string().trim().min(1).max(120),
-  unitId: z.string().trim().min(1).max(120),
-  runtime: AgentRuntimeRefSchema
-});
-
-export const LongBookAnalysisNoteUpdatedPayloadSchema =
-  LongBookAnalysisUpdateIdentitySchema.extend({
-    note: LongBookAnalysisNoteWriteSchema
-  });
-export type LongBookAnalysisNoteUpdatedPayload = z.infer<
-  typeof LongBookAnalysisNoteUpdatedPayloadSchema
->;
-
-export const LongBookAnalysisResultUpdatedPayloadSchema =
-  LongBookAnalysisUpdateIdentitySchema.extend({
-    result: LongBookAnalysisResultSchema
-  });
-export type LongBookAnalysisResultUpdatedPayload = z.infer<
-  typeof LongBookAnalysisResultUpdatedPayloadSchema
 >;
 
 export const SubagentAuthoringDraftUpdatedPayloadSchema = z.object({

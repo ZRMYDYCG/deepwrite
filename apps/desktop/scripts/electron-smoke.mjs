@@ -92,6 +92,22 @@ child.on("close", async (code) => {
   if (
     summary.bookTemplates?.status !== "ok" ||
     summary.bookTemplates?.created !== 4 ||
+    summary.extrasAgents?.status !== "ok" ||
+    summary.extrasAgents?.runtime !== "local-faux" ||
+    summary.extrasAgents?.styleResult !== true ||
+    summary.extrasAgents?.longNote !== true ||
+    summary.extrasAgents?.profileRoundTrip !== true ||
+    summary.extrasAgents?.modelRequired !== true ||
+    summary.extrasChat?.status !== "ok" ||
+    summary.extrasChat?.runtime !== "local-faux" ||
+    summary.extrasChat?.turns !== 2 ||
+    summary.extrasChat?.roleplay !== true ||
+    summary.extrasChat?.projectRejected !== true ||
+    summary.contextCompaction?.status !== "ok" ||
+    summary.contextCompaction?.workspace !== true ||
+    summary.contextCompaction?.chat !== true ||
+    summary.contextCompaction?.persisted !== true ||
+    summary.contextCompaction?.coldRestore !== true ||
     summary.agent?.status !== "ok" ||
     summary.agent?.runtime?.mode !== "local-faux" ||
     summary.agent?.deltaCount < 2 ||
@@ -112,6 +128,6 @@ child.on("close", async (code) => {
   }
 
   console.log(
-    "Electron smoke passed: healthy utilities, Pi/Faux completion, and Renderer-to-SQLite chunked persistence with preserved metadata and proposals; template CRUD and short/script creation through real IPC."
+    "Electron smoke passed: healthy utilities, Pi/Faux completion, and Renderer-to-SQLite chunked persistence with preserved metadata and proposals; template CRUD and short/script creation through real IPC; extras agents with unified profiles and outputs; extras chat turns, roles and Main-side project checks; writing/chat compaction with persisted checkpoints and cold restoration."
   );
 });

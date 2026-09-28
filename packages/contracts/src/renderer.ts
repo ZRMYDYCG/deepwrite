@@ -19,27 +19,30 @@ export type * from "./envelope";
 export type * from "./expert-draft";
 export type * from "./general-settings";
 export type * from "./body-text-format";
-export type * from "./learning-imitation";
 export type * from "./library-agent";
 export type * from "./long-agent-settings";
 export type * from "./long-agent-team";
 export type * from "./long-book-analysis";
 export type * from "./short-book-analysis";
-export type * from "./short-book-analysis-events";
 export {
   ShortBookAnalysisPresetSchema,
-  ShortBookAnalysisSettingsInputSchema,
   ShortBookAnalysisRuntimeContextSchema
 } from "./short-book-analysis";
 export * from "./short-book-analysis-budget";
+export * from "./token-estimate";
 export type * from "./style-comparison";
 export {
   STYLE_COMPARISON_TEXT_LIMIT,
   STYLE_COMPARISON_METHOD_LIMIT,
   StyleComparisonInputSchema,
   StyleComparisonDimensionSchema,
-  StyleComparisonResultSchema
+  StyleComparisonResultSchema,
+  StyleComparisonRuntimeContextSchema
 } from "./style-comparison";
+export type * from "./extras-agent";
+// Use the defining modules: the extras-agent barrel also evaluates its tasks.
+export { ExtrasAgentSettingsInputSchema } from "./extras-agent/profiles";
+export { assertExtrasAgentBudget } from "./extras-agent/budget";
 export { loadDefaultStyleComparisonMethod } from "./load-style-comparison-method";
 export type * from "./long-ledger";
 export type * from "./long-manuscript-export";
@@ -71,10 +74,14 @@ export type * from "./workspace-directory";
 export type * from "./writing-context";
 
 export {
-  ChatAssistantRoleplayConfigSchema,
   CHAT_ASSISTANT_ROLEPLAY_PROMPT_SUFFIX,
-  CHAT_ASSISTANT_PROJECT_PROMPT_MAX_LENGTH
+  CHAT_ASSISTANT_PROJECT_PROMPT_MAX_LENGTH,
+  chatAssistantProjectKey
 } from "./chat-assistant-base";
+export {
+  CHAT_PROJECT_DEFAULT_PROFILE_ID,
+  ChatRoleplayProfileSchema
+} from "./extras-agent/chat";
 export {
   parseMaterialMarkdown,
   resolveMaterialMetadata
@@ -160,18 +167,6 @@ export {
 } from "./expert-draft";
 export { createDefaultGeneralSettings } from "./general-settings";
 export {
-  LEARNING_IMITATION_DOCUMENT_MAX_CHARACTERS,
-  LEARNING_IMITATION_MAX_DOCUMENTS,
-  LEARNING_IMITATION_STAGE_DESCRIPTIONS,
-  LEARNING_IMITATION_STAGE_IDS,
-  LEARNING_IMITATION_STAGE_LABELS,
-  LearningImitationDocumentsSchema,
-  LearningImitationResultSchema,
-  applyLearningImitationWrite,
-  cloneEmptyLearningImitationResult,
-  learningImitationStageHasResult
-} from "./learning-imitation";
-export {
   DEFAULT_LIBRARY_AGENT_PROFILES,
   DEFAULT_LIBRARY_AGENT_SETTINGS,
   DEFAULT_MATERIAL_LIBRARY_AGENT_SKILLS,
@@ -205,7 +200,6 @@ export {
   LongBookAnalysisSavedSourceCatalogSchema,
   LongBookAnalysisSavedSourceIdSchema,
   LongBookAnalysisSavedSourceSummarySchema,
-  LongBookAnalysisSettingsInputSchema,
   LongBookAnalysisSourceSchema
 } from "./long-book-analysis";
 export {
@@ -306,6 +300,14 @@ export {
 } from "./session/runtime";
 export { AgentEvaluationSnapshotSchema } from "./session/evaluation";
 export {
+  CONTEXT_COMPACTION_BUDGET_MAX_TOKENS,
+  CONTEXT_COMPACTION_BUDGET_MIN_TOKENS,
+  CONTEXT_COMPACTION_INSTRUCTIONS_MAX_LENGTH,
+  ConversationCheckpointSchema,
+  DEFAULT_CONTEXT_COMPACTION_BUDGET_TOKENS,
+  createDefaultContextCompactionSettings
+} from "./session/context-compaction";
+export {
   LongChapterBodyChangeSchema,
   LongCharacterFileChangeSchema,
   LongWorldbuildingFileChangeSchema
@@ -400,3 +402,9 @@ export {
 export { compareVersions } from "./update-version";
 
 export type { WindowFrameAction, WindowFrameState } from "./window-frame";
+
+export {
+  SESSION_CONVERSATION_HISTORY_MAX_MESSAGES,
+  SESSION_CONVERSATION_HISTORY_MAX_MESSAGE_LENGTH,
+  SESSION_CONVERSATION_HISTORY_MAX_CONTENT_LENGTH
+} from "./session/history-limits";

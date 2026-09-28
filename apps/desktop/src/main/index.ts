@@ -1,15 +1,16 @@
+import { handleSessionCommands } from "./ipc/session-commands";
 import { handleBookTemplateCommands } from "./ipc/book-template-commands";
 import { handleCatalogProjectCommands } from "./ipc/catalog-project-commands";
-import { resolveChatAssistantRuntimeContext as resolveAssistantContext } from "./chat-assistant-runtime-context";
-import { handleChatAssistantConfigCommands } from "./ipc/chat-assistant-config-commands";
-import type { ModelUsageModule } from "@deepwrite/contracts";
-import type { createBookAnalysisServices } from "./extras/book-analysis-services";
+import type { ExtrasAgentService } from "../extras/agents";
 import {
   createDesktopServices,
   refreshDesktopServices
 } from "./desktop-services";
 import { createDesktopStartup } from "./desktop-startup";
-import { usageModuleForPrompt } from "./usage-module";
+import {
+  recordUsageObservation,
+  type UsageRunContext
+} from "./usage-observation";
 import {
   handleConversationExportCommands,
   disposeConversationExports
@@ -25,8 +26,6 @@ import {
 } from "../extras/device-sync";
 import { handleRendererStateCommands } from "./ipc/renderer-state-commands";
 import { handleAgentTeamCommands } from "./ipc/agent-team-commands";
-import { prepareLibraryManagementRunContext } from "./library-management-run-context";
-import { prepareMaterialRunContext } from "./material-run-context";
 import {
   app,
   BrowserWindow,
@@ -37,7 +36,6 @@ import {
   nativeImage,
   nativeTheme
 } from "electron";
-import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import {
@@ -76,7 +74,6 @@ import {
   UPDATE_GET_STATE_CHANNEL,
   UPDATE_INSTALL_CHANNEL,
   UPDATE_STATE_EVENT_CHANNEL,
-  LearningImitationSettingsSchema,
   LibraryAgentSettingsSchema,
   LongApplyOperationsResultSchema,
   LongApplyLegacySyncResultSchema,
@@ -102,9 +99,6 @@ import {
   LongWriteAgentsMdResultSchema,
   RemoveLibraryEntryResultSchema,
   MoveLibraryEntryResultSchema,
-  SessionAbortAcceptedPayloadSchema,
-  SessionUserInputResponseAcceptedPayloadSchema,
-  SessionPromptAcceptedPayloadSchema,
   WorkspaceAgentSettingsSchema,
   SystemEventEnvelopeSchema,
   SystemHealthPayloadSchema,
@@ -115,15 +109,11 @@ import {
   createDefaultAppearanceSettings,
   createDefaultGeneralSettings,
   createEnvelope,
-  type AgentProviderRuntimeConfig,
   type AgentRuntimeRef,
   type AppearanceSettings,
   type AppAlertSnapshot,
   type CommandResult,
   type GeneralSettings,
-  type ChatAssistantRuntimeContext,
-  type ModelUsageModelSnapshot,
-  type SessionPromptCommandPayload,
   type SystemEventEnvelope,
   type UpdateState,
   type UtilityWorkerName
@@ -132,22 +122,16 @@ import { createId, nowIso } from "@deepwrite/shared";
 import { importLegacyLibraryArchives } from "./legacy-library-import-batch";
 import { AppearanceService } from "./appearance-service";
 import { AgentTeamConfigStore } from "./agent-team-config-store";
-import { resolveAgentTeamRuntime } from "./agent-team-run-mode";
 import { GeneralSettingsStore } from "./general-settings-store";
-import { ChatAssistantProjectConfigStore } from "./chat-assistant-project-config-store";
+import { resolveContextCompactionRun } from "./context-compaction-run";
 import { ModelConfigStore } from "./model-config-store";
 import { electronRemoteFetch } from "./electron-remote-fetch";
 import { applyNetworkProxyPreference } from "./network-proxy-preference";
 import { listRemoteModels } from "./list-remote-models";
-import {
-  createModelUsageRevisionId,
-  ModelUsageStore
-} from "./model-usage-store";
+import { ModelUsageStore } from "./model-usage-store";
 import { SoftwareTokenUsageReporter } from "./software-token-usage-reporter";
-import { LearningImitationConfigStore } from "./learning-imitation-config-store";
 import { LibraryAgentConfigStore } from "./library-agent-config-store";
 import { LongAgentConfigStore } from "./long-agent-config-store";
-import { resolveModelRunSettings } from "./model-run-settings";
 import { applyNativeAppearanceChrome } from "./native-appearance-chrome";
 import { exportShortManuscript } from "./short-manuscript-export";
 import { exportLongManuscript } from "./long-manuscript-export";
@@ -193,12 +177,6 @@ interface ActiveRun extends MainInternalCommandActiveRun {
   usageContext?: UsageRunContext;
 }
 
-interface UsageRunContext {
-  module: ModelUsageModule;
-  snapshotsByConfigId: ReadonlyMap<string, ModelUsageModelSnapshot>;
-  snapshotsByRuntime: ReadonlyMap<string, ModelUsageModelSnapshot>;
-}
-
 const activeRuns = new Map<string, ActiveRun>();
 const terminalRuns = new Set<string>();
 const pendingUsageContexts = new Map<string, UsageRunContext>();
@@ -210,10 +188,7 @@ let softwareTokenUsageReporter: SoftwareTokenUsageReporter | undefined;
 let agentTeamConfigStore: AgentTeamConfigStore | undefined;
 let appearanceService: AppearanceService | undefined;
 let generalSettingsStore: GeneralSettingsStore | undefined;
-let chatAssistantProjectConfigStore:
-  ChatAssistantProjectConfigStore | undefined;
-let learningImitationConfigStore: LearningImitationConfigStore | undefined;
-let bookAnalysisServices: ReturnType<typeof createBookAnalysisServices>;
+let extrasAgentService: ExtrasAgentService;
 let libraryAgentConfigStore: LibraryAgentConfigStore | undefined;
 let longAgentConfigStore: LongAgentConfigStore | undefined;
 let cachedAppearanceSettings: AppearanceSettings =
@@ -287,6 +262,7 @@ type AgentEventEnvelope = Extract<
       | "agent.evaluation_snapshot"
       | "agent.turn_started"
       | "agent.retry_scheduled"
+      | "agent.context_compaction"
       | "agent.message_delta"
       | "agent.thinking_delta"
       | "agent.message_completed"
@@ -296,9 +272,7 @@ type AgentEventEnvelope = Extract<
       | "tool.call_stream"
       | "tool.call_requested"
       | "tool.execution_completed"
-      | "learning_imitation.result_updated"
-      | "long_book_analysis.note_updated"
-      | "long_book_analysis.result_updated"
+      | "extras_agent.output_updated"
       | "subagent_authoring.draft_updated"
       | "library.editor_mutation"
       | "workspace.editor_mutation"
@@ -317,6 +291,7 @@ function isAgentEvent(event: SystemEventEnvelope): event is AgentEventEnvelope {
     event.type === "agent.evaluation_snapshot" ||
     event.type === "agent.turn_started" ||
     event.type === "agent.retry_scheduled" ||
+    event.type === "agent.context_compaction" ||
     event.type === "agent.message_delta" ||
     event.type === "agent.thinking_delta" ||
     event.type === "agent.message_completed" ||
@@ -326,9 +301,7 @@ function isAgentEvent(event: SystemEventEnvelope): event is AgentEventEnvelope {
     event.type === "tool.call_stream" ||
     event.type === "tool.call_requested" ||
     event.type === "tool.execution_completed" ||
-    event.type === "learning_imitation.result_updated" ||
-    event.type === "long_book_analysis.note_updated" ||
-    event.type === "long_book_analysis.result_updated" ||
+    event.type === "extras_agent.output_updated" ||
     event.type === "subagent_authoring.draft_updated" ||
     event.type === "library.editor_mutation" ||
     event.type === "workspace.editor_mutation" ||
@@ -353,33 +326,6 @@ function rememberTerminalRun(runId: string): void {
   }
 }
 
-function recordUsageObservation(
-  event: Extract<SystemEventEnvelope, { type: "agent.usage_observed" }>
-): void {
-  if (!modelUsageStore || event.payload.runtime.mode === "local-faux") return;
-  const activeRun = activeRuns.get(event.payload.runId);
-  const usageContext =
-    activeRun?.usageContext ??
-    pendingUsageContexts.get(event.context.correlationId);
-  const snapshot = usageSnapshotForRuntime(usageContext, event.payload.runtime);
-  void modelUsageStore
-    .record({
-      id: `v2:${event.payload.observationId}`,
-      occurredAt: event.payload.observedAt,
-      model: snapshot,
-      module: usageContext?.module ?? "unknown",
-      actor: event.payload.subagentRunId ? "subagent" : "main-agent",
-      status: event.payload.status,
-      usage: event.payload.usage
-    })
-    .catch((error: unknown) => {
-      console.warn(
-        "DeepWrite model usage record was not persisted:",
-        error instanceof Error ? error.message : "unknown error"
-      );
-    });
-}
-
 function handleUtilityEvent(
   event: SystemEventEnvelope,
   worker: UtilityWorkerName
@@ -392,7 +338,12 @@ function handleUtilityEvent(
     event
   ) as SystemEventEnvelope;
   if (validated.type === "agent.usage_observed") {
-    recordUsageObservation(validated);
+    recordUsageObservation(
+      validated,
+      modelUsageStore,
+      activeRuns,
+      pendingUsageContexts
+    );
     return;
   }
   if (isAgentEvent(validated)) {
@@ -649,112 +600,6 @@ function requireModelUsageStore(): ModelUsageStore {
   return modelUsageStore;
 }
 
-function requireChatAssistantProjectConfigStore(): ChatAssistantProjectConfigStore {
-  if (!chatAssistantProjectConfigStore) {
-    throw new Error("聊天助手项目配置存储尚未初始化。");
-  }
-  return chatAssistantProjectConfigStore;
-}
-
-async function resolveChatAssistantRuntimeContext(
-  supervisor: UtilitySupervisor,
-  payload: SessionPromptCommandPayload
-): Promise<ChatAssistantRuntimeContext> {
-  return resolveAssistantContext(supervisor, payload, {
-    requireModelConfigStore,
-    requireModelUsageStore,
-    requireChatAssistantProjectConfigStore,
-    getAppVersion: () => app.getVersion()
-  });
-}
-
-function usageRuntimeKey(
-  runtime: Pick<AgentRuntimeRef, "provider" | "model">
-): string {
-  return `${runtime.provider}\u0000${runtime.model}`;
-}
-
-function usageEndpointOrigin(baseUrl: string): string {
-  if (!baseUrl) return "";
-  try {
-    return new URL(baseUrl).origin;
-  } catch {
-    return "";
-  }
-}
-
-function createUsageModelSnapshot(
-  runtime: AgentRuntimeRef,
-  config?: AgentProviderRuntimeConfig
-): ModelUsageModelSnapshot {
-  const provider = config?.provider ?? runtime.provider;
-  const modelId = config?.modelId ?? runtime.model;
-  const api = config?.api;
-  const endpointOrigin = config ? usageEndpointOrigin(config.baseUrl) : "";
-  const revisionId = config
-    ? createModelUsageRevisionId(config)
-    : createHash("sha256")
-        .update(
-          JSON.stringify({ provider, modelId, api: api ?? "", endpointOrigin })
-        )
-        .digest("hex");
-  const configId =
-    config?.id ?? runtime.configId ?? `runtime:${provider}:${modelId}`;
-  return {
-    configId,
-    revisionId,
-    label: config?.label ?? modelId,
-    provider,
-    modelId,
-    ...(api ? { api } : {}),
-    ...(config?.managedBy ? { managedBy: config.managedBy } : {})
-  };
-}
-
-function createUsageRunContext(
-  payload: SessionPromptCommandPayload,
-  runtimeConfig: AgentProviderRuntimeConfig | undefined,
-  subagentRuntimeConfigs: Readonly<Record<string, AgentProviderRuntimeConfig>>
-): UsageRunContext {
-  const snapshotsByConfigId = new Map<string, ModelUsageModelSnapshot>();
-  const snapshotsByRuntime = new Map<string, ModelUsageModelSnapshot>();
-  const add = (config: AgentProviderRuntimeConfig | undefined): void => {
-    if (!config) return;
-    const runtime: AgentRuntimeRef = {
-      provider: config.provider,
-      model: config.modelId,
-      mode: "provider",
-      configId: config.id
-    };
-    const snapshot = createUsageModelSnapshot(runtime, config);
-    snapshotsByConfigId.set(config.id, snapshot);
-    snapshotsByRuntime.set(usageRuntimeKey(runtime), snapshot);
-  };
-  add(runtimeConfig);
-  for (const config of Object.values(subagentRuntimeConfigs)) {
-    add(config);
-  }
-  return {
-    module: usageModuleForPrompt(payload),
-    snapshotsByConfigId,
-    snapshotsByRuntime
-  };
-}
-
-function usageSnapshotForRuntime(
-  context: UsageRunContext | undefined,
-  runtime: AgentRuntimeRef
-): ModelUsageModelSnapshot {
-  const byConfigId = runtime.configId
-    ? context?.snapshotsByConfigId.get(runtime.configId)
-    : undefined;
-  return (
-    byConfigId ??
-    context?.snapshotsByRuntime.get(usageRuntimeKey(runtime)) ??
-    createUsageModelSnapshot(runtime)
-  );
-}
-
 function requireWorkspaceAgentConfigStore(): WorkspaceAgentConfigStore {
   if (!workspaceAgentConfigStore) {
     throw new Error("创作空间智能体设置存储尚未初始化。");
@@ -788,13 +633,6 @@ function requireLongAgentConfigStore(): LongAgentConfigStore {
     throw new Error("长篇智能体设置存储尚未初始化。");
   }
   return longAgentConfigStore;
-}
-
-function requireLearningImitationConfigStore(): LearningImitationConfigStore {
-  if (!learningImitationConfigStore) {
-    throw new Error("学习仿写设置存储尚未初始化。");
-  }
-  return learningImitationConfigStore;
 }
 
 function requireWorkspaceDirectoryStore(): WorkspaceDirectoryStore {
@@ -1008,6 +846,7 @@ function registerIpc(): void {
       if (
         command.type === "deviceSync.workspace" ||
         command.type === "agent.prompt" ||
+        command.type === "agent.extras_run" ||
         command.type === "agent.abort" ||
         command.type === "agent.user_input_response" ||
         command.type === "agent.model_test" ||
@@ -1149,17 +988,38 @@ function registerIpc(): void {
         return appearanceCommandResult;
       }
 
-      const analysisResult = await bookAnalysisServices.handle(
+      const extrasAgentResult = await extrasAgentService.handle(
         {
           dialog,
           getMainWindow: requireMainWindow,
           getWorkspaceDirectory: async () =>
             (await requireWorkspaceDirectoryStore().list()).path,
-          core: (command) => supervisor.requestCommand("core", command, 60_000)
+          core: (command) => supervisor.requestCommand("core", command, 60_000),
+          chatSources: {
+            core: (command) =>
+              supervisor.requestCommand("core", command, 60_000),
+            listModels: () => requireModelConfigStore().list(),
+            queryUsage: (query) => requireModelUsageStore().query(query),
+            appVersion: () => app.getVersion()
+          },
+          resolveModel: (modelId) => requireModelConfigStore().resolve(modelId),
+          resolveContextCompaction: (runModelId) =>
+            resolveContextCompactionRun(
+              async () => (await requireGeneralSettingsStore().list()).settings,
+              (modelId) => requireModelConfigStore().resolve(modelId),
+              runModelId
+            ),
+          requestAgent: (command) =>
+            supervisor.requestCommand("agent", command, 10_000),
+          acquireConversation: (sessionId) =>
+            acquireConversationOperation(activeRuns, sessionId, "prompt"),
+          activeRuns,
+          terminalRuns,
+          pendingUsageContexts
         },
         command
       );
-      if (analysisResult) return analysisResult;
+      if (extrasAgentResult) return extrasAgentResult;
 
       if (command.type === "generalSettings.list") {
         try {
@@ -2191,437 +2051,22 @@ function registerIpc(): void {
         }
       }
 
-      if (command.type === "learningImitationSettings.list") {
-        try {
-          return {
-            status: "accepted",
-            requestId: command.id,
-            payload: LearningImitationSettingsSchema.parse(
-              await requireLearningImitationConfigStore().list()
-            )
-          };
-        } catch (error: unknown) {
-          return {
-            status: "rejected",
-            requestId: command.id,
-            error: {
-              code: "learning_imitation_settings.list_failed",
-              message:
-                error instanceof Error
-                  ? error.message
-                  : "加载学习仿写设置失败。",
-              details: safeErrorDetails(error)
-            }
-          };
-        }
-      }
-
-      if (command.type === "learningImitationSettings.save") {
-        try {
-          return {
-            status: "accepted",
-            requestId: command.id,
-            payload: LearningImitationSettingsSchema.parse(
-              await requireLearningImitationConfigStore().save(command.payload)
-            )
-          };
-        } catch (error: unknown) {
-          return {
-            status: "rejected",
-            requestId: command.id,
-            error: {
-              code: "learning_imitation_settings.save_failed",
-              message:
-                error instanceof Error
-                  ? error.message
-                  : "保存学习仿写设置失败。",
-              details: safeErrorDetails(error)
-            }
-          };
-        }
-      }
-
-      if (command.type === "learningImitationSettings.reset") {
-        try {
-          return {
-            status: "accepted",
-            requestId: command.id,
-            payload: LearningImitationSettingsSchema.parse(
-              await requireLearningImitationConfigStore().reset(
-                command.payload.stageId
-              )
-            )
-          };
-        } catch (error: unknown) {
-          return {
-            status: "rejected",
-            requestId: command.id,
-            error: {
-              code: "learning_imitation_settings.reset_failed",
-              message:
-                error instanceof Error
-                  ? error.message
-                  : "恢复学习仿写默认设置失败。",
-              details: safeErrorDetails(error)
-            }
-          };
-        }
-      }
-
-      const chatConfigResult = await handleChatAssistantConfigCommands(
-        { requireChatAssistantProjectConfigStore },
+      const sessionResult = await handleSessionCommands(
+        {
+          activeRuns,
+          supervisor,
+          pendingUsageContexts,
+          terminalRuns,
+          requireModelConfigStore,
+          requireWorkspaceAgentConfigStore,
+          requireLongAgentConfigStore,
+          requireAgentTeamConfigStore,
+          requireLibraryAgentConfigStore,
+          requireGeneralSettingsStore
+        },
         command
       );
-      if (chatConfigResult) return chatConfigResult;
-
-      if (command.type === "session.user_input_response") {
-        try {
-          // activeRuns is a Main-side event-stream mirror and can briefly lag
-          // the Agent utility that owns the pending question. The Agent is the
-          // authoritative validator for this response.
-          const internalCommand = CommandEnvelopeSchema.parse(
-            createEnvelope("agent.user_input_response", command.payload, {
-              id: command.id,
-              context: command.context
-            })
-          );
-          const result = await supervisor.requestCommand(
-            "agent",
-            internalCommand,
-            10_000
-          );
-          if (result.status !== "accepted") return result;
-          const accepted = SessionUserInputResponseAcceptedPayloadSchema.parse(
-            result.payload
-          );
-          if (
-            accepted.sessionId !== command.payload.sessionId ||
-            accepted.runId !== command.payload.runId ||
-            accepted.requestId !== command.payload.requestId
-          ) {
-            return {
-              status: "rejected",
-              requestId: command.id,
-              error: {
-                code: "ipc.invalid_agent_user_input_result",
-                message: "Agent user-input result does not match the request."
-              }
-            };
-          }
-          return {
-            status: "accepted",
-            requestId: command.id,
-            payload: accepted
-          };
-        } catch (error: unknown) {
-          return {
-            status: "rejected",
-            requestId: command.id,
-            error: {
-              code: "ipc.agent_user_input_failed",
-              message:
-                error instanceof Error ? error.message : "提交用户回答失败。",
-              details: safeErrorDetails(error)
-            }
-          };
-        }
-      }
-
-      if (command.type === "session.abort") {
-        try {
-          const internalCommand = CommandEnvelopeSchema.parse(
-            createEnvelope("agent.abort", command.payload, {
-              id: command.id,
-              context: command.context
-            })
-          );
-          const result = await supervisor.requestCommand(
-            "agent",
-            internalCommand,
-            10_000
-          );
-          if (result.status === "accepted") {
-            const accepted = SessionAbortAcceptedPayloadSchema.parse(
-              result.payload
-            );
-            if (
-              accepted.sessionId !== command.payload.sessionId ||
-              accepted.runId !== command.payload.runId
-            ) {
-              return {
-                status: "rejected",
-                requestId: command.id,
-                error: {
-                  code: "ipc.invalid_agent_abort_result",
-                  message:
-                    "Agent abort result does not match the requested run."
-                }
-              };
-            }
-            return {
-              status: "accepted",
-              requestId: command.id,
-              payload: accepted
-            };
-          }
-          return result;
-        } catch (error: unknown) {
-          return {
-            status: "rejected",
-            requestId: command.id,
-            error: {
-              code: "ipc.agent_abort_failed",
-              message:
-                error instanceof Error ? error.message : "Agent abort failed.",
-              details: safeErrorDetails(error)
-            }
-          };
-        }
-      }
-
-      if (command.type === "session.prompt") {
-        const release = acquireConversationOperation(
-          activeRuns,
-          command.payload.sessionId,
-          "prompt"
-        );
-        if (!release)
-          return {
-            status: "rejected",
-            requestId: command.id,
-            error: {
-              code: "conversation_history.busy",
-              message: "此对话正在管理历史，请稍后重试。"
-            }
-          };
-        try {
-          const runtimeConfig = await requireModelConfigStore().resolve(
-            command.payload.modelId
-          );
-          const chatAssistantRuntimeContext =
-            command.payload.mode === "chat-assistant"
-              ? await resolveChatAssistantRuntimeContext(
-                  supervisor,
-                  command.payload
-                )
-              : undefined;
-          const shortWorkspace =
-            command.payload.workspaceContext?.shortWorkspace;
-          const scriptWorkspace =
-            command.payload.workspaceContext?.scriptWorkspace;
-          const longWorkspace = command.payload.workspaceContext?.longWorkspace;
-          const libraryWorkspace =
-            command.payload.workspaceContext?.libraryWorkspace;
-          const learningImitation =
-            command.payload.workspaceContext?.learningImitation;
-          const creativeWorkspace = shortWorkspace ?? scriptWorkspace;
-          const creativeWorkspaceType = scriptWorkspace ? "script" : "short";
-          const agentProfile = creativeWorkspace
-            ? await requireWorkspaceAgentConfigStore().resolveForWorkspace(
-                creativeWorkspace,
-                creativeWorkspaceType
-              )
-            : undefined;
-          const longAgentProfile = longWorkspace
-            ? await requireLongAgentConfigStore().resolve(
-                longWorkspace.activeAgentId
-              )
-            : undefined;
-          const { subagentDefinitions, subagentRuntimeConfigs } =
-            await resolveAgentTeamRuntime(
-              command.payload.agentTeamMode,
-              agentProfile
-                ? {
-                    workspaceType: creativeWorkspaceType,
-                    parentAgentId: agentProfile.id
-                  }
-                : longAgentProfile
-                  ? {
-                      workspaceType: "long",
-                      parentAgentId: longAgentProfile.id
-                    }
-                  : undefined,
-              {
-                resolveDefinitions: (workspaceType, parentAgentId) =>
-                  requireAgentTeamConfigStore().resolve(
-                    workspaceType,
-                    parentAgentId
-                  ),
-                resolveModel: (modelId) =>
-                  requireModelConfigStore().resolve(modelId)
-              }
-            );
-          const libraryAgentProfile = libraryWorkspace
-            ? await requireLibraryAgentConfigStore().resolve(
-                libraryWorkspace.domain
-              )
-            : undefined;
-          const learningImitationProfile = learningImitation
-            ? await requireLearningImitationConfigStore().resolve(
-                learningImitation.stageId
-              )
-            : undefined;
-          const analysisProfiles = await bookAnalysisServices.resolve(
-            command.payload.workspaceContext,
-            runtimeConfig
-          );
-          const { thinkingLevel, temperature } = resolveModelRunSettings(
-            runtimeConfig,
-            {
-              thinkingLevel: command.payload.thinkingLevel,
-              temperature: command.payload.temperature
-            }
-          );
-          const {
-            agentTeamMode: _requestedAgentTeamMode,
-            thinkingLevel: _requestedThinkingLevel,
-            temperature: _requestedTemperature,
-            ...promptPayload
-          } = command.payload;
-          const usageContext = createUsageRunContext(
-            command.payload,
-            runtimeConfig,
-            subagentRuntimeConfigs
-          );
-          pendingUsageContexts.set(command.context.correlationId, usageContext);
-          const libraryManagement = await prepareLibraryManagementRunContext(
-            command.payload.workspaceContext,
-            requireAgentTeamConfigStore(),
-            requireLibraryAgentConfigStore(),
-            (query) => supervisor.requestCommand("core", query, 60_000)
-          );
-          const materialWorkspaceContext = await prepareMaterialRunContext(
-            {
-              workspaceContext: command.payload.workspaceContext,
-              ...(agentProfile ? { agentProfile } : {}),
-              ...(longAgentProfile ? { longAgentProfile } : {}),
-              snapshotMode: process.env.DEEPWRITE_MATERIAL_SNAPSHOT_MODE === "1"
-            },
-            (query) => supervisor.requestCommand("core", query, 60_000)
-          );
-          const internalCommand = CommandEnvelopeSchema.parse(
-            createEnvelope(
-              "agent.prompt",
-              {
-                ...promptPayload,
-                ...(libraryManagement ? { libraryManagement } : {}),
-                ...(materialWorkspaceContext
-                  ? { workspaceContext: materialWorkspaceContext }
-                  : {}),
-                ...(thinkingLevel ? { thinkingLevel } : {}),
-                ...(temperature !== undefined ? { temperature } : {}),
-                ...(runtimeConfig ? { runtimeConfig } : {}),
-                ...(chatAssistantRuntimeContext
-                  ? { chatAssistantRuntimeContext }
-                  : {}),
-                ...(agentProfile
-                  ? scriptWorkspace
-                    ? { scriptAgentProfile: agentProfile }
-                    : { agentProfile }
-                  : {}),
-                ...(longAgentProfile ? { longAgentProfile } : {}),
-                ...(subagentDefinitions ? { subagentDefinitions } : {}),
-                ...(Object.keys(subagentRuntimeConfigs).length > 0
-                  ? { subagentRuntimeConfigs }
-                  : {}),
-                ...(libraryAgentProfile ? { libraryAgentProfile } : {}),
-                ...(learningImitationProfile
-                  ? { learningImitationProfile }
-                  : {}),
-                ...analysisProfiles
-              },
-              { id: command.id, context: command.context }
-            )
-          );
-          const result = await supervisor.requestCommand(
-            "agent",
-            internalCommand,
-            10_000
-          );
-          if (result.status === "accepted") {
-            const accepted = SessionPromptAcceptedPayloadSchema.parse(
-              result.payload
-            );
-            if (accepted.sessionId !== command.payload.sessionId) {
-              return {
-                status: "rejected",
-                requestId: command.id,
-                error: {
-                  code: "ipc.invalid_agent_acceptance",
-                  message:
-                    "Agent acceptance sessionId does not match the prompt command."
-                }
-              };
-            }
-            const provisional = [...activeRuns.entries()].find(
-              ([, run]) => run.correlationId === command.context.correlationId
-            );
-            if (provisional && provisional[0] !== accepted.runId) {
-              return {
-                status: "rejected",
-                requestId: command.id,
-                error: {
-                  code: "ipc.invalid_agent_acceptance",
-                  message:
-                    "Agent acceptance runId does not match the provisional event stream."
-                }
-              };
-            }
-            if (!terminalRuns.has(accepted.runId)) {
-              activeRuns.set(accepted.runId, {
-                sessionId: accepted.sessionId,
-                correlationId: command.context.correlationId,
-                runtime: accepted.runtime,
-                accepted: true,
-                promptRequestId: internalCommand.id,
-                ...(libraryManagement
-                  ? { libraryManagementScope: libraryManagement.scope }
-                  : {}),
-                ...(materialWorkspaceContext?.materialCatalog
-                  ? {
-                      materialScope:
-                        materialWorkspaceContext.materialCatalog.scope
-                    }
-                  : {}),
-                usageContext,
-                ...(longWorkspace
-                  ? { resourceId: longWorkspace.bookId }
-                  : chatAssistantRuntimeContext?.mode === "project" &&
-                      chatAssistantRuntimeContext.project.projectType === "long"
-                    ? {
-                        resourceId:
-                          chatAssistantRuntimeContext.project.projectId
-                      }
-                    : {})
-              });
-            }
-            pendingUsageContexts.delete(command.context.correlationId);
-            return {
-              status: "accepted",
-              requestId: command.id,
-              payload: accepted
-            };
-          }
-          pendingUsageContexts.delete(command.context.correlationId);
-          return result;
-        } catch (error: unknown) {
-          pendingUsageContexts.delete(command.context.correlationId);
-          return {
-            status: "rejected",
-            requestId: command.id,
-            error: {
-              code: "ipc.agent_command_failed",
-              message:
-                error instanceof Error
-                  ? error.message
-                  : "Agent command failed.",
-              details: safeErrorDetails(error)
-            }
-          };
-        } finally {
-          release();
-        }
-      }
+      if (sessionResult) return sessionResult;
 
       throw new Error("Unreachable command variant after schema validation.");
     }
@@ -2689,12 +2134,10 @@ if (!hasSingleInstanceLock) {
       agentTeamConfigStore,
       libraryAgentConfigStore,
       longAgentConfigStore,
-      learningImitationConfigStore,
-      bookAnalysisServices,
+      extrasAgentService,
       workspaceDirectoryStore,
       appearanceService,
       generalSettingsStore,
-      chatAssistantProjectConfigStore,
       updateService,
       appAlertStore,
       cloudBackupService,

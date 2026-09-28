@@ -4,7 +4,6 @@ import type {
   AgentRuntimeRef,
   ModelUsageModelSnapshot,
   ModelUsageModule,
-  SessionPromptCommandPayload,
   SystemEventEnvelope
 } from "@deepwrite/contracts";
 import {
@@ -91,31 +90,12 @@ export function createUsageModelSnapshot(
   };
 }
 
-export function usageModuleForPrompt(
-  payload: SessionPromptCommandPayload
-): ModelUsageModule {
-  if (payload.mode === "chat-assistant") return "assistant-chat";
-  const context = payload.workspaceContext;
-  if (!context) return "unknown";
-  if (context.shortWorkspace) return "short-writing";
-  if (context.scriptWorkspace) return "script-writing";
-  if (context.longWorkspace) return "long-writing";
-  if (context.libraryWorkspace) {
-    return context.libraryWorkspace.domain === "skill"
-      ? "skill-library"
-      : "material-library";
-  }
-  if (context.learningImitation) return "learning-imitation";
-  if (context.longBookAnalysis) return "long-book-analysis";
-  if (context.styleComparison) return "style-comparison";
-  if (context.subagentAuthoring) return "subagent-authoring";
-  return "unknown";
-}
-
 export function createUsageRunContext(
-  payload: SessionPromptCommandPayload,
+  module: ModelUsageModule,
   runtimeConfig: AgentProviderRuntimeConfig | undefined,
-  subagentRuntimeConfigs: Readonly<Record<string, AgentProviderRuntimeConfig>>
+  subagentRuntimeConfigs: Readonly<
+    Record<string, AgentProviderRuntimeConfig>
+  > = {}
 ): UsageRunContext {
   const snapshotsByConfigId = new Map<string, ModelUsageModelSnapshot>();
   const snapshotsByRuntime = new Map<string, ModelUsageModelSnapshot>();
@@ -136,7 +116,7 @@ export function createUsageRunContext(
     add(config);
   }
   return {
-    module: usageModuleForPrompt(payload),
+    module,
     snapshotsByConfigId,
     snapshotsByRuntime
   };

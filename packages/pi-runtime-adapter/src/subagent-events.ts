@@ -1,12 +1,12 @@
 import type { AgentRuntimeRef } from "@deepwrite/contracts";
 import { toRuntimeEvents } from "./event-mapping";
-import type { AgentRunInput, AgentRuntimeEvent } from "./runtime-types";
+import type { AgentRunEventSource, AgentRuntimeEvent } from "./runtime-types";
 import type { SubagentToolProgress } from "./subagent-runtime";
 
 /** @internal Exported for subagent protocol regression tests. */
 export function toSubagentRuntimeEvents(
   progress: SubagentToolProgress,
-  input: AgentRunInput,
+  input: AgentRunEventSource,
   runtime: AgentRuntimeRef,
   messageId: string
 ): AgentRuntimeEvent[] {

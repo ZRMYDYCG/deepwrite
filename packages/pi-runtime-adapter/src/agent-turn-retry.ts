@@ -77,6 +77,15 @@ export interface RunAgentWithTurnRetriesOptions {
     attempt: AgentTurnAttempt,
     message: AssistantMessage
   ) => Promise<void> | void;
+  /**
+   * Recovers once from a request the provider rejected as too long. The
+   * failed message is removed before `recover` compacts the transcript; when
+   * it returns true the run continues instead of failing.
+   */
+  contextOverflow?: {
+    matches(message: AssistantMessage): boolean;
+    recover(message: AssistantMessage): Promise<boolean>;
+  };
 }
 
 interface ResolvedAgentTurnRetryPolicy {
@@ -204,6 +213,8 @@ export async function runAgentWithTurnRetries(
   let retryContinuationPending = false;
   let pendingRetry:
     { schedule: AgentTurnRetrySchedule; message: AssistantMessage } | undefined;
+  let overflowRecoveryAttempted = false;
+  let overflowContinuationPending = false;
 
   const unsubscribe = options.agent.subscribe(async (event, signal) => {
     if (event.type === "turn_start") {
@@ -233,6 +244,50 @@ export async function runAgentWithTurnRetries(
         { ...activeTurn },
         signal
       );
+    }
+
+    if (
+      event.type === "message_end" &&
+      isAssistantMessage(event.message) &&
+      activeTurn &&
+      !overflowRecoveryAttempted &&
+      options.contextOverflow?.matches(event.message) &&
+      removeFailedAssistantFromTranscript(options.agent, event.message)
+    ) {
+      overflowRecoveryAttempted = true;
+      const recovered = await options.contextOverflow
+        .recover(event.message)
+        .catch(() => false);
+      if (recovered) {
+        overflowContinuationPending = true;
+        retryContinuationPending = true;
+        activeTurn = {
+          ...activeTurn,
+          maxAttempts: Math.max(activeTurn.maxAttempts, activeTurn.attempt + 1)
+        };
+        await options.onRetryRollback?.(activeTurn, event.message);
+        await options.onRetryScheduled?.(
+          {
+            turnId: activeTurn.turnId,
+            failedAttempt: activeTurn.attempt,
+            nextAttempt: activeTurn.attempt + 1,
+            maxAttempts: activeTurn.maxAttempts,
+            delayMs: 0,
+            retryAt: new Date(policy.now()).toISOString(),
+            reason: "上下文已压缩，正在恢复本次模型请求。"
+          },
+          event.message
+        );
+        // Do not expose the overflow as a terminal failure.
+        return;
+      }
+      // Failed recovery must leave the original error in the durable agent history.
+      options.agent.state.messages = [
+        ...options.agent.state.messages,
+        event.message
+      ];
+      await options.onEvent?.(event, signal);
+      return;
     }
 
     if (
@@ -273,7 +328,14 @@ export async function runAgentWithTurnRetries(
 
   try {
     await options.agent.prompt(options.initialPrompt);
-    while (pendingRetry) {
+    while (pendingRetry || overflowContinuationPending) {
+      if (overflowContinuationPending) {
+        overflowContinuationPending = false;
+        if (options.signal?.aborted) throw createAbortError();
+        await options.agent.continue();
+        continue;
+      }
+      if (!pendingRetry) break;
       const retry = pendingRetry;
       pendingRetry = undefined;
       await policy.sleep(retry.schedule.delayMs, options.signal);

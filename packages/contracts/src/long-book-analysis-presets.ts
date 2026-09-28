@@ -1,6 +1,5 @@
 import { z } from "zod";
 import {
-  LONG_BOOK_ANALYSIS_MAX_PERSISTED_PRESETS,
   LONG_BOOK_ANALYSIS_MAX_PROMPT_CHARACTERS,
   LongBookAnalysisIdSchema,
   LongBookAnalysisLibraryIdSchema
@@ -43,66 +42,4 @@ export const LongBookAnalysisPresetSchema = z.object({
 });
 export type LongBookAnalysisPreset = z.infer<
   typeof LongBookAnalysisPresetSchema
->;
-
-function validatePresetList(
-  presets: readonly LongBookAnalysisPreset[],
-  context: z.core.$RefinementCtx<unknown>
-): void {
-  const ids = new Set<string>();
-  const names = new Set<string>();
-  presets.forEach((preset, index) => {
-    if (ids.has(preset.id)) {
-      context.addIssue({
-        code: "custom",
-        path: [index, "id"],
-        message: "Long-book analysis preset ids must be unique."
-      });
-    }
-    ids.add(preset.id);
-    const comparableName = preset.name.trim().toLocaleLowerCase("zh-CN");
-    if (names.has(comparableName)) {
-      context.addIssue({
-        code: "custom",
-        path: [index, "name"],
-        message: "Long-book analysis preset names must be unique."
-      });
-    }
-    names.add(comparableName);
-  });
-}
-
-export const LongBookAnalysisSettingsInputSchema = z
-  .object({
-    presets: z
-      .array(LongBookAnalysisPresetSchema.omit({ builtin: true }))
-      .max(LONG_BOOK_ANALYSIS_MAX_PERSISTED_PRESETS)
-  })
-  .superRefine((value, context) => validatePresetList(value.presets, context));
-export type LongBookAnalysisSettingsInput = z.infer<
-  typeof LongBookAnalysisSettingsInputSchema
->;
-
-export const LongBookAnalysisSettingsSchema = z
-  .object({
-    presets: z
-      .array(LongBookAnalysisPresetSchema)
-      .max(LONG_BOOK_ANALYSIS_MAX_PERSISTED_PRESETS),
-    updatedAt: z.string().datetime().optional()
-  })
-  .superRefine((value, context) => validatePresetList(value.presets, context));
-export type LongBookAnalysisSettings = z.infer<
-  typeof LongBookAnalysisSettingsSchema
->;
-
-export const LongBookAnalysisAgentProfileSchema =
-  LongBookAnalysisPresetSchema.pick({
-    id: true,
-    name: true,
-    description: true,
-    systemPrompt: true,
-    output: true
-  });
-export type LongBookAnalysisAgentProfile = z.infer<
-  typeof LongBookAnalysisAgentProfileSchema
 >;

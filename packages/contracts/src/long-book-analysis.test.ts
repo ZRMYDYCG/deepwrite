@@ -3,11 +3,9 @@ import {
   CommandEnvelopeSchema,
   createEnvelope,
   LongBookAnalysisSavedSourceCatalogSchema,
-  LongBookAnalysisRuntimeContextSchema,
-  LongBookAnalysisSettingsInputSchema,
-  WorkspaceRuntimeContextSchema
+  ExtrasAgentSettingsInputSchema,
+  LongBookAnalysisRuntimeContextSchema
 } from "./index";
-import { AgentPromptCommandPayloadSchema } from "./session/commands";
 
 const segment = {
   id: "segment-1",
@@ -24,7 +22,6 @@ function runtime(selectionEnd = 1) {
     phase: "batch" as const,
     jobId: "job-1",
     unitId: "unit-1",
-    presetId: "plot-structure",
     sourceTitle: "测试长篇.txt",
     selectionStart: 1,
     selectionEnd,
@@ -84,25 +81,20 @@ describe("long-book analysis contracts", () => {
   });
 
   it("accepts dynamic output mappings and rejects duplicate preset names", () => {
-    expect(
-      LongBookAnalysisSettingsInputSchema.parse({ presets: [profile] })
-        .presets[0]?.output
-    ).toEqual(profile.output);
+    const settings = (profiles: unknown[]) =>
+      ExtrasAgentSettingsInputSchema.parse({
+        agentId: "long-book-analysis",
+        profiles
+      });
+    expect(settings([profile]).profiles[0]).toMatchObject({
+      output: profile.output
+    });
     expect(() =>
-      LongBookAnalysisSettingsInputSchema.parse({
-        presets: [
-          {
-            ...profile,
-            output: { ...profile.output, libraryId: " " }
-          }
-        ]
-      })
+      settings([{ ...profile, output: { ...profile.output, libraryId: " " } }])
     ).toThrow();
     expect(() =>
-      LongBookAnalysisSettingsInputSchema.parse({
-        presets: [profile, { ...profile, id: "another", name: "剧情结构 " }]
-      })
-    ).toThrow(/unique/iu);
+      settings([profile, { ...profile, id: "another", name: "剧情结构 " }])
+    ).toThrow("预设名称和标识不能重复。");
   });
 
   it("allows exactly 50 continuous chapters and rejects 51", () => {
@@ -112,51 +104,5 @@ describe("long-book analysis contracts", () => {
     expect(() =>
       LongBookAnalysisRuntimeContextSchema.parse(runtime(51))
     ).toThrow(/50/iu);
-  });
-
-  it("keeps analysis context exclusive from other managed workspaces", () => {
-    expect(
-      WorkspaceRuntimeContextSchema.safeParse({ longBookAnalysis: runtime() })
-        .success
-    ).toBe(true);
-    expect(
-      WorkspaceRuntimeContextSchema.safeParse({
-        longBookAnalysis: runtime(),
-        learningImitation: {
-          stageId: "style_learning",
-          documents: [],
-          result: {
-            material_split: {
-              gimmick: "",
-              character: "",
-              pacing: "",
-              intro: "",
-              plotRefine: "",
-              draftExcerpt: ""
-            },
-            plot_learning: { plotDesignSkill: "", plotRefineSkill: "" },
-            style_learning: { title: "", body: "" }
-          }
-        }
-      }).success
-    ).toBe(false);
-  });
-
-  it("requires the Main-resolved profile to match the runtime preset", () => {
-    expect(
-      AgentPromptCommandPayloadSchema.safeParse({
-        sessionId: "session-1",
-        message: "开始拆书",
-        workspaceContext: { longBookAnalysis: runtime() },
-        longBookAnalysisProfile: profile
-      }).success
-    ).toBe(true);
-    expect(
-      AgentPromptCommandPayloadSchema.safeParse({
-        sessionId: "session-1",
-        message: "开始拆书",
-        workspaceContext: { longBookAnalysis: runtime() }
-      }).success
-    ).toBe(false);
   });
 });

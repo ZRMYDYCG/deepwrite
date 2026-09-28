@@ -7,7 +7,6 @@ import {
   AgentUsageObservedEventEnvelopeSchema,
   ExpertDraftFileSnapshotSchema,
   ExpertDraftSchema,
-  LearningImitationDocumentSchema,
   PromptTextAttachmentSchema,
   SHORT_WORKSPACE_FILE_MAX_CHARACTERS,
   ShortCharacterItemSnapshotSchema,
@@ -679,18 +678,6 @@ describe("DeepWrite desktop contracts: events-and-draft-mutations", () => {
         mediaType: "text/plain",
         size: 10,
         content: "前段",
-        originalLength: 10
-      })
-    ).toThrow();
-    expect(() =>
-      LearningImitationDocumentSchema.parse({
-        id: "learning-1",
-        name: "样本.txt",
-        extension: ".txt",
-        mediaType: "text/plain",
-        size: 10,
-        text: "前段",
-        charCount: 10,
         originalLength: 10
       })
     ).toThrow();

@@ -150,7 +150,9 @@ describe("independent chat assistant feature", () => {
       '"deepwrite:chat-assistant-web-search:v1"'
     );
     expect(webSearchSource).toContain("isDeepSeekWebSearchCompatible");
-    expect(modeSource).toContain("webSearchEnabled: true");
+    expect(modeSource).toContain(
+      "chatTaskWithWebSearch(task, webSearchEnabled)"
+    );
   });
 
   it("uses one context list and immutable book association in the project dialog", () => {

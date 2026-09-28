@@ -1,23 +1,7 @@
 import {
   StyleComparisonDimensionSchema,
-  StyleComparisonResultSchema,
-  type StyleComparisonDimension,
-  type StyleComparisonResult
+  type StyleComparisonDimension
 } from "@deepwrite/contracts/renderer";
-
-export function parseStyleComparisonResult(
-  text: string
-): StyleComparisonResult {
-  const body = text
-    .trim()
-    .replace(/^```(?:json)?\s*/i, "")
-    .replace(/\s*```$/, "");
-  try {
-    return StyleComparisonResultSchema.parse(JSON.parse(body));
-  } catch {
-    throw new Error("模型未返回完整的比对结论与有效评分，请重新比对。");
-  }
-}
 
 // Show only complete public findings while JSON is streaming. Never infer a
 // final score from partial output or display the raw JSON / thinking events.

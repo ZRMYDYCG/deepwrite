@@ -4,18 +4,32 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { nextTick } from "vue";
 import {
+  CommandEnvelopeSchema,
+  ExtrasAgentResolvedTaskSchema,
   SystemEventEnvelopeSchema,
+  createEnvelope,
   parseSkillMarkdown,
+  type CommandEnvelope,
   type DeepWriteApi,
-  type ModelConfig,
-  type SessionPromptCommandPayload
+  type ExtrasAgentRunRequest,
+  type ModelConfig
 } from "@deepwrite/contracts";
 import { PiAgentRuntimeAdapter } from "@deepwrite/pi-runtime-adapter";
 import { FolderCatalogStore } from "./folder-catalog-store";
 import { toEventEnvelope } from "./agent-event-envelope";
-import { RevisionAnalysisConfigStore } from "../main/extras/revision-analysis/config-store";
-import { createBookAnalysisServices } from "../main/extras/book-analysis-services";
+import { ExtrasAgentConfigStore } from "../extras/agents/config-store";
+import { runExtrasAgent } from "../extras/agents/run-service";
 import { useRevisionAnalysis } from "../renderer/src/extras/revision-analysis/useRevisionAnalysis";
+
+function runCommand(request: ExtrasAgentRunRequest) {
+  const command = CommandEnvelopeSchema.parse(
+    createEnvelope("extrasAgent.run", request, {
+      id: "integration-command",
+      context: { correlationId: "integration", sessionId: request.sessionId }
+    })
+  );
+  return command as Extract<CommandEnvelope, { type: "extrasAgent.run" }>;
+}
 
 describe("revision analysis runtime to persisted skill", () => {
   it("validates runtime events, keeps analysis in memory and persists a reusable skill through Core", async () => {
@@ -23,26 +37,27 @@ describe("revision analysis runtime to persisted skill", () => {
       join(tmpdir(), "deepwrite-revision-integration-")
     );
     const store = new FolderCatalogStore({ userDataPath: root });
-    const settings = new RevisionAnalysisConfigStore(root);
+    const settings = new ExtrasAgentConfigStore(root);
     const runtime = new PiAgentRuntimeAdapter({ tokensPerSecond: 0 });
-    let request: SessionPromptCommandPayload | undefined;
+    let request: ExtrasAgentRunRequest | undefined;
     const api = {
-      revisionAnalysis: {
-        list: () => settings.list(),
-        save: settings.save.bind(settings),
-        reset: async () => settings.list()
-      },
-      session: {
-        prompt: async (input: SessionPromptCommandPayload) => {
+      extrasAgents: {
+        run: async (input: ExtrasAgentRunRequest) => {
           request = input;
           return {
             sessionId: input.sessionId,
             runId: "integration-run",
-            acceptedAt: new Date().toISOString()
+            acceptedAt: new Date().toISOString(),
+            runtime: runtime.describe()
           };
         },
-        abort: async () => ({})
+        profiles: {
+          list: settings.list.bind(settings),
+          save: settings.save.bind(settings),
+          reset: settings.reset.bind(settings)
+        }
       },
+      session: { abort: async () => ({}) },
       catalog: { createLibraryEntry: store.createLibraryEntry.bind(store) }
     } as unknown as DeepWriteApi;
     const c = useRevisionAnalysis({ api: () => api });
@@ -70,26 +85,63 @@ describe("revision analysis runtime to persisted skill", () => {
       c.compare();
       c.changes.value[0]!.reason = "用动作承载情绪";
       await nextTick();
-      c.start();
+      await c.start();
       await nextTick();
-      expect(request).toBeDefined();
+      expect(request?.task).toMatchObject({
+        agentId: "revision-analysis",
+        profileId: "default"
+      });
       // Main rejects missing models before dispatching; the adapter also checks its effective model.
+      const dispatched: CommandEnvelope[] = [];
       await expect(
-        createBookAnalysisServices(root).resolve(
-          request!.workspaceContext,
-          undefined
+        runExtrasAgent(
+          {
+            configStore: () => settings,
+            chatSources: {
+              core: async () => {
+                throw new Error("not used");
+              },
+              listModels: async () => ({}),
+              queryUsage: async () => ({}),
+              appVersion: () => "0.0.0"
+            },
+            acquireConversation: () => () => undefined,
+            resolveModel: async () => undefined,
+            resolveContextCompaction: async () => ({
+              contextCompactionSettings: {
+                enabled: true,
+                budgetTokens: 160_000
+              }
+            }),
+            requestAgent: async (command) => {
+              dispatched.push(command);
+              throw new Error("not dispatched");
+            },
+            activeRuns: new Map(),
+            terminalRuns: new Set(),
+            pendingUsageContexts: new Map()
+          },
+          runCommand(request!)
         )
-      ).rejects.toThrow("可用模型");
-      for await (const event of runtime.start({
+      ).resolves.toMatchObject({
+        status: "rejected",
+        error: { message: "请选择可用模型。" }
+      });
+      expect(dispatched).toEqual([]);
+      const task = ExtrasAgentResolvedTaskSchema.parse({
+        agentId: "revision-analysis",
+        profile: await settings.resolve("revision-analysis", "default"),
+        input: request!.task.input
+      });
+      for await (const event of runtime.startExtras({
         runId: "integration-run",
-        sessionId: request!.sessionId,
-        prompt: request!.message,
-        workspaceContext: request!.workspaceContext!
+        spec: { sessionId: request!.sessionId, task }
       })) {
         c.handleEvent(
           SystemEventEnvelopeSchema.parse(toEventEnvelope(event, "integration"))
         );
       }
+      await nextTick();
       expect(c.status.value).toBe("completed");
       expect(c.result.value?.report).toContain("用动作承载情绪");
       expect(

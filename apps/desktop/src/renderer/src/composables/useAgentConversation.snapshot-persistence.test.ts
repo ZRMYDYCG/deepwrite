@@ -14,21 +14,28 @@ import {
   useAgentConversation
 } from "./useAgentConversation.test-support";
 
+const normalChat = {
+  agentId: "chat-normal" as const,
+  profileId: "default",
+  input: {}
+};
+
 describe("agent conversation controller: snapshot-persistence", () => {
-  it("submits chat-assistant messages without workspace or write context", async () => {
+  it("sends chat turns as extras agent runs without workspace or write context", async () => {
     const deferred = createDeferredApi();
     const controller = useAgentConversation({ api: () => deferred.api });
     controller.draft.value = "只聊这个问题";
 
-    const sending = controller.sendAssistantMessage();
-    expect(deferred.prompts).toEqual([
+    const sending = controller.sendAssistantMessage(normalChat);
+    expect(deferred.prompts).toEqual([]);
+    expect(deferred.chatRuns).toEqual([
       expect.objectContaining({
-        mode: "chat-assistant",
-        message: "只聊这个问题"
+        task: normalChat,
+        conversation: { message: "只聊这个问题" }
       })
     ]);
-    expect(deferred.prompts[0]).not.toHaveProperty("workspaceContext");
-    expect(deferred.prompts[0]).not.toHaveProperty("writeApprovalMode");
+    expect(deferred.chatRuns[0]).not.toHaveProperty("workspaceContext");
+    expect(deferred.chatRuns[0]).not.toHaveProperty("writeApprovalMode");
 
     deferred.resolveAccepted(0, {
       sessionId: controller.sessionId.value,
@@ -77,9 +84,9 @@ describe("agent conversation controller: snapshot-persistence", () => {
     });
     controller.draft.value = "我上边说了啥？";
 
-    const sending = controller.sendAssistantMessage();
+    const sending = controller.sendAssistantMessage(normalChat);
 
-    expect(deferred.prompts[0]?.conversationHistory).toEqual([
+    expect(deferred.chatRuns[0]?.conversation?.history).toEqual([
       {
         role: "user",
         content: "先帮我规划一段雨夜相遇。",
@@ -91,7 +98,7 @@ describe("agent conversation controller: snapshot-persistence", () => {
         createdAt: "2026-08-17T07:59:00.000Z"
       }
     ]);
-    expect(deferred.prompts[0]?.conversationHistory).not.toContainEqual(
+    expect(deferred.chatRuns[0]?.conversation?.history).not.toContainEqual(
       expect.objectContaining({ content: "我上边说了啥？" })
     );
 
@@ -169,12 +176,12 @@ describe("agent conversation controller: snapshot-persistence", () => {
     controller.draft.value = "搜索今天的热点";
 
     const sending = controller.sendAssistantMessage({
-      mode: "normal",
-      webSearchEnabled: true
+      ...normalChat,
+      input: { webSearchEnabled: true }
     });
-    expect(deferred.prompts[0]?.chatAssistant).toEqual({
-      mode: "normal",
-      webSearchEnabled: true
+    expect(deferred.chatRuns[0]?.task).toEqual({
+      ...normalChat,
+      input: { webSearchEnabled: true }
     });
 
     deferred.resolveAccepted(0, {
@@ -197,18 +204,19 @@ describe("agent conversation controller: snapshot-persistence", () => {
     controller.draft.value = "查询人物设定";
 
     const sending = controller.sendAssistantMessage({
-      mode: "project",
-      project,
-      webSearchEnabled: true
+      agentId: "chat-project",
+      profileId: "short:book-1",
+      input: { project, webSearchEnabled: true }
     });
-    expect(deferred.prompts[0]?.chatAssistant).toEqual({
-      mode: "project",
-      project: { projectType: "short", projectId: "book-1" },
-      webSearchEnabled: true
+    expect(deferred.chatRuns[0]?.task).toEqual({
+      agentId: "chat-project",
+      profileId: "short:book-1",
+      input: {
+        project: { projectType: "short", projectId: "book-1" },
+        webSearchEnabled: true
+      }
     });
-    expect(() =>
-      structuredClone(deferred.prompts[0]?.chatAssistant)
-    ).not.toThrow();
+    expect(() => structuredClone(deferred.chatRuns[0]?.task)).not.toThrow();
 
     deferred.resolveAccepted(0, {
       sessionId: controller.sessionId.value,

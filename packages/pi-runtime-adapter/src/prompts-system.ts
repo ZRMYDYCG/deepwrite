@@ -1,16 +1,8 @@
-import { revisionAnalysisSystemPrompt } from "./revision-analysis";
-import { shortAnalysisSystemPrompt } from "./short-book-analysis";
-import {
-  renderLearningImitationSystemPrompt,
-  MATERIAL_METADATA_AUTHORING_GUIDANCE
-} from "@deepwrite/contracts";
-import { buildChatAssistantSystemPrompt } from "./chat-assistant";
-import { STYLE_COMPARISON_SYSTEM_PROMPT } from "./style-comparison";
+import { MATERIAL_METADATA_AUTHORING_GUIDANCE } from "@deepwrite/contracts";
 import {
   renderDeepSeekWebSearchCapabilityPrompt,
   renderDeepSeekWebSearchNetworkBoundary
 } from "./deepseek-web-search";
-import { renderLongBookAnalysisSystemPrompt } from "./long-book-analysis/prompt";
 import { buildWritingSystemPrompt } from "./prompts-writing";
 import type { AgentRunInput } from "./runtime-types";
 import { renderSubagentAuthoringSystemPrompt } from "./subagent-authoring-tools";
@@ -55,53 +47,6 @@ function buildWorkspaceAgentSystemPrompt(
       "只能使用本轮列出的技能读取与草稿写入工具。write_subagent_draft 只更新预览区，不会写入智能体团队；正式加入必须等待用户在界面中确认。"
     ].join("\n");
   }
-  const learningProfile = input.learningImitationProfile;
-  const learningContext = input.workspaceContext?.learningImitation;
-  if (learningProfile && learningContext) {
-    const writeBoundary =
-      input.writeApprovalMode === "auto-approve"
-        ? "只能使用本轮列出的样本文档读取、搜索与预览写入工具。write_learning_result 更新预览区后，客户端会立即把结果加入后台串行落盘队列并写入预先选择的目标库；若目标库尚未选全则保留预览。界面确认成功前不得声称已正式落盘。"
-        : "只能使用本轮列出的样本文档读取、搜索与预览写入工具。write_learning_result 只更新预览区，不会写入正式素材库或技能库。正式落盘必须等待用户在界面中确认。";
-    return [
-      basePrompt,
-      "",
-      `【当前学习仿写智能体：${learningProfile.label} / ${learningProfile.id}】`,
-      renderLearningImitationSystemPrompt(
-        learningProfile.systemPrompt,
-        learningContext
-      ).trim(),
-      "",
-      "【DeepWrite 学习仿写工具边界】",
-      writeBoundary,
-      ...(learningProfile.id === "material_split"
-        ? [MATERIAL_METADATA_AUTHORING_GUIDANCE]
-        : [])
-    ].join("\n");
-  }
-  if (
-    input.shortBookAnalysisProfile &&
-    input.workspaceContext?.shortBookAnalysis
-  )
-    return [
-      basePrompt,
-      shortAnalysisSystemPrompt(input.shortBookAnalysisProfile)
-    ].join("\n\n");
-  const longBookAnalysisProfile = input.longBookAnalysisProfile;
-  const longBookAnalysisContext = input.workspaceContext?.longBookAnalysis;
-  if (longBookAnalysisProfile && longBookAnalysisContext) {
-    return [
-      basePrompt,
-      "",
-      `【当前长篇拆书智能体：${longBookAnalysisProfile.name} / ${longBookAnalysisProfile.id}】`,
-      renderLongBookAnalysisSystemPrompt(
-        longBookAnalysisProfile,
-        longBookAnalysisContext
-      ).trim(),
-      "",
-      "【DeepWrite 长篇拆书工具边界】",
-      "只能使用本轮列出的章节或中间笔记 list/read/search 工具，以及当前阶段唯一允许的 write_analysis_note 或 write_analysis_result。写入工具只更新本次任务的内存笔记或结果预览，不会修改源文件，也不会直接写入资料库。"
-    ].join("\n");
-  }
   const libraryProfile = input.libraryAgentProfile;
   const libraryWorkspace = input.workspaceContext?.libraryWorkspace;
   if (libraryProfile && libraryWorkspace) {
@@ -141,21 +86,6 @@ export function buildEffectiveSystemPrompt(
   basePrompt: string,
   input: AgentRunInput
 ): string {
-  if (input.workspaceContext?.revisionAnalysis)
-    return revisionAnalysisSystemPrompt(
-      input.workspaceContext.revisionAnalysis
-    );
-  if (input.workspaceContext?.styleComparison)
-    return STYLE_COMPARISON_SYSTEM_PROMPT;
-  if (input.mode === "chat-assistant") {
-    if (!input.chatAssistantRuntimeContext) {
-      throw new Error("Chat assistant runtime context is unavailable.");
-    }
-    return buildChatAssistantSystemPrompt(
-      input.chatAssistantRuntimeContext,
-      input.webSearchEnabled === true
-    );
-  }
   return appendWorkspaceWebSearchPrompt(
     buildWorkspaceAgentSystemPrompt(basePrompt, input),
     input.webSearchEnabled === true

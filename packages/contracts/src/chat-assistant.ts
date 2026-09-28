@@ -1,11 +1,5 @@
 import { z } from "zod";
 import { BookSchema, CatalogIndexSnapshotSchema } from "./catalog";
-import {
-  CHAT_ASSISTANT_PROJECT_PROMPT_MAX_LENGTH,
-  ChatAssistantRoleplayRuntimeContextSchema,
-  ChatAssistantProjectRefSchema
-} from "./chat-assistant-base";
-import { EnvelopeBaseSchema } from "./envelope";
 import { LongBookSummarySchema } from "./long-workspace";
 import { ModelUsageDashboardSchema } from "./model-usage";
 import {
@@ -17,46 +11,6 @@ import {
 } from "./models";
 
 export * from "./chat-assistant-base";
-
-export const ChatAssistantProjectConfigGetCommandEnvelopeSchema =
-  EnvelopeBaseSchema.extend({
-    type: z.literal("chatAssistantProjectConfig.get"),
-    payload: ChatAssistantProjectRefSchema
-  });
-
-export const ChatAssistantProjectConfigListCommandEnvelopeSchema =
-  EnvelopeBaseSchema.extend({
-    type: z.literal("chatAssistantProjectConfig.list"),
-    payload: z.object({}).strict()
-  });
-
-export const ChatAssistantProjectConfigListSchema = z
-  .array(ChatAssistantProjectRefSchema)
-  .max(100_000);
-export type ChatAssistantProjectConfigList = z.infer<
-  typeof ChatAssistantProjectConfigListSchema
->;
-
-export const ChatAssistantProjectConfigSaveCommandEnvelopeSchema =
-  EnvelopeBaseSchema.extend({
-    type: z.literal("chatAssistantProjectConfig.save"),
-    payload: z
-      .object({
-        project: ChatAssistantProjectRefSchema,
-        systemPrompt: z
-          .string()
-          .trim()
-          .min(1)
-          .max(CHAT_ASSISTANT_PROJECT_PROMPT_MAX_LENGTH)
-      })
-      .strict()
-  });
-
-export const ChatAssistantProjectConfigResetCommandEnvelopeSchema =
-  EnvelopeBaseSchema.extend({
-    type: z.literal("chatAssistantProjectConfig.reset"),
-    payload: ChatAssistantProjectRefSchema
-  });
 
 export const ChatAssistantSoftwareContextSchema = z
   .object({
@@ -107,48 +61,30 @@ export type ChatAssistantUsagePeriod = z.infer<
   typeof ChatAssistantUsagePeriodSchema
 >;
 
-const ChatAssistantRuntimeBaseSchema = z.object({
-  software: ChatAssistantSoftwareContextSchema,
-  catalog: CatalogIndexSnapshotSchema,
-  longBooks: z.array(LongBookSummarySchema).max(100_000),
-  models: z.array(ChatAssistantModelConfigSchema).max(100),
-  defaultModelId: z.string().max(120),
-  usage: z.record(ChatAssistantUsagePeriodSchema, ModelUsageDashboardSchema)
-});
-
-export const ChatAssistantRuntimeContextSchema = z.discriminatedUnion("mode", [
-  ChatAssistantRoleplayRuntimeContextSchema,
-  ChatAssistantRuntimeBaseSchema.extend({ mode: z.literal("normal") }).strict(),
-  ChatAssistantRuntimeBaseSchema.extend({
-    mode: z.literal("project"),
-    project: ChatAssistantProjectRefSchema,
-    projectPrompt: z
-      .string()
-      .trim()
-      .min(1)
-      .max(CHAT_ASSISTANT_PROJECT_PROMPT_MAX_LENGTH),
-    projectBook: z.union([BookSchema, LongBookSummarySchema])
+/**
+ * What the chat agents may know about the app: software facts, catalog and
+ * usage summaries and redacted model descriptors. Main builds and fully
+ * parses it for every chat turn; the Agent Utility trusts that parse.
+ */
+export const ChatAssistantRuntimeSnapshotSchema = z
+  .object({
+    software: ChatAssistantSoftwareContextSchema,
+    catalog: CatalogIndexSnapshotSchema,
+    longBooks: z.array(LongBookSummarySchema).max(100_000),
+    models: z.array(ChatAssistantModelConfigSchema).max(100),
+    defaultModelId: z.string().max(120),
+    usage: z.record(ChatAssistantUsagePeriodSchema, ModelUsageDashboardSchema)
   })
-    .strict()
-    .superRefine((value, context) => {
-      if (value.projectBook.id !== value.project.projectId) {
-        context.addIssue({
-          code: "custom",
-          path: ["projectBook", "id"],
-          message:
-            "Chat assistant project snapshot must match the selected project."
-        });
-      }
-      if (value.projectBook.bookType !== value.project.projectType) {
-        context.addIssue({
-          code: "custom",
-          path: ["projectBook", "bookType"],
-          message:
-            "Chat assistant project type must match the selected project."
-        });
-      }
-    })
-]);
-export type ChatAssistantRuntimeContext = z.infer<
-  typeof ChatAssistantRuntimeContextSchema
+  .strict();
+export type ChatAssistantRuntimeSnapshot = z.infer<
+  typeof ChatAssistantRuntimeSnapshotSchema
+>;
+
+/** The snapshot plus the structure of the project a project chat is about. */
+export const ChatAssistantProjectRuntimeSnapshotSchema =
+  ChatAssistantRuntimeSnapshotSchema.extend({
+    projectBook: z.union([BookSchema, LongBookSummarySchema])
+  }).strict();
+export type ChatAssistantProjectRuntimeSnapshot = z.infer<
+  typeof ChatAssistantProjectRuntimeSnapshotSchema
 >;

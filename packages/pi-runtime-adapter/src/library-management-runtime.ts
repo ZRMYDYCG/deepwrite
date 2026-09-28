@@ -1,3 +1,6 @@
+import { WORKSPACE_TOOL_COMPACTORS } from "./workspace-context-policy";
+import { rehydrateWorkspaceContext } from "./workspace-context-recovery";
+import type { ContextPolicy } from "./kernel/context";
 import type { AgentTool } from "@earendil-works/pi-agent-core";
 import {
   BUILTIN_SUBAGENT_IDS,
@@ -136,7 +139,6 @@ export function createLibraryManagementRuntime(input: AgentRunInput) {
     const systemPrompt = [
       buildEffectiveSystemPrompt(buildDeepWriteSystemPrompt(), {
         ...input,
-        mode: "workspace",
         libraryAgentProfile: manager.profile,
         workspaceContext: { libraryWorkspace: workspace, attachedSkills },
         webSearchEnabled: false
@@ -145,7 +147,24 @@ export function createLibraryManagementRuntime(input: AgentRunInput) {
       "你是受委派的管理子智能体，当前目标库已经由主智能体确定。只能管理上述目标库。若仍缺少影响正确执行的关键信息，返回待澄清事项，由主智能体询问用户；不要猜测或越权写入。",
       `当前目标库：${workspace.title} / ${workspace.libraryId}；库介绍：${workspace.overview}`
     ].join("\n\n");
-    return { tools, systemPrompt };
+    const contextPolicy: ContextPolicy | undefined =
+      input.contextCompactionSettings && {
+        settings: input.contextCompactionSettings,
+        task: manager.domain === "skill" ? "library-skill" : "library-material",
+        toolCompactors: WORKSPACE_TOOL_COMPACTORS,
+        rehydrate: (refs, budget) =>
+          rehydrateWorkspaceContext(
+            {
+              ...input,
+              libraryAgentProfile: manager.profile,
+              workspaceContext: { libraryWorkspace: workspace, attachedSkills }
+            },
+            manager.domain === "skill" ? "library-skill" : "library-material",
+            refs,
+            budget
+          )
+      };
+    return { tools, systemPrompt, ...(contextPolicy ? { contextPolicy } : {}) };
   };
   return { definitions, prepareChild };
 }

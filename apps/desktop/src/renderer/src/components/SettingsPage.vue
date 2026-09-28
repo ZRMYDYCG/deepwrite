@@ -2,13 +2,11 @@
 import { computed, ref } from "vue";
 import {
   type AppLanguage,
+  type ContextCompactionSettings,
   type BodyTextFormats,
   type BodyTextFormatChange,
   type CreativePlotStage,
   type GeneralPermissionMode,
-  type LearningImitationSettings,
-  type LearningImitationSettingsInput,
-  type LearningImitationStageId,
   type LibraryAgentDomain,
   type LibraryAgentSettings,
   type LibraryAgentSettingsInput,
@@ -32,7 +30,6 @@ import AppearanceSettingsPanel from "./AppearanceSettingsPanel.vue";
 import FreeModelsPanel from "./FreeModelsPanel.vue";
 import BodyTextSettingsPanel from "./BodyTextSettingsPanel.vue";
 import GeneralSettingsPanel from "./GeneralSettingsPanel.vue";
-import LearningImitationSettingsPanel from "./LearningImitationSettingsPanel.vue";
 import LibraryAgentSettingsPanel from "./LibraryAgentSettingsPanel.vue";
 import ModelSettingsFeature from "./ModelSettingsFeature.vue";
 import ModelUsagePanel from "./ModelUsagePanel.vue";
@@ -72,6 +69,7 @@ const props = defineProps<{
   autoSaveEnabled: boolean;
   language: AppLanguage;
   showContextUsage: boolean;
+  contextCompaction: ContextCompactionSettings;
   showInMenuBar: boolean;
   useNetworkProxy: boolean;
   workspacePaneLayout: WorkspacePaneLayout;
@@ -85,9 +83,6 @@ const props = defineProps<{
   longAgentLoading: boolean;
   longAgentSaving: boolean;
   longAgentError: string | null;
-  learningImitationSettings: LearningImitationSettings | null;
-  learningImitationLoading: boolean;
-  learningImitationSaving: boolean;
   modelUsageDashboard: ModelUsageDashboard | null;
   modelUsageLoading: boolean;
   modelSettings: ModelSettings | null;
@@ -119,6 +114,7 @@ const emit = defineEmits<{
   updateAutoSave: [enabled: boolean];
   updateLanguage: [language: AppLanguage];
   updateShowContextUsage: [enabled: boolean];
+  updateContextCompaction: [settings: ContextCompactionSettings];
   updateShowInMenuBar: [enabled: boolean];
   updateUseNetworkProxy: [enabled: boolean];
   updateWorkspacePaneLayout: [layout: WorkspacePaneLayout];
@@ -127,8 +123,6 @@ const emit = defineEmits<{
   saveWorkspaceAgents: [settings: WorkspaceAgentSettingsInput];
   retryLongAgents: [];
   saveLongAgents: [settings: LongAgentSettingsInput];
-  saveLearningImitation: [settings: LearningImitationSettingsInput];
-  resetLearningImitation: [stageId: LearningImitationStageId];
   saveLibraryAgents: [settings: LibraryAgentSettingsInput];
   resetLibraryAgent: [domain: LibraryAgentDomain];
   loadModelUsage: [input?: ModelUsageQueryInput];
@@ -158,8 +152,7 @@ const sections: SettingsSection[] = [
       { id: "directory", label: "工作目录", icon: "directory" },
       { id: "short-agents", label: "创作空间配置", icon: "brain" },
       { id: "skill-library-agent", label: "技能库配置", icon: "wand" },
-      { id: "material-library-agent", label: "素材库配置", icon: "archive" },
-      { id: "learning-imitation", label: "短篇学习仿写设置", icon: "sparkles" }
+      { id: "material-library-agent", label: "素材库配置", icon: "archive" }
     ]
   },
   {
@@ -298,16 +291,6 @@ async function selectCategory(id: string): Promise<void> {
           @save-long="emit('saveLongAgents', $event)"
         />
 
-        <LearningImitationSettingsPanel
-          v-else-if="activeCategory === 'learning-imitation'"
-          :settings="learningImitationSettings"
-          :loading="learningImitationLoading"
-          :saving="learningImitationSaving"
-          :runtime-available="runtimeAvailable"
-          @save="emit('saveLearningImitation', $event)"
-          @reset="emit('resetLearningImitation', $event)"
-        />
-
         <LibraryAgentSettingsPanel
           v-else-if="activeCategory === 'skill-library-agent'"
           domain="skill"
@@ -404,6 +387,8 @@ async function selectCategory(id: string): Promise<void> {
           :auto-save-enabled="autoSaveEnabled"
           :language="language"
           :show-context-usage="showContextUsage"
+          :context-compaction="contextCompaction"
+          :model-settings="modelSettings"
           :show-in-menu-bar="showInMenuBar"
           :use-network-proxy="useNetworkProxy"
           :workspace-pane-layout="workspacePaneLayout"
@@ -414,6 +399,7 @@ async function selectCategory(id: string): Promise<void> {
           @update-auto-save="emit('updateAutoSave', $event)"
           @update-language="emit('updateLanguage', $event)"
           @update-show-context-usage="emit('updateShowContextUsage', $event)"
+          @update-context-compaction="emit('updateContextCompaction', $event)"
           @update-show-in-menu-bar="emit('updateShowInMenuBar', $event)"
           @update-use-network-proxy="emit('updateUseNetworkProxy', $event)"
           @update-workspace-pane-layout="

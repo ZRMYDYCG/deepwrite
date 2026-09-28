@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import type { ThinkingLevel } from "@deepwrite/contracts/renderer";
+import ContextCompactionButton from "../../components/ContextCompactionButton.vue";
 import AppIcon from "../../components/AppIcon.vue";
 import PopupSelect, {
   type PopupSelectOption,
@@ -8,6 +9,8 @@ import PopupSelect, {
 } from "../../components/PopupSelect.vue";
 
 const props = defineProps<{
+  sessionId?: string;
+  hasHistory?: boolean;
   draft: string;
   runtimeAvailable: boolean;
   busy: boolean;
@@ -86,6 +89,11 @@ defineExpose({ focus });
       >
         <AppIcon name="plus" :size="19" />
       </button>
+      <ContextCompactionButton
+        v-if="sessionId && hasHistory"
+        :session-id="sessionId"
+        :disabled="busy || !runtimeAvailable"
+      />
       <span class="chat-assistant-toolbar-spacer" />
       <button
         v-if="webSearchVisible !== false"

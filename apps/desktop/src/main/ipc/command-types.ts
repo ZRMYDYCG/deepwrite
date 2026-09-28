@@ -7,7 +7,6 @@ import type {
 } from "@deepwrite/contracts";
 import type { AgentTeamConfigStore } from "../agent-team-config-store";
 import type { AppearanceService } from "../appearance-service";
-import type { ChatAssistantProjectConfigStore } from "../chat-assistant-project-config-store";
 import type { ContinuationImportPreviewRegistry } from "../continuation-import-preview-registry";
 import type { readExternalLibraryEntries } from "../external-library-import";
 import type { GeneralSettingsStore } from "../general-settings-store";
@@ -15,8 +14,6 @@ import type {
   authorizeMainInternalCommand,
   MainInternalCommandActiveRun
 } from "../internal-command-authorizer";
-import type { LearningImitationConfigStore } from "../learning-imitation-config-store";
-import type { LongBookAnalysisConfigStore } from "../extras/long-book-analysis/config-store";
 import type { importLegacyLibraryArchives } from "../legacy-library-import-batch";
 import type { LegacySyncPreviewRegistry } from "../legacy-sync-preview-registry";
 import type { LibraryAgentConfigStore } from "../library-agent-config-store";
@@ -58,14 +55,10 @@ export interface IpcCommandContext {
   ) => void;
   requireModelConfigStore: () => ModelConfigStore;
   requireModelUsageStore: () => ModelUsageStore;
-  requireChatAssistantProjectConfigStore: () => ChatAssistantProjectConfigStore;
   requireWorkspaceAgentConfigStore: () => WorkspaceAgentConfigStore;
   requireAgentTeamConfigStore: () => AgentTeamConfigStore;
   requireLibraryAgentConfigStore: () => LibraryAgentConfigStore;
   requireLongAgentConfigStore: () => LongAgentConfigStore;
-  requireLearningImitationConfigStore: () => LearningImitationConfigStore;
-  requireShortBookAnalysisConfigStore: () => import("../extras/short-book-analysis/config-store").ShortBookAnalysisConfigStore;
-  requireLongBookAnalysisConfigStore: () => LongBookAnalysisConfigStore;
   requireWorkspaceDirectoryStore: () => WorkspaceDirectoryStore;
   requireAppearanceService: () => AppearanceService;
   requireGeneralSettingsStore: () => GeneralSettingsStore;

@@ -67,14 +67,7 @@ import type {
   ExportLongManuscriptResult
 } from "./long-manuscript-export";
 import type {
-  LearningImitationSettings,
-  LearningImitationSettingsInput,
-  LearningImitationStageId
-} from "./learning-imitation";
-import type {
   LongBookAnalysisSavedSourceCatalog,
-  LongBookAnalysisSettings,
-  LongBookAnalysisSettingsInput,
   LongBookAnalysisSource,
   LongBookAnalysisSourceKind
 } from "./long-book-analysis";
@@ -168,10 +161,8 @@ import type {
   CloudBackupStatus
 } from "./cloud-backup";
 import type { ConversationPersistenceApi } from "./renderer-state";
-import type { ChatAssistantConfigApi } from "./chat-assistant-config-api";
 
-export interface DeepWriteApi
-  extends TextContextMenuPreloadApi, ChatAssistantConfigApi {
+export interface DeepWriteApi extends TextContextMenuPreloadApi {
   windowFrame?: WindowFrameApi;
   system: {
     health(): Promise<SystemHealthPayload>;
@@ -365,16 +356,7 @@ export interface DeepWriteApi
     save(settings: LibraryAgentSettingsInput): Promise<LibraryAgentSettings>;
     reset(domain?: LibraryAgentDomain): Promise<LibraryAgentSettings>;
   };
-  learningImitationSettings: {
-    list(): Promise<LearningImitationSettings>;
-    save(
-      settings: LearningImitationSettingsInput
-    ): Promise<LearningImitationSettings>;
-    reset(
-      stageId?: LearningImitationStageId
-    ): Promise<LearningImitationSettings>;
-  };
-  revisionAnalysis: import("./revision-analysis").RevisionAnalysisApi;
+  extrasAgents: import("./extras-agent").ExtrasAgentApi;
   shortBookAnalysis: import("./short-book-analysis").ShortBookAnalysisApi;
   longBookAnalysis: {
     chooseSource(
@@ -383,13 +365,6 @@ export interface DeepWriteApi
     sources: {
       list(): Promise<LongBookAnalysisSavedSourceCatalog>;
       load(sourceId: string): Promise<LongBookAnalysisSource>;
-    };
-    presets: {
-      list(): Promise<LongBookAnalysisSettings>;
-      save(
-        settings: LongBookAnalysisSettingsInput
-      ): Promise<LongBookAnalysisSettings>;
-      reset(presetId?: string): Promise<LongBookAnalysisSettings>;
     };
   };
   workspaceDirectory: {

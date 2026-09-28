@@ -3,6 +3,11 @@ import type { AssistantMessage, UserMessage } from "@earendil-works/pi-ai";
 import type { AgentRuntimeRef } from "@deepwrite/contracts";
 import { runAgentWithTurnRetries } from "./agent-turn-retry";
 import {
+  RunContextManager,
+  estimateRunFixedTokens,
+  resolveSummaryModel
+} from "./kernel/context";
+import {
   resolveSubagentTimeoutMs,
   subagentTimeoutMessage
 } from "./subagent-timeout";
@@ -28,7 +33,8 @@ export async function runSubagentLifecycle(
   task: string,
   childRuntime: AgentRuntimeRef,
   emitProgress: (progress: SubagentToolProgress, text: string) => void,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  notifyCompacted: () => void = () => {}
 ) {
   const subagentRunId = progressBase.subagentRunId;
   const definition = { name: progressBase.name };
@@ -179,62 +185,114 @@ export async function runSubagentLifecycle(
         resolveEarly?.({ kind: "timeout" });
       }, timeoutMs);
       timeout.unref();
-      const prompt: Promise<PromptOutcome> = runAgentWithTurnRetries({
-        agent: child,
-        initialPrompt: {
-          role: "user",
-          content: task,
-          timestamp: Date.now()
-        } satisfies UserMessage,
-        runId: subagentRunId,
-        signal: lifecycleController.signal,
-        ...(input.retryPolicy ? { retryPolicy: input.retryPolicy } : {}),
-        onEvent: handleChildEvent,
-        onAssistantMessageEnded: (message, attempt) => {
-          const usage = normalizeUsage(message.usage);
-          if (!usage) return;
-          emitProgress(
-            {
-              ...progressBase,
-              type: "usage_observed",
-              observationId: `${attempt.turnId}:attempt:${attempt.attempt}`,
-              observedAt: new Date().toISOString(),
-              messageId: `${subagentRunId}_assistant`,
-              turnId: attempt.turnId,
-              attempt: attempt.attempt,
-              status: usageObservationStatus(message),
-              hadToolCall: message.content.some(
-                (item) => item.type === "toolCall"
-              ),
-              usage,
-              runtime: childRuntime
+      const taskMessage: UserMessage = {
+        role: "user",
+        content: task,
+        timestamp: Date.now()
+      };
+      const contextGuard = input.contextPolicy
+        ? new RunContextManager({
+            agent: child,
+            policy: input.contextPolicy,
+            model: child.state.model,
+            summaryModel: resolveSummaryModel(
+              {
+                model: child.state.model,
+                streamFn: child.streamFunction,
+                thinkingLevel: child.state.thinkingLevel,
+                runtime: childRuntime
+              },
+              undefined
+            ),
+            runId: subagentRunId,
+            sessionId: input.parentSessionId,
+            messageId: `${subagentRunId}_assistant`,
+            runtime: childRuntime,
+            fixedTokens: estimateRunFixedTokens(
+              child.state.systemPrompt,
+              child.state.tools
+            ),
+            signal: lifecycleController.signal,
+            emit: (event) => {
+              if (event.type !== "agent.usage_observed") return;
+              emitProgress(
+                { ...progressBase, type: "usage_observed", ...event.payload },
+                "子智能体上下文已压缩。"
+              );
             },
-            "子智能体模型请求已完成。"
-          );
-        },
-        onTurnStarted: (attempt) => {
-          if (!acceptingActivity) return;
-          emitProgress(
-            {
-              ...progressBase,
-              type: "activity",
-              activity: { type: "turn_started", ...attempt }
-            },
-            `子智能体正在进行第 ${attempt.attempt} 次模型请求。`
-          );
-        },
-        onRetryScheduled: (retry) => {
-          if (!acceptingActivity) return;
-          emitProgress(
-            {
-              ...progressBase,
-              type: "activity",
-              activity: { type: "retry_scheduled", ...retry }
-            },
-            `子智能体网络连接波动，将进行第 ${retry.nextAttempt - 1}/${retry.maxAttempts - 1} 次重试。`
-          );
-        }
-      })
+            setBusy: () => {},
+            notifyCompacted
+          })
+        : undefined;
+      if (contextGuard) {
+        child.prepareNextTurnWithContext = contextGuard.prepareNextTurn;
+        contextGuard.noteRunStart(taskMessage, undefined);
+      }
+      const prompt: Promise<PromptOutcome> = (async () => {
+        await contextGuard?.beforeRun(taskMessage);
+        lifecycleController.signal.throwIfAborted();
+        contextGuard?.assertFits(taskMessage);
+        await runAgentWithTurnRetries({
+          agent: child,
+          initialPrompt: taskMessage,
+          runId: subagentRunId,
+          ...(contextGuard
+            ? {
+                contextOverflow: {
+                  matches: (message) => contextGuard.matchesOverflow(message),
+                  recover: (message) => contextGuard.recoverOverflow(message)
+                }
+              }
+            : {}),
+          signal: lifecycleController.signal,
+          ...(input.retryPolicy ? { retryPolicy: input.retryPolicy } : {}),
+          onEvent: handleChildEvent,
+          onAssistantMessageEnded: (message, attempt) => {
+            const usage = normalizeUsage(message.usage);
+            if (!usage) return;
+            emitProgress(
+              {
+                ...progressBase,
+                type: "usage_observed",
+                observationId: `${attempt.turnId}:attempt:${attempt.attempt}`,
+                observedAt: new Date().toISOString(),
+                messageId: `${subagentRunId}_assistant`,
+                turnId: attempt.turnId,
+                attempt: attempt.attempt,
+                status: usageObservationStatus(message),
+                hadToolCall: message.content.some(
+                  (item) => item.type === "toolCall"
+                ),
+                usage,
+                runtime: childRuntime
+              },
+              "子智能体模型请求已完成。"
+            );
+          },
+          onTurnStarted: (attempt) => {
+            if (!acceptingActivity) return;
+            emitProgress(
+              {
+                ...progressBase,
+                type: "activity",
+                activity: { type: "turn_started", ...attempt }
+              },
+              `子智能体正在进行第 ${attempt.attempt} 次模型请求。`
+            );
+          },
+          onRetryScheduled: (retry) => {
+            if (!acceptingActivity) return;
+            emitProgress(
+              {
+                ...progressBase,
+                type: "activity",
+                activity: { type: "retry_scheduled", ...retry }
+              },
+              `子智能体网络连接波动，将进行第 ${retry.nextAttempt - 1}/${retry.maxAttempts - 1} 次重试。`
+            );
+          }
+        });
+      })()
         .then((): PromptOutcome => ({ kind: "completed" }))
         .catch((error: unknown): PromptOutcome => ({
           kind: "failed",

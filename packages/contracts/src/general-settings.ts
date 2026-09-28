@@ -4,6 +4,10 @@ import {
   createDefaultBodyTextFormats
 } from "./body-text-format";
 import { EnvelopeBaseSchema } from "./envelope";
+import {
+  ContextCompactionSettingsSchema,
+  createDefaultContextCompactionSettings
+} from "./session/context-compaction";
 
 export const GeneralPermissionModeSchema = z.enum([
   "request-approval",
@@ -30,6 +34,9 @@ export const GeneralSettingsSchema = z.object({
   language: AppLanguageSchema,
   showInMenuBar: z.boolean(),
   showContextUsage: z.boolean().default(true),
+  contextCompaction: ContextCompactionSettingsSchema.default(
+    createDefaultContextCompactionSettings
+  ),
   useNetworkProxy: z.boolean().default(false),
   workspacePaneLayout: WorkspacePaneLayoutSchema.default("agent-editor"),
   defaultTextViewMode: TextViewModeSchema.default("edit"),
@@ -53,6 +60,7 @@ export function createDefaultGeneralSettings(): GeneralSettings {
     language: "auto",
     showInMenuBar: true,
     showContextUsage: true,
+    contextCompaction: createDefaultContextCompactionSettings(),
     useNetworkProxy: false,
     workspacePaneLayout: "agent-editor",
     defaultTextViewMode: "edit",

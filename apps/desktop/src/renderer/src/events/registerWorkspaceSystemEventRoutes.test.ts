@@ -15,9 +15,6 @@ function createDependencies(order: string[] = []) {
     handleEvent: vi.fn(() => order.push("conversation"))
   };
   const dependencies: WorkspaceSystemEventRouteDependencies = {
-    learningImitation: {
-      handleEvent: vi.fn(() => order.push("learning"))
-    },
     revisionAnalysis: { handleEvent: vi.fn() },
     shortBookAnalysis: { handleEvent: vi.fn() },
     longBookAnalysis: {
@@ -69,7 +66,6 @@ describe("workspace system event routes", () => {
     );
 
     expect(order).toEqual([
-      "learning",
       "long-book-analysis",
       "subagent",
       "long",
@@ -130,7 +126,7 @@ describe("workspace system event routes", () => {
     dispose();
     center.publish(event({ type: "agent.usage_observed", payload: {} }));
 
-    expect(dependencies.learningImitation.handleEvent).not.toHaveBeenCalled();
+    expect(dependencies.longBookAnalysis.handleEvent).not.toHaveBeenCalled();
     expect(dependencies.allConversations).not.toHaveBeenCalled();
     expect(dependencies.handleLongWorkspaceProposal).not.toHaveBeenCalled();
   });

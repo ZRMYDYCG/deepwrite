@@ -121,6 +121,7 @@ describe("GeneralSettingsStore", () => {
         language: "zh-CN",
         showInMenuBar: false,
         showContextUsage: true,
+        contextCompaction: createDefaultGeneralSettings().contextCompaction,
         useNetworkProxy: false,
         workspacePaneLayout: "agent-editor",
         defaultTextViewMode: "edit",

@@ -1,26 +1,18 @@
 import {
   chooseLongBookAnalysisSource,
   listLongBookAnalysisSources,
-  loadLongBookAnalysisSource,
-  listLongBookAnalysisPresets,
-  saveLongBookAnalysisPresets,
-  resetLongBookAnalysisPresets
+  loadLongBookAnalysisSource
 } from "./long-book-analysis-api";
+import { extrasAgentApi } from "./extras-agent-api";
 import { shortBookAnalysisApi } from "./short-book-analysis-api";
-import { revisionAnalysisApi } from "./revision-analysis-api";
 export const analysisApis = {
-  revisionAnalysis: revisionAnalysisApi,
+  extrasAgents: extrasAgentApi,
   shortBookAnalysis: shortBookAnalysisApi,
   longBookAnalysis: {
     chooseSource: chooseLongBookAnalysisSource,
     sources: {
       list: listLongBookAnalysisSources,
       load: loadLongBookAnalysisSource
-    },
-    presets: {
-      list: listLongBookAnalysisPresets,
-      save: saveLongBookAnalysisPresets,
-      reset: resetLongBookAnalysisPresets
     }
   }
 };

@@ -5,6 +5,8 @@ import { AgentEvaluationSnapshotSchema } from "@deepwrite/contracts/renderer";
 import { finalizeUnfinishedMessageTools } from "./attempt-state";
 import { rememberBounded } from "./shared";
 import { isAgentEvent, isSubagentEvent } from "./event-kinds";
+import { applyContextCompactionEvent } from "./context-compaction";
+import { uiMessage } from "../../ui-feedback";
 
 type EventsContext = Pick<
   AgentConversationContext,
@@ -155,6 +157,29 @@ export function handleEvent(
   }
   if (event.type === "agent.retry_scheduled") {
     ctx.handleRetryScheduled(event);
+    return;
+  }
+  if (event.type === "agent.context_compaction") {
+    const message = ctx.ensureAssistantMessage(
+      runId,
+      event.payload.messageId,
+      event.payload.runtime,
+      event.timestamp
+    );
+    if (message) {
+      applyContextCompactionEvent(
+        message,
+        event.payload,
+        event.id,
+        event.timestamp
+      );
+    }
+    if (event.payload.phase === "failed") {
+      uiMessage.warning(
+        `上下文压缩失败：${event.payload.errorMessage ?? "未知原因"}。原上下文已保留。`,
+        { duration: 6_000 }
+      );
+    }
     return;
   }
   if (

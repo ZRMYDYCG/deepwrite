@@ -8,7 +8,7 @@ import {
   type Ref
 } from "vue";
 import {
-  LongBookAnalysisSettingsInputSchema,
+  ExtrasAgentSettingsInputSchema,
   LongBookAnalysisSourceSchema,
   type DeepWriteApi,
   type LongBookAnalysisChapter,
@@ -185,8 +185,9 @@ export function useLongBookAnalysis(options: {
     if (presetsLoading.value) return;
     presetsLoading.value = true;
     try {
-      const settings = await api().longBookAnalysis.presets.list();
-      if (!disposed) presets.value = settings.presets;
+      const settings =
+        await api().extrasAgents.profiles.list("long-book-analysis");
+      if (!disposed) presets.value = settings.profiles;
     } finally {
       if (!disposed) presetsLoading.value = false;
     }
@@ -195,18 +196,20 @@ export function useLongBookAnalysis(options: {
   async function savePresets(
     nextPresets: readonly LongBookAnalysisPreset[]
   ): Promise<void> {
-    const input = LongBookAnalysisSettingsInputSchema.parse({
-      presets: nextPresets.map(({ builtin: _builtin, ...preset }) => preset)
+    const input = ExtrasAgentSettingsInputSchema.parse({
+      agentId: "long-book-analysis",
+      profiles: nextPresets.map(({ builtin: _builtin, ...preset }) => preset)
     });
+    if (input.agentId !== "long-book-analysis") return;
     pipeline.reset();
-    presets.value = (await api().longBookAnalysis.presets.save(input)).presets;
+    presets.value = (await api().extrasAgents.profiles.save(input)).profiles;
   }
 
   async function resetPresets(presetId?: string): Promise<void> {
     pipeline.reset();
     presets.value = (
-      await api().longBookAnalysis.presets.reset(presetId)
-    ).presets;
+      await api().extrasAgents.profiles.reset("long-book-analysis", presetId)
+    ).profiles;
   }
 
   async function loadSavedSources(): Promise<void> {

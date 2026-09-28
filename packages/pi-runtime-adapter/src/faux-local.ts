@@ -8,16 +8,6 @@ export const DEEPWRITE_FAUX_RUNTIME: AgentRuntimeRef = {
 };
 
 export function buildLocalThinking(input: AgentRunInput): string {
-  if (
-    input.mode === "chat-assistant" &&
-    input.chatAssistantRuntimeContext?.mode === "roleplay"
-  )
-    return "正在根据人物定义组织回复。";
-  if (input.mode === "chat-assistant") {
-    return input.chatAssistantRuntimeContext?.mode === "project"
-      ? "正在结合当前项目结构与只读查询工具核对信息。"
-      : "正在结合 DeepWrite 当前状态与只读查询工具组织回复。";
-  }
   const title = input.workspaceContext?.activeResource?.title ?? "未命名资源";
   const selectedProfile =
     input.scriptAgentProfile ??
@@ -29,21 +19,6 @@ export function buildLocalThinking(input: AgentRunInput): string {
 }
 
 export function buildLocalWritingResponse(input: AgentRunInput): string {
-  if (
-    input.mode === "chat-assistant" &&
-    input.chatAssistantRuntimeContext?.mode === "roleplay"
-  )
-    return "人物扮演聊天链路已就绪，未装配工具。请选择真实模型开始人物扮演。";
-  if (input.mode === "chat-assistant") {
-    const request = input.prompt.replace(/\s+/g, " ").slice(0, 220);
-    return [
-      `${input.chatAssistantRuntimeContext?.mode === "project" ? "项目" : "普通"}聊天助手的本地 Faux 流式链路已就绪。`,
-      "",
-      `我收到了你的消息：${request}`,
-      "",
-      "当前是用于验证客户端聊天链路的本地模型。只读工具已按当前模式装配；不会修改任何项目或配置。配置真实模型后，可以继续正式交流。"
-    ].join("\n");
-  }
   const active = input.workspaceContext?.activeResource;
   const request = input.prompt.replace(/\s+/g, " ").slice(0, 220);
   const activeLabel = active ? `《${active.title}》` : "当前创作资源";

@@ -112,7 +112,7 @@ const thinkingOptions = computed(() => [
 const canSend = computed(() => controller.value!.canSend.value);
 const canStop = computed(() => controller.value!.canStop.value);
 const effectiveCanSend = computed(
-  () => canSend.value && assistant.requestContext.value !== null
+  () => canSend.value && assistant.chatTask.value !== null
 );
 const activeContextKey = computed(() =>
   assistant.mode.value === "normal"
@@ -350,6 +350,8 @@ watch(
 
     <ChatAssistantComposer
       ref="composer"
+      :session-id="controller.sessionId.value"
+      :has-history="controller.messages.value.length > 0"
       :draft="controller.draft.value"
       :runtime-available="runtimeAvailable"
       :busy="controller.isBusy.value"

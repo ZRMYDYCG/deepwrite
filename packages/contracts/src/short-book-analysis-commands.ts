@@ -2,8 +2,7 @@ import { z } from "zod";
 import { EnvelopeBaseSchema } from "./envelope";
 import {
   ShortBookAnalysisSourcesSchema,
-  ShortBookAnalysisTextInputSchema,
-  ShortBookAnalysisSettingsInputSchema
+  ShortBookAnalysisTextInputSchema
 } from "./short-book-analysis";
 const Id = z
   .string()
@@ -31,18 +30,6 @@ export const ShortBookAnalysisCommandSchemas = [
   EnvelopeBaseSchema.extend({
     type: z.literal("shortBookAnalysis.deleteSource"),
     payload: z.object({ sourceId: Id })
-  }),
-  EnvelopeBaseSchema.extend({
-    type: z.literal("shortBookAnalysisSettings.list"),
-    payload: z.object({})
-  }),
-  EnvelopeBaseSchema.extend({
-    type: z.literal("shortBookAnalysisSettings.save"),
-    payload: ShortBookAnalysisSettingsInputSchema
-  }),
-  EnvelopeBaseSchema.extend({
-    type: z.literal("shortBookAnalysisSettings.reset"),
-    payload: z.object({ presetId: Id.optional() })
   }),
   EnvelopeBaseSchema.extend({
     type: z.literal("shortBookAnalysis.storeSources"),

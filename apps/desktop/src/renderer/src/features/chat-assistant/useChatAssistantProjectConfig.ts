@@ -1,5 +1,8 @@
 import { computed, ref } from "vue";
-import { CHAT_ASSISTANT_PROJECT_PROMPT_MAX_LENGTH } from "@deepwrite/contracts/renderer";
+import {
+  CHAT_ASSISTANT_PROJECT_PROMPT_MAX_LENGTH,
+  chatAssistantProjectKey
+} from "@deepwrite/contracts/renderer";
 import type { ChatAssistantProjectRef } from "@deepwrite/contracts";
 import type {
   PopupSelectOption,
@@ -8,6 +11,10 @@ import type {
 import { uiMessage } from "../../ui-feedback";
 import type { ChatAssistantModeFeature } from "./useChatAssistantMode";
 import { groupedProjectOptions } from "./chatAssistantProjectOptions";
+import {
+  readChatProjectConfig,
+  saveChatProjectConfig
+} from "./chatAssistantProfiles";
 export function useChatAssistantProjectConfig(
   assistant: ChatAssistantModeFeature
 ) {
@@ -20,8 +27,8 @@ export function useChatAssistantProjectConfig(
   const configuredProjectKeys = computed(
     () =>
       new Set(
-        assistant.configuredProjects.value.map(
-          (project) => `${project.projectType}:${project.projectId}`
+        assistant.configuredProjects.value.map(({ project }) =>
+          chatAssistantProjectKey(project)
         )
       )
   );
@@ -53,7 +60,7 @@ export function useChatAssistantProjectConfig(
   ): Promise<void> {
     projectConfigPending.value = true;
     try {
-      const config = await assistant.loadProjectConfig(project);
+      const config = await readChatProjectConfig(project);
       projectConfigPrompt.value = config.systemPrompt;
       projectConfigCustomized.value = config.customized;
     } catch (cause) {
@@ -131,7 +138,11 @@ export function useChatAssistantProjectConfig(
     }
     projectConfigPending.value = true;
     try {
-      const config = await assistant.saveProjectConfig(prompt, option.project);
+      const config = await saveChatProjectConfig(
+        option.project,
+        option.label,
+        prompt
+      );
       projectConfigPrompt.value = config.systemPrompt;
       projectConfigCustomized.value = config.customized;
       if (projectConfigMode.value === "add") {
@@ -160,7 +171,12 @@ export function useChatAssistantProjectConfig(
     }
     projectConfigPending.value = true;
     try {
-      const config = await assistant.resetProjectConfig(option.project);
+      // Restores the default prompt; the project stays configured.
+      const config = await saveChatProjectConfig(
+        option.project,
+        option.label,
+        null
+      );
       projectConfigPrompt.value = config.systemPrompt;
       projectConfigCustomized.value = config.customized;
       uiMessage.success("已恢复默认项目提示词");

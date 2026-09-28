@@ -1,14 +1,16 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   createEnvelope,
-  type ModelConfig,
   type DeepWriteApi,
-  type SessionPromptCommandPayload,
+  type ExtrasAgentRunRequest,
+  type ModelConfig,
   type SessionPromptAcceptedPayload,
   type SystemEventEnvelope
 } from "@deepwrite/contracts";
+import { createExtrasAgentsFake } from "../agent-runtime/extrasAgent.test-support";
+import { createPromptProfile } from "../agent-runtime/promptProfile";
 import { createStyleComparisonController } from "./controller";
-import { parseStyleComparisonResult, styleComparisonPreview } from "./result";
+import { styleComparisonPreview } from "./result";
 
 const model: ModelConfig = {
   id: "test-model",
@@ -39,45 +41,55 @@ const result = {
   differences: ["意象不同。"],
   score: 70
 };
+const defaultProfile = {
+  id: "default",
+  name: "文风比对",
+  description: "测试方法",
+  systemPrompt: "默认方法"
+};
 
 function setup(
-  customPrompt?: (
-    payload: SessionPromptCommandPayload
+  customRun?: (
+    request: ExtrasAgentRunRequest
   ) => Promise<SessionPromptAcceptedPayload>
 ) {
   let listener: ((event: SystemEventEnvelope) => void) | undefined;
-  let request: SessionPromptCommandPayload | undefined;
   let counter = 0;
-  const unsubscribe = vi.fn();
-  const notifyError = vi.fn();
-  const abort = vi.fn(async () => ({
-    sessionId: request!.sessionId,
-    runId: `run-${counter}`,
-    abortedAt: "2026-09-09T00:00:00.000Z"
-  }));
-  const prompt = vi.fn(async (payload: SessionPromptCommandPayload) => {
-    request = payload;
+  const fake = createExtrasAgentsFake({ "style-comparison": [defaultProfile] });
+  const requests: ExtrasAgentRunRequest[] = [];
+  fake.run.mockImplementation(async (request) => {
+    requests.push(request);
     counter++;
-    return customPrompt
-      ? customPrompt(payload)
+    return customRun
+      ? customRun(request)
       : {
-          sessionId: payload.sessionId,
+          sessionId: request.sessionId,
           runId: `run-${counter}`,
           acceptedAt: "2026-09-09T00:00:00.000Z",
           runtime
         };
   });
+  const unsubscribe = vi.fn();
+  const notifyError = vi.fn();
+  const abort = vi.fn(async () => ({
+    sessionId: requests.at(-1)!.sessionId,
+    runId: `run-${counter}`,
+    abortedAt: "2026-09-09T00:00:00.000Z"
+  }));
   const api = {
-    session: { prompt, abort, submitUserInput: vi.fn() },
+    extrasAgents: fake.extrasAgents,
+    session: { abort, submitUserInput: vi.fn() },
     events: {
       subscribe: (cb: (event: SystemEventEnvelope) => void) => {
         listener = cb;
         return unsubscribe;
       }
     }
-  } as Pick<DeepWriteApi, "session" | "events">;
+  } as unknown as Pick<DeepWriteApi, "extrasAgents" | "session" | "events">;
+  const method = createPromptProfile(() => api, "style-comparison");
   const controller = createStyleComparisonController({
     api: () => api,
+    method,
     notifyError
   });
   controller.referenceText.value = "雨停了。街上很静。";
@@ -87,7 +99,7 @@ function setup(
       createEnvelope(
         type,
         {
-          sessionId: request!.sessionId,
+          sessionId: requests.at(-1)!.sessionId,
           runId: `run-${counter}`,
           messageId: "message",
           runtime,
@@ -96,7 +108,27 @@ function setup(
         { id: "test-event" }
       ) as SystemEventEnvelope
     );
-  return { controller, prompt, abort, notifyError, emit, unsubscribe };
+  const emitResult = (value: unknown = result) =>
+    emit("extras_agent.output_updated", {
+      agentId: "style-comparison",
+      jobId: "job",
+      output: { kind: "style-comparison-result", result: value }
+    });
+  const flush = async () => {
+    for (let index = 0; index < 5; index++) await Promise.resolve();
+  };
+  return {
+    controller,
+    method,
+    fake,
+    requests,
+    abort,
+    notifyError,
+    emit,
+    emitResult,
+    flush,
+    unsubscribe
+  };
 }
 
 describe("文风比对运行与结果", () => {
@@ -114,10 +146,12 @@ describe("文风比对运行与结果", () => {
     });
     ctx.emit("agent.message_delta", { delta: JSON.stringify(result) });
     expect(ctx.controller.activity.value).toBe("正在整理关键发现与评分…");
+    ctx.emitResult();
     ctx.emit("agent.message_completed", {
       role: "assistant",
       content: JSON.stringify(result)
     });
+    await ctx.flush();
     expect(ctx.controller.activity.value).toBe("比对完成");
     ctx.emit("agent.thinking_delta", { delta: "迟到的思考事件" });
     expect(ctx.controller.activity.value).toBe("比对完成");
@@ -148,6 +182,7 @@ describe("文风比对运行与结果", () => {
     ctx.emit("agent.thinking_delta", { delta: "停止期间的思考" });
     expect(ctx.controller.activity.value).toBe("正在停止…");
     await stopping;
+    await ctx.flush();
     expect(ctx.controller.activity.value).toBe("已停止比对");
   });
   it("sends the selected thinking level, including off and custom levels", async () => {
@@ -163,7 +198,7 @@ describe("文风比对运行与结果", () => {
       expect(ctx.controller.thinkingLevel.value).toBe("medium");
       ctx.controller.thinkingLevel.value = level;
       await ctx.controller.start(reasoningModel);
-      expect(ctx.prompt.mock.calls[0]![0].thinkingLevel).toBe(level);
+      expect(ctx.requests[0]!.thinkingLevel).toBe(level);
     }
   });
   it("preserves a valid selection and resets it for model changes or removed levels", () => {
@@ -196,23 +231,28 @@ describe("文风比对运行与结果", () => {
       reasoning: true,
       defaultThinkingLevel: "high"
     });
-    expect(ctx.prompt.mock.calls[0]![0].thinkingLevel).toBe("high");
+    expect(ctx.requests[0]!.thinkingLevel).toBe("high");
     ctx.controller.syncThinkingModel({ ...model, id: "other-model" });
     expect(ctx.controller.thinkingLevel.value).toBe("high");
   });
-  it("sends method and samples, streams only public findings, and requires the terminal score", async () => {
+  it("saves the method to its profile, sends only the samples, and requires the structured score", async () => {
     const ctx = setup();
+    await ctx.method.load();
     ctx.controller.method.value = "关注短句";
     await ctx.controller.start(model);
-    expect(ctx.prompt.mock.calls[0]![0]).toMatchObject({
-      webSearchEnabled: false,
-      workspaceContext: {
-        styleComparison: {
-          method: "关注短句",
-          referenceText: "雨停了。街上很静。"
-        }
+    expect(ctx.fake.save).toHaveBeenCalledWith({
+      agentId: "style-comparison",
+      profiles: [{ ...defaultProfile, systemPrompt: "关注短句" }]
+    });
+    expect(ctx.requests[0]!.task).toMatchObject({
+      agentId: "style-comparison",
+      profileId: "default",
+      input: {
+        referenceText: "雨停了。街上很静。",
+        comparisonText: "风停了。屋里没有声音。"
       }
     });
+    expect(ctx.requests[0]!.task.input).not.toHaveProperty("method");
     ctx.emit("agent.thinking_delta", { delta: "内部思考不会展示" });
     expect(ctx.controller.preview.value.summary).toBe("");
     ctx.emit("agent.message_delta", {
@@ -221,10 +261,13 @@ describe("文风比对运行与结果", () => {
     expect(ctx.controller.preview.value.summary).toBe(result.summary);
     expect(ctx.controller.preview.value.dimensions).toEqual(result.dimensions);
     expect(ctx.controller.result.value).toBeNull();
+    ctx.emitResult();
+    expect(ctx.controller.result.value).toBeNull();
     ctx.emit("agent.message_completed", {
       role: "assistant",
       content: JSON.stringify(result)
     });
+    await ctx.flush();
     expect(ctx.controller.result.value?.score).toBe(70);
     expect(ctx.controller.status.value).toBe("completed");
     ctx.controller.referenceText.value += "新的句子。";
@@ -234,21 +277,31 @@ describe("文风比对运行与结果", () => {
     const ctx = setup();
     ctx.controller.comparisonText.value = "  ";
     await ctx.controller.start(model);
-    expect(ctx.prompt).not.toHaveBeenCalled();
+    expect(ctx.fake.run).not.toHaveBeenCalled();
     expect(ctx.notifyError).toHaveBeenCalled();
   });
-  it("does not manufacture a score for malformed, truncated or out-of-range results", async () => {
-    for (const content of [
-      "相似度很高",
-      JSON.stringify({ ...result, score: 120 }),
-      JSON.stringify(result).slice(0, -1)
+  it("does not manufacture a score without a validated result", async () => {
+    for (const finish of [
+      (ctx: ReturnType<typeof setup>) =>
+        ctx.emit("agent.message_completed", {
+          role: "assistant",
+          content: "相似度很高"
+        }),
+      (ctx: ReturnType<typeof setup>) =>
+        ctx.emit("agent.error", {
+          code: "extras_agent.invalid_output",
+          message: "模型未返回完整的比对结论与有效评分，请重新比对。"
+        })
     ]) {
       const ctx = setup();
       await ctx.controller.start(model);
-      ctx.emit("agent.message_completed", { role: "assistant", content });
+      finish(ctx);
+      await ctx.flush();
       expect(ctx.controller.result.value).toBeNull();
       expect(ctx.controller.status.value).toBe("error");
-      expect(ctx.notifyError).toHaveBeenCalled();
+      expect(ctx.notifyError).toHaveBeenCalledWith(
+        "模型未返回完整的比对结论与有效评分，请重新比对。"
+      );
     }
   });
   it("ignores unrelated and late events and clears partial output for retries", async () => {
@@ -267,69 +320,74 @@ describe("文风比对运行与结果", () => {
     });
     expect(ctx.controller.preview.value.summary).toBe("");
     await ctx.controller.stop();
+    ctx.emitResult();
     ctx.emit("agent.message_completed", {
       role: "assistant",
       content: JSON.stringify(result)
     });
+    await ctx.flush();
     expect(ctx.controller.result.value).toBeNull();
     expect(ctx.controller.status.value).toBe("stopped");
   });
-  it("stops a run requested before prompt acceptance", async () => {
+  it("stops a run requested before acceptance", async () => {
     let accept: (value: SessionPromptAcceptedPayload) => void = () => undefined;
-    let request: SessionPromptCommandPayload | undefined;
-    const ctx = setup((payload) => {
-      request = payload;
-      return new Promise((resolve) => {
-        accept = resolve;
-      });
-    });
-    const started = ctx.controller.start(model);
+    const ctx = setup(
+      () =>
+        new Promise((resolve) => {
+          accept = resolve;
+        })
+    );
+    await ctx.controller.start(model);
     await ctx.controller.stop();
     expect(ctx.controller.status.value).toBe("stopping");
+    const request = ctx.requests[0]!;
     accept({
-      sessionId: request!.sessionId,
+      sessionId: request.sessionId,
       runId: "delayed-run",
       acceptedAt: "2026-09-09T00:00:00.000Z",
       runtime
     });
-    await started;
+    await ctx.flush();
     expect(ctx.abort).toHaveBeenCalledWith({
-      sessionId: request!.sessionId,
+      sessionId: request.sessionId,
       runId: "delayed-run"
     });
     expect(ctx.controller.status.value).toBe("stopped");
   });
+  it("submits nothing when stopped while the method is being saved", async () => {
+    const ctx = setup();
+    const started = ctx.controller.start(model);
+    await ctx.controller.stop();
+    await started;
+    expect(ctx.fake.run).not.toHaveBeenCalled();
+    expect(ctx.controller.status.value).toBe("stopped");
+  });
   it("does not return to running when completion precedes acceptance", async () => {
     let accept: (value: SessionPromptAcceptedPayload) => void = () => undefined;
-    let request: SessionPromptCommandPayload | undefined;
-    const ctx = setup((payload) => {
-      request = payload;
-      return new Promise((resolve) => {
-        accept = resolve;
-      });
-    });
-    const started = ctx.controller.start(model);
+    const ctx = setup(
+      () =>
+        new Promise((resolve) => {
+          accept = resolve;
+        })
+    );
+    await ctx.controller.start(model);
+    ctx.emitResult();
     ctx.emit("agent.message_completed", {
       role: "assistant",
       content: JSON.stringify(result)
     });
     accept({
-      sessionId: request!.sessionId,
+      sessionId: ctx.requests[0]!.sessionId,
       runId: "run-1",
       acceptedAt: "2026-09-09T00:00:00.000Z",
       runtime
     });
-    await started;
+    await ctx.flush();
     expect(ctx.controller.status.value).toBe("completed");
     ctx.controller.dispose();
     expect(ctx.unsubscribe).toHaveBeenCalled();
   });
-  it("accepts a fenced JSON result and handles quoted evidence in incremental output", () => {
-    expect(
-      parseStyleComparisonResult(
-        `\x60\x60\x60json\n${JSON.stringify(result)}\n\x60\x60\x60`
-      ).score
-    ).toBe(70);
+  it("handles quoted evidence in incremental output", () => {
     expect(
       styleComparisonPreview(JSON.stringify(result).slice(0, -1)).dimensions
     ).toEqual(result.dimensions);

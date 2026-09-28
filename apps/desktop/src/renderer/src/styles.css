@@ -231,8 +231,7 @@ html[data-platform="darwin"] .desktop-shell {
 }
 
 .agent-team-main-view,
-.workspace-settings-main-view,
-.learning-imitation-main-view {
+.workspace-settings-main-view {
   position: relative;
   grid-column: 2 / 4;
   min-width: 0;
@@ -399,8 +398,7 @@ html[data-platform="darwin"] .desktop-shell {
   margin: 0 auto;
 }
 
-.workspace-settings-expand-sidebar,
-.learning-imitation-expand-sidebar {
+.workspace-settings-expand-sidebar {
   position: sticky;
   z-index: 2;
   top: 0;

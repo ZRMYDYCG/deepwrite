@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { expectSourceToContain } from "../../test-utils/sourceText";
 import source from "./WorkspaceShell.vue?raw";
-import learningSource from "./components/LearningImitationDialog.vue?raw";
 import dialogLayerSource from "./components/WorkspaceDialogLayer.vue?raw";
 import featureModulesSource from "./components/WorkspaceFeatureModules.vue?raw";
 import asyncComponentsSource from "./components/lazyAppComponents.ts?raw";
@@ -81,12 +80,5 @@ describe("App lazy feature mounting", () => {
     );
     expect(source).not.toContain("<BookResourceDialog\n");
     expect(source).not.toContain('v-show="workspaceMainView');
-  });
-
-  it("keeps learning-page keyboard work lifecycle-safe", () => {
-    expect(learningSource).toContain("onActivated(startKeydownListener)");
-    expect(learningSource).toContain("onDeactivated(stopKeydownListener)");
-    expect(learningSource).toContain("lastCompletedStage.value");
-    expect(learningSource).toContain("{ immediate: true }");
   });
 });

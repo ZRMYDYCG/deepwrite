@@ -4,7 +4,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   CloudBackupStatus,
   AgentTeamCatalogSnapshot,
-  LearningImitationSettings,
   LibraryAgentSettings,
   LongAgentSettings,
   ModelSettings,
@@ -135,25 +134,19 @@ describe("settings store", () => {
       DEFAULT_LONG_AGENT_SETTINGS
     ) as LongAgentSettings;
     const libraryAgents = { agents: [] } as unknown as LibraryAgentSettings;
-    const learningImitation = {
-      stages: []
-    } as unknown as LearningImitationSettings;
 
     await Promise.all([
       store.ensureLongAgentsLoaded(async () => longAgents),
       store.ensureAgentTeamsLoaded(async () => agentTeams),
-      store.ensureLibraryAgentsLoaded(async () => libraryAgents),
-      store.ensureLearningImitationLoaded(async () => learningImitation)
+      store.ensureLibraryAgentsLoaded(async () => libraryAgents)
     ]);
 
     expect(store.longAgentLoaded).toBe(true);
     expect(store.agentTeamLoaded).toBe(true);
     expect(store.libraryAgentsLoaded).toBe(true);
-    expect(store.learningImitationLoaded).toBe(true);
     expect(store.longAgentSettings).toBe(longAgents);
     expect(store.agentTeamCatalog).toBe(agentTeams);
     expect(store.libraryAgentSettings).toBe(libraryAgents);
-    expect(store.learningImitationSettings).toBe(learningImitation);
   });
 
   it("retains and coalesces cloud backup status across feature remounts", async () => {
