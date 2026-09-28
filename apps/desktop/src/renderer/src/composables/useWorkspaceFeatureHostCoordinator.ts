@@ -146,8 +146,7 @@ export function useWorkspaceFeatureHostCoordinator(
       issueBackground(loadWorkspaceDirectory);
     }
     if (
-      (mode === "models" ||
-        mode === "imitation" ||
+      (mode === "imitation" ||
         mode === "long-book-analysis" ||
         mode === "revision-analysis" ||
         mode === "short-book-analysis" ||
@@ -184,6 +183,7 @@ export function useWorkspaceFeatureHostCoordinator(
     } else if (!settingsStore.modelSettings) {
       issueBackground(options.loaders.loadModelSettings);
     }
+    issueBackground(loadWorkspaceDirectory);
     issueBackground(options.loaders.loadWorkspaceAgentSettings);
     issueBackground(options.loaders.loadLibraryAgentSettings);
     issueBackground(options.loaders.loadLearningImitationSettings);
@@ -345,9 +345,6 @@ export function useWorkspaceFeatureHostCoordinator(
         options.loaders.loadAgentTeamSettings()
       ]);
       return;
-    }
-    if (feature === "models") {
-      await options.loaders.loadModelSettings();
     }
   }
 

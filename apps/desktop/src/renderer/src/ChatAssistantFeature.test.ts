@@ -6,6 +6,7 @@ import scrollSource from "./composables/useConversationScrollFollow.ts?raw";
 import messageListSource from "./components/ConversationMessageList.vue?raw";
 import processingTimelineSource from "./components/ConversationProcessingTimeline.vue?raw";
 import sidebarSource from "./components/LeftSidebar.vue?raw";
+import { moreFeatures } from "./components/sidebarMoreFeatures";
 import asyncComponentsSource from "./components/lazyAppComponents.ts?raw";
 import featureImportsSource from "./components/lazyFeatureImports.ts?raw";
 const lazySource = `${asyncComponentsSource}\n${featureImportsSource}`;
@@ -27,13 +28,15 @@ import modeSource from "./features/chat-assistant/useChatAssistantMode.ts?raw";
 import webSearchSource from "./features/chat-assistant/useChatAssistantWebSearch.ts?raw";
 
 describe("independent chat assistant feature", () => {
-  it("places chat beside agent teams without replacing the workspace view", () => {
-    const modelIndex = sidebarSource.indexOf('label: "自定义模型配置"');
-    const chatIndex = sidebarSource.indexOf('label: "聊天"');
-    const teamIndex = sidebarSource.indexOf('label: "智能体团队"');
-    expect(modelIndex).toBeGreaterThan(-1);
-    expect(teamIndex).toBeGreaterThan(modelIndex);
-    expect(chatIndex).toBeGreaterThan(teamIndex);
+  it("places chat in more features without replacing the workspace view", () => {
+    expect(sidebarSource).not.toContain('label: "自定义模型配置"');
+    expect(sidebarSource).not.toContain('label: "聊天"');
+    expect(moreFeatures).toContainEqual({
+      id: "chat-assistant",
+      label: "聊天",
+      description: "打开独立聊天助手",
+      icon: "message"
+    });
     expect(sidebarSource).toContain('emit("openChatAssistant")');
     expect(shellSource).toContain('@open-chat-assistant="chatAssistant.open"');
     expect(shellSource).toContain(

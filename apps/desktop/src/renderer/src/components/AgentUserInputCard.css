@@ -168,6 +168,56 @@
   white-space: nowrap;
 }
 
+.agent-user-input-tooltip {
+  position: fixed;
+  z-index: 2000;
+  box-sizing: border-box;
+  max-width: calc(100vw - 24px);
+  max-height: min(60vh, 460px);
+  padding: 12px 14px;
+  overflow: auto;
+  border: 1px solid var(--theme-line);
+  border-radius: 12px;
+  background: var(--surface-raised);
+  box-shadow: 0 10px 28px var(--shadow-color);
+  color: var(--text-primary);
+  font-size: 0.857143rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  overscroll-behavior: contain;
+}
+
+.agent-user-input-tooltip strong {
+  display: block;
+  font-weight: 650;
+}
+
+.agent-user-input-tooltip p {
+  margin: 6px 0 0;
+  color: var(--text-secondary);
+}
+
+.agent-user-input-tooltip-enter-active,
+.agent-user-input-tooltip-leave-active {
+  transition:
+    opacity 120ms ease,
+    transform 120ms ease;
+}
+
+.agent-user-input-tooltip-enter-from,
+.agent-user-input-tooltip-leave-to {
+  opacity: 0;
+  transform: translateY(3px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-user-input-tooltip-enter-active,
+  .agent-user-input-tooltip-leave-active {
+    transition: none;
+  }
+}
+
 .agent-user-input-arrow {
   flex: 0 0 auto;
   color: var(--text-tertiary);

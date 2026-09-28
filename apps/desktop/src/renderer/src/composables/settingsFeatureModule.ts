@@ -7,6 +7,8 @@ export function buildSettingsFeatureModule(
   const { settingsStore } = options;
   return {
     kind: "settings",
+    workspaceDirectoryPath: settingsStore.workspaceDirectoryPath,
+    workspaceDirectoryLoading: settingsStore.workspaceDirectoryLoading,
     initialCategory: options.view.settingsInitialCategory.value,
     permissionMode: settingsStore.generalSettings.permissionMode,
     autoApproveCrossStageOperations:

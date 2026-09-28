@@ -27,6 +27,7 @@ import {
   type WorkspaceAgentSettingsInput
 } from "@deepwrite/contracts";
 import AppIcon from "./AppIcon.vue";
+import WorkspaceDirectoryFeature from "./WorkspaceDirectoryFeature.vue";
 import AppearanceSettingsPanel from "./AppearanceSettingsPanel.vue";
 import FreeModelsPanel from "./FreeModelsPanel.vue";
 import BodyTextSettingsPanel from "./BodyTextSettingsPanel.vue";
@@ -43,6 +44,7 @@ interface SettingsCategory {
   id: string;
   label: string;
   icon?:
+    | "directory"
     | "user"
     | "sparkles"
     | "keyboard"
@@ -63,6 +65,8 @@ interface SettingsSection {
 
 const props = defineProps<{
   initialCategory?: string;
+  workspaceDirectoryPath: string | null;
+  workspaceDirectoryLoading: boolean;
   permissionMode: GeneralPermissionMode;
   autoApproveCrossStageOperations: boolean;
   autoSaveEnabled: boolean;
@@ -109,6 +113,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   back: [];
+  chooseWorkspaceDirectory: [];
   updatePermissionMode: [mode: GeneralPermissionMode];
   updateAutoApproveCrossStageOperations: [enabled: boolean];
   updateAutoSave: [enabled: boolean];
@@ -150,6 +155,7 @@ const sections: SettingsSection[] = [
     id: "creation",
     label: "创作",
     categories: [
+      { id: "directory", label: "工作目录", icon: "directory" },
       { id: "short-agents", label: "创作空间配置", icon: "brain" },
       { id: "skill-library-agent", label: "技能库配置", icon: "wand" },
       { id: "material-library-agent", label: "素材库配置", icon: "archive" },
@@ -267,8 +273,17 @@ async function selectCategory(id: string): Promise<void> {
       <div class="settings-content-inner">
         <h1 class="settings-title">{{ activeLabel }}</h1>
 
+        <WorkspaceDirectoryFeature
+          v-if="activeCategory === 'directory'"
+          embedded
+          :path="workspaceDirectoryPath"
+          :loading="workspaceDirectoryLoading"
+          :runtime-available="runtimeAvailable"
+          @choose="emit('chooseWorkspaceDirectory')"
+        />
+
         <ShortAgentSettingsPanel
-          v-if="activeCategory === 'short-agents'"
+          v-else-if="activeCategory === 'short-agents'"
           :settings="workspaceAgentSettings"
           :creative-plot-stages="creativePlotStages"
           :long-settings="longAgentSettings"

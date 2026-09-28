@@ -1,5 +1,9 @@
+import { mergeCreativePlotStageDefinitions } from "./plot-stage-definitions";
 import {
   createCatalogDraftDirectory,
+  createDefaultCreativePlotStages,
+  DEFAULT_NEW_BOOK_ENABLED_PLOT_STAGE_IDS,
+  type BookPlotStage,
   createDefaultBookCharacterStructure,
   createDefaultBookPlotStages,
   createScriptCatalogDraftDirectory,
@@ -134,4 +138,56 @@ export function assertCreationPlotStages(
 ): void {
   if (ids?.some((id) => !stages.some((stage) => stage.id === id)))
     throw new Error("模板中的剧情阶段已失效，请编辑模板后重试。");
+}
+
+export function applyGlobalPlotStagesToNewBook<Resource extends Book>(
+  book: Resource,
+  globalStages: readonly CreativePlotStage[],
+  defaultPlotStageIds?: readonly string[]
+): Resource {
+  const definitions =
+    globalStages.length > 0
+      ? mergeCreativePlotStageDefinitions(globalStages)
+      : createDefaultCreativePlotStages();
+  const existingDocuments = new Map(
+    book.documents.map((document) => [document.id, document])
+  );
+  const existingStages = new Map(
+    book.plotStages.map((stage) => [stage.id, stage])
+  );
+  const configuredStageIds = defaultPlotStageIds
+    ? new Set(defaultPlotStageIds)
+    : undefined;
+  const plotStages: BookPlotStage[] = definitions.map((stage) => ({
+    ...stage,
+    enabled:
+      configuredStageIds?.has(stage.id) ??
+      existingStages.get(stage.id)?.enabled ??
+      DEFAULT_NEW_BOOK_ENABLED_PLOT_STAGE_IDS.has(stage.id)
+  }));
+  const documents = [
+    ...(existingDocuments.get("character_design")
+      ? [existingDocuments.get("character_design")!]
+      : []),
+    ...plotStages.map((stage) => {
+      const existing = existingDocuments.get(stage.id);
+      return {
+        id: stage.id,
+        title: stage.title,
+        content: existing?.content ?? "",
+        createdAt: existing?.createdAt ?? book.createdAt,
+        updatedAt: existing?.updatedAt ?? book.updatedAt
+      };
+    }),
+    ...book.documents.filter(
+      (document) =>
+        document.id !== "character_design" &&
+        !plotStages.some((stage) => stage.id === document.id)
+    )
+  ];
+  return {
+    ...book,
+    plotStages,
+    documents
+  };
 }

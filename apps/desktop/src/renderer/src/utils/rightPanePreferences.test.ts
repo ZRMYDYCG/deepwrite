@@ -9,62 +9,23 @@ import {
 } from "./rightPanePreferences";
 
 describe("right pane preferences", () => {
-  it("shares character, plot, and draft area widths across short books", () => {
-    const worldbuilding = rightPanePreferenceKey({
-      domain: "creation",
-      workspaceType: "short",
-      stageId: "worldbuilding"
-    });
-    expect(worldbuilding).toBe("short:plot");
-    expect(
-      rightPanePreferenceKey({
-        domain: "creation",
-        workspaceType: "short",
-        stageId: "worldbuilding"
-      })
-    ).toBe(worldbuilding);
-    expect(
-      rightPanePreferenceKey({
-        domain: "creation",
-        workspaceType: "short",
-        stageId: "plot_design"
-      })
-    ).toBe("short:plot");
-    expect(
-      rightPanePreferenceKey({
-        domain: "creation",
-        workspaceType: "short",
-        stageId: "plot_refine"
-      })
-    ).toBe("short:plot");
-    expect(
-      rightPanePreferenceKey({
-        domain: "creation",
-        workspaceType: "short",
-        stageId: "character_design"
-      })
-    ).toBe("short:character");
-    expect(
-      rightPanePreferenceKey({
-        domain: "creation",
-        workspaceType: "short",
-        stageId: "draft"
-      })
-    ).toBe("short:draft");
-    expect(
-      rightPanePreferenceKey({
-        domain: "creation",
-        workspaceType: "script",
-        stageId: "plot_design"
-      })
-    ).toBe("script:plot");
-    expect(
-      rightPanePreferenceKey({
-        domain: "creation",
-        workspaceType: "long",
-        stageId: "character_design"
-      })
-    ).toBe("long:character_design");
+  it("isolates widths by book and writing type", () => {
+    for (const workspaceType of ["short", "script", "long"] as const) {
+      expect(
+        rightPanePreferenceKey({
+          domain: "creation",
+          workspaceType,
+          workspaceId: "book-1"
+        })
+      ).toBe(`${workspaceType}:book:book-1`);
+      expect(
+        rightPanePreferenceKey({
+          domain: "creation",
+          workspaceType,
+          workspaceId: "book-2"
+        })
+      ).toBe(`${workspaceType}:book:book-2`);
+    }
   });
 
   it("rejects malformed or out-of-range stored widths", () => {
@@ -97,12 +58,12 @@ describe("right pane preferences", () => {
     ).toEqual({ widths: { "short:worldbuilding": RIGHT_PANE_MAX_WIDTH } });
   });
 
-  it("does not create preference keys outside a creative stage", () => {
+  it("does not create preference keys without a creative book", () => {
     expect(
       rightPanePreferenceKey({
         domain: "material",
         workspaceType: "short",
-        stageId: "plot_design"
+        workspaceId: "book-1"
       })
     ).toBeUndefined();
     expect(
@@ -113,7 +74,7 @@ describe("right pane preferences", () => {
     ).toBeUndefined();
   });
 
-  it("persists and restores each workspace area width", () => {
+  it("persists and restores each book width", () => {
     const values = new Map<string, string>();
     const storage = {
       getItem: (key: string) => values.get(key) ?? null,
@@ -121,10 +82,10 @@ describe("right pane preferences", () => {
     };
     const preferences = {
       widths: {
-        "short:character": 430,
-        "short:plot": 520,
-        "short:draft": 610,
-        "script:plot": 470
+        "short:book:book-1": 430,
+        "short:book:book-2": 520,
+        "long:book:book-1": 610,
+        "script:book:book-1": 470
       }
     };
 

@@ -1,6 +1,7 @@
 import type { IconName } from "../types/workspace";
 export const moreFeatures: Array<{
   id:
+    | "chat-assistant"
     | "imitation"
     | "long-book-analysis"
     | "revision-analysis"
@@ -9,12 +10,17 @@ export const moreFeatures: Array<{
     | "skill-marketplace"
     | "cloud-backup"
     | "device-sync"
-    | "zhuque-detection"
-    | "runtime";
+    | "zhuque-detection";
   label: string;
   description: string;
   icon: IconName;
 }> = [
+  {
+    id: "chat-assistant",
+    label: "聊天",
+    description: "打开独立聊天助手",
+    icon: "message"
+  },
   {
     id: "imitation",
     label: "短篇学习仿写",
@@ -68,11 +74,5 @@ export const moreFeatures: Array<{
     label: "朱雀检测",
     description: "检测文本中的 AI 生成内容",
     icon: "globe"
-  },
-  {
-    id: "runtime",
-    label: "运行设置",
-    description: "智能体与工具边界",
-    icon: "model"
   }
 ];

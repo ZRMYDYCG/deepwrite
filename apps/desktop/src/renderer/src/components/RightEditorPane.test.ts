@@ -1,9 +1,13 @@
+import footerSource from "./CatalogEditorFooterMeta.vue?raw";
 import toolsSource from "./EditorTextTools.vue?raw";
 import metadataSource from "./EditorDocumentMetadata.vue?raw";
 import { describe, expect, it } from "vitest";
 import { expectSourceToContain } from "../../../test-utils/sourceText";
 import appSource from "../WorkspaceShell.vue?raw";
-import source from "./RightEditorPane.vue?raw";
+import editorSource from "./RightEditorPane.vue?raw";
+import toggleSource from "./EditorPaneToggle.vue?raw";
+// @ts-expect-error Loaded as source text by the Vitest-only virtual module.
+import editorStyles from "virtual:deepwrite-renderer-styles";
 import selectionMenuSource from "../../../main/text-context-menu-items.ts?raw";
 import writingWorkspaceSource from "./WritingWorkspaceModule.vue?raw";
 import persistenceSource from "../composables/useCatalogDocumentPersistence.ts?raw";
@@ -17,7 +21,22 @@ import scrollMemorySource from "../composables/useLongEditorScrollMemory.ts?raw"
 import textViewModeSource from "../composables/useTextViewMode.ts?raw";
 import selectionInsertionSource from "../composables/useEditorSelectionInsertion.ts?raw";
 
+const source = `${editorSource}\n${toggleSource}\n${footerSource}`;
+
 describe("RightEditorPane expert draft navigation", () => {
+  it("loads the consolidated editor layout without stale header rows", () => {
+    expect(editorStyles.match(/\.editor-pane\s*\{/g)).toHaveLength(1);
+    expect(editorStyles).toContain(
+      "grid-template-rows: 40px minmax(0, 1fr) 36px;"
+    );
+    expect(editorStyles).toContain(
+      "grid-template-rows: 42px 40px minmax(0, 1fr) 36px;"
+    );
+    expect(editorStyles).not.toContain(
+      'html[data-platform="darwin"] .editor-pane'
+    );
+  });
+
   it("expands a collapsed right-side agent when the editor is centered", () => {
     expect(source).toContain("rightPaneCollapsed?: boolean");
     expect(source).toContain('aria-label="展开智能体栏"');
@@ -30,14 +49,17 @@ describe("RightEditorPane expert draft navigation", () => {
     );
   });
 
-  it("keeps automatic save status visually stable while preserving an immediate save action", () => {
-    expectSourceToContain(source, 'autoSaveEnabled ? "自动保存已开启"');
-    expect(source).toContain("visibleDirtySaveState");
-    expect(source).not.toContain('autoSaveEnabled ? "等待自动保存"');
-    expectSourceToContain(
-      source,
-      'autoSaveEnabled ? "本机文稿 · 更改后自动保存"'
+  it("removes the separate header while preserving the footer save action", () => {
+    expect(source).not.toContain("自动保存已开启");
+    expect(source).not.toContain("visibleDirtySaveState");
+    expect(source).not.toContain("editor-header");
+    const toolbarStart = editorSource.indexOf('class="editor-toolbar"');
+    const documentStart = editorSource.indexOf('class="editor-document"');
+    expect(editorSource.slice(toolbarStart, documentStart)).toContain(
+      "<EditorPaneToggle"
     );
+    expect(source).not.toContain('autoSaveEnabled ? "等待自动保存"');
+    expectSourceToContain(source, 'autoSaveEnabled ? "开启" : "关闭"');
     expectSourceToContain(source, 'autoSaveEnabled ? "立即保存" : "应用"');
   });
 
@@ -58,13 +80,16 @@ describe("RightEditorPane expert draft navigation", () => {
       metaStart
     );
     const metaClose = source.indexOf("</div>", hintStart);
-    const buttonStart = source.indexOf('class="save-button"', metaClose);
+    const buttonStart = editorSource.indexOf(
+      'class="save-button"',
+      footerStart
+    );
 
     expect(footerStart).toBeGreaterThan(-1);
     expect(metaStart).toBeGreaterThan(footerStart);
     expect(hintStart).toBeGreaterThan(metaStart);
     expect(hintStart).toBeLessThan(metaClose);
-    expect(buttonStart).toBeGreaterThan(metaClose);
+    expect(buttonStart).toBeGreaterThan(footerStart);
     expect(source).not.toContain('class="footer-spacer"');
   });
 
@@ -182,7 +207,6 @@ describe("RightEditorPane expert draft navigation", () => {
       "onBeforeUpdate(captureEditorViewportBeforeRender)"
     );
     expect(source).toContain("onUpdated(restoreEditorViewportAfterRender)");
-    expect(source).toContain(": manualSaving");
     expect(source).toContain('{{ manualSaving ? "保存中…"');
     expect(source).toContain("(!autoSaveEnabled && !dirty)");
     expect(source).toContain("@mousedown.prevent");
@@ -190,7 +214,7 @@ describe("RightEditorPane expert draft navigation", () => {
 
   it("keeps the editor in place while an agent temporarily makes it readonly", () => {
     expect(source).toContain("isTransientlyReadOnly: () => props.locked");
-    expect(source).toContain('props.lockedLabel ?? "智能体运行中 · 只读"');
+    expect(source).toContain("lockedLabel ?? '智能体运行中 · 只读'");
     expect(source).toContain(':readonly="document.readOnly || locked"');
     expect(source).toContain(":class=\"{ 'is-readonly': document.readOnly }\"");
     expect(source).not.toContain(

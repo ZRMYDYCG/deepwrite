@@ -43,7 +43,9 @@ function initialViewportWidth(): number {
 }
 
 export function defaultLeftPaneWidth(viewportWidth: number): number {
-  return viewportWidth <= 1220 ? 262 : 286;
+  return Math.round(
+    Math.min(LEFT_PANE_MAX, Math.max(LEFT_PANE_MIN, viewportWidth * 0.24))
+  );
 }
 
 export function defaultRightPaneWidth(viewportWidth: number): number {
@@ -70,7 +72,7 @@ export const useLayoutStore = defineStore("layout", () => {
   const settingsInitialCategory = ref("general");
   const workspaceMainView = ref<WorkspaceMainView>("conversation");
   const leftCollapsed = ref(false);
-  const rightCollapsed = ref(false);
+  const rightCollapsed = ref(true);
   const desktopShell = shallowRef<HTMLElement | null>(null);
   const leftPaneWidth = ref(defaultLeftPaneWidth(viewportWidth.value));
   const rightPaneWidth = ref(initialRightPaneWidth);

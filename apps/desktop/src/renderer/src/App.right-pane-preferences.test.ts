@@ -5,14 +5,11 @@ import resourceSource from "./composables/useWorkspaceResourceCoordinator.ts?raw
 import layoutSource from "./stores/layoutStore.ts?raw";
 
 describe("App right pane preference integration", () => {
-  it("restores an area-specific width and persists explicit resize actions", () => {
+  it("restores a book-specific width and persists explicit resize actions", () => {
     expect(resourceSource).toContain(
-      "const activeRightPanePreferenceKey = computed"
+      "const activeRightPanePreferenceKey = useBookPanePreferenceKey"
     );
-    expect(resourceSource).toContain('workspaceType: "long"');
-    expect(resourceSource).toContain(
-      "stageId: longNavigation.activeRoot.value"
-    );
+    expect(resourceSource).toContain("longBookId: longNavigation.activeBookId");
     expect(source).toContain(
       "layoutStore.setActiveRightPanePreferenceKey(key)"
     );
@@ -36,20 +33,11 @@ describe("App right pane preference integration", () => {
     );
   });
 
-  it("keys short and script widths from the selected resource area", () => {
-    const preferenceBlock = resourceSource.slice(
-      resourceSource.indexOf("const activeRightPanePreferenceKey = computed"),
-      resourceSource.indexOf("const liveWorkspaceDocuments = computed")
+  it("keys the layout from the selected editor book", () => {
+    expect(resourceSource).toContain("document: activeDocument");
+    expect(resourceSource).toContain(
+      "longWorkspaceActive: longNavigation.workspaceActive"
     );
-    expect(preferenceBlock).toContain("const document = activeDocument.value");
-    expect(preferenceBlock).toContain(
-      "const stageId = document.stageId ?? nodeStageId"
-    );
-    expect(preferenceBlock).toContain(
-      "const workspaceType = document.workspaceType"
-    );
-    expect(preferenceBlock).not.toContain("activeAgentDocument.value.stageId");
-    expect(preferenceBlock).toContain("all plot stages share one width");
   });
 
   it("uses saved widths when reconciling window size without replacing them", () => {

@@ -41,6 +41,7 @@ import DocumentMetaRow from "./DocumentMetaRow.vue";
 import EditorSearchHighlight from "./EditorSearchHighlight.vue";
 import LongCharacterNavigation from "./LongCharacterNavigation.vue";
 import LongContinuityLedgerNavigation from "./LongContinuityLedgerNavigation.vue";
+import LongEditorFooterMeta from "./LongEditorFooterMeta.vue";
 import LongEditorDeleteDialogs from "./LongEditorDeleteDialogs.vue";
 import LongEditorFindReplaceBar from "./LongEditorFindReplaceBar.vue";
 import LongForeshadowingWorkspace from "./LongForeshadowingWorkspace.vue";
@@ -2606,42 +2607,19 @@ onBeforeUnmount(() => {
       </div>
 
       <footer class="long-editor-footer">
-        <span>
-          {{
-            currentIsForeshadowingView
-              ? `${workspaceIndex?.plot.foreshadowing.length ?? 0} 条伏笔线`
-              : currentIsPlotPointStoryline
-                ? `${currentStoryPlots.length} 条故事情节`
-                : `${characterCount.toLocaleString("zh-CN")} 字`
-          }}
-        </span>
-        <span>
-          {{
-            currentIsForeshadowingView
-              ? locked
-                ? (lockedReason ?? "编辑暂时锁定")
-                : "结构修改会直接保存到本机"
-              : currentIsPlotPointStoryline
-                ? locked
-                  ? (lockedReason ?? "编辑暂时锁定")
-                  : currentDirty
-                    ? "本机文稿 · 有未保存修改"
-                    : currentStoryPlot
-                      ? "结构修改会直接保存到本机"
-                      : "选择情节后可编辑正文"
-                : locked
-                  ? (lockedReason ?? "正在处理长篇修改，编辑暂时锁定")
-                  : currentSaving
-                    ? "正在原子保存本机文稿"
-                    : currentReadOnly
-                      ? "本机文稿 · 只读"
-                      : currentDirty
-                        ? "本机文稿 · 有未保存修改"
-                        : currentState?.loaded || currentIsStructuredText
-                          ? "本机文稿 · 已保存"
-                          : "本机文稿 · 等待读取"
-          }}
-        </span>
+        <LongEditorFooterMeta
+          :book-id="bookId"
+          :workspace-index="workspaceIndex"
+          :body-file-id="
+            selection.root === 'draft' && currentSelectionFile?.role === 'body'
+              ? currentSelectionFile.file.id
+              : undefined
+          "
+          :character-count="characterCount"
+          :document-states="documentStates"
+          :ensure-documents-loaded="ensureDocumentsLoaded"
+          :auto-save-enabled="currentIsForeshadowingView"
+        />
         <span class="long-footer-spacer" />
         <button
           v-if="!currentIsForeshadowingView"
@@ -3245,18 +3223,6 @@ onBeforeUnmount(() => {
   background: var(--surface-muted);
   color: var(--text-tertiary);
   font-size: 0.678571rem;
-}
-
-.long-editor-footer > span:first-child {
-  flex: 0 0 auto;
-}
-
-.long-editor-footer > span:nth-child(2) {
-  flex: 0 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .long-editor-footer .long-editor-save-button {

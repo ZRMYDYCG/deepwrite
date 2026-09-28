@@ -106,10 +106,10 @@ describe("layout store", () => {
     expect(refs.leftPaneWidth.value).toBe(defaultLeftPaneWidth(1400));
     expect(refs.rightPaneWidth.value).toBe(defaultRightPaneWidth(1400));
 
-    store.showWorkspaceFeature("models");
+    store.showWorkspaceFeature("directory");
     expect(refs.currentView.value).toBe("workspace");
-    expect(refs.workspaceMainView.value).toBe("models");
-    expect(refs.activePrimaryFeature.value).toBe("models");
+    expect(refs.workspaceMainView.value).toBe("directory");
+    expect(refs.activePrimaryFeature.value).toBe("directory");
 
     store.showSettings("official-models");
     expect(refs.currentView.value).toBe("settings");

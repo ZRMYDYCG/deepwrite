@@ -3,7 +3,7 @@
 .editor-pane {
   grid-column: 3;
   display: grid;
-  grid-template-rows: 50px 40px minmax(0, 1fr) 36px;
+  grid-template-rows: 40px minmax(0, 1fr) 36px;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
@@ -15,78 +15,12 @@
   border-left-color: color-mix(in srgb, var(--accent) 38%, var(--line));
 }
 
-.editor-pane.is-script-workspace .editor-header {
+.editor-pane.is-script-workspace .editor-toolbar {
   background: color-mix(in srgb, var(--accent-soft) 48%, var(--editor));
 }
 
 .editor-pane.has-section-tabs {
-  grid-template-rows: 50px 42px 40px minmax(0, 1fr) 36px;
-}
-
-html[data-platform="darwin"] .editor-pane {
-  grid-template-rows: 52px 40px minmax(0, 1fr) 36px;
-}
-
-html[data-platform="darwin"] .editor-pane.has-section-tabs {
-  grid-template-rows: 52px 42px 40px minmax(0, 1fr) 36px;
-}
-
-.editor-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  min-width: 0;
-  padding: 7px 9px 7px 15px;
-  border-bottom: 1px solid var(--line-soft);
-  -webkit-app-region: drag;
-}
-
-html[data-platform="darwin"] .editor-header {
-  min-height: 52px;
-  padding-top: 10px;
-  padding-bottom: 8px;
-  border-top: 0;
-}
-
-.editor-header button {
-  -webkit-app-region: no-drag;
-}
-
-.editor-breadcrumbs {
-  display: flex;
-  align-items: center;
-  min-width: 0;
-  overflow: hidden;
-  color: var(--text-tertiary);
-  font-size: 0.75rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.editor-breadcrumbs span {
-  flex: 0 0 auto;
-}
-
-.editor-breadcrumbs span:last-child {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--text-secondary);
-  font-weight: 560;
-  text-overflow: ellipsis;
-}
-
-.editor-breadcrumbs i {
-  margin: 0 6px;
-  color: var(--text-tertiary);
-  font-style: normal;
-}
-
-.editor-header-actions {
-  display: flex;
-  align-items: center;
-  flex: 0 0 auto;
-  gap: 5px;
+  grid-template-rows: 42px 40px minmax(0, 1fr) 36px;
 }
 
 .section-tabs-bar {
@@ -191,18 +125,6 @@ html[data-platform="darwin"] .editor-header {
   opacity: 0.45;
 }
 
-.save-state {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  color: var(--text-tertiary);
-  font-size: 0.678571rem;
-}
-
-.save-state.is-dirty {
-  color: var(--warning);
-}
-
 .editor-toolbar {
   position: relative;
   z-index: 2;
@@ -258,6 +180,38 @@ html[data-platform="darwin"] .editor-header {
   display: flex;
   align-items: center;
   gap: 3px;
+}
+
+.format-button {
+  display: grid;
+  place-items: center;
+  width: 27px;
+  height: 27px;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.format-button:hover {
+  background: var(--surface-hover);
+  color: var(--neutral-solid);
+}
+
+.format-button.is-active {
+  background: var(--surface-selected);
+  color: var(--accent);
+}
+
+.format-button:disabled {
+  color: var(--text-tertiary);
+  cursor: default;
+  opacity: 0.42;
+}
+
+.format-button:disabled:hover {
+  background: transparent;
+  color: var(--text-tertiary);
 }
 
 .editor-find-panel {
@@ -373,7 +327,7 @@ html[data-platform="darwin"] .editor-header {
   grid-template-rows: auto auto minmax(0, 1fr);
   min-height: 0;
   overflow: hidden;
-  padding: 28px 0 18px;
+  padding: 15px 0 18px;
   background: var(--surface-main);
 }
 

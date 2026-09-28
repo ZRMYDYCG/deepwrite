@@ -276,7 +276,6 @@ export interface EditorDraftState {
 
 export type DialogMode =
   | "directory"
-  | "models"
   | "imitation"
   | "long-book-analysis"
   | "revision-analysis"

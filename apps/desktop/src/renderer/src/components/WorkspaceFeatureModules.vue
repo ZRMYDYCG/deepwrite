@@ -31,7 +31,6 @@ import {
   ShortBookAnalysisPage,
   RevisionAnalysisPage,
   StyleComparisonPage,
-  ModelSettingsFeature,
   SettingsPage,
   SkillMarketplacePage,
   ZhuqueDetectionPage,
@@ -104,6 +103,9 @@ const emit = defineEmits<{
   <SettingsPage
     v-if="module.kind === 'settings'"
     :initial-category="module.initialCategory"
+    :workspace-directory-path="module.workspaceDirectoryPath"
+    :workspace-directory-loading="module.workspaceDirectoryLoading"
+    @choose-workspace-directory="emit('chooseWorkspaceDirectory')"
     :permission-mode="module.permissionMode"
     :auto-approve-cross-stage-operations="
       module.autoApproveCrossStageOperations
@@ -241,29 +243,6 @@ const emit = defineEmits<{
       :path="module.path"
       :loading="module.loading"
       @choose="emit('chooseWorkspaceDirectory')"
-    />
-  </WorkspaceFeatureFrame>
-
-  <WorkspaceFeatureFrame
-    v-else-if="module.kind === 'models'"
-    class="workspace-settings-main-view"
-    :left-collapsed="leftCollapsed"
-    expand-button-class="workspace-settings-expand-sidebar"
-    label="自定义模型配置"
-    @expand-left="emit('expandLeft')"
-  >
-    <ModelSettingsFeature
-      active
-      :model-settings="module.settings"
-      :model-loading="module.loading"
-      :model-saving="module.saving"
-      :model-error="module.error"
-      :model-test-message="module.testMessage"
-      :testing-model-id="module.testingModelId"
-      :model-alert-messages="module.alertMessages"
-      @save-models="emit('saveModels', $event)"
-      @test-model="emit('testModel', $event)"
-      @open-official-models="emit('openOfficialModels')"
     />
   </WorkspaceFeatureFrame>
 

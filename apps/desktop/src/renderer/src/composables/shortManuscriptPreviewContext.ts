@@ -5,6 +5,7 @@ import type { EditorDraftState, WorkspaceDocument } from "../types/workspace";
 /** Read-only access to the same live manuscript used by the export command. */
 export interface ShortManuscriptPreviewContext {
   book(): Book | undefined;
+  bookById?(bookId: string): Book | undefined;
   documents: Readonly<Ref<readonly WorkspaceDocument[]>>;
   drafts: Readonly<Ref<Readonly<Record<string, EditorDraftState>>>>;
   ensureDocumentsLoaded(

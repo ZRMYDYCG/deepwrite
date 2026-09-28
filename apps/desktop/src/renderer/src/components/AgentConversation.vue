@@ -95,6 +95,11 @@ const props = withDefaults(
 );
 
 const agentActivity = inject(AGENT_ACTIVITY_CONTEXT_KEY, null);
+const conversationTitle = computed(() => {
+  if (props.libraryDomain || !props.agentWorkspaceType) return props.agentLabel;
+  const workspaceLabels = { short: "短篇", script: "剧本", long: "长篇" };
+  return `${workspaceLabels[props.agentWorkspaceType]} · ${props.bookTitle}`;
+});
 const agentActivityItems = computed(() => agentActivity?.items.value ?? []);
 const agentActivityCollapsed = computed(
   () => agentActivity?.collapsed.value ?? false
@@ -262,8 +267,14 @@ const {
           </span>
         </button>
         <div>
-          <strong>{{ agentLabel }}</strong>
-          <span class="context-caption">主上下文：{{ contextTitle }}</span>
+          <strong class="conversation-title" :title="conversationTitle">{{
+            conversationTitle
+          }}</strong>
+          <span
+            v-if="libraryDomain || !agentWorkspaceType"
+            class="context-caption"
+            >{{ contextTitle }}</span
+          >
         </div>
       </div>
       <div class="conversation-header-actions">
@@ -405,3 +416,17 @@ const {
     />
   </main>
 </template>
+
+<style scoped>
+.conversation-heading-start .conversation-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.conversation-header-actions {
+  flex-shrink: 0;
+}
+</style>

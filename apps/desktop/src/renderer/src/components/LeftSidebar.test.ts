@@ -85,7 +85,7 @@ describe("LeftSidebar account controls", () => {
     );
   });
 
-  it("adds the skill marketplace to more features while keeping runtime settings", () => {
+  it("includes marketplace features without the runtime settings entry", () => {
     expectSourceToContain(
       source,
       '{ id: "skill-marketplace", label: "技能广场"'
@@ -98,7 +98,8 @@ describe("LeftSidebar account controls", () => {
       '{ id: "zhuque-detection", label: "朱雀检测"'
     );
     expect(source).toContain('emit("openZhuqueDetection")');
-    expectSourceToContain(source, '{ id: "runtime", label: "运行设置"');
+    expect(moreFeaturesSource).not.toContain('id: "runtime"');
+    expect(moreFeaturesSource).not.toContain("运行设置");
     expect(source).not.toContain('{ id: "history", label: "版本历史"');
     expect(source).not.toContain('{ id: "search", label: "全局检索"');
     expect(source).not.toContain('{ id: "transfer", label: "导入与导出"');

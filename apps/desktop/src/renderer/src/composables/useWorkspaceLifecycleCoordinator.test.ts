@@ -127,10 +127,10 @@ describe("workspace lifecycle coordinator", () => {
     expect(harness.options.notifyRecoveredDrafts).toHaveBeenCalledOnce();
     expect(harness.windowTarget.listenerCount()).toBe(4);
 
-    harness.activeFeature.value = "models";
+    harness.activeFeature.value = "directory";
     await Promise.resolve();
     expect(harness.options.ensureFeatureDependencies).toHaveBeenCalledWith(
-      "models"
+      "directory"
     );
   });
 

@@ -30,7 +30,7 @@ import type {
 } from "../types/workspace";
 import { buildLibraryAgentWorkspaceContext } from "../utils/libraryAgentContext";
 import { activeAgentDocumentForSelection } from "../utils/agentRunPreferences";
-import { rightPanePreferenceKey } from "../utils/rightPanePreferences";
+import { useBookPanePreferenceKey } from "./useBookPanePreferenceKey";
 import type { ResourceTreeLookup } from "../utils/resourceTreeLookup";
 
 type DraftFileKind = "body" | "character-state";
@@ -511,28 +511,10 @@ export function useWorkspaceResourceCoordinator(
       activePromptDocument.value
     )
   );
-  const activeRightPanePreferenceKey = computed(() => {
-    if (longNavigation.workspaceActive.value) {
-      return rightPanePreferenceKey({
-        domain: "creation",
-        workspaceType: "long",
-        stageId: longNavigation.activeRoot.value
-      });
-    }
-    // Pane layout follows the resource stage that is actually open in the
-    // editor. The preference helper groups short/script stages into character,
-    // plot, and draft areas, so all plot stages share one width.
-    const document = activeDocument.value;
-    const nodeStageId = resourceNode(
-      state.selectedResourceId.value
-    )?.stageCategoryId;
-    const stageId = document.stageId ?? nodeStageId;
-    const workspaceType = document.workspaceType;
-    return rightPanePreferenceKey({
-      domain: document.domain,
-      ...(workspaceType ? { workspaceType } : {}),
-      ...(stageId ? { stageId } : {})
-    });
+  const activeRightPanePreferenceKey = useBookPanePreferenceKey({
+    document: activeDocument,
+    longWorkspaceActive: longNavigation.workspaceActive,
+    longBookId: longNavigation.activeBookId
   });
   const liveWorkspaceDocuments = computed<WorkspaceDocument[]>(() =>
     state.documents.value.map((document) => {

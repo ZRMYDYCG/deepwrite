@@ -52,6 +52,8 @@ import AppIcon from "./AppIcon.vue";
 import EditorTextTools from "./EditorTextTools.vue";
 import { useBodyTextFormatting } from "../composables/useBodyTextFormatting";
 import { catalogBodyTextKind } from "../utils/bodyTextTarget";
+import EditorPaneToggle from "./EditorPaneToggle.vue";
+import CatalogEditorFooterMeta from "./CatalogEditorFooterMeta.vue";
 import EditorDocumentMetadata from "./EditorDocumentMetadata.vue";
 import EditorSearchHighlight from "./EditorSearchHighlight.vue";
 import MarkdownContent from "./MarkdownContent.vue";
@@ -331,20 +333,6 @@ const resolvedCreateSectionLabel = computed(
 );
 const resolvedDeleteSectionLabel = computed(
   () => props.deleteSectionLabel ?? "删除当前条目"
-);
-const persistedDocument = computed(() =>
-  Boolean(
-    props.document.catalogDocumentId ||
-    props.document.catalogEntryId ||
-    props.document.catalogLibraryField ||
-    props.document.catalogProjectRevision !== undefined
-  )
-);
-const visibleDirtySaveState = computed(
-  () => dirty.value && !props.autoSaveEnabled
-);
-const resolvedLockedLabel = computed(
-  () => props.lockedLabel ?? "智能体运行中 · 只读"
 );
 
 function markDirty(): void {
@@ -804,55 +792,6 @@ onBeforeUnmount(() => {
     :data-workspace-type="document.workspaceType"
     aria-label="文本内容"
   >
-    <header class="editor-header">
-      <div class="editor-breadcrumbs" :title="document.path.join(' / ')">
-        <span v-for="(part, index) in document.path" :key="`${part}-${index}`">
-          {{ part }}<i v-if="index < document.path.length - 1">/</i>
-        </span>
-      </div>
-      <div class="editor-header-actions">
-        <span class="save-state" :class="{ 'is-dirty': visibleDirtySaveState }">
-          <AppIcon
-            :name="visibleDirtySaveState ? 'save' : 'check'"
-            :size="13"
-          />
-          {{
-            document.readOnly
-              ? "只读"
-              : locked
-                ? resolvedLockedLabel
-                : manualSaving
-                  ? "正在保存到本机"
-                  : autoSaveEnabled
-                    ? "自动保存已开启"
-                    : dirty
-                      ? "有未应用修改"
-                      : persistedDocument
-                        ? "已保存到本机"
-                        : "本次运行已应用"
-          }}
-        </span>
-        <button
-          v-if="rightPane !== false"
-          class="icon-button"
-          type="button"
-          aria-label="收起文本内容栏"
-          @click="emit('collapse')"
-        >
-          <AppIcon name="panel-right" :size="18" />
-        </button>
-        <button
-          v-else-if="rightPaneCollapsed"
-          class="icon-button"
-          type="button"
-          aria-label="展开智能体栏"
-          @click="emit('toggleRight')"
-        >
-          <AppIcon name="panel-right" :size="18" />
-        </button>
-      </div>
-    </header>
-
     <nav
       v-if="showSectionTabs"
       class="section-tabs-bar"
@@ -969,6 +908,13 @@ onBeforeUnmount(() => {
         />
       </div>
 
+      <EditorPaneToggle
+        :right-pane="rightPane"
+        :right-pane-collapsed="rightPaneCollapsed"
+        @collapse="emit('collapse')"
+        @toggle-right="emit('toggleRight')"
+      />
+
       <EditorFindReplacePanel
         v-if="findPanelOpen"
         v-model:find-panel-element="findPanelElement"
@@ -1052,43 +998,20 @@ onBeforeUnmount(() => {
       </article>
     </div>
 
-    <footer class="editor-footer">
-      <div class="editor-footer-meta">
-        <span>
-          {{ characterCount.toLocaleString("zh-CN")
-          }}<template v-if="recommendedContentLength">
-            / {{ recommendedContentLength.toLocaleString("zh-CN") }}</template
-          >
-          字
-        </span>
-        <span
-          v-if="isLibraryDocument"
-          class="library-entry-limit-hint"
-          :class="{ 'limit-warning': contentExceedsRecommendedLength }"
-          :title="
-            isLibraryOverview
-              ? '素材库或技能库介绍建议不超过 40,000 字'
-              : '每个素材库或技能库条目建议不超过 40,000 字，请勿上传过多内容'
-          "
-        >
-          {{
-            isLibraryOverview
-              ? "建议库介绍不超过 40,000 字"
-              : "建议每个条目不超过 40,000 字，请勿上传过多内容"
-          }}
-        </span>
-        <span class="editor-save-status">{{
-          locked
-            ? resolvedLockedLabel
-            : manualSaving
-              ? "正在原子保存本机文稿"
-              : persistedDocument
-                ? autoSaveEnabled
-                  ? "本机文稿 · 更改后自动保存"
-                  : "本机文稿 · 应用后持久保存"
-                : "内存草稿 · 重启后不保留"
-        }}</span>
-      </div>
+    <footer
+      class="editor-footer"
+      :title="locked ? (lockedLabel ?? '智能体运行中 · 只读') : undefined"
+    >
+      <CatalogEditorFooterMeta
+        :document="document"
+        :content="content"
+        :character-count="characterCount"
+        :recommended-content-length="recommendedContentLength"
+        :is-library-document="isLibraryDocument"
+        :is-library-overview="isLibraryOverview"
+        :content-exceeds-recommended-length="contentExceedsRecommendedLength"
+        :auto-save-enabled="autoSaveEnabled"
+      />
       <button
         class="save-button"
         type="button"

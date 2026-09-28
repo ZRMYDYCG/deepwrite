@@ -1,10 +1,15 @@
 <script setup lang="ts">
 import AppIcon from "./AppIcon.vue";
 
-defineProps<{
-  path: string | null;
-  loading: boolean;
-}>();
+withDefaults(
+  defineProps<{
+    path: string | null;
+    loading: boolean;
+    embedded?: boolean;
+    runtimeAvailable?: boolean;
+  }>(),
+  { embedded: false, runtimeAvailable: true }
+);
 
 const emit = defineEmits<{
   choose: [];
@@ -12,8 +17,11 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <section class="workspace-settings-panel">
-    <header>
+  <section
+    class="workspace-settings-panel"
+    :class="{ 'is-embedded': embedded }"
+  >
+    <header v-if="!embedded">
       <div>
         <span class="dialog-eyebrow">DeepWrite</span>
         <h2>工作目录</h2>
@@ -41,7 +49,7 @@ const emit = defineEmits<{
         <button
           class="dialog-primary-button"
           type="button"
-          :disabled="loading"
+          :disabled="loading || !runtimeAvailable"
           @click="emit('choose')"
         >
           {{ loading ? "选择中…" : path ? "切换工作目录" : "选择工作目录" }}
@@ -50,3 +58,35 @@ const emit = defineEmits<{
     </div>
   </section>
 </template>
+
+<style scoped>
+.workspace-settings-panel.is-embedded {
+  width: 100%;
+  max-width: 760px;
+  min-height: 0;
+  border-color: var(--theme-line-soft);
+  border-radius: 13px;
+  box-shadow: none;
+}
+
+.is-embedded .dialog-content {
+  min-width: 0;
+  padding: 18px;
+}
+
+.is-embedded .directory-card code {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+@media (max-width: 600px) {
+  .is-embedded .directory-card {
+    grid-template-columns: 24px minmax(0, 1fr);
+  }
+
+  .is-embedded .directory-card > span {
+    grid-column: 2;
+    justify-self: start;
+  }
+}
+</style>

@@ -28,10 +28,7 @@ describe("App lazy feature mounting", () => {
       lazyComponentsSource,
       '() => import("../extras/cloud-backup/CloudBackupPage.vue")'
     );
-    expectSourceToContain(
-      lazyComponentsSource,
-      '() => import("./ModelSettingsFeature.vue")'
-    );
+    expect(lazyComponentsSource).not.toContain("loadModelSettingsFeature");
     expectSourceToContain(
       lazyComponentsSource,
       '() => import("./WorkspaceDirectoryFeature.vue")'
@@ -44,9 +41,9 @@ describe("App lazy feature mounting", () => {
     );
   });
 
-  it("loads model settings and workspace directory as separate features", () => {
+  it("keeps model configuration in settings and the directory as a workspace feature", () => {
     expect(featureModulesSource).toContain("<WorkspaceDirectoryFeature\n");
-    expect(featureModulesSource).toContain("<ModelSettingsFeature\n");
+    expect(featureModulesSource).not.toContain("<ModelSettingsFeature");
     expect(source).toContain("<WorkspaceFeatureModules");
     expect(source).not.toContain("<WorkspaceDirectoryFeature");
     expect(source).not.toContain("<ModelSettingsFeature");

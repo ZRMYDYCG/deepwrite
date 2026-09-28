@@ -41,17 +41,6 @@ export function buildWorkspaceFeatureModule(
         path: settingsStore.workspaceDirectoryPath,
         loading: settingsStore.workspaceDirectoryLoading
       };
-    case "models":
-      return {
-        kind: "models",
-        settings: settingsStore.modelSettings,
-        loading: settingsStore.modelLoading,
-        saving: settingsStore.modelSaving,
-        error: settingsStore.modelError,
-        testMessage: settingsStore.modelTestMessage,
-        testingModelId: settingsStore.testingModelId,
-        alertMessages: settingsStore.modelAlertMessages
-      };
     case "imitation":
       return {
         kind: "imitation",

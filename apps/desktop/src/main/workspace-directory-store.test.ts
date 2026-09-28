@@ -1,4 +1,12 @@
-import { mkdtemp, mkdir, realpath, rm, writeFile } from "node:fs/promises";
+import {
+  mkdtemp,
+  mkdir,
+  readFile,
+  realpath,
+  rm,
+  stat,
+  writeFile
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -15,7 +23,7 @@ afterEach(async () => {
 });
 
 describe("WorkspaceDirectoryStore", () => {
-  it("defaults a first-time user to the system documents directory", async () => {
+  it("creates and selects DeepWriteBooks under documents for a first-time user", async () => {
     const root = await mkdtemp(
       join(tmpdir(), "deepwrite-workspace-directory-default-")
     );
@@ -25,12 +33,14 @@ describe("WorkspaceDirectoryStore", () => {
 
     const store = new WorkspaceDirectoryStore(userData);
     const initialized = await store.initializeDefault(documents);
-    const canonicalDocuments = await realpath(documents);
-    expect(initialized).toEqual({ path: canonicalDocuments });
+    const defaultDirectory = join(documents, "DeepWriteBooks");
+    expect((await stat(defaultDirectory)).isDirectory()).toBe(true);
+    const canonicalDefault = await realpath(defaultDirectory);
+    expect(initialized).toEqual({ path: canonicalDefault });
 
     const reloaded = new WorkspaceDirectoryStore(userData);
     await expect(reloaded.list()).resolves.toEqual({
-      path: canonicalDocuments
+      path: canonicalDefault
     });
   });
 
@@ -51,6 +61,29 @@ describe("WorkspaceDirectoryStore", () => {
       path: canonicalExisting
     });
     await expect(store.list()).resolves.toEqual({ path: canonicalExisting });
+    await expect(stat(join(documents, "DeepWriteBooks"))).rejects.toMatchObject(
+      {
+        code: "ENOENT"
+      }
+    );
+  });
+
+  it("reuses an existing DeepWriteBooks folder without changing its contents", async () => {
+    const root = await mkdtemp(
+      join(tmpdir(), "deepwrite-workspace-directory-reuse-")
+    );
+    temporaryRoots.push(root);
+    const documents = join(root, "Documents");
+    const defaultDirectory = join(documents, "DeepWriteBooks");
+    await mkdir(defaultDirectory, { recursive: true });
+    const manuscript = join(defaultDirectory, "draft.md");
+    await writeFile(manuscript, "existing manuscript", "utf8");
+
+    const store = new WorkspaceDirectoryStore(join(root, "user-data"));
+    await expect(store.initializeDefault(documents)).resolves.toEqual({
+      path: await realpath(defaultDirectory)
+    });
+    expect(await readFile(manuscript, "utf8")).toBe("existing manuscript");
   });
 
   it("starts unset and persists freely switchable directories", async () => {

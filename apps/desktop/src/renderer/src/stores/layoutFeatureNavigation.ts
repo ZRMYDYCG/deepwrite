@@ -3,7 +3,6 @@ export type AppView = "workspace" | "settings";
 export type WorkspaceMainView =
   | "conversation"
   | "directory"
-  | "models"
   | "imitation"
   | "long-book-analysis"
   | "revision-analysis"
@@ -17,7 +16,6 @@ export type WorkspaceMainView =
 
 export type PrimaryFeature =
   | "directory"
-  | "models"
   | "imitation"
   | "long-book-analysis"
   | "revision-analysis"
@@ -42,7 +40,6 @@ export function primaryFeatureForView(
     case "cloud-backup":
     case "zhuque-detection":
     case "directory":
-    case "models":
     case "imitation":
     case "long-book-analysis":
     case "revision-analysis":

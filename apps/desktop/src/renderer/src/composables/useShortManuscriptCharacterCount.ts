@@ -5,7 +5,8 @@ import type { ShortManuscriptPreviewContext } from "./shortManuscriptPreviewCont
 
 export function useShortManuscriptCharacterCount(
   source: ShortManuscriptPreviewContext | null,
-  isOpen: () => boolean
+  isOpen: () => boolean,
+  loadErrorMessage = "读取全文字数失败，请重新打开导出窗口。"
 ) {
   const book = computed(() => (isOpen() ? source?.book() : undefined));
   const loading = ref(false);
@@ -37,8 +38,7 @@ export function useShortManuscriptCharacterCount(
       try {
         await source.ensureDocumentsLoaded(documents);
       } catch {
-        if (current)
-          source.reportError("读取全文字数失败，请重新打开导出窗口。");
+        if (current) source.reportError(loadErrorMessage);
       } finally {
         if (current) loading.value = false;
       }

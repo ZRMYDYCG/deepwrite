@@ -3,6 +3,29 @@ import {
   CreativePlotStagesSchema,
   type CreativePlotStage
 } from "@deepwrite/contracts";
+import type { FolderCatalogRegistry } from "./registry-types";
+
+/** Repair older imports while keeping index reads free of project writes. */
+export async function persistCreativePlotStageDefinitions(
+  registry: FolderCatalogRegistry,
+  stages: readonly CreativePlotStage[],
+  writeRegistry: (registry: FolderCatalogRegistry) => Promise<void>
+): Promise<CreativePlotStage[]> {
+  const creativePlotStages = mergeCreativePlotStageDefinitions(
+    registry.creativePlotStages,
+    stages
+  );
+  if (
+    !sameCreativePlotStageDefinitions(
+      registry.creativePlotStages,
+      creativePlotStages
+    )
+  ) {
+    await writeRegistry({ ...registry, creativePlotStages });
+    registry.creativePlotStages = creativePlotStages;
+  }
+  return creativePlotStages;
+}
 
 export function mergeCreativePlotStageDefinitions(
   ...groups: ReadonlyArray<

@@ -44,9 +44,6 @@ export const CloudBackupPage = lazyFeature((features) =>
 export const ZhuqueDetectionPage = lazyFeature((features) =>
   features.loadZhuqueDetectionPage()
 );
-export const ModelSettingsFeature = lazyFeature((features) =>
-  features.loadModelSettingsFeature()
-);
 export const WorkspaceDirectoryFeature = lazyFeature((features) =>
   features.loadWorkspaceDirectoryFeature()
 );

@@ -18,8 +18,6 @@ export const loadCloudBackupPage = () =>
   import("../extras/cloud-backup/CloudBackupPage.vue");
 export const loadZhuqueDetectionPage = () =>
   import("../extras/zhuque-detection/ZhuqueDetectionPage.vue");
-export const loadModelSettingsFeature = () =>
-  import("./ModelSettingsFeature.vue");
 export const loadWorkspaceDirectoryFeature = () =>
   import("./WorkspaceDirectoryFeature.vue");
 export const loadWorkspaceFeatureModules = () =>

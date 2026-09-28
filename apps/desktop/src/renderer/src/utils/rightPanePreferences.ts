@@ -13,10 +13,10 @@ interface RightPanePreferencesStorage {
   setItem(key: string, value: string): void;
 }
 
-export interface RightPaneStageDocument {
+export interface RightPaneBookDocument {
   domain: string;
   workspaceType?: "short" | "script" | "long";
-  stageId?: string;
+  workspaceId?: string;
 }
 
 const DEFAULT_RIGHT_PANE_PREFERENCES: RightPanePreferences = { widths: {} };
@@ -30,37 +30,20 @@ function isValidWidth(value: unknown): value is number {
   );
 }
 
-/**
- * Short fiction and scripts remember one width per major workspace area:
- * character, plot, and draft. All configurable plot stages intentionally share
- * the plot width. Long-form keeps its existing root-specific layout memory.
- * Writing types remain isolated because similarly named areas can have
- * different layouts.
- */
+/** All stages of one book share a width; books and writing types stay isolated. */
 export function rightPanePreferenceKey(
-  document: RightPaneStageDocument
+  document: RightPaneBookDocument
 ): string | undefined {
   if (
     document.domain !== "creation" ||
     (document.workspaceType !== "short" &&
       document.workspaceType !== "script" &&
       document.workspaceType !== "long") ||
-    typeof document.stageId !== "string" ||
-    document.stageId.trim().length === 0
+    !document.workspaceId?.trim()
   ) {
     return undefined;
   }
-  const stageId = document.stageId.trim();
-  if (document.workspaceType === "long") {
-    return `long:${stageId}`;
-  }
-  const area =
-    stageId === "character_design"
-      ? "character"
-      : stageId === "draft"
-        ? "draft"
-        : "plot";
-  return `${document.workspaceType}:${area}`;
+  return `${document.workspaceType}:book:${document.workspaceId}`;
 }
 
 export function parseRightPanePreferences(

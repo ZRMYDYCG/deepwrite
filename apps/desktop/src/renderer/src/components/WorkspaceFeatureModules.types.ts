@@ -26,6 +26,8 @@ import type { SubagentAuthoringController } from "../composables/useSubagentAuth
 export interface SettingsFeatureModule {
   kind: "settings";
   initialCategory: string;
+  workspaceDirectoryPath: string | null;
+  workspaceDirectoryLoading: boolean;
   permissionMode: GeneralPermissionMode;
   autoApproveCrossStageOperations: boolean;
   autoSaveEnabled: boolean;
@@ -90,17 +92,6 @@ export interface DirectoryFeatureModule {
   loading: boolean;
 }
 
-export interface ModelsFeatureModule {
-  kind: "models";
-  settings: ModelSettings | null;
-  loading: boolean;
-  saving: boolean;
-  error: string | null;
-  testMessage: string | null;
-  testingModelId: string | null;
-  alertMessages: readonly string[];
-}
-
 export interface ImitationFeatureModule {
   kind: "imitation";
   controller: LearningImitationController | null;
@@ -156,7 +147,6 @@ export type WorkspaceFeatureModule =
   | SettingsFeatureModule
   | AgentTeamFeatureModule
   | DirectoryFeatureModule
-  | ModelsFeatureModule
   | ImitationFeatureModule
   | {
       kind: "style-comparison";

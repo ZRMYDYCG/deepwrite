@@ -159,6 +159,7 @@ export function useLazyShortBookLifecycleCoordinator(
 
   if (getCurrentInstance()) {
     provide(SHORT_MANUSCRIPT_PREVIEW_KEY, {
+      bookById: (bookId) => options.catalog.book(bookId),
       book: () => {
         const target = exportBookTarget.value;
         return target && !target.unavailable

@@ -206,10 +206,10 @@ describe("useWorkspaceFeatureHostCoordinator", () => {
     expect(harness.coordinator.activeFeature.value).toBe("long-workspace");
     harness.currentView.value = "settings";
     expect(harness.coordinator.activeFeature.value).toBe("settings");
-    harness.workspaceMainView.value = "models";
+    harness.workspaceMainView.value = "directory";
     expect(harness.coordinator.activeFeature.value).toBe("settings");
     harness.currentView.value = "workspace";
-    expect(harness.coordinator.activeFeature.value).toBe("models");
+    expect(harness.coordinator.activeFeature.value).toBe("directory");
   });
 
   it("projects every feature descriptor and leaves both writing surfaces unwrapped", async () => {
@@ -222,7 +222,6 @@ describe("useWorkspaceFeatureHostCoordinator", () => {
 
     const featureKinds = [
       "directory",
-      "models",
       "imitation",
       "style-comparison",
       "revision-analysis",
@@ -280,7 +279,7 @@ describe("useWorkspaceFeatureHostCoordinator", () => {
     });
 
     await harness.coordinator.openWorkspaceDialog("directory");
-    await harness.coordinator.openWorkspaceDialog("models");
+    await harness.coordinator.openSettings("custom-models");
     await harness.coordinator.openWorkspaceDialog("imitation");
     await harness.coordinator.openSettings();
     await harness.coordinator.openAgentTeams();
@@ -330,7 +329,7 @@ describe("useWorkspaceFeatureHostCoordinator", () => {
       ensureLearningLoaded: () => learning.promise
     });
 
-    harness.workspaceMainView.value = "models";
+    harness.workspaceMainView.value = "directory";
     const imitationNavigation =
       harness.coordinator.openWorkspaceDialog("imitation");
     await Promise.resolve();
@@ -364,7 +363,7 @@ describe("useWorkspaceFeatureHostCoordinator", () => {
     expect(staleHarness.errors).toEqual([]);
   });
 
-  it("loads only the dependencies owned by conversation, long writing, and models", async () => {
+  it("loads only the dependencies owned by conversation and long writing", async () => {
     const harness = createHarness();
 
     await harness.coordinator.ensureActiveFeatureDependencies("conversation");
@@ -381,9 +380,8 @@ describe("useWorkspaceFeatureHostCoordinator", () => {
     );
     expect(harness.loaders.loadAgentTeamSettings).toHaveBeenCalledTimes(2);
 
-    await harness.coordinator.ensureActiveFeatureDependencies("models");
     await harness.coordinator.ensureActiveFeatureDependencies("directory");
-    expect(harness.loaders.loadModelSettings).toHaveBeenCalledTimes(3);
+    expect(harness.loaders.loadModelSettings).toHaveBeenCalledTimes(2);
   });
 
   it("preserves normal and official settings loading boundaries", async () => {
@@ -407,7 +405,7 @@ describe("useWorkspaceFeatureHostCoordinator", () => {
 
   it("keeps the current page usable when a settings chunk cannot load", async () => {
     const harness = createHarness();
-    harness.workspaceMainView.value = "models";
+    harness.workspaceMainView.value = "directory";
     vi.mocked(loadSettingsFeature).mockRejectedValueOnce(
       new TypeError("Failed to fetch dynamically imported module")
     );
@@ -415,7 +413,7 @@ describe("useWorkspaceFeatureHostCoordinator", () => {
     await harness.coordinator.openSettings();
 
     expect(harness.currentView.value).toBe("workspace");
-    expect(harness.workspaceMainView.value).toBe("models");
+    expect(harness.workspaceMainView.value).toBe("directory");
     expect(harness.errors).toEqual([
       "设置页面加载失败，请稍后重试或重新启动应用。"
     ]);

@@ -131,6 +131,7 @@ export function revisionAnalysisUserPrompt(
 ): string {
   const { beforeText, afterText, changes, overallReason } = context;
   return (
+    "【任务完成要求】本次修改分析最后必须调用 create_skill_draft 工具，生成与分析结果相关的可复用技能草稿；只有工具调用成功才算完成任务，不能仅输出分析报告、技能文本或 JSON 后结束。\n" +
     "请学习以下以 JSON 数据提供的修改资料。用普通正文输出分析报告，并调用 create_skill_draft 提交技能草稿：\n" +
     JSON.stringify({
       beforeText,

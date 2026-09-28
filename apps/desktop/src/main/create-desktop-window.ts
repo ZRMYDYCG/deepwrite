@@ -35,8 +35,9 @@ export function createDesktopWindow(
 ): BrowserWindow {
   const isDarwin = process.platform === "darwin";
   const window = new BrowserWindow({
-    width: 1560,
-    height: 940,
+    width: 1200,
+    height: 800,
+    center: true,
     minWidth: 1120,
     minHeight: 700,
     show: false,

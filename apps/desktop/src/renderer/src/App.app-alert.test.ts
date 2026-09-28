@@ -5,7 +5,6 @@ import modelCoordinatorSource from "./composables/useModelSettingsCoordinator.ts
 import dialogCoordinatorSource from "./composables/useWorkspaceDialogModuleCoordinator.ts?raw";
 import featureHostCoordinatorSource from "./composables/useWorkspaceFeatureHostCoordinator.ts?raw";
 import featureHostModuleSource from "./composables/workspaceFeatureHostModule.ts?raw";
-import featureModulesSource from "./components/WorkspaceFeatureModules.vue?raw";
 import lifecycleSource from "./composables/useWorkspaceLifecycleCoordinator.ts?raw";
 import settingsSource from "./stores/settingsStore.ts?raw";
 
@@ -20,12 +19,6 @@ describe("App remote alerts", () => {
     expect(modelCoordinatorSource).toContain("await api.get()");
     expect(settingsSource).toContain(
       "官方模型已经上线！直连厂商！软件整体用量越多，折扣会越大！"
-    );
-    expect(featureHostSource).toContain(
-      "alertMessages: settingsStore.modelAlertMessages"
-    );
-    expect(featureModulesSource).toContain(
-      ':model-alert-messages="module.alertMessages"'
     );
     expect(source).toContain(
       '@open-official-models="featureHost.openOfficialModelsSettings"'

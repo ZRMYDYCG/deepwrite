@@ -46,12 +46,12 @@ const statusLabels: Record<AgentActivityStatus, string> = {
         <button
           class="agent-activity-item"
           type="button"
-          :aria-label="`${item.agentLabel}，${item.contextLabel}，${statusLabels[item.status]}`"
+          :aria-label="`${item.contextLabel}，${item.agentLabel}，${statusLabels[item.status]}`"
           @click="emit('select', item.conversationKey)"
         >
           <span class="agent-activity-copy">
-            <strong>{{ item.agentLabel }}</strong>
-            <small>{{ item.contextLabel }}</small>
+            <strong>{{ item.contextLabel }}</strong>
+            <small>{{ item.agentLabel }}</small>
           </span>
           <span
             class="agent-activity-status"

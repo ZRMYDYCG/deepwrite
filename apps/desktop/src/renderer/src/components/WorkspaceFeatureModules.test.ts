@@ -12,7 +12,6 @@ describe("WorkspaceFeatureModules boundary", () => {
       "settings",
       "agent-team",
       "directory",
-      "models",
       "imitation",
       "marketplace",
       "cloud-backup",
@@ -23,7 +22,7 @@ describe("WorkspaceFeatureModules boundary", () => {
     expect(source).toContain("<SettingsPage");
     expect(source).toContain("<AgentTeamSettingsPanel");
     expect(source).toContain("<WorkspaceDirectoryFeature");
-    expect(source).toContain("<ModelSettingsFeature");
+    expect(source).not.toContain("<ModelSettingsFeature");
     expect(source).toContain("<LearningImitationDialog");
     expect(source).toContain("<SkillMarketplacePage");
     expect(source).toContain("<CloudBackupPage");

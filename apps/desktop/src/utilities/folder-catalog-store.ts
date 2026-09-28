@@ -1,12 +1,25 @@
+import { registerCatalogProject } from "./folder-catalog-store/project-registration";
+import {
+  CATALOG_PROJECT_DOMAINS,
+  type FolderCatalogProjectDomain,
+  type FolderCatalogRegistry,
+  type RegistryProject
+} from "./folder-catalog-store/registry-types";
+export {
+  CATALOG_PROJECT_DOMAINS,
+  type FolderCatalogProjectDomain
+} from "./folder-catalog-store/registry-types";
 import {
   DEFAULT_SHORT_DOCUMENTS,
   createNewShortBook,
   createNewScriptBook,
-  assertCreationPlotStages
+  assertCreationPlotStages,
+  applyGlobalPlotStagesToNewBook
 } from "./folder-catalog-store/book-creation";
 import {
   mergeCreativePlotStageDefinitions,
-  sameCreativePlotStageDefinitions
+  sameCreativePlotStageDefinitions,
+  persistCreativePlotStageDefinitions
 } from "./folder-catalog-store/plot-stage-definitions";
 import { createCatalogId, randomHex8 } from "@deepwrite/shared";
 import { createHash } from "node:crypto";
@@ -80,13 +93,11 @@ import {
   createDefaultBookCharacterStructure,
   BookPlotStagesSchema,
   CreativePlotStagesSchema,
-  DEFAULT_NEW_BOOK_ENABLED_PLOT_STAGE_IDS,
   createDefaultBookPlotStages,
   createDefaultCreativePlotStages,
   createShortWorkspaceContentRevision,
   isBuiltinCreativePlotStageId,
   migrateCatalogDraftDocument,
-  type BookPlotStage,
   type BookProjectDraftSectionManifest,
   type BookProjectDocumentManifest,
   type BookProjectManifest,
@@ -190,34 +201,6 @@ export type FolderLegacyBookProjectManifest = LegacyBookProjectManifest;
 export type FolderMaterialProjectManifest = MaterialLibraryProjectManifest;
 export type FolderSkillProjectManifest = SkillLibraryProjectManifest;
 export type FolderCatalogProjectManifest = CatalogProjectManifest;
-
-export const CATALOG_PROJECT_DOMAINS = [
-  "book",
-  "material-library",
-  "material-group",
-  "skill-library",
-  "skill-group"
-] as const;
-export type FolderCatalogProjectDomain =
-  (typeof CATALOG_PROJECT_DOMAINS)[number];
-
-interface RegistryProject {
-  id: string;
-  domain: FolderCatalogProjectDomain;
-  projectDirectory: string;
-  registeredAt: string;
-}
-
-interface FolderCatalogRegistry {
-  schemaVersion: 1;
-  revision: number;
-  updatedAt: string;
-  legacyImport?: CatalogLegacyImport;
-  sourceCatalogMigrated: boolean;
-  /** Global short/script plot stage definitions (title/description). */
-  creativePlotStages: CreativePlotStage[];
-  projects: RegistryProject[];
-}
 
 interface WriteMissingSnapshotProjectsResult {
   registry: FolderCatalogRegistry;
@@ -737,6 +720,7 @@ export class FolderCatalogStore {
     return await this.mutate(async () => {
       const now = this.now();
       const registry = await this.ensureRegistry();
+      const snapshot = await this.aggregateSnapshot(registry);
       assertCreationPlotStages(
         defaultPlotStageIds,
         registry.creativePlotStages
@@ -746,7 +730,6 @@ export class FolderCatalogStore {
         registry.creativePlotStages,
         defaultPlotStageIds
       );
-      const snapshot = await this.aggregateSnapshot(registry);
       assertBookLibraryReferences(book, snapshot);
       const projectDirectory = await this.writeNewResourceProject(
         "book",
@@ -1131,12 +1114,16 @@ export class FolderCatalogStore {
     return await this.mutate(async () => {
       const opened = await this.readProject(projectDirectory, expectedDomain);
       const registry = await this.ensureRegistry();
-      await this.registerProject(registry, {
-        id: opened.resource.id,
-        domain: opened.domain,
-        projectDirectory: opened.projectDirectory,
-        registeredAt: this.now()
-      });
+      await this.registerProject(
+        registry,
+        {
+          id: opened.resource.id,
+          domain: opened.domain,
+          projectDirectory: opened.projectDirectory,
+          registeredAt: this.now()
+        },
+        opened.domain === "book" ? (opened.resource as Book).plotStages : []
+      );
       return opened;
     });
   }
@@ -4594,53 +4581,14 @@ export class FolderCatalogStore {
 
   private async registerProject(
     registry: FolderCatalogRegistry,
-    project: RegistryProject
+    project: RegistryProject,
+    plotStages: readonly CreativePlotStage[] = []
   ): Promise<void> {
-    const normalizedDirectory = await secureProjectRoot(
-      project.projectDirectory
-    );
-    const current = registry.projects.find(
-      ({ id, domain }) => id === project.id && domain === project.domain
-    );
-    const duplicateDirectory = registry.projects.find(
-      ({ projectDirectory }) =>
-        resolve(projectDirectory) === normalizedDirectory
-    );
-    if (
-      duplicateDirectory &&
-      (duplicateDirectory.id !== project.id ||
-        duplicateDirectory.domain !== project.domain)
-    ) {
-      throw new Error("该目录已经注册为另一个项目。");
-    }
-    if (
-      current &&
-      current.domain === project.domain &&
-      resolve(current.projectDirectory) === normalizedDirectory
-    ) {
-      return;
-    }
-    if (
-      current &&
-      resolve(current.projectDirectory) !== normalizedDirectory &&
-      (await pathExists(current.projectDirectory))
-    ) {
-      throw new Error(
-        "相同项目 ID 已在另一个仍然存在的文件夹中注册。请修改副本的 deepwrite.json ID，或先移动原项目后再重新打开。"
-      );
-    }
-    const projects = registry.projects.filter(
-      ({ id, domain, projectDirectory }) =>
-        !(id === project.id && domain === project.domain) &&
-        resolve(projectDirectory) !== normalizedDirectory
-    );
-    projects.push({ ...project, projectDirectory: normalizedDirectory });
-    const now = this.now();
-    await this.writeRegistry({
-      ...registry,
-      revision: registry.revision + 1,
-      updatedAt: now,
-      projects
+    await registerCatalogProject(registry, project, plotStages, {
+      secureProjectRoot,
+      pathExists,
+      now: this.now,
+      writeRegistry: (next) => this.writeRegistry(next)
     });
   }
 
@@ -4723,19 +4671,11 @@ export class FolderCatalogStore {
           break;
       }
     }
-    const creativePlotStages = mergeCreativePlotStageDefinitions(
-      registry.creativePlotStages,
-      books.flatMap((book) => book.plotStages)
+    const creativePlotStages = await persistCreativePlotStageDefinitions(
+      registry,
+      books.flatMap((book) => book.plotStages),
+      (next) => this.writeRegistry(next)
     );
-    if (
-      !sameCreativePlotStageDefinitions(
-        registry.creativePlotStages,
-        creativePlotStages
-      )
-    ) {
-      registry.creativePlotStages = creativePlotStages;
-      await this.writeRegistry(registry);
-    }
     const now = this.now();
     for (let index = 0; index < books.length; index += 1) {
       const book = books[index]!;
@@ -4913,9 +4853,10 @@ export class FolderCatalogStore {
       }
     }
 
-    const creativePlotStages = mergeCreativePlotStageDefinitions(
-      registry.creativePlotStages,
-      books.flatMap((book) => book.plotStages)
+    const creativePlotStages = await persistCreativePlotStageDefinitions(
+      registry,
+      books.flatMap((book) => book.plotStages),
+      (next) => this.writeRegistry(next)
     );
     return CatalogIndexSnapshotSchema.parse({
       schemaVersion: 1,
@@ -5340,58 +5281,6 @@ function parseRegistry(value: unknown): FolderCatalogRegistry {
     creativePlotStages,
     projects,
     ...(legacyImport === undefined ? {} : { legacyImport })
-  };
-}
-
-function applyGlobalPlotStagesToNewBook<Resource extends Book>(
-  book: Resource,
-  globalStages: readonly CreativePlotStage[],
-  defaultPlotStageIds?: readonly string[]
-): Resource {
-  const definitions =
-    globalStages.length > 0
-      ? mergeCreativePlotStageDefinitions(globalStages)
-      : createDefaultCreativePlotStages();
-  const existingDocuments = new Map(
-    book.documents.map((document) => [document.id, document])
-  );
-  const existingStages = new Map(
-    book.plotStages.map((stage) => [stage.id, stage])
-  );
-  const configuredStageIds = defaultPlotStageIds
-    ? new Set(defaultPlotStageIds)
-    : undefined;
-  const plotStages: BookPlotStage[] = definitions.map((stage) => ({
-    ...stage,
-    enabled:
-      configuredStageIds?.has(stage.id) ??
-      existingStages.get(stage.id)?.enabled ??
-      DEFAULT_NEW_BOOK_ENABLED_PLOT_STAGE_IDS.has(stage.id)
-  }));
-  const documents = [
-    ...(existingDocuments.get("character_design")
-      ? [existingDocuments.get("character_design")!]
-      : []),
-    ...plotStages.map((stage) => {
-      const existing = existingDocuments.get(stage.id);
-      return {
-        id: stage.id,
-        title: stage.title,
-        content: existing?.content ?? "",
-        createdAt: existing?.createdAt ?? book.createdAt,
-        updatedAt: existing?.updatedAt ?? book.updatedAt
-      };
-    }),
-    ...book.documents.filter(
-      (document) =>
-        document.id !== "character_design" &&
-        !plotStages.some((stage) => stage.id === document.id)
-    )
-  ];
-  return {
-    ...book,
-    plotStages,
-    documents
   };
 }
 
