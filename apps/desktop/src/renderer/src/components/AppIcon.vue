@@ -17,7 +17,14 @@ withDefaults(defineProps<{ name: IconName; size?: number }>(), { size: 18 });
     aria-hidden="true"
   >
     <template v-if="name === 'logo'">
-      <image href="/app-icon.png" x="0" y="0" width="24" height="24" />
+      <image
+        href="/app-icon.png"
+        x="0"
+        y="0"
+        width="24"
+        height="24"
+        style="clip-path: inset(0 round 22%)"
+      />
     </template>
     <template v-else-if="name === 'plus'">
       <path d="M12 5v14M5 12h14" />

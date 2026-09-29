@@ -564,6 +564,14 @@ html[data-platform="darwin"] .conversation-header {
   text-align: center;
 }
 
+.conversation-empty-heading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  max-width: 100%;
+}
+
 .assistant-avatar {
   display: grid;
   place-items: center;
@@ -574,12 +582,9 @@ html[data-platform="darwin"] .conversation-header {
 }
 
 .empty-agent-mark {
-  display: grid;
-  place-items: center;
   flex: 0 0 auto;
-  width: 52px;
-  height: 52px;
-  margin-bottom: 18px;
+  width: 36px;
+  height: 36px;
 }
 
 .conversation-empty h1 {
@@ -2481,14 +2486,12 @@ html[data-theme="dark"]
   z-index: 0;
   display: flex;
   align-items: center;
-  gap: 28px;
-  width: calc(100% - 28px);
-  min-height: 58px;
-  margin: 0 14px -15px;
-  padding: 9px 18px 24px;
-  border-radius: 21px;
-  background: var(--surface-muted);
-  box-shadow: 0 6px 20px rgba(25, 28, 31, 0.04);
+  gap: 12px;
+  width: 100%;
+  min-height: 36px;
+  margin: 0 0 8px;
+  padding: 0 6px;
+  background: var(--surface-main);
 }
 
 .composer-context-item {
@@ -4304,7 +4307,6 @@ html[data-theme]
 
 html[data-theme]
   :where(
-    .composer-input-surface,
     .composer-attachment-chip,
     .empty-suggestions button,
     .workspace-dialog,
@@ -4406,7 +4408,7 @@ html[data-theme] .composer-wrap {
 }
 
 html[data-theme] .composer-context-bar {
-  background: var(--surface-muted);
+  background: var(--surface-main);
 }
 
 html[data-theme] .composer-context-item > svg {

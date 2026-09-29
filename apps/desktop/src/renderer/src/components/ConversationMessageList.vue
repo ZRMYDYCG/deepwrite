@@ -111,8 +111,10 @@ const { handleConversationContextMenu } = useConversationSelectionInsertion({
   >
     <slot v-if="messages.length === 0" name="empty">
       <div v-if="welcomeContent" class="conversation-empty">
-        <span class="empty-agent-mark"><AppIcon name="logo" :size="40" /></span>
-        <h1>{{ welcomeContent.title }}</h1>
+        <div class="conversation-empty-heading">
+          <AppIcon class="empty-agent-mark" name="logo" :size="36" />
+          <h1>{{ welcomeContent.title }}</h1>
+        </div>
         <p v-if="showWelcomeDetails">{{ welcomeContent.description }}</p>
         <div v-if="showWelcomeDetails" class="empty-suggestions">
           <button

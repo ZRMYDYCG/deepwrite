@@ -103,7 +103,7 @@ async function select(id: string): Promise<void> {
 <style scoped>
 .composer-context-bar {
   gap: 8px;
-  padding: 5px 10px 20px;
+  padding: 0 6px;
 }
 .composer-context-item {
   min-height: 34px;
