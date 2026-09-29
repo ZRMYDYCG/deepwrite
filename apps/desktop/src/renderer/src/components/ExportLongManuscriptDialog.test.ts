@@ -13,6 +13,9 @@ describe("ExportLongManuscriptDialog", () => {
       "selectedContentExportsToOneFolderAsTXTFiles"
     );
     expect(dialogSource).toContain("selectOneOrMoreChaptersEachExportsAsA");
+    expect(dialogSource).toContain('type="radio"');
+    expect(dialogSource).toContain("mode: mode.value");
+    expect(dialogSource).toContain("selectedContentExportsToOneTXTFile");
   });
 
   it("emits the selected sections together with manuscript chapter ids", () => {

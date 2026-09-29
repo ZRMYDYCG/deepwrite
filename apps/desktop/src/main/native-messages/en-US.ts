@@ -27,6 +27,7 @@ export default {
   exportConversation: "Export Current Conversation (Including Unsaved Content)",
   conversationFile: "JSON Conversation File",
   chooseLongExport: "Choose Long-form Export Folder",
+  saveLongExport: "Save Long-form TXT File",
   agentTeamArchive: "DeepWrite Agent Team Archive",
   installAgentTeam: "Install Agent Team",
   exportDocx: "Export Manuscript as DOCX",

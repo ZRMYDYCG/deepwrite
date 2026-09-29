@@ -72,6 +72,9 @@ export function parseStoredContextCompactions(
             : (item.status as ChatContextCompaction["status"]),
         reason: item.reason as ChatContextCompaction["reason"],
         createdAt: item.createdAt,
+        ...(validDate(item.completedAt)
+          ? { completedAt: item.completedAt }
+          : {}),
         ...(level ? { level } : {}),
         ...(tokensBefore !== undefined ? { tokensBefore } : {}),
         ...(tokensAfter !== undefined ? { tokensAfter } : {}),
@@ -112,6 +115,7 @@ export function applyContextCompactionEvent(
     status: payload.phase === "started" ? "running" : payload.phase,
     reason: payload.reason,
     createdAt: running >= 0 ? items[running]!.createdAt : timestamp,
+    ...(payload.phase !== "started" ? { completedAt: timestamp } : {}),
     ...(payload.level ? { level: payload.level } : {}),
     ...(payload.tokensBefore !== undefined
       ? { tokensBefore: payload.tokensBefore }
@@ -123,7 +127,15 @@ export function applyContextCompactionEvent(
     ...(payload.errorMessage ? { errorMessage: payload.errorMessage } : {})
   };
   if (running >= 0 && payload.phase !== "started") items[running] = next;
-  else items.push(next);
+  else {
+    items.push(next);
+    (message.processingSteps ??= []).push({
+      id: `compaction:${next.id}`,
+      type: "compaction",
+      compactionId: next.id,
+      createdAt: timestamp
+    });
+  }
   message.contextCompactions = boundedCompactions(items);
 }
 

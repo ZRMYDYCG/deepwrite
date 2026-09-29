@@ -27,7 +27,10 @@ const t = createScopedTranslator("components.conversationProcessingItem");
 
 const props = withDefaults(
   defineProps<{
-    item: Exclude<ProcessingDisplayItem, { type: "subagent" | "work-group" }>;
+    item: Exclude<
+      ProcessingDisplayItem,
+      { type: "subagent" | "work-group" | "compaction" }
+    >;
     streaming: boolean;
     messageStatus?: "streaming" | "completed" | "stopped" | "error" | undefined;
     allowLiveEditReview?: boolean;

@@ -129,6 +129,29 @@ describe("context window usage", () => {
     ).toBeUndefined();
   });
 
+  it("uses the latest live observation across tool turns and compaction", () => {
+    const message = assistantMessage("running", 100, {
+      status: "streaming",
+      contextCompactions: [
+        {
+          id: "compaction",
+          status: "completed",
+          reason: "threshold",
+          createdAt: "2026-08-28T08:00:00.000Z",
+          tokensAfter: 80
+        }
+      ]
+    });
+    message.contextTokens = 80;
+    expect(latestModelContextTokens([message], model)).toBe(80);
+
+    message.contextTokens = 120;
+    expect(latestModelContextTokens([message], model)).toBe(120);
+
+    message.contextTokens = 0;
+    expect(latestModelContextTokens([message], model)).toBeUndefined();
+  });
+
   it("clamps only the ring drawing when usage exceeds the context window", () => {
     expect(createContextWindowMeasurement(300_000, 272_000)).toEqual({
       usedTokens: 300_000,

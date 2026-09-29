@@ -15,6 +15,7 @@ import userInputCardSource from "./AgentUserInputCard.vue?raw";
 import messageListSource from "./ConversationMessageList.vue?raw";
 import messageItemSource from "./ConversationMessageItem.vue?raw";
 import processingTimelineSource from "./ConversationProcessingTimeline.vue?raw";
+import timelineBlocksSource from "./conversationTimelineBlocks.ts?raw";
 import processingItemSource from "./ConversationProcessingItem.vue?raw";
 import workGroupSource from "./ConversationWorkGroup.vue?raw";
 import presentationSource from "./conversationToolPresentation.ts?raw";
@@ -163,9 +164,10 @@ describe("AgentConversation edit proposal placement", () => {
       "approval.toolCallIds.includes(item.tool.id)"
     );
     expect(presentationSource).toContain("position: anchorIndex * 2 + 1");
+    expect(processingTimelineSource).toContain("conversationTimelineBlocks(");
     expectSourceToContain(
-      processingTimelineSource,
-      "processingDisplayItems(message, true, longProposalItems)"
+      timelineBlocksSource,
+      'processingDisplayItems(message, message.status === "streaming", longProposalItems)'
     );
   });
 
@@ -452,11 +454,9 @@ describe("AgentConversation edit proposal placement", () => {
   });
 
   it("renders subagent cards within both ordered timelines without a trailing list", () => {
-    expect(processingTimelineSource).toContain(
-      "hasProcessingDisclosure(message)"
-    );
+    expect(processingTimelineSource).toContain('v-for="block in blocks"');
     const disclosureStart = processingTimelineSource.indexOf(
-      'v-else-if="hasProcessingDisclosure(message)"'
+      "v-else-if=\"block.kind === 'processing'\""
     );
     const disclosureEnd = processingTimelineSource.indexOf(
       "</ConversationDetails>",
@@ -475,9 +475,7 @@ describe("AgentConversation edit proposal placement", () => {
       disclosureEnd
     );
     for (const timeline of [liveTimeline, historyTimeline]) {
-      const loopStart = timeline.indexOf(
-        'v-for="item in processingDisplayItems'
-      );
+      const loopStart = timeline.indexOf('v-for="item in block.items"');
       const workGroupStart = timeline.indexOf(
         "<ConversationWorkGroup",
         loopStart
@@ -503,9 +501,12 @@ describe("AgentConversation edit proposal placement", () => {
       "connectionInterruptedRetryingValueInValueS"
     );
     expect(presentationSource).toContain("retryingValue");
+    expect(processingTimelineSource).toContain(
+      "timelineProcessingLabel(message, block, now)"
+    );
     expectSourceToContain(
-      processingTimelineSource,
-      "hasProcessingDisclosure(message) || message.retry || message.processingStartedAt"
+      timelineBlocksSource,
+      "message.retry || message.processingStartedAt"
     );
     expect(processingTimelineSource).not.toContain("retry-error");
 

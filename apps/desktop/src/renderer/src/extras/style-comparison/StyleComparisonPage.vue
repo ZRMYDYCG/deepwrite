@@ -71,14 +71,12 @@ function start(): void {
     :title="t('styleComparison.styleComparison')"
     :description="t('styleComparison.comparisonDescription')"
   >
-    <template #header-actions>
-      <AnalysisModelSettings
-        v-model:model-id="comparison.modelId"
-        v-model:thinking-level="comparison.thinkingLevel"
-        :models="availableModels"
-        :disabled="comparison.isBusy"
-      />
-    </template>
+    <AnalysisModelSettings
+      v-model:model-id="comparison.modelId"
+      v-model:thinking-level="comparison.thinkingLevel"
+      :models="availableModels"
+      :disabled="comparison.isBusy"
+    />
     <details
       class="analysis-card analysis-materials comparison-materials"
       :open="materialsOpen"

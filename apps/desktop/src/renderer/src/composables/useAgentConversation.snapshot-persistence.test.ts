@@ -142,7 +142,8 @@ describe("agent conversation controller: snapshot-persistence", () => {
                 cacheReadTokens: 0,
                 cacheWriteTokens: 0,
                 totalTokens: 12_345
-              }
+              },
+              contextTokens: 11_000
             }
           ]
         }
@@ -167,6 +168,7 @@ describe("agent conversation controller: snapshot-persistence", () => {
       cacheWriteTokens: 0,
       totalTokens: 12_345
     });
+    expect(controller.messages.value[0]?.contextTokens).toBe(11_000);
     controller.dispose();
   });
 

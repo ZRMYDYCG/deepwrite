@@ -8,6 +8,7 @@ import { rememberBounded } from "./shared";
 import { isAgentEvent, isSubagentEvent } from "./event-kinds";
 import { applyContextCompactionEvent } from "./context-compaction";
 import { uiMessage } from "../../ui-feedback";
+import { contextTokensFromUsage } from "../../utils/contextWindowUsage";
 
 const t = createScopedTranslator("workspace.events");
 
@@ -176,6 +177,12 @@ export function handleEvent(
         event.id,
         event.timestamp
       );
+      if (
+        event.payload.phase === "completed" &&
+        event.payload.tokensAfter !== undefined
+      ) {
+        message.contextTokens = event.payload.tokensAfter;
+      }
     }
     if (event.payload.phase === "failed") {
       uiMessage.warning(
@@ -193,6 +200,27 @@ export function handleEvent(
   ) {
     if (!ctx.acceptsRetryActivity(runId, event.timestamp)) return;
     ctx.queueAgentTextDelta(event);
+    return;
+  }
+  if (event.type === "agent.usage_observed") {
+    if (
+      event.payload.status !== "completed" ||
+      !event.payload.hadToolCall ||
+      event.payload.parentToolCallId ||
+      event.payload.subagentRunId
+    ) {
+      return;
+    }
+    if (!ctx.acceptsRetryActivity(runId, event.timestamp)) return;
+    const message = ctx.ensureAssistantMessage(
+      runId,
+      event.payload.messageId,
+      event.payload.runtime,
+      event.timestamp
+    );
+    if (message) {
+      message.contextTokens = contextTokensFromUsage(event.payload.usage) ?? 0;
+    }
     return;
   }
   if (
@@ -215,16 +243,36 @@ export function handleEvent(
       return;
     }
     message.content = event.payload.content;
+    const steps = (message.processingSteps ??= []);
+    // afterRun compaction is emitted before message_completed, although the
+    // final model output happened first. Keep that output before its marker.
+    let insertAt = steps.length;
+    while (insertAt > 0) {
+      const step = steps[insertAt - 1];
+      if (
+        step?.type !== "compaction" ||
+        !message.contextCompactions?.some(
+          (item) => item.id === step.compactionId && item.reason === "idle"
+        )
+      ) {
+        break;
+      }
+      insertAt -= 1;
+    }
+    const outputAt = steps[insertAt]?.createdAt ?? event.timestamp;
     if (event.payload.thinking?.trim() && !message.thinking) {
       message.thinking = event.payload.thinking;
-      (message.processingSteps ??= []).push({
+      const thinkingAt =
+        steps[insertAt - 1]?.type === "response" ? insertAt - 1 : insertAt;
+      steps.splice(thinkingAt, 0, {
         id: `${event.id}_thinking`,
         type: "thinking",
         content: event.payload.thinking,
-        createdAt: event.timestamp
+        createdAt: outputAt
       });
+      insertAt += 1;
     }
-    const lastStep = message.processingSteps?.at(-1);
+    const lastStep = steps[insertAt - 1];
     if (event.payload.content) {
       if (lastStep?.type === "response") {
         // The terminal payload contains the final assistant turn only. Earlier
@@ -232,11 +280,11 @@ export function handleEvent(
         // separate chronological steps and replace only the final turn.
         lastStep.content = event.payload.content;
       } else {
-        (message.processingSteps ??= []).push({
+        steps.splice(insertAt, 0, {
           id: `${event.id}_response`,
           type: "response",
           content: event.payload.content,
-          createdAt: event.timestamp
+          createdAt: outputAt
         });
       }
     }
@@ -259,6 +307,7 @@ export function handleEvent(
     message.runtime = event.payload.runtime;
     if (event.payload.usage !== undefined) {
       message.usage = event.payload.usage;
+      message.contextTokens = contextTokensFromUsage(event.payload.usage) ?? 0;
     }
     ctx.finishRun(runId);
     return;

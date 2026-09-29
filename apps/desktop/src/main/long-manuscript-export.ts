@@ -84,11 +84,49 @@ export async function writeLongManuscriptExport(
   return { directoryPath, fileCount: input.files.length };
 }
 
+export function combinedLongManuscriptText(
+  rawInput: ExportLongManuscriptInput
+): string {
+  const input = ExportLongManuscriptInputSchema.parse(rawInput);
+  const parts = [input.title];
+  let section = "";
+  for (const file of input.files) {
+    const [nextSection = "", ...labels] = file.path;
+    if (nextSection !== section) {
+      section = nextSection;
+      parts.push(`【${section}】`);
+    }
+    parts.push(`〔${labels.join(" / ")}〕`);
+    if (file.content.trim()) parts.push(file.content.trimEnd());
+  }
+  return `\ufeff${parts.join("\n\n")}\n`;
+}
+
 export async function exportLongManuscript(
   window: BrowserWindow,
   rawInput: ExportLongManuscriptInput
 ): Promise<ExportLongManuscriptResult> {
   const input = ExportLongManuscriptInputSchema.parse(rawInput);
+  if (input.mode === "single-txt") {
+    const selection = await dialog.showSaveDialog(window, {
+      title: nativeText("saveLongExport"),
+      defaultPath: `${safeLongExportName(input.title, "长篇")}.txt`,
+      filters: [{ name: "TXT", extensions: ["txt"] }]
+    });
+    if (selection.canceled || !selection.filePath) {
+      return ExportLongManuscriptResultSchema.parse({ status: "cancelled" });
+    }
+    await writeFile(
+      selection.filePath,
+      combinedLongManuscriptText(input),
+      "utf8"
+    );
+    return ExportLongManuscriptResultSchema.parse({
+      status: "saved",
+      filePath: selection.filePath,
+      fileCount: 1
+    });
+  }
   const selection = await dialog.showOpenDialog(window, {
     title: nativeText("chooseLongExport"),
     buttonLabel: nativeText("exportHere"),

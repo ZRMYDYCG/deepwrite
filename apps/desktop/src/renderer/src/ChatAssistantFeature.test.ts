@@ -5,6 +5,7 @@ import historyActionsSource from "./features/chat-assistant/useChatAssistantHist
 import scrollSource from "./composables/useConversationScrollFollow.ts?raw";
 import messageListSource from "./components/ConversationMessageList.vue?raw";
 import processingTimelineSource from "./components/ConversationProcessingTimeline.vue?raw";
+import timelineBlocksSource from "./components/conversationTimelineBlocks.ts?raw";
 import sidebarSource from "./components/LeftSidebar.vue?raw";
 import { moreFeatures } from "./components/sidebarMoreFeatures";
 import asyncComponentsSource from "./components/lazyAppComponents.ts?raw";
@@ -89,12 +90,8 @@ describe("independent chat assistant feature", () => {
     expect(overlaySource).toContain("<ConversationMessageList");
     expect(overlaySource).not.toContain("ChatAssistantProcessingTrace");
     expect(messageListSource).toContain("<ConversationMessageItem");
-    expect(processingTimelineSource).toContain(
-      "processingDisplayItems(message, true, longProposalItems)"
-    );
-    expect(processingTimelineSource).toContain(
-      "processingDisplayItems(message)"
-    );
+    expect(processingTimelineSource).toContain("conversationTimelineBlocks(");
+    expect(timelineBlocksSource).toContain("processingDisplayItems(");
     expect(processingTimelineSource).toContain("<ConversationWorkGroup");
   });
 

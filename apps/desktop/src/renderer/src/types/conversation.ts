@@ -289,6 +289,12 @@ export type AgentProcessingStep =
       type: "tool";
       toolCallId: string;
       createdAt: string;
+    }
+  | {
+      id: string;
+      type: "compaction";
+      compactionId: string;
+      createdAt: string;
     };
 
 /** One context compaction observed during an assistant run. */
@@ -303,6 +309,7 @@ export interface ChatContextCompaction {
   checkpoint?: ConversationCheckpoint;
   errorMessage?: string;
   createdAt: string;
+  completedAt?: string;
 }
 
 export interface ChatMessage {
@@ -322,6 +329,8 @@ export interface ChatMessage {
   errorMessage?: string;
   runtime?: AgentRuntimeRef;
   usage?: AgentUsage;
+  /** Latest context measurement in event order, including compaction. */
+  contextTokens?: number;
   tools?: ChatToolActivity[];
   subagentRuns?: AgentSubagentRun[];
   editProposals?: AgentEditProposal[];

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { createScopedTranslator } from "../i18n";
-import { computed } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import type {
   AgentActivityItem,
   AgentActivityStatus
@@ -10,11 +10,31 @@ const t = createScopedTranslator("components.agentActivityFloatPanel");
 
 const props = defineProps<{
   items: readonly AgentActivityItem[];
+  toggleButton: HTMLButtonElement | undefined;
 }>();
 
 const emit = defineEmits<{
   select: [conversationKey: string];
+  dismiss: [];
 }>();
+
+const panel = ref<HTMLElement>();
+
+function handleDocumentPointerDown(event: PointerEvent): void {
+  const target = event.target;
+  if (!(target instanceof Node)) return;
+  if (panel.value?.contains(target) || props.toggleButton?.contains(target))
+    return;
+  emit("dismiss");
+}
+
+onMounted(() => {
+  document.addEventListener("pointerdown", handleDocumentPointerDown);
+});
+
+onBeforeUnmount(() => {
+  document.removeEventListener("pointerdown", handleDocumentPointerDown);
+});
 
 const runningCount = computed(
   () => props.items.filter(({ status }) => status === "running").length
@@ -38,6 +58,7 @@ const statusLabels: Record<AgentActivityStatus, string> = {
 
 <template>
   <section
+    ref="panel"
     class="agent-activity-panel"
     :aria-label="t('agentActivityList')"
     aria-live="polite"

@@ -563,6 +563,7 @@ export default {
   },
   longManuscriptExportFlow: {
     exportedAsTxtFiles: "Exported “{title}” as {fileCount} TXT files.",
+    exportedAsSingleTxtFile: "Exported “{title}” as one TXT file.",
     couldNotExportTheLongFormProject: "Could not export the long-form project."
   },
   longStructureDeleteConfirmation: {

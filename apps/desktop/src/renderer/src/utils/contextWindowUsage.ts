@@ -53,6 +53,10 @@ export function latestModelContextTokens(
       continue;
     }
 
+    if (message.contextTokens !== undefined) {
+      return message.contextTokens > 0 ? message.contextTokens : undefined;
+    }
+
     const compaction = [...(message.contextCompactions ?? [])]
       .reverse()
       .find(

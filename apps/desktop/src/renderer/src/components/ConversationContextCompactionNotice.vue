@@ -2,8 +2,8 @@
 import { createScopedTranslator } from "../i18n";
 import { computed } from "vue";
 import type { ChatContextCompaction } from "../types/conversation";
-import { formatContextTokens } from "../utils/contextWindowUsage";
 import ConversationDetails from "./ConversationDetails.vue";
+import { visibleCompaction } from "./conversationCompactionPresentation";
 
 const t = createScopedTranslator(
   "components.conversationContextCompactionNotice"
@@ -11,54 +11,19 @@ const t = createScopedTranslator(
 
 const props = defineProps<{ compactions: readonly ChatContextCompaction[] }>();
 
-const REASON_LABELS: Record<ChatContextCompaction["reason"], string> = {
-  get threshold() {
-    return t("contextIsApproachingTheWorkingBudget");
-  },
-  get overflow() {
-    return t("theModelReportedExcessiveContextLength");
-  },
-  get manual() {
-    return t("manualCompaction");
-  },
-  get idle() {
-    return t("prepareContextForTheNextTurn");
-  },
-  get run_limit() {
-    return t("thisTurnHasBecomeTooLong");
-  }
-};
-
-/** Prune-only passes that changed nothing are not worth a divider. */
-const visible = computed(() =>
-  props.compactions.filter(
-    (item) =>
-      item.status !== "failed" &&
-      (item.status !== "completed" ||
-        item.level === "summary" ||
-        (item.tokensBefore ?? 0) > (item.tokensAfter ?? 0))
-  )
-);
-
-function tokens(item: ChatContextCompaction): string {
-  if (item.tokensBefore === undefined || item.tokensAfter === undefined) {
-    return "";
-  }
-  return t("aboutValueValueTokens", {
-    arg0: formatContextTokens(item.tokensBefore),
-    arg1: formatContextTokens(item.tokensAfter)
-  });
-}
+const visible = computed(() => props.compactions.filter(visibleCompaction));
 
 function title(item: ChatContextCompaction): string {
-  if (item.status === "running") return t("summarizingEarlierMessages");
-  if (item.status === "failed")
-    return t("contextCompactionDidNotFinishUsingFullContextFor");
-  if (item.level === "summary")
-    return t("earlierMessagesHaveBeenSummarizedIntoACheckpoint");
-  if (item.reason === "manual")
-    return t("conversationIsShortOldToolResultsWereTrimmed");
-  return t("oldReadResultsAndWorkspaceSnapshotsWereTrimmed");
+  if (item.reason === "manual") {
+    if (item.status === "running") return t("manualCompactionInProgress");
+    return item.level === "summary" || item.checkpoint
+      ? t("manualCompactionCompletedWithSummary")
+      : t("manualCompactionCompleted");
+  }
+  if (item.status === "running") return t("automaticCompactionInProgress");
+  if (item.level === "summary" || item.checkpoint)
+    return t("automaticCompactionCompletedWithSummary");
+  return t("automaticCompactionCompleted");
 }
 </script>
 
@@ -80,11 +45,7 @@ function title(item: ChatContextCompaction): string {
       >
         <template #summary>
           <span class="context-compaction-title">{{ title(item) }}</span>
-          <span class="context-compaction-meta">
-            {{ REASON_LABELS[item.reason] }}
-            <template v-if="tokens(item)"> · {{ tokens(item) }}</template>
-            {{ t("viewSummary") }}
-          </span>
+          <span class="context-compaction-meta">{{ t("viewSummary") }}</span>
         </template>
         <pre class="context-compaction-summary">{{
           item.checkpoint.summary
@@ -92,13 +53,6 @@ function title(item: ChatContextCompaction): string {
       </ConversationDetails>
       <p v-else class="context-compaction-line">
         <span class="context-compaction-title">{{ title(item) }}</span>
-        <span class="context-compaction-meta">
-          {{ REASON_LABELS[item.reason] }}
-          <template v-if="tokens(item)"> · {{ tokens(item) }}</template>
-          <template v-if="item.errorMessage">
-            · {{ item.errorMessage }}</template
-          >
-        </span>
       </p>
     </div>
   </div>

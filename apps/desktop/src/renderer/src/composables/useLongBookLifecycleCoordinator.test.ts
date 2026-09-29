@@ -611,6 +611,7 @@ describe("useLongBookLifecycleCoordinator", () => {
     );
 
     await test.coordinator.exportLongBookManuscript({
+      mode: "single-txt",
       sections: ["manuscript"],
       manuscriptChapterCardIds: ["chapter_first"]
     });
@@ -620,6 +621,9 @@ describe("useLongBookLifecycleCoordinator", () => {
         sections: ["manuscript"],
         manuscriptChapterCardIds: ["chapter_first"]
       })
+    );
+    expect(test.manuscript.exportLong).toHaveBeenCalledWith(
+      expect.objectContaining({ mode: "single-txt" })
     );
   });
 

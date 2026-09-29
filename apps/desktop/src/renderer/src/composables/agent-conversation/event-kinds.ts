@@ -11,6 +11,7 @@ export function isAgentEvent(event: SystemEventEnvelope): event is Extract<
       | "agent.message_delta"
       | "agent.thinking_delta"
       | "agent.message_completed"
+      | "agent.usage_observed"
       | "agent.user_input_requested"
       | "agent.error"
       | "tool.call_stream"
@@ -29,6 +30,7 @@ export function isAgentEvent(event: SystemEventEnvelope): event is Extract<
     event.type === "agent.message_delta" ||
     event.type === "agent.thinking_delta" ||
     event.type === "agent.message_completed" ||
+    event.type === "agent.usage_observed" ||
     event.type === "agent.user_input_requested" ||
     event.type === "agent.error" ||
     event.type === "tool.call_stream" ||

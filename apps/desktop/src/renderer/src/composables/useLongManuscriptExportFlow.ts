@@ -128,20 +128,23 @@ export function createLongManuscriptExportFlow(
         ) {
           return;
         }
-        const exportInput = await (
-          manuscript.createInput ?? createLongManuscriptExportInput
-        )({
-          api,
-          bookId: target.bookId,
-          title: target.title,
-          workspace: snapshot.workspaceIndex,
-          sections: request.sections,
-          ...(request.sections.includes("manuscript")
-            ? {
-                manuscriptChapterCardIds: request.manuscriptChapterCardIds
-              }
-            : {})
-        });
+        const exportInput = {
+          ...(await (manuscript.createInput ?? createLongManuscriptExportInput)(
+            {
+              api,
+              bookId: target.bookId,
+              title: target.title,
+              workspace: snapshot.workspaceIndex,
+              sections: request.sections,
+              ...(request.sections.includes("manuscript")
+                ? {
+                    manuscriptChapterCardIds: request.manuscriptChapterCardIds
+                  }
+                : {})
+            }
+          )),
+          mode: request.mode ?? "folder"
+        };
         if (
           !context.leaseIsCurrent(exportLease) ||
           !context.targetIsCurrent(state.exportTarget, target, requestId)
@@ -155,10 +158,12 @@ export function createLongManuscriptExportFlow(
         if (context.targetIsCurrent(state.exportTarget, target, requestId)) {
           clearExportSelection(state);
           uiMessage.success(
-            t("exportedAsTxtFiles", {
-              title: target.title,
-              fileCount: result.fileCount
-            })
+            request.mode === "single-txt"
+              ? t("exportedAsSingleTxtFile", { title: target.title })
+              : t("exportedAsTxtFiles", {
+                  title: target.title,
+                  fileCount: result.fileCount
+                })
           );
         }
       } catch (error: unknown) {

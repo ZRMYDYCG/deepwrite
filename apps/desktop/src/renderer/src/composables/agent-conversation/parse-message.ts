@@ -41,6 +41,9 @@ export function parseStoredMessage(value: unknown): ChatMessage | undefined {
   const usage = parseStoredUsage(value.usage);
   if (runtime) message.runtime = runtime;
   if (usage) message.usage = usage;
+  if (nonnegativeInteger(value.contextTokens)) {
+    message.contextTokens = value.contextTokens;
+  }
 
   if (Array.isArray(value.attachments)) {
     message.attachments = value.attachments.flatMap((attachment) => {
@@ -154,6 +157,15 @@ export function parseStoredMessage(value: unknown): ChatMessage | undefined {
           id: step.id,
           type: "tool",
           toolCallId: step.toolCallId,
+          createdAt: step.createdAt
+        });
+        continue;
+      }
+      if (step.type === "compaction" && typeof step.compactionId === "string") {
+        processingSteps.push({
+          id: step.id,
+          type: "compaction",
+          compactionId: step.compactionId,
           createdAt: step.createdAt
         });
       }

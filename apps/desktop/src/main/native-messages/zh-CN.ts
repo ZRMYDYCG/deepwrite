@@ -27,6 +27,7 @@ export default {
   exportConversation: "导出当前对话（含未保存内容）",
   conversationFile: "JSON 对话文件",
   chooseLongExport: "选择长篇导出位置",
+  saveLongExport: "保存长篇 TXT 文件",
   agentTeamArchive: "DeepWrite 智能体团队压缩包",
   installAgentTeam: "安装智能体团队",
   exportDocx: "导出正文为 DOCX",

@@ -12,6 +12,107 @@ import {
 } from "./useAgentConversation.test-support";
 
 describe("agent conversation controller: streaming-and-tools", () => {
+  it("updates context after each model tool turn before the run completes", async () => {
+    const deferred = createDeferredApi();
+    const controller = useAgentConversation({
+      api: () => deferred.api,
+      idleTimeoutMs: 10_000
+    });
+    controller.draft.value = "读取资料后续写";
+    const sessionId = controller.sessionId.value;
+    const runId = "run_context_progress";
+    const messageId = "message_context_progress";
+    const sending = controller.sendMessage(document);
+    deferred.resolveAccepted(0, {
+      sessionId,
+      runId,
+      acceptedAt: new Date().toISOString(),
+      runtime
+    });
+    await sending;
+
+    const observedUsage = (turn: number, totalTokens: number) =>
+      createEnvelope(
+        "agent.usage_observed",
+        {
+          sessionId,
+          runId,
+          messageId,
+          runtime,
+          observationId: `${runId}:turn:${turn}:attempt:1`,
+          observedAt: new Date().toISOString(),
+          turnId: `${runId}:turn:${turn}`,
+          attempt: 1,
+          status: "completed" as const,
+          hadToolCall: true,
+          usage: {
+            inputTokens: totalTokens,
+            outputTokens: 0,
+            cacheReadTokens: 0,
+            cacheWriteTokens: 0,
+            totalTokens
+          }
+        },
+        eventOptions(sessionId, runId, `evt_context_${turn}`)
+      );
+
+    controller.handleEvent(observedUsage(1, 120));
+    expect(controller.messages.value.at(-1)).toMatchObject({
+      status: "streaming",
+      contextTokens: 120
+    });
+
+    controller.handleEvent(
+      createEnvelope(
+        "agent.context_compaction",
+        {
+          sessionId,
+          runId,
+          messageId,
+          runtime,
+          phase: "completed" as const,
+          reason: "threshold" as const,
+          tokensAfter: 80
+        },
+        eventOptions(sessionId, runId, "evt_context_compaction")
+      )
+    );
+    expect(controller.messages.value.at(-1)?.contextTokens).toBe(80);
+
+    controller.handleEvent(observedUsage(2, 150));
+    expect(controller.messages.value.at(-1)).toMatchObject({
+      status: "streaming",
+      contextTokens: 150
+    });
+
+    controller.handleEvent(
+      createEnvelope(
+        "agent.message_completed",
+        {
+          sessionId,
+          runId,
+          messageId,
+          role: "assistant" as const,
+          content: "续写完成",
+          runtime,
+          usage: {
+            inputTokens: 170,
+            outputTokens: 0,
+            cacheReadTokens: 0,
+            cacheWriteTokens: 0,
+            totalTokens: 170
+          }
+        },
+        eventOptions(sessionId, runId, "evt_context_completed")
+      )
+    );
+    expect(controller.messages.value.at(-1)).toMatchObject({
+      status: "completed",
+      contextTokens: 170
+    });
+    controller.dispose();
+  });
+
   it("accepts events before prompt accepted and prevents duplicate sends", async () => {
     const deferred = createDeferredApi();
     const controller = useAgentConversation({

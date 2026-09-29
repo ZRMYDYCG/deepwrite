@@ -111,9 +111,15 @@ const agentActivityItems = computed(() => agentActivity?.items.value ?? []);
 const agentActivityCollapsed = computed(
   () => agentActivity?.collapsed.value ?? false
 );
+const agentActivityToggle = ref<HTMLButtonElement>();
 
 function selectAgentActivity(conversationKey: string): void {
   void agentActivity?.selectActivity(conversationKey);
+}
+
+function collapseAgentActivity(): void {
+  if (agentActivity && !agentActivity.collapsed.value)
+    agentActivity.toggleCollapsed();
 }
 
 const emit = defineEmits<{
@@ -249,6 +255,7 @@ const {
         </button>
         <button
           v-if="agentActivity"
+          ref="agentActivityToggle"
           class="icon-button agent-activity-toggle"
           :class="{ 'is-collapsed': agentActivityCollapsed }"
           type="button"
@@ -332,7 +339,9 @@ const {
           v-if="agentActivity && !agentActivityCollapsed"
           id="agent-activity-panel"
           :items="agentActivityItems"
+          :toggle-button="agentActivityToggle"
           @select="selectAgentActivity"
+          @dismiss="collapseAgentActivity"
         />
         <ConversationMessageList
           :messages="messages"

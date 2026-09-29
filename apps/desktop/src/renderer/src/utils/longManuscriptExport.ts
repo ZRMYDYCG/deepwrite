@@ -2,6 +2,7 @@ import type {
   DeepWriteApi,
   ExportLongManuscriptInput,
   LongManuscriptExportFile,
+  LongManuscriptExportMode,
   LongManuscriptExportSection,
   LongWorkspaceFileReference,
   LongWorkspaceIndexSnapshot
@@ -18,6 +19,7 @@ const CHARACTER_FILE_LABELS = {
 } as const;
 
 export interface LongManuscriptExportRequest {
+  readonly mode?: LongManuscriptExportMode;
   readonly sections: readonly LongManuscriptExportSection[];
   readonly manuscriptChapterCardIds: readonly string[];
 }

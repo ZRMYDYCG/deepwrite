@@ -388,6 +388,14 @@ function handleUtilityEvent(
       activeRuns,
       pendingUsageContexts
     );
+    if (
+      validated.payload.status === "completed" &&
+      validated.payload.hadToolCall &&
+      !validated.payload.parentToolCallId &&
+      !validated.payload.subagentRunId
+    ) {
+      broadcastEvent(validated);
+    }
     return;
   }
   if (isAgentEvent(validated)) {

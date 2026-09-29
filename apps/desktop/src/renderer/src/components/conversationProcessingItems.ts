@@ -1,14 +1,22 @@
 import type {
   AgentSubagentRun,
   AgentToolTrace,
+  ChatContextCompaction,
   ChatMessage
 } from "../types/conversation";
+import { visibleCompaction } from "./conversationCompactionPresentation";
 
 export type ProcessingItem =
   | { id: string; type: "thinking"; content: string; createdAt: string }
   | { id: string; type: "response"; content: string; createdAt: string }
   | { id: string; type: "tool"; tool: AgentToolTrace; createdAt: string }
-  | { id: string; type: "subagent"; run: AgentSubagentRun; createdAt: string };
+  | { id: string; type: "subagent"; run: AgentSubagentRun; createdAt: string }
+  | {
+      id: string;
+      type: "compaction";
+      compaction: ChatContextCompaction;
+      createdAt: string;
+    };
 
 function subagentItem(
   run: AgentSubagentRun,
@@ -22,6 +30,13 @@ function subagentItem(
   };
 }
 
+function lastResponseIndex(items: readonly ProcessingItem[]): number {
+  for (let index = items.length - 1; index >= 0; index -= 1) {
+    if (items[index]?.type === "response") return index;
+  }
+  return -1;
+}
+
 export function processingItems(message: ChatMessage): ProcessingItem[] {
   const items: ProcessingItem[] = [];
   const runs = new Map(
@@ -29,6 +44,12 @@ export function processingItems(message: ChatMessage): ProcessingItem[] {
   );
   const placedRuns = new Set<string>();
   const tools = new Map(message.toolCalls?.map((tool) => [tool.id, tool]));
+  const compactions = new Map(
+    message.contextCompactions
+      ?.filter(visibleCompaction)
+      .map((item) => [item.id, item])
+  );
+  const placedCompactions = new Set<string>();
 
   function appendTool(toolCallId: string, id: string, createdAt: string): void {
     const run = runs.get(toolCallId);
@@ -44,26 +65,21 @@ export function processingItems(message: ChatMessage): ProcessingItem[] {
   }
 
   if (message.processingSteps?.length) {
-    let lastResponseIndex = -1;
-    for (
-      let index = message.processingSteps.length - 1;
-      index >= 0;
-      index -= 1
-    ) {
-      if (message.processingSteps[index]?.type === "response") {
-        lastResponseIndex = index;
-        break;
-      }
-    }
-    for (const [index, step] of message.processingSteps.entries()) {
+    for (const step of message.processingSteps) {
       if (step.type === "tool") {
         appendTool(step.toolCallId, step.id, step.createdAt);
-      } else if (
-        step.type === "thinking" ||
-        message.status === "streaming" ||
-        index !== lastResponseIndex
-      ) {
-        // Only the final response leaves the timeline when the parent run ends.
+      } else if (step.type === "compaction") {
+        const compaction = compactions.get(step.compactionId);
+        if (compaction && !placedCompactions.has(compaction.id)) {
+          items.push({
+            id: step.id,
+            type: "compaction",
+            compaction,
+            createdAt: step.createdAt
+          });
+          placedCompactions.add(compaction.id);
+        }
+      } else {
         items.push({ ...step });
       }
     }
@@ -95,6 +111,44 @@ export function processingItems(message: ChatMessage): ProcessingItem[] {
       0,
       subagentItem(run, createdAt)
     );
+  }
+  // Histories saved before compaction markers existed use event time, except
+  // that an idle compaction always followed the final model response.
+  for (const compaction of compactions.values()) {
+    if (placedCompactions.has(compaction.id)) continue;
+    const laterIndex = items.findIndex(
+      (item) => item.createdAt.localeCompare(compaction.createdAt) > 0
+    );
+    let insertAt = laterIndex < 0 ? items.length : laterIndex;
+    if (compaction.reason === "idle") {
+      const responseIndex = lastResponseIndex(items);
+      if (responseIndex >= 0) insertAt = responseIndex + 1;
+      else if (message.content && message.status !== "streaming") {
+        items.splice(insertAt, 0, {
+          id: `${message.id}_final_response`,
+          type: "response",
+          content: message.content,
+          createdAt: compaction.createdAt
+        });
+        insertAt += 1;
+      }
+    }
+    items.splice(insertAt, 0, {
+      id: `compaction:${compaction.id}`,
+      type: "compaction",
+      compaction,
+      createdAt: compaction.createdAt
+    });
+  }
+  if (message.status !== "streaming") {
+    const lastResponse = lastResponseIndex(items);
+    if (
+      lastResponse >= 0 &&
+      !items.slice(lastResponse + 1).some((item) => item.type === "compaction")
+    ) {
+      // The final response is displayed as the assistant's ordinary body.
+      items.splice(lastResponse, 1);
+    }
   }
   return items;
 }

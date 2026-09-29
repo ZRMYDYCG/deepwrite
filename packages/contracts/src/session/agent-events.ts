@@ -96,9 +96,10 @@ export type AgentUsageObservationStatus = z.infer<
 
 /**
  * One provider-returned assistant message, including intermediate tool-call
- * turns and retry attempts. This is an internal accounting event: consumers
- * must not derive usage from `agent.message_completed` or `subagent.completed`,
- * because those UI lifecycle events deliberately omit intermediate turns.
+ * turns and retry attempts. Main records every observation for accounting and
+ * forwards successful main-agent tool turns for live context display. Consumers
+ * must not derive aggregate usage from `agent.message_completed` or
+ * `subagent.completed`, because those lifecycle events omit intermediate turns.
  */
 export const AgentUsageObservedPayloadSchema = AgentEventIdentitySchema.extend({
   /** Stable retry-safe id for local at-least-once persistence. */

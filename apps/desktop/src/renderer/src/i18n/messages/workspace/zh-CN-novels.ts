@@ -515,6 +515,7 @@ export default {
   },
   longManuscriptExportFlow: {
     exportedAsTxtFiles: "已导出“{title}”，共生成 {fileCount} 个 TXT 文件",
+    exportedAsSingleTxtFile: "已将“{title}”导出为一个 TXT 文件",
     couldNotExportTheLongFormProject: "导出长篇失败。"
   },
   longStructureDeleteConfirmation: {

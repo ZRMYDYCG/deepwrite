@@ -80,14 +80,12 @@ onMounted(() => {
     :title="t('revisionAnalysis.revisionAnalysis')"
     :description="t('revisionAnalysis.revisionDescription')"
   >
-    <template #header-actions>
-      <AnalysisModelSettings
-        v-model:model-id="c.selectedModelId.value"
-        v-model:thinking-level="c.selectedThinkingLevel.value"
-        :models="models"
-        :disabled="c.disabled.value"
-      />
-    </template>
+    <AnalysisModelSettings
+      v-model:model-id="c.selectedModelId.value"
+      v-model:thinking-level="c.selectedThinkingLevel.value"
+      :models="models"
+      :disabled="c.disabled.value"
+    />
     <details
       class="analysis-card analysis-materials revision-materials"
       :open="materialsOpen"

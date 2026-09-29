@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { createScopedTranslator } from "../i18n";
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
-import type { LongManuscriptExportSection } from "@deepwrite/contracts";
+import type {
+  LongManuscriptExportMode,
+  LongManuscriptExportSection
+} from "@deepwrite/contracts";
 import type { IconName } from "../types/workspace";
 import type { LongManuscriptExportRequest } from "../utils/longManuscriptExport";
 import {
@@ -77,6 +80,7 @@ const options: ReadonlyArray<{
 const selected = ref<LongManuscriptExportSection[]>(
   options.map(({ id }) => id)
 );
+const mode = ref<LongManuscriptExportMode>("folder");
 const chapters = ref<LongManuscriptExportChapterOption[]>([]);
 const chaptersLoading = ref(false);
 const selectedChapterIds = ref<string[]>([]);
@@ -120,6 +124,7 @@ watch(
   () => [props.open, props.bookId] as const,
   ([open]) => {
     if (!open) return;
+    mode.value = "folder";
     selected.value = options.map(({ id }) => id);
     selectedChapterIds.value = [];
     void loadChapters();
@@ -134,6 +139,7 @@ function requestClose(): void {
 function submit(): void {
   if (!canSubmit.value) return;
   emit("export", {
+    mode: mode.value,
     sections: [...selected.value],
     manuscriptChapterCardIds: manuscriptSelected.value
       ? [...selectedChapterIds.value]
@@ -181,11 +187,47 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
           @submit.prevent="submit"
         >
           <div class="export-long-notice" role="note">
-            <AppIcon name="folder" :size="18" />
+            <AppIcon :name="mode === 'folder' ? 'folder' : 'file'" :size="18" />
             <p>
-              {{ t("selectedContentExportsToOneFolderAsTXTFiles") }}
+              {{
+                mode === "folder"
+                  ? t("selectedContentExportsToOneFolderAsTXTFiles")
+                  : t("selectedContentExportsToOneTXTFile")
+              }}
             </p>
           </div>
+
+          <fieldset class="export-long-options">
+            <legend>{{ t("exportMode") }}</legend>
+            <div class="export-long-mode-grid">
+              <label
+                v-for="choice in ['folder', 'single-txt'] as const"
+                :key="choice"
+                class="export-long-mode"
+                :class="{ 'is-selected': mode === choice }"
+              >
+                <input
+                  v-model="mode"
+                  type="radio"
+                  name="long-export-mode"
+                  :value="choice"
+                  :disabled="submitting"
+                />
+                <span>
+                  <strong>{{
+                    t(choice === "folder" ? "folderMode" : "singleTxtMode")
+                  }}</strong>
+                  <small>{{
+                    t(
+                      choice === "folder"
+                        ? "folderModeDescription"
+                        : "singleTxtModeDescription"
+                    )
+                  }}</small>
+                </span>
+              </label>
+            </div>
+          </fieldset>
 
           <fieldset class="export-long-options">
             <legend>
@@ -209,7 +251,11 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
                 /></span>
                 <span class="export-long-copy"
                   ><strong>{{ option.label }}</strong
-                  ><small>{{ option.description }}</small></span
+                  ><small>{{
+                    option.id === "manuscript" && mode === "single-txt"
+                      ? t("selectedChaptersMergeIntoOneTxt")
+                      : option.description
+                  }}</small></span
                 >
                 <span class="export-long-check" aria-hidden="true">✓</span>
               </label>
@@ -242,7 +288,11 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
               {{
                 submitting
                   ? t("preparingAndExporting")
-                  : t("selectExportLocation")
+                  : t(
+                      mode === "folder"
+                        ? "selectExportLocation"
+                        : "selectExportFile"
+                    )
               }}
             </button>
           </div>
@@ -286,6 +336,46 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
   color: var(--text-primary);
   font-size: 0.785714rem;
   font-weight: 620;
+}
+.export-long-mode-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+.export-long-mode {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--theme-line);
+  border-radius: 9px;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.export-long-mode.is-selected {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 7%, var(--surface-raised));
+}
+.export-long-mode:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.export-long-mode input {
+  margin: 0;
+  accent-color: var(--accent);
+}
+.export-long-mode span {
+  display: grid;
+  gap: 3px;
+}
+.export-long-mode strong {
+  font-size: 0.785714rem;
+}
+.export-long-mode small {
+  color: var(--text-tertiary);
+  font-size: 0.678571rem;
 }
 .export-long-grid {
   display: grid;
@@ -367,6 +457,7 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
   padding-top: 2px;
 }
 @media (max-width: 580px) {
+  .export-long-mode-grid,
   .export-long-grid {
     grid-template-columns: 1fr;
   }

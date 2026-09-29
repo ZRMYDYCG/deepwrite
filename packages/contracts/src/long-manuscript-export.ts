@@ -14,6 +14,11 @@ export type LongManuscriptExportSection = z.infer<
   typeof LongManuscriptExportSectionSchema
 >;
 
+export const LongManuscriptExportModeSchema = z.enum(["folder", "single-txt"]);
+export type LongManuscriptExportMode = z.infer<
+  typeof LongManuscriptExportModeSchema
+>;
+
 export const LongManuscriptExportFileSchema = z
   .object({
     path: z.array(z.string().trim().min(1).max(256)).min(2).max(8),
@@ -29,6 +34,7 @@ export const LONG_MANUSCRIPT_EXPORT_MAX_CHARACTERS = 256 * 1024 * 1024;
 export const ExportLongManuscriptInputSchema = z
   .object({
     title: z.string().trim().min(1).max(256),
+    mode: LongManuscriptExportModeSchema.optional(),
     sections: z.array(LongManuscriptExportSectionSchema).min(1).max(4),
     files: z.array(LongManuscriptExportFileSchema).max(500_000)
   })
@@ -58,12 +64,17 @@ export type ExportLongManuscriptInput = z.infer<
   typeof ExportLongManuscriptInputSchema
 >;
 
-export const ExportLongManuscriptResultSchema = z.discriminatedUnion("status", [
+export const ExportLongManuscriptResultSchema = z.union([
   z.object({ status: z.literal("cancelled") }),
   z.object({
     status: z.literal("saved"),
     directoryPath: z.string().min(1),
     fileCount: z.number().int().nonnegative()
+  }),
+  z.object({
+    status: z.literal("saved"),
+    filePath: z.string().min(1),
+    fileCount: z.literal(1)
   })
 ]);
 export type ExportLongManuscriptResult = z.infer<
