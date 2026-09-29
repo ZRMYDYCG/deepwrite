@@ -1,7 +1,10 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import type { AgentEditProposal } from "../types/conversation";
 import AppIcon from "./AppIcon.vue";
 import ConversationDetails from "./ConversationDetails.vue";
+
+const t = createScopedTranslator("components.agentEditProposalDiff");
 defineProps<{ proposal: AgentEditProposal }>();
 
 function diffLineMark(type: "context" | "addition" | "deletion"): string {
@@ -18,8 +21,12 @@ function diffLineMark(type: "context" | "addition" | "deletion"): string {
     class="edit-proposal-diff"
   >
     <template #summary>
-      <span>查看差异</span>
-      <small>{{ proposal.hunks.length }} 个变更块</small>
+      <span>{{ t("viewChanges") }}</span>
+      <small>{{
+        t("changeBlocksMessage", {
+          arg0: proposal.hunks.length ?? ""
+        })
+      }}</small>
       <AppIcon name="chevron" :size="13" />
     </template>
     <div class="edit-diff-content">
@@ -53,9 +60,11 @@ function diffLineMark(type: "context" | "addition" | "deletion"): string {
         </div>
       </div>
       <p v-if="proposal.truncated" class="edit-diff-truncated">
-        差异较大，仅显示部分变更；行数统计包含完整提案。
+        {{ t("thisDiffIsLargeSoOnlySomeChangesAre") }}
       </p>
     </div>
   </ConversationDetails>
-  <p v-else class="edit-proposal-empty">没有可显示的行级差异。</p>
+  <p v-else class="edit-proposal-empty">
+    {{ t("noLineChangesToDisplay") }}
+  </p>
 </template>

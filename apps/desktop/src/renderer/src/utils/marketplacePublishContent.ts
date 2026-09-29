@@ -1,3 +1,4 @@
+import { createScopedTranslator } from "../i18n";
 import type {
   CatalogReadDocumentInput,
   CatalogReadDocumentResult,
@@ -6,6 +7,8 @@ import type {
   MarketplaceSkillStage,
   SkillLibrary
 } from "@deepwrite/contracts";
+
+const t = createScopedTranslator("workspace.marketplacePublishContent");
 
 export interface MarketplacePublishDocumentReader {
   readDocument(
@@ -126,14 +129,22 @@ export function formatMarketplacePublishEmptyContentMessage(
   titles: readonly string[]
 ): string {
   if (titles.length === 0) {
-    return "技能正文为空，无法发布。请确认本地技能已填写内容后再提交。";
+    return t("theSkillHasNoContentAndCannotBePublished");
   }
   if (titles.length === 1) {
-    return `技能「${titles[0]}」没有正文，无法发布。`;
+    return t("skillHasNoContentAndCannotBePublished", { value: titles[0]! });
   }
   const preview = titles.slice(0, 3).join("、");
-  const suffix = titles.length > 3 ? `等 ${titles.length} 条` : "";
-  return `技能「${preview}」${suffix}没有正文，无法发布。`;
+  const suffix =
+    titles.length > 3
+      ? t("andOthersInTotal", {
+          length: titles.length
+        })
+      : "";
+  return t("skillsHaveNoContentAndCannotBePublished", {
+    preview: preview,
+    suffix: suffix
+  });
 }
 
 export function formatMarketplaceContractError(message: string): string | null {
@@ -152,7 +163,7 @@ export function formatMarketplaceContractError(message: string): string | null {
     if (emptyContent) {
       return formatMarketplacePublishEmptyContentMessage([]);
     }
-    return "提交内容未通过校验，请检查标题和技能正文。";
+    return t("validationFailedCheckTheTitleAndSkillContent");
   } catch {
     return null;
   }

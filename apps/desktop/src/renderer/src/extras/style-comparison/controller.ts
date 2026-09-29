@@ -1,3 +1,6 @@
+import { formatError } from "../../i18n/errors";
+import { localizedMessage } from "../analysis-ui/localized-text";
+import { createScopedTranslator } from "../../i18n";
 import { computed, ref } from "vue";
 import { createId } from "@deepwrite/shared";
 import type {
@@ -19,7 +22,10 @@ import {
   type ExtrasAgentTaskHandle
 } from "../agent-runtime/extrasAgentTask";
 import type { createPromptProfile } from "../agent-runtime/promptProfile";
-import { styleComparisonPreview } from "./result";
+import { styleComparisonPreview, styleComparisonPublicOutput } from "./result";
+import { createStyleComparisonProcess } from "./process";
+
+const t = createScopedTranslator("extras.styleComparison");
 
 type Status =
   | "idle"
@@ -44,10 +50,11 @@ export function createStyleComparisonController(options: Options) {
   const thinkingLevel = ref<ThinkingLevel>("off");
   let thinkingModelId = "";
   const status = ref<Status>("idle");
-  const activity = ref("");
-  const output = ref("");
+  const process = createStyleComparisonProcess();
+  const { activity, output, error, entries } = process;
   const result = ref<StyleComparisonResult | null>(null);
   const lastInput = ref("");
+  const previousResult = ref(false);
   const resultModel = ref("");
   const isBusy = computed(() =>
     ["starting", "running", "stopping"].includes(status.value)
@@ -60,7 +67,10 @@ export function createStyleComparisonController(options: Options) {
       method: method.value.trim()
     });
   const isStale = computed(() =>
-    Boolean(lastInput.value && lastInput.value !== inputSnapshot())
+    Boolean(
+      result.value &&
+      (previousResult.value || lastInput.value !== inputSnapshot())
+    )
   );
   let task: ExtrasAgentTaskHandle | null = null;
   let stopRequested = false;
@@ -69,15 +79,27 @@ export function createStyleComparisonController(options: Options) {
 
   function fail(cause: unknown): void {
     status.value = "error";
-    activity.value = "比对未完成";
-    options.notifyError(
-      cause instanceof Error ? cause.message : "文风比对失败，请重试。"
+    activity.value = localizedMessage(
+      "extras.styleComparison.comparisonIncomplete"
     );
+    const message = () => formatError(cause, t("comparisonFailed"));
+    error.value = message;
+    process.record(
+      localizedMessage("extras.styleComparison.comparisonIncomplete"),
+      message,
+      "error"
+    );
+    options.notifyError(message());
   }
 
   function markStopped(): void {
     status.value = "stopped";
-    activity.value = "已停止比对";
+    activity.value = localizedMessage(
+      "extras.styleComparison.comparisonStopped"
+    );
+    process.record(
+      localizedMessage("extras.styleComparison.comparisonStopped")
+    );
   }
 
   function handleEvent(event: SystemEventEnvelope): void {
@@ -88,11 +110,11 @@ export function createStyleComparisonController(options: Options) {
     if (disposed || isBusy.value) return;
     const api = options.api();
     if (!api) {
-      options.notifyError("当前环境无法调用智能体。");
+      options.notifyError(t("agentUnavailable"));
       return;
     }
     if (!model || model.enabled === false) {
-      options.notifyError("请先配置并选择一个可用模型。");
+      options.notifyError(t("configureAvailableModel"));
       return;
     }
     syncThinkingModel(model);
@@ -104,9 +126,7 @@ export function createStyleComparisonController(options: Options) {
       !parsed.success ||
       method.value.length > STYLE_COMPARISON_METHOD_LIMIT
     ) {
-      options.notifyError(
-        "请填写两份文本，每份不超过 30,000 字，比对方法不超过 8,000 字。"
-      );
+      options.notifyError(t("comparisonInputLimits"));
       return;
     }
     const input = StyleComparisonRuntimeContextSchema.parse({
@@ -119,8 +139,8 @@ export function createStyleComparisonController(options: Options) {
           agentId: "style-comparison",
           profile: {
             id: "pending",
-            name: "文风比对",
-            description: "文风比对",
+            name: t("styleComparison"),
+            description: t("styleComparison"),
             systemPrompt: method.value.trim()
           },
           input
@@ -128,19 +148,14 @@ export function createStyleComparisonController(options: Options) {
         model
       );
     } catch (error) {
-      options.notifyError(
-        error instanceof Error ? error.message : "文风比对失败，请重试。"
-      );
+      options.notifyError(formatError(error, t("comparisonFailed")));
       return;
     }
     unsubscribe ??= api.events.subscribe(handleEvent);
     stopRequested = false;
     status.value = "starting";
-    activity.value = "正在连接比对智能体…";
-    output.value = "";
-    result.value = null;
-    lastInput.value = inputSnapshot();
-    resultModel.value = model.label;
+    process.reset(model.label);
+    previousResult.value = Boolean(result.value);
     let profile: StyleComparisonProfile;
     try {
       profile = (await options.method.ensureSaved()) as StyleComparisonProfile;
@@ -153,6 +168,7 @@ export function createStyleComparisonController(options: Options) {
       markStopped();
       return;
     }
+    const submittedInput = inputSnapshot();
     let submitted: StyleComparisonResult | undefined;
     const running = startExtrasAgentTask(
       api,
@@ -162,29 +178,27 @@ export function createStyleComparisonController(options: Options) {
         task: { agentId: "style-comparison", profileId: profile.id, input }
       },
       {
+        ...process.callbacks,
         onAccepted() {
           // Terminal events can arrive before the run acceptance.
           if (status.value === "starting") status.value = "running";
         },
         onTurnStarted(attempt) {
           status.value = "running";
-          output.value = "";
-          activity.value =
-            attempt > 1 ? "正在重新连接模型…" : "正在阅读两份文本…";
-        },
-        onRetryScheduled(delayMs) {
-          output.value = "";
-          activity.value = `连接暂时中断，${Math.ceil(delayMs / 1000)} 秒后重试…`;
-        },
-        onDelta(delta) {
-          output.value += delta;
-          activity.value = "正在整理关键发现与评分…";
-        },
-        onThinking() {
-          activity.value = "正在思考，分析两份文本的文风…";
+          submitted = undefined;
+          process.callbacks.onTurnStarted?.(attempt);
         },
         onOutput(next) {
-          if (next.kind === "style-comparison-result") submitted = next.result;
+          if (next.kind === "style-comparison-result") {
+            submitted = next.result;
+            process.record(
+              localizedMessage(
+                "extras.styleComparison.completeConclusionReceived"
+              ),
+              undefined,
+              "success"
+            );
+          }
         }
       }
     );
@@ -199,12 +213,22 @@ export function createStyleComparisonController(options: Options) {
         }
         output.value = outcome.content;
         if (!submitted) {
-          fail(new Error("模型未返回完整的比对结论与有效评分，请重新比对。"));
+          fail(new Error(t("incompleteConclusion")));
           return;
         }
         result.value = submitted;
+        lastInput.value = submittedInput;
+        resultModel.value = model.label;
+        previousResult.value = false;
         status.value = "completed";
-        activity.value = "比对完成";
+        activity.value = localizedMessage(
+          "extras.styleComparison.comparisonComplete"
+        );
+        process.record(
+          localizedMessage("extras.styleComparison.comparisonComplete"),
+          localizedMessage("extras.styleComparison.resultRetainedBelow"),
+          "success"
+        );
       },
       (error: unknown) => {
         if (task !== running) return;
@@ -218,17 +242,19 @@ export function createStyleComparisonController(options: Options) {
     if (!isBusy.value || stopRequested) return;
     stopRequested = true;
     status.value = "stopping";
-    activity.value = "正在停止…";
+    process.updateActivity(
+      localizedMessage("extras.revisionAnalysis.stoppingEllipsis")
+    );
     if (!task) return; // start() stops once the method is saved.
     try {
       await task.stop();
     } catch (error) {
       stopRequested = false;
       status.value = "running";
-      activity.value = "比对仍在进行，可再次停止";
-      options.notifyError(
-        error instanceof Error ? error.message : "停止比对失败，请重试。"
+      activity.value = localizedMessage(
+        "extras.styleComparison.comparisonStillRunning"
       );
+      options.notifyError(formatError(error, t("stopComparisonFailed")));
     }
   }
 
@@ -261,6 +287,9 @@ export function createStyleComparisonController(options: Options) {
     syncThinkingModel,
     status,
     activity,
+    error,
+    entries,
+    liveOutput: computed(() => styleComparisonPublicOutput(output.value)),
     result,
     resultModel,
     preview,

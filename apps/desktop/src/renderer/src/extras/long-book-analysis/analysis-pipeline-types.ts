@@ -1,4 +1,5 @@
 import type { Ref } from "vue";
+import type { LocalizedText } from "../analysis-ui/localized-text";
 import type {
   LongBookAnalysisNote,
   LongBookAnalysisPreset,
@@ -19,7 +20,7 @@ export interface LongBookAnalysisPipelineState extends LongBookAnalysisProcessSt
   phase: Ref<LongBookAnalysisPhase | null>;
   completedUnits: Ref<number>;
   estimatedUnits: Ref<number>;
-  error: Ref<string | null>;
+  error: Ref<string | null, LocalizedText | null>;
   result: Ref<LongBookAnalysisResult | null>;
 }
 
@@ -31,7 +32,6 @@ export interface LongBookAnalysisJob {
   preset: LongBookAnalysisPreset;
   modelId: string;
   thinkingLevel: ThinkingLevel;
-  libraryId: string;
   selectionStart: number;
   selectionEnd: number;
   inputBudget: number;

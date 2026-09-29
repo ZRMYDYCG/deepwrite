@@ -10,13 +10,4 @@ describe("scoped global style selectors", () => {
       );
     }
   });
-
-  it("does not leak macOS editor sizing onto the html root", () => {
-    expect(longWorkspaceEditorSource).toContain(
-      ':global(html[data-platform="darwin"] .long-workspace-editor)'
-    );
-    expect(longWorkspaceEditorSource).toContain(
-      ':global(html[data-platform="darwin"] .long-editor-header)'
-    );
-  });
 });

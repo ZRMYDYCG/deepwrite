@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import { computed, nextTick, ref } from "vue";
 import {
   isDeepWriteSiteOfficialModel,
@@ -17,6 +18,8 @@ import ModelAdvancedConfigDialog from "./ModelAdvancedConfigDialog.vue";
 import ModelEditorPanel from "./ModelEditorPanel.vue";
 import { MODEL_PROVIDER_OPTIONS } from "./modelProviderPresets";
 import { thinkingLabel } from "./modelSettingsDraft";
+
+const t = createScopedTranslator("components.modelSettingsFeature");
 
 const props = withDefaults(
   defineProps<{
@@ -93,7 +96,7 @@ const knownUserProviders = computed(() =>
     <header v-if="!embedded">
       <div>
         <span class="dialog-eyebrow">DeepWrite</span>
-        <h2>自定义模型配置</h2>
+        <h2>{{ t("customModelSettings") }}</h2>
       </div>
     </header>
 
@@ -102,28 +105,36 @@ const knownUserProviders = computed(() =>
         <div
           v-if="modelScope === 'all' && modelAlertMessages.length > 0"
           class="dialog-description model-price-notice"
-          aria-label="模型公告"
+          :aria-label="t('modelAnnouncements')"
         >
           <button
             v-for="(message, index) in modelAlertMessages"
             :key="`${index}:${message}`"
             class="model-price-notice-link"
             type="button"
-            title="前往设置官方模型"
+            :title="t('configureOfficialModels')"
             @click="emit('openOfficialModels')"
           >
             {{ message }}
           </button>
         </div>
 
-        <div v-if="modelLoading" class="dialog-note">正在读取模型配置…</div>
+        <div v-if="modelLoading" class="dialog-note">
+          {{ t("readingModelSettings") }}
+        </div>
         <template v-else>
           <div class="model-list-toolbar">
             <span class="model-list-summary"
-              >{{ modelProviderGroups.length }} 个提供商<span
-                class="model-list-dot"
-                >·</span
-              >{{ draftModels.length }} 个模型</span
+              >{{
+                t("providersMessage", {
+                  arg0: modelProviderGroups.length ?? ""
+                })
+              }}<span class="model-list-dot">·</span
+              >{{
+                t("modelsMessage", {
+                  arg0: draftModels.length ?? ""
+                })
+              }}</span
             >
             <button
               class="model-list-add"
@@ -131,19 +142,19 @@ const knownUserProviders = computed(() =>
               :disabled="modelSaving || Boolean(modelEditor)"
               @click="createModel"
             >
-              <AppIcon name="plus" :size="14" />添加模型
+              <AppIcon name="plus" :size="14" />{{ t("addModel") }}
             </button>
           </div>
           <div v-if="draftModels.length === 0" class="model-empty-state">
             <strong>{{
               modelScope === "custom"
-                ? "尚未配置自定义模型"
-                : "尚未配置真实模型"
+                ? t("noCustomModelsConfigured")
+                : t("noLiveModelsConfigured")
             }}</strong>
             <span>{{
               modelScope === "custom"
-                ? "添加自定义模型后，可在这里测试连接、维护密钥并设为全局默认模型。"
-                : "当前对话继续使用 DeepWrite Faux。添加模型并设为默认后，新的请求会走真实 Provider。"
+                ? t("afterAddingACustomModelTestItsConnectionManage")
+                : t("thisConversationStillUsesDeepWriteFauxAddAModel")
             }}</span>
           </div>
 
@@ -163,7 +174,11 @@ const knownUserProviders = computed(() =>
                 ><AppIcon name="model" :size="16"
               /></span>
               <strong>{{ group.label }}</strong>
-              <span class="model-provider-count">{{ group.count }} 个模型</span>
+              <span class="model-provider-count">{{
+                t("modelsMessage", {
+                  arg0: group.count ?? ""
+                })
+              }}</span>
               <AppIcon
                 name="chevron"
                 :size="14"
@@ -199,11 +214,11 @@ const knownUserProviders = computed(() =>
                     <small>
                       {{
                         row.model.managedBy === "deepwrite-official"
-                          ? "旧官方小站模型"
+                          ? t("legacyOfficialModels")
                           : row.model.managedBy === "deepwrite-free"
                             ? isDeepWriteSiteOfficialModel(row.model)
-                              ? "新官方小站模型"
-                              : "DeepWrite 免费模型"
+                              ? t("officialSiteModels")
+                              : t("deepWriteFreeModels")
                             : row.model.provider
                       }}
                       · {{ row.model.modelId }} · {{ row.model.api }}
@@ -211,16 +226,22 @@ const knownUserProviders = computed(() =>
                     <small>
                       {{
                         row.model.reasoning
-                          ? `思考：${thinkingLabel(row.model.defaultThinkingLevel)}`
-                          : `温度：${row.model.temperatureOptions.join(" / ")}`
+                          ? t("reasoningValue", {
+                              arg0: thinkingLabel(
+                                row.model.defaultThinkingLevel
+                              )
+                            })
+                          : t("temperatureValue", {
+                              arg0: row.model.temperatureOptions.join(" / ")
+                            })
                       }}
                       ·
                       {{
                         row.model.hasApiKey || row.model.apiKey
-                          ? "密钥已配置"
+                          ? t("keyConfigured")
                           : row.model.managedBy
-                            ? "托管接入"
-                            : "未配置密钥"
+                            ? t("managedAccess")
+                            : t("noKeyConfigured")
                       }}
                     </small>
                   </div>
@@ -235,10 +256,10 @@ const knownUserProviders = computed(() =>
                     >
                       {{
                         modelSaving && draftDefaultModelId === row.model.id
-                          ? "保存中…"
+                          ? t("saving")
                           : draftDefaultModelId === row.model.id
-                            ? "默认"
-                            : "设为默认"
+                            ? t("default")
+                            : t("setAsDefault")
                       }}
                     </button>
                     <button
@@ -247,26 +268,28 @@ const knownUserProviders = computed(() =>
                       :disabled="modelSaving"
                       @click="editModel(row.model)"
                     >
-                      编辑
+                      {{ t("edit") }}
                     </button>
                     <button
                       type="button"
                       :disabled="testingModelId !== null"
-                      title="使用当前未保存的配置测试连接"
+                      :title="t('testTheCurrentUnsavedSettings')"
                       @click="testDraftModel(row.model)"
                     >
                       {{
-                        testingModelId === row.model.id ? "测试中…" : "测试连接"
+                        testingModelId === row.model.id
+                          ? t("testing")
+                          : t("testConnection")
                       }}
                     </button>
                     <button
                       v-if="!row.model.managedBy"
                       type="button"
                       :disabled="modelSaving || Boolean(modelEditor)"
-                      title="配置上下文长度和最高输出长度"
+                      :title="t('configureContextLengthAndMaximumOutputLength')"
                       @click="openAdvancedConfig(row.model)"
                     >
-                      高级配置
+                      {{ t("advancedSettings") }}
                     </button>
                     <button
                       v-if="!row.model.managedBy"
@@ -275,7 +298,7 @@ const knownUserProviders = computed(() =>
                       :disabled="modelSaving || Boolean(modelEditor)"
                       @click="removeModel(row.model.id)"
                     >
-                      删除
+                      {{ t("delete") }}
                     </button>
                   </div>
                 </article>

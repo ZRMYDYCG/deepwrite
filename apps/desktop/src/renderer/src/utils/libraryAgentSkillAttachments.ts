@@ -1,9 +1,12 @@
+import { createScopedTranslator, locale } from "../i18n";
 import {
   ATTACHED_CONTEXT_MAX_CONTENT_LENGTH,
   ATTACHED_CONTEXT_MAX_ITEMS,
   type LibraryAgentSkill
 } from "@deepwrite/contracts";
 import type { WorkspaceRuntimeContext } from "@deepwrite/contracts";
+
+const t = createScopedTranslator("workspace.libraryAgentSkillAttachments");
 
 type AttachedSkill = NonNullable<
   WorkspaceRuntimeContext["attachedSkills"]
@@ -48,14 +51,22 @@ function truncateContent(
   if (skill.content.length <= maxContentLength) {
     return skill.content;
   }
-  const marker = `\n\n[DeepWrite：附件内容因 ${maxContentLength.toLocaleString("zh-CN")} 字符上限截断；原文 ${skill.content.length.toLocaleString("zh-CN")} 字符。]`;
+  const marker = t(
+    "deepwriteAttachmentTruncatedAtCharactersOriginalLengthCharacters",
+    {
+      toLocaleString: maxContentLength.toLocaleString(locale.value),
+      toLocaleString2: skill.content.length.toLocaleString(locale.value)
+    }
+  );
   const content =
     marker.length >= maxContentLength
       ? marker.slice(0, maxContentLength)
       : `${skill.content.slice(0, maxContentLength - marker.length)}${marker}`;
   diagnostics.push({
     code: "content-truncated",
-    message: `“${skill.name}”超过附件内容上限，已携带显式截断说明。`,
+    message: t("exceedsTheAttachmentLimitATruncationNoticeHasBeen", {
+      name: skill.name
+    }),
     skillId: skill.id,
     originalLength: skill.content.length,
     includedLength: content.length
@@ -89,7 +100,10 @@ export function buildLibraryAgentSkillAttachments(
   if (omitted.length) {
     diagnostics.push({
       code: "capacity-exceeded",
-      message: `资料库智能体可用技能超过契约容量 ${itemLimit} 条，另有 ${omitted.length} 条未附加。`
+      message: t("theLibraryAgentSupportsUpToSkillsAnotherSkills", {
+        itemLimit: itemLimit,
+        length: omitted.length
+      })
     });
   }
 

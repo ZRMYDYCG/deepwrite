@@ -3,11 +3,11 @@ import source from "./CreateLongWorldbuildingItemDialog.vue?raw";
 
 describe("CreateLongWorldbuildingItemDialog", () => {
   it("opens a focused worldbuilding item form in a themed overlay", () => {
-    expect(source).toContain("新建世界观条目");
-    expect(source).toContain("世界观 · {{ categoryTitle }}");
-    expect(source).toContain("条目名称");
-    expect(source).toContain("确认新建");
-    expect(source).toContain('uiMessage.warning("请输入世界观条目名称。")');
+    expect(source).toContain("newWorldbuildingEntry");
+    expect(source).toContain("worldbuildingMessage");
+    expect(source).toContain("entryName");
+    expect(source).toContain("create");
+    expect(source).toContain("enterAWorldbuildingEntryName");
     expect(source).toContain('<Teleport to="body">');
     expect(source).not.toContain("LongStructureManager");
   });

@@ -1,7 +1,10 @@
+import { createScopedTranslator } from "../../i18n";
 import type {
   LongWorkspaceIndexSnapshot,
   LongWorkspaceOperationBatch
 } from "@deepwrite/contracts";
+
+const t = createScopedTranslator("workspace");
 
 type MutationModule = typeof import("../../types/longStructureMutations");
 
@@ -78,36 +81,48 @@ export async function buildLongNavigationDeleteBatch(
   );
   if (input.kind === "character") {
     const target = index.characters.find(({ id }) => id === input.id);
-    if (!target) throw new Error("该人物已不存在，请刷新后重试。");
+    if (!target)
+      throw new Error(
+        t("navigationDeleteBatch.thisCharacterNoLongerExistsRefreshAndTryAgain")
+      );
     return {
       batch: builder.deleteCharacter(target.id),
-      label: "人物",
+      label: t("catalogWorkspace.characters"),
       title: target.name
     };
   }
   if (input.kind === "volume") {
     const target = index.plot.volumes.find(({ id }) => id === input.id);
-    if (!target) throw new Error("该分卷已不存在，请刷新后重试。");
+    if (!target)
+      throw new Error(
+        t("navigationDeleteBatch.thisVolumeNoLongerExistsRefreshAndTryAgain")
+      );
     return {
       batch: builder.deleteVolume(target.id),
-      label: "分卷",
+      label: t("longImpactConfirmation.volume"),
       title: target.title
     };
   }
   if (input.kind === "plotPoint") {
     const target = index.plot.arcs.find(({ id }) => id === input.id);
-    if (!target) throw new Error("该剧情点已不存在，请刷新后重试。");
+    if (!target)
+      throw new Error(
+        t("navigationDeleteBatch.thisPlotPointNoLongerExistsRefreshAndTry")
+      );
     return {
       batch: builder.deleteArc(target.id),
-      label: "剧情点",
+      label: t("longImpactConfirmation.plotPoint"),
       title: target.title
     };
   }
   const target = index.plot.chapterCards.find(({ id }) => id === input.id);
-  if (!target) throw new Error("该章卡已不存在，请刷新后重试。");
+  if (!target)
+    throw new Error(
+      t("navigationDeleteBatch.thisChapterCardNoLongerExistsRefreshAndTry")
+    );
   return {
     batch: builder.deleteChapter(target.id),
-    label: "章卡",
+    label: t("longImpactConfirmation.chapterCard"),
     title: target.title
   };
 }

@@ -30,7 +30,7 @@ describe("LongPlotStoryListPane", () => {
   });
 
   it("preserves accessible list and menu semantics", () => {
-    expect(source).toContain('aria-label="故事情节列表"');
+    expect(source).toContain("storyEvents");
     expect(source).toContain('role="list"');
     expect(source).toContain('role="listitem"');
     expect(source).toContain('aria-haspopup="menu"');

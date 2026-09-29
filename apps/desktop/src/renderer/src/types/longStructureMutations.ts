@@ -1,3 +1,7 @@
+import { createScopedTranslator } from "../i18n";
+
+const t = createScopedTranslator("workspace.selection");
+
 import {
   LongWorkspaceOperationBatchSchema,
   createEmptyLongMarkdownFileReference,
@@ -871,17 +875,18 @@ export function createLongStructureMutationBuilder(
       const category = worldbuilding(categoryId);
       assertPresent(category, "Worldbuilding category");
       if (category.format !== "list") {
-        throw new Error("只有列表型世界观分类可以新增条目。");
+        throw new Error(t("listOnly"));
       }
       if (category.items.length >= 10_000) {
-        throw new Error("单个世界观分类最多支持 10000 个条目。");
+        throw new Error(t("itemLimit"));
       }
       const usedTitles = new Set(category.items.map(({ title }) => title));
       let sequence = category.items.length + 1;
-      let title = requestedTitle?.trim() || `新条目 ${sequence}`;
+      let title =
+        requestedTitle?.trim() || t("newItem", { sequence: sequence });
       while (!requestedTitle?.trim() && usedTitles.has(title)) {
         sequence += 1;
-        title = `新条目 ${sequence}`;
+        title = t("newItem", { sequence: sequence });
       }
       const id = createId("worlditem");
       const updatedAt = now();

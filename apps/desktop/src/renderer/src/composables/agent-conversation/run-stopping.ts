@@ -1,3 +1,4 @@
+import { t } from "../../i18n";
 import type { Ref } from "vue";
 import type { DeepWriteApi } from "@deepwrite/contracts";
 
@@ -40,7 +41,11 @@ export function createConversationStopper(context: StopContext) {
       try {
         const accepted = await api.session.abort({ sessionId, runId });
         if (accepted.sessionId !== sessionId || accepted.runId !== runId) {
-          throw new Error("智能体停止结果与当前运行不一致。");
+          throw new Error(
+            t(
+              "workspace.runStopping.theAgentStopResponseDoesNotMatchTheCurrent"
+            )
+          );
         }
         if (ownsRun()) stopped(runId);
         return true;

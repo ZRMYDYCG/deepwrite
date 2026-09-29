@@ -49,6 +49,65 @@ afterEach(() => {
 });
 
 describe("draft recovery persistence", () => {
+  it("keeps the close handshake pending for an in-flight draft save and rejects its failure", async () => {
+    const pending = deferred<void>();
+    const saveDraftRecovery = vi.fn(
+      async (_drafts: CatalogDraftRecovery): Promise<void> => undefined
+    );
+    const drafts = shallowRef<Record<string, EditorDraftState>>({});
+    const persistence = useDraftRecoveryPersistence({
+      drafts,
+      api: () => ({ loadDraftRecovery: async () => ({}), saveDraftRecovery }),
+      warning: vi.fn()
+    });
+    await persistence.load();
+    await persistence.flush();
+    saveDraftRecovery.mockImplementationOnce(() => pending.promise);
+    drafts.value = { chapter: draft("尚未确认保存的正文") };
+    await vi.advanceTimersByTimeAsync(250);
+    let finished = false;
+    const closing = persistence.flush({ strict: true });
+    const result = expect(closing).rejects.toThrow("草稿尚未保存");
+    void closing
+      .finally(() => {
+        finished = true;
+      })
+      .catch(() => undefined);
+    await Promise.resolve();
+    expect(finished).toBe(false);
+    pending.reject(new Error("disk unavailable"));
+    await result;
+    expect(drafts.value.chapter?.dirty).toBe(true);
+    await expect(persistence.flush({ strict: true })).resolves.toBeUndefined();
+    expect(saveDraftRecovery).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        chapter: expect.objectContaining({ content: "尚未确认保存的正文正文" })
+      })
+    );
+  });
+
+  it("refuses strict close when live drafts cannot be reconciled with disk", async () => {
+    const drafts = shallowRef<Record<string, EditorDraftState>>({
+      chapter: draft("窗口草稿")
+    });
+    const saveDraftRecovery = vi.fn(async () => undefined);
+    const persistence = useDraftRecoveryPersistence({
+      drafts,
+      api: () => ({
+        loadDraftRecovery: async () => {
+          throw new Error("read failed");
+        },
+        saveDraftRecovery
+      }),
+      warning: vi.fn()
+    });
+    await persistence.load();
+    await expect(persistence.flush({ strict: true })).rejects.toThrow(
+      "草稿尚未保存"
+    );
+    expect(saveDraftRecovery).not.toHaveBeenCalled();
+  });
+
   it("keeps startup typing in memory and reconciles it before enabling writes", async () => {
     const pendingLoad = deferred<CatalogDraftRecovery>();
     const saveDraftRecovery = vi.fn(async () => undefined);

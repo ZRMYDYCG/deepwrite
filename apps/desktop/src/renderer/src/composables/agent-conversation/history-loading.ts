@@ -1,3 +1,4 @@
+import { createScopedTranslator } from "../../i18n";
 import { cloneMessage } from "./clone";
 import type { AgentConversationContext } from "./context";
 import { parsePersistenceRecord } from "./persistence-snapshot";
@@ -5,6 +6,8 @@ import type {
   AgentConversationHistorySnapshot,
   AgentConversationPersistenceRecord
 } from "./types";
+
+const t = createScopedTranslator("workspace.historyLoading");
 
 type HistoryLoadingContext = Pick<
   AgentConversationContext,
@@ -38,7 +41,9 @@ export function validateHistoryRecord(
 ) {
   const parsed = parsePersistenceRecord(record);
   if (!parsed || parsed.sessionId !== sessionId)
-    throw new Error("会话历史不完整，无法切换，请重试。");
+    throw new Error(
+      t("theConversationHistoryIsIncompleteCannotSwitchConversationsTry")
+    );
   return parsed;
 }
 
@@ -68,7 +73,9 @@ export function createHistoryLoader(ctx: HistoryLoadingContext) {
     );
     if (existing) return existing;
     if (!ctx.options.loadHistoryRecord)
-      throw new Error("当前存储不支持加载此会话。");
+      throw new Error(
+        t("theCurrentStorageDoesNotSupportLoadingThisConversation")
+      );
     return validateHistoryRecord(
       await ctx.options.loadHistoryRecord(sessionId),
       sessionId
@@ -118,7 +125,7 @@ export function createHistoryLoader(ctx: HistoryLoadingContext) {
       !record &&
       snapshot.items.some((item) => item.sessionId === snapshot.activeSessionId)
     )
-      throw new Error("活动会话尚未完整加载。");
+      throw new Error(t("theActiveConversationHasNotFinishedLoading"));
     await Promise.resolve();
     if (!ctx.persistenceNotificationsEnabled) return false;
     ctx.remoteHistoryItems.value = snapshot.items.map((item) => ({ ...item }));

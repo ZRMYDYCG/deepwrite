@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { plotStageLabel } from "../i18n/plotStageLabels";
+import { createScopedTranslator } from "../i18n";
 import { type Book } from "@deepwrite/contracts/renderer";
 import AppIcon from "./AppIcon.vue";
 import PopupSelect from "./PopupSelect.vue";
@@ -7,6 +9,8 @@ import {
   usePlotStructureDialog,
   type PlotStructureDialogEmit
 } from "./usePlotStructureDialog";
+
+const t = createScopedTranslator("components.plotStructureDialog");
 
 const props = withDefaults(
   defineProps<{
@@ -76,15 +80,24 @@ const {
       >
         <header class="plot-structure-dialog-header">
           <div>
-            <span>{{ book.bookType === "script" ? "剧本" : "短篇" }}设置</span>
-            <strong id="plot-structure-title"
-              >{{ book.title }} · 结构管理</strong
-            >
+            <span>{{
+              t("settingsMessage", {
+                arg0:
+                  (book.bookType === "script"
+                    ? t("screenplay")
+                    : t("shortStory")) ?? ""
+              })
+            }}</span>
+            <strong id="plot-structure-title">{{
+              t("structureManagementMessage", {
+                arg0: book.title ?? ""
+              })
+            }}</strong>
           </div>
           <button
             ref="closeButton"
             type="button"
-            aria-label="关闭结构管理"
+            :aria-label="t('closeStructureManagement')"
             :disabled="locked"
             @click="close"
           >
@@ -92,11 +105,14 @@ const {
           </button>
         </header>
 
-        <section class="plot-structure-manager" aria-label="结构管理">
+        <section
+          class="plot-structure-manager"
+          :aria-label="t('manageStructure')"
+        >
           <div
             class="structure-main-tabs"
             role="tablist"
-            aria-label="结构管理类型"
+            :aria-label="t('structureManagementType')"
           >
             <button
               type="button"
@@ -104,7 +120,7 @@ const {
               :aria-selected="activeStructureTab === 'character'"
               @click="setActiveStructureTab('character')"
             >
-              人物结构管理
+              {{ t("characterStructure") }}
             </button>
             <button
               type="button"
@@ -112,7 +128,7 @@ const {
               :aria-selected="activeStructureTab === 'plot'"
               @click="setActiveStructureTab('plot')"
             >
-              剧情结构管理
+              {{ t("plotStructure") }}
             </button>
             <button
               type="button"
@@ -120,7 +136,11 @@ const {
               :aria-selected="activeStructureTab === 'context'"
               @click="setActiveStructureTab('context')"
             >
-              {{ book.bookType === "script" ? "剧本上下文" : "短篇上下文" }}
+              {{
+                book.bookType === "script"
+                  ? t("screenplayContext")
+                  : t("shortStoryContext")
+              }}
             </button>
           </div>
 
@@ -128,29 +148,41 @@ const {
             <header class="manager-header">
               <div>
                 <p class="manager-eyebrow">CHARACTER STRUCTURE</p>
-                <h2>人物结构管理</h2>
-                <p>选择人物使用单篇连续文本，或使用概览与独立人物条目。</p>
+                <h2>
+                  {{ t("characterStructure") }}
+                </h2>
+                <p>
+                  {{
+                    t("chooseContinuousCharacterTextOrAnOverviewWithIndividual")
+                  }}
+                </p>
               </div>
             </header>
             <div class="structure-panel-content character-structure-panel">
               <label class="form-field">
-                <span>人物样式</span>
+                <span>{{ t("characterStyle") }}</span>
                 <PopupSelect
                   :model-value="book.characterStructure.format"
                   :options="[
-                    { value: 'list', label: '条目样式' },
-                    { value: 'text', label: '文本样式' }
+                    {
+                      value: 'list',
+                      label: t('entryStyle')
+                    },
+                    {
+                      value: 'text',
+                      label: t('textStyle')
+                    }
                   ]"
-                  accessible-label="人物结构样式"
+                  :accessible-label="t('characterStructureStyle')"
                   :disabled="locked"
                   :menu-z-index="2300"
                   @update:model-value="selectCharacterFormat"
                 />
                 <small v-if="book.characterStructure.format === 'list'">
-                  人物在资源树中显示为概览与独立条目，可分别编辑和交给智能体管理。
+                  {{ t("charactersAppearAsAnOverviewAndSeparateEntriesIn") }}
                 </small>
                 <small v-else>
-                  人物继续使用当前单一 Markdown 文本编辑方式。
+                  {{ t("charactersContinueToUseASingleMarkdownDocument") }}
                 </small>
               </label>
             </div>
@@ -160,9 +192,9 @@ const {
             <header class="manager-header">
               <div>
                 <p class="manager-eyebrow">CREATIVE PLOT STRUCTURE</p>
-                <h2>剧情结构管理</h2>
+                <h2>{{ t("plotStructure") }}</h2>
                 <p>
-                  名称与说明全局生效；启用开关和排序按本书绑定。关闭后不在资源树显示，也不对智能体开放。默认五项不可删除。
+                  {{ t("namesAndNotesApplyGloballyEnabledStateAndOrder") }}
                 </p>
               </div>
             </header>
@@ -172,10 +204,10 @@ const {
                 <div
                   class="section-tabs"
                   role="tablist"
-                  aria-label="基础结构类型"
+                  :aria-label="t('basicStructureType')"
                 >
                   <button type="button" role="tab" aria-selected="true">
-                    剧情结构
+                    {{ t("plotStructureLabel") }}
                   </button>
                 </div>
                 <button
@@ -184,7 +216,7 @@ const {
                   :disabled="locked || rows.length >= 32"
                   @click="openCreate"
                 >
-                  新建剧情结构
+                  {{ t("newPlotStructure") }}
                 </button>
               </header>
 
@@ -201,7 +233,14 @@ const {
                       role="switch"
                       :checked="stage.enabled"
                       :disabled="locked"
-                      :aria-label="`${stage.enabled ? '关闭' : '启用'}${stage.title}`"
+                      :aria-label="
+                        t('stageToggleLabel', {
+                          action: stage.enabled
+                            ? t('disableStage')
+                            : t('enable'),
+                          name: plotStageLabel(stage)
+                        })
+                      "
                       @change="
                         toggleEnabled(
                           stage.id,
@@ -209,23 +248,27 @@ const {
                         )
                       "
                     />
-                    <span>{{ stage.enabled ? "启用" : "关闭" }}</span>
+                    <span>{{ stage.enabled ? t("enable") : t("off") }}</span>
                   </label>
                   <div class="row-copy">
-                    <strong>{{ stage.title }}</strong>
+                    <strong>{{ plotStageLabel(stage) }}</strong>
                     <span>{{ stage.description }}</span>
                     <code>
                       {{ stage.id }}
                       <template v-if="isBuiltinCreativePlotStageId(stage.id)">
-                        · 默认
+                        {{ t("default") }}
                       </template>
                     </code>
                   </div>
                   <div class="row-actions">
                     <button
                       type="button"
-                      :aria-label="`上移${stage.title}`"
-                      title="上移"
+                      :aria-label="
+                        t('moveValueUp', {
+                          arg0: plotStageLabel(stage)
+                        })
+                      "
+                      :title="t('moveUp')"
                       :disabled="locked || index === 0"
                       @click="move(stage.id, 'up')"
                     >
@@ -233,8 +276,12 @@ const {
                     </button>
                     <button
                       type="button"
-                      :aria-label="`下移${stage.title}`"
-                      title="下移"
+                      :aria-label="
+                        t('moveValueDown', {
+                          arg0: plotStageLabel(stage)
+                        })
+                      "
+                      :title="t('moveDown')"
                       :disabled="locked || index === rows.length - 1"
                       @click="move(stage.id, 'down')"
                     >
@@ -242,16 +289,24 @@ const {
                     </button>
                     <button
                       type="button"
-                      :aria-label="`编辑${stage.title}`"
+                      :aria-label="
+                        t('editValue', {
+                          arg0: plotStageLabel(stage)
+                        })
+                      "
                       :disabled="locked"
                       @click="openEdit(stage.id)"
                     >
-                      编辑
+                      {{ t("edit") }}
                     </button>
                     <button
                       class="delete-button"
                       type="button"
-                      :aria-label="`删除${stage.title}`"
+                      :aria-label="
+                        t('deleteValue', {
+                          arg0: plotStageLabel(stage)
+                        })
+                      "
                       :disabled="
                         locked ||
                         rows.length <= 1 ||
@@ -259,15 +314,14 @@ const {
                       "
                       @click="openDelete(stage.id)"
                     >
-                      删除
+                      {{ t("delete") }}
                     </button>
                   </div>
                 </li>
               </ol>
 
               <p class="manager-footnote">
-                新建阶段会对全部短篇与剧本生效；启用状态仅绑定当前作品。改名全局同步，不会改变稳定
-                ID 与文件路径。
+                {{ t("newStagesApplyToAllShortStoriesAndScreenplays") }}
               </p>
             </div>
           </template>
@@ -301,41 +355,48 @@ const {
         <header class="modal-header">
           <div>
             <span>CONVERT</span>
-            <h3 id="character-format-title">转换人物结构样式</h3>
+            <h3 id="character-format-title">
+              {{ t("convertCharacterStructure") }}
+            </h3>
           </div>
         </header>
         <fieldset class="modal-body" :disabled="locked">
           <p class="delete-copy">
             <template v-if="requestedCharacterFormat === 'list'">
-              当前人物文本会完整迁移到一个“人物设定”条目，概览初始化为空。
+              {{ t("currentCharacterTextMovesInFullToACharacter") }}
             </template>
             <template v-else>
-              概览与全部人物条目会按当前顺序合并为一个 Markdown
-              文本；条目文件将在合并成功后移除。
+              {{ t("theOverviewAndAllCharacterEntriesMergeIntoOne") }}
             </template>
           </p>
           <div class="character-conversion-preview">
-            <strong>转换预览</strong>
+            <strong>{{ t("conversionPreview") }}</strong>
             <template v-if="requestedCharacterFormat === 'list'">
               <span>{{
                 characterOverview?.content.trim()
-                  ? "人物设定 · 1 个条目"
-                  : "概览 · 空条目列表"
+                  ? t("characterProfiles1Entry")
+                  : t("overviewEmptyEntryList")
               }}</span>
               <pre>{{ characterTextPreview }}</pre>
             </template>
             <template v-else>
               <span>
-                概览{{
-                  characterOverview?.content.trim() ? "（有内容）" : "（为空）"
-                }}，其后合并 {{ orderedCharacterItems.length }} 个人物条目
+                {{
+                  t("overviewFollowedByCharacterEntriesMessage", {
+                    arg0:
+                      (characterOverview?.content.trim()
+                        ? t("hasContent")
+                        : t("empty")) ?? "",
+                    arg1: orderedCharacterItems.length ?? ""
+                  })
+                }}
               </span>
               <ol v-if="orderedCharacterItems.length">
                 <li v-for="item in orderedCharacterItems" :key="item.id">
                   {{ item.title }}
                 </li>
               </ol>
-              <span v-else>当前没有人物条目。</span>
+              <span v-else>{{ t("noCharacterEntriesYet") }}</span>
             </template>
           </div>
         </fieldset>
@@ -345,7 +406,7 @@ const {
             :disabled="locked"
             @click="requestedCharacterFormat = null"
           >
-            取消
+            {{ t("cancel") }}
           </button>
           <button
             class="primary-button"
@@ -353,7 +414,7 @@ const {
             :disabled="locked"
             @click="confirmCharacterFormat"
           >
-            {{ locked ? "转换中…" : "确认转换" }}
+            {{ locked ? t("converting") : t("convert") }}
           </button>
         </footer>
       </section>
@@ -369,20 +430,26 @@ const {
         class="structure-modal"
         role="dialog"
         aria-modal="true"
-        :aria-label="formMode === 'create' ? '新建剧情结构' : '编辑剧情结构'"
+        :aria-label="
+          formMode === 'create' ? t('newPlotStructure') : t('editPlotStructure')
+        "
       >
         <form @submit.prevent="submitForm">
           <header class="modal-header">
             <div>
               <span>{{ formMode === "create" ? "CREATE" : "EDIT" }}</span>
               <h3>
-                {{ formMode === "create" ? "新建剧情结构" : "编辑剧情结构" }}
+                {{
+                  formMode === "create"
+                    ? t("newPlotStructure")
+                    : t("editPlotStructure")
+                }}
               </h3>
             </div>
             <button
               class="close-button"
               type="button"
-              aria-label="关闭"
+              :aria-label="t('close')"
               :disabled="locked"
               @click="close"
             >
@@ -392,7 +459,7 @@ const {
 
           <fieldset class="modal-body" :disabled="locked">
             <label class="form-field">
-              <span>名称</span>
+              <span>{{ t("name") }}</span>
               <input
                 v-model="form.title"
                 maxlength="120"
@@ -402,30 +469,33 @@ const {
               />
             </label>
             <label class="form-field">
-              <span>结构说明</span>
+              <span>{{ t("structureNotes") }}</span>
               <textarea
                 v-model="form.description"
                 maxlength="20000"
                 rows="7"
                 required
               />
-              <small
-                >该说明会作为剧情智能体在此阶段的任务边界与交付标准。</small
-              >
+              <small>{{
+                t("theseNotesDefineThePlotAgentSResponsibilitiesAnd")
+              }}</small>
             </label>
             <p class="stable-id-note">
-              稳定 ID 创建后不会因改名或排序而变化，Markdown
-              文件路径和已有内容也会保持不变。
+              {{ t("theStableIDRemainsUnchangedAfterRenamingOrReordering") }}
             </p>
           </fieldset>
 
           <footer class="modal-actions">
             <button type="button" :disabled="locked" @click="close">
-              取消
+              {{ t("cancel") }}
             </button>
             <button class="primary-button" type="submit" :disabled="locked">
               {{
-                locked ? "保存中…" : formMode === "create" ? "创建" : "保存修改"
+                locked
+                  ? t("saving")
+                  : formMode === "create"
+                    ? t("create")
+                    : t("saveChanges")
               }}
             </button>
           </footer>
@@ -450,20 +520,29 @@ const {
           <div>
             <span>DELETE</span>
             <h3 id="plot-structure-delete-title">
-              删除“{{ deletingStage.title }}”
+              {{
+                t("deleteMessage", {
+                  arg0: plotStageLabel(deletingStage) ?? ""
+                })
+              }}
             </h3>
           </div>
         </header>
         <fieldset class="modal-body" :disabled="locked">
           <p id="plot-structure-delete-description" class="delete-copy">
-            该自定义阶段会对全部短篇与剧本生效。确认后将从全局删除，并永久清除各作品中对应的
-            Markdown 内容。
-            {{ deletingHasContent ? "当前作品该阶段已有内容。" : "" }}
+            {{
+              t("thisCustomStageAppliesToAllShortMessage", {
+                arg0:
+                  (deletingHasContent
+                    ? t("thisStageAlreadyHasContentInTheCurrentWork")
+                    : "") ?? ""
+              })
+            }}
           </p>
         </fieldset>
         <footer class="modal-actions">
           <button type="button" :disabled="locked" autofocus @click="close">
-            取消
+            {{ t("cancel") }}
           </button>
           <button
             class="danger-button"
@@ -471,7 +550,7 @@ const {
             :disabled="locked"
             @click="confirmDelete"
           >
-            {{ locked ? "删除中…" : "确认全局删除" }}
+            {{ locked ? t("deleting") : t("deleteGlobally") }}
           </button>
         </footer>
       </section>

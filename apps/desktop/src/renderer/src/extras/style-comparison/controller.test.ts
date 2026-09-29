@@ -132,6 +132,78 @@ function setup(
 }
 
 describe("文风比对运行与结果", () => {
+  it("retains the last completed result through failed and stopped reruns until a new result succeeds", async () => {
+    const ctx = setup();
+    await ctx.controller.start(model);
+    ctx.emitResult();
+    ctx.emit("agent.message_completed", { content: JSON.stringify(result) });
+    await ctx.flush();
+    expect(ctx.controller.isStale.value).toBe(false);
+
+    await ctx.controller.start({ ...model, label: "本次模型" });
+    expect(ctx.controller.result.value).toEqual(result);
+    expect(ctx.controller.isStale.value).toBe(true);
+    expect(ctx.controller.resultModel.value).toBe("测试模型");
+    ctx.emit("agent.error", { code: "test.failure", message: "本次请求失败" });
+    await ctx.flush();
+    expect(ctx.controller.result.value).toEqual(result);
+    expect(ctx.controller.isStale.value).toBe(true);
+    expect(ctx.controller.error.value).toBe("本次请求失败");
+
+    await ctx.controller.start(model);
+    expect(ctx.controller.error.value).toBeNull();
+    await ctx.controller.stop();
+    await ctx.flush();
+    expect(ctx.controller.result.value).toEqual(result);
+    expect(ctx.controller.isStale.value).toBe(true);
+
+    await ctx.controller.start({ ...model, label: "本次模型" });
+    const nextResult = {
+      ...result,
+      score: 40,
+      summary: "本次文风差异更明显。"
+    };
+    ctx.emitResult(nextResult);
+    ctx.emit("agent.message_completed", {
+      content: JSON.stringify(nextResult)
+    });
+    await ctx.flush();
+    expect(ctx.controller.result.value).toEqual(nextResult);
+    expect(ctx.controller.isStale.value).toBe(false);
+    expect(ctx.controller.resultModel.value).toBe("本次模型");
+  });
+  it("keeps execution events and public output available without storing thinking content", async () => {
+    const ctx = setup();
+    await ctx.controller.start(model);
+    ctx.emit("agent.turn_started", { attempt: 1 });
+    ctx.emit("agent.thinking_delta", { delta: "不展示的内部思考" });
+    ctx.emit("agent.thinking_delta", { delta: "更多内部思考" });
+    ctx.emit("agent.message_delta", { delta: "公开分析说明" });
+    expect(ctx.controller.liveOutput.value).toBe("公开分析说明");
+    ctx.emit("agent.retry_scheduled", { delayMs: 2_000 });
+    expect(ctx.controller.liveOutput.value).toBe("");
+    ctx.emit("agent.turn_started", { attempt: 2 });
+    ctx.emitResult();
+    ctx.emit("agent.message_completed", { content: JSON.stringify(result) });
+    await ctx.flush();
+    expect(ctx.controller.entries.value.map((entry) => entry.title)).toEqual([
+      "开始文风比对",
+      "正在阅读两份文本…",
+      "正在思考，分析两份文本的文风…",
+      "正在整理关键发现与评分…",
+      "连接暂时中断，2 秒后重试…",
+      "正在重新连接模型…",
+      "已收到完整比对结论",
+      "比对完成"
+    ]);
+    expect(JSON.stringify(ctx.controller.entries.value)).not.toContain(
+      "内部思考"
+    );
+    expect(ctx.controller.liveOutput.value).toContain(result.summary);
+    expect(ctx.controller.liveOutput.value).not.toContain('"dimensions"');
+    await ctx.controller.start(model);
+    expect(ctx.controller.entries.value).toHaveLength(1);
+  });
   it("updates activity from reading through thinking and findings to completion", async () => {
     const ctx = setup();
     await ctx.controller.start(model);

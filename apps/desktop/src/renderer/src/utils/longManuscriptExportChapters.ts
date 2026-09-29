@@ -1,6 +1,5 @@
+import { t } from "../i18n";
 import type { LongWorkspaceIndexSnapshot } from "@deepwrite/contracts";
-
-const UNASSIGNED_VOLUME_TITLE = "未分卷";
 
 export interface LongManuscriptExportChapterOption {
   readonly id: string;
@@ -39,7 +38,9 @@ export function listLongManuscriptExportChapters(
       id: card.id,
       title: card.title,
       volumeId: card.volumeId,
-      volumeTitle: volumeTitle.get(card.volumeId) ?? UNASSIGNED_VOLUME_TITLE,
+      volumeTitle:
+        volumeTitle.get(card.volumeId) ??
+        t("workspace.longManuscriptExportChapters.noVolume"),
       volumeOrder: volumeOrder.get(card.volumeId) ?? Number.MAX_SAFE_INTEGER,
       narrativeOrder: card.narrativeOrder
     }));

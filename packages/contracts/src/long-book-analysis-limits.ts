@@ -17,8 +17,3 @@ export const LONG_BOOK_ANALYSIS_DEFAULT_CONTEXT_WINDOW = 272_000;
 
 export const LongBookAnalysisIdSchema = z.string().trim().min(1).max(120);
 export const LongBookAnalysisTitleSchema = z.string().trim().min(1).max(256);
-export const LongBookAnalysisLibraryIdSchema = z
-  .string()
-  .trim()
-  .min(1)
-  .max(512);

@@ -13,6 +13,9 @@ import { runExtrasAgentSmoke } from "./smoke-extras-agents";
 import { runExtrasChatSmoke } from "./smoke-extras-chat";
 import { runContextCompactionSmoke } from "./smoke-context-compaction";
 import { runConversationSmoke } from "./smoke-conversation";
+import { runVoiceSmoke } from "./smoke-voice";
+import { runVoiceUiSmoke } from "./smoke-voice-ui";
+import { runI18nSmoke } from "./smoke-i18n";
 
 export async function runApplicationSmoke(
   health: SystemHealthPayload,
@@ -20,6 +23,13 @@ export async function runApplicationSmoke(
   window: BrowserWindow,
   setEventTap: (tap: ((event: SystemEventEnvelope) => void) | undefined) => void
 ): Promise<void> {
+  if (process.env.DEEPWRITE_SMOKE_SUITE === "i18n") {
+    const localization = await runI18nSmoke(window);
+    console.log(
+      `DEEPWRITE_SMOKE_OK ${JSON.stringify({ health, localization })}`
+    );
+    return;
+  }
   const sessionId = "session_electron_smoke";
   const commandId = createId("cmd_smoke");
   const events: SystemEventEnvelope[] = [];
@@ -120,6 +130,9 @@ export async function runApplicationSmoke(
     const extrasAgents = await runExtrasAgentSmoke(window);
     const extrasChat = await runExtrasChatSmoke(window);
     const contextCompaction = await runContextCompactionSmoke(window);
+    const voice = await runVoiceSmoke(window);
+    const voiceUi = await runVoiceUiSmoke(window);
+    const localization = await runI18nSmoke(window);
     console.log(
       `DEEPWRITE_SMOKE_OK ${JSON.stringify({
         health,
@@ -128,6 +141,9 @@ export async function runApplicationSmoke(
         extrasAgents,
         extrasChat,
         contextCompaction,
+        voice,
+        voiceUi,
+        localization,
         agent: {
           status: "ok",
           runtime: accepted.runtime,

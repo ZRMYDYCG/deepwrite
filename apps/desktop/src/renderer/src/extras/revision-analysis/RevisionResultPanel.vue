@@ -1,10 +1,14 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { formatError } from "../../i18n/errors";
+import { createScopedTranslator } from "../../i18n";
+import { computed, ref, watch } from "vue";
 import type { CatalogSnapshot } from "@deepwrite/contracts/renderer";
 import MarkdownContent from "../../components/MarkdownContent.vue";
 import PopupSelect from "../../components/PopupSelect.vue";
 import { uiMessage } from "../../ui-feedback";
 import type { RevisionAnalysisController } from "./useRevisionAnalysis";
+
+const t = createScopedTranslator("extras");
 const props = defineProps<{
   controller: RevisionAnalysisController;
   catalogSnapshot: CatalogSnapshot | null;
@@ -16,74 +20,96 @@ const libraries = computed(() =>
   (props.catalogSnapshot?.skills ?? []).filter((l) => !l.isBuiltin)
 );
 const saved = computed(() => c.savedKey.value === c.skillKey());
+watch(c.result, (result, previous) => {
+  if (result !== previous) libraryId.value = "";
+});
+watch(libraries, (available) => {
+  if (!available.some((library) => library.id === libraryId.value))
+    libraryId.value = "";
+});
 async function save() {
   const library = libraries.value.find((l) => l.id === libraryId.value);
   if (!library) {
-    uiMessage.error("请选择目标技能库。");
+    uiMessage.error(t("revisionAnalysis.targetSkillRequired"));
     return;
   }
   try {
     if (await c.persistSkill(library)) {
       emit("refreshCatalog");
-      uiMessage.success("技能已保存，可在写作时选择使用。");
+      uiMessage.success(t("revisionAnalysis.skillSaved"));
     }
   } catch (error) {
-    uiMessage.error(error instanceof Error ? error.message : "保存技能失败。");
+    uiMessage.error(formatError(error, t("revisionAnalysis.saveSkillFailed")));
   }
 }
 </script>
 <template>
-  <section v-if="c.result.value" class="analysis-setup-panel revision-result">
+  <section v-if="c.result.value" class="analysis-card revision-result">
     <header>
-      <h2>分析结果</h2>
-      <span v-if="c.isStale.value">基于上次输入</span>
+      <h2>
+        {{
+          c.isPreviousResult.value
+            ? t("revisionAnalysis.previousAnalysisResult")
+            : t("longBookAnalysis.analysisResult")
+        }}
+      </h2>
+      <span v-if="c.isPreviousResult.value">{{
+        c.isBusy.value
+          ? t("revisionAnalysis.updateAfterAnalysis")
+          : t("revisionAnalysis.previousResultRetained")
+      }}</span>
     </header>
     <template v-if="c.result.value.report">
-      <h3>修改分析报告</h3>
+      <h3>{{ t("revisionAnalysis.revisionReport") }}</h3>
       <MarkdownContent
         class="revision-report"
         :content="c.result.value.report"
       />
     </template>
-    <h3>可复用技能草稿</h3>
+    <h3>{{ t("revisionAnalysis.reusableSkillDraft") }}</h3>
     <label
-      >技能标题<input
+      >{{ t("revisionAnalysis.skillTitle")
+      }}<input
         v-model="c.result.value.title"
         maxlength="256"
-        :disabled="c.saving.value || c.isBusy.value"
+        :disabled="c.disabled.value"
     /></label>
     <label
-      >技能描述<textarea
+      >{{ t("revisionAnalysis.skillDescription")
+      }}<textarea
         v-model="c.result.value.description"
         maxlength="4000"
-        :disabled="c.saving.value || c.isBusy.value"
-        placeholder="简要说明技能的用途，以及适合在什么场景下使用。"
+        :disabled="c.disabled.value"
+        :placeholder="t('revisionAnalysis.skillDescriptionPlaceholder')"
       />
     </label>
     <label
-      >技能正文<textarea
+      >{{ t("revisionAnalysis.skillBody")
+      }}<textarea
         v-model="c.result.value.body"
         class="revision-skill-body"
         maxlength="200000"
-        :disabled="c.saving.value || c.isBusy.value"
+        :disabled="c.disabled.value"
       />
     </label>
     <div class="revision-save-controls">
       <label
-        >目标技能库<PopupSelect
+        >{{ t("revisionAnalysis.targetSkillLibrary")
+        }}<PopupSelect
           v-model="libraryId"
           :options="libraries.map((l) => ({ value: l.id, label: l.title }))"
-          :disabled="c.saving.value"
-          accessible-label="修改分析目标技能库"
+          :disabled="c.disabled.value"
+          :accessible-label="t('revisionAnalysis.revisionTargetSkillLibrary')"
           :placeholder="
-            libraries.length ? '请选择技能库' : '请先在技能库中新建资料库'
+            libraries.length
+              ? t('revisionAnalysis.chooseSkillLibrary')
+              : t('revisionAnalysis.createSkillLibraryFirst')
           "
       /></label>
       <button
         class="analysis-primary-button"
         :disabled="
-          c.saving.value ||
-          c.isBusy.value ||
+          c.disabled.value ||
           !libraryId ||
           saved ||
           !c.result.value.title.trim() ||
@@ -93,7 +119,13 @@ async function save() {
         @click="save"
       >
         {{
-          c.saving.value ? "保存中…" : saved ? "已保存此版技能" : "保存到技能库"
+          c.saving.value
+            ? t("longBookAnalysis.saving")
+            : saved
+              ? t("revisionAnalysis.skillVersionSaved")
+              : c.isPreviousResult.value
+                ? t("revisionAnalysis.savePreviousToSkills")
+                : t("revisionAnalysis.saveToSkills")
         }}
       </button>
     </div>

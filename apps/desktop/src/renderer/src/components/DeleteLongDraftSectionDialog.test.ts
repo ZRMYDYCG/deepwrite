@@ -3,13 +3,13 @@ import source from "./DeleteLongDraftSectionDialog.vue?raw";
 
 describe("DeleteLongDraftSectionDialog", () => {
   it("confirms a destructive section delete with the chapter-card impact copy", () => {
-    expect(source).toContain('itemLabel: "小节"');
-    expect(source).toContain("删除{{ itemLabel }}");
-    expect(source).toContain("确认删除“{{ sectionTitle }}”？");
+    expect(source).toContain("section");
+    expect(source).toContain("deleteMessageDetail");
+    expect(source).toContain("deleteMessageDetailDetail");
     expect(source).toContain(
-      "将永久删除该小节及对应章卡、章节正文、章末人物状态、下一章接续包，以及相关剧情落点和伏笔触点。"
+      "thisPermanentlyDeletesTheSectionItsChapterCardManuscript"
     );
-    expect(source).toContain("确认删除");
+    expect(source).toContain("deleteMessage");
     expect(source).toContain("danger-button");
     expect(source).toContain('role="alertdialog"');
     expect(source).toContain('<Teleport to="body">');

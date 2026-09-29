@@ -21,14 +21,14 @@ export async function invokeCommand<TPayload>(
     // Prefer the real rejection reason when main returned requestId "unknown"
     // (or another mismatched id) for an invalid/untrusted command.
     if (result.status === "rejected") {
-      throw new Error(`${result.error.code}: ${result.error.message}`);
+      throw result.error;
     }
     throw new Error(
       `IPC result requestId does not match command id. expected=${expectedRequestId} actual=${result.requestId}`
     );
   }
   if (result.status === "rejected") {
-    throw new Error(`${result.error.code}: ${result.error.message}`);
+    throw result.error;
   }
   return result.payload as TPayload;
 }

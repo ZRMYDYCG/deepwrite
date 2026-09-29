@@ -1,9 +1,13 @@
 <script setup lang="ts">
+import { formatError } from "../../i18n/errors";
+import { createScopedTranslator, locale } from "../../i18n";
 import { computed, ref, onMounted, watch } from "vue";
 import AppIcon from "../../components/AppIcon.vue";
 import PopupSelect from "../../components/PopupSelect.vue";
 import { uiMessage } from "../../ui-feedback";
 import type { ShortBookAnalysisController } from "./useShortBookAnalysis";
+
+const t = createScopedTranslator("extras");
 const props = defineProps<{ controller: ShortBookAnalysisController }>();
 const emit = defineEmits<{ managePresets: [] }>();
 const c = props.controller;
@@ -24,13 +28,15 @@ function deleteSource(id: string) {
   if (disabled.value || !source) return;
   if (
     !window.confirm(
-      `确认彻底删除短篇“${source.title}”吗？\n将删除工作目录中的来源备份，并从当前列表去除，无法撤销。原始文件及已保存到资料库的分析结果不受影响。`
+      t("shortBookAnalysis.deleteStoryConfirmation", {
+        title: source.title
+      })
     )
   )
     return;
   return act(async () => {
     await c.deleteSource(id);
-    uiMessage.success("短篇及来源备份已彻底删除。");
+    uiMessage.success(t("shortBookAnalysis.storyDeleted"));
   });
 }
 async function act(action: () => unknown) {
@@ -38,7 +44,7 @@ async function act(action: () => unknown) {
     await action();
   } catch (error) {
     uiMessage.warning(
-      error instanceof Error ? error.message : "来源操作失败。"
+      formatError(error, t("shortBookAnalysis.sourceOperationFailed"))
     );
   }
 }
@@ -61,19 +67,23 @@ onMounted(() => void act(() => c.loadSources()));
           c.savedSources.value.map((b) => ({
             value: b.id,
             label: b.title,
-            description: `${b.characterCount.toLocaleString()} 字`,
+            description: t('longBookAnalysis.characterCount', {
+              count: b.characterCount.toLocaleString(locale)
+            }),
             actionIcon: 'trash',
-            actionLabel: `彻底删除 ${b.title}`
+            actionLabel: t('shortBookAnalysis.deleteStory', {
+              title: b.title
+            })
           }))
         "
         :placeholder="
           c.loading.value
-            ? '正在加载已导入短篇…'
+            ? t('shortBookAnalysis.loadingImportedStories')
             : c.savedSources.value.length
-              ? '选择已导入短篇'
-              : '暂无已导入短篇'
+              ? t('shortBookAnalysis.chooseImportedStory')
+              : t('shortBookAnalysis.noImportedStories')
         "
-        accessible-label="已保存短篇"
+        :accessible-label="t('shortBookAnalysis.savedStories')"
         :disabled="disabled || !c.savedSources.value.length"
         :menu-min-width="320"
         @change="(id) => act(() => c.loadSource(String(id)))"
@@ -85,24 +95,26 @@ onMounted(() => void act(() => c.loadSources()));
       <button
         type="button"
         :disabled="disabled"
-        title="导入 TXT / Markdown"
+        :title="t('shortBookAnalysis.importTextFormats')"
         @click="act(() => c.chooseSources())"
       >
-        <AppIcon name="file" :size="16" />导入文本
+        <AppIcon name="file" :size="16" />{{
+          t("shortBookAnalysis.importText")
+        }}
       </button>
       <button type="button" :disabled="disabled" @click="pasteOpen = true">
-        <AppIcon name="edit" :size="16" />粘贴文本
+        <AppIcon name="edit" :size="16" />{{ t("shortBookAnalysis.pasteText") }}
       </button>
       <button
-        class="analysis-icon-button"
         type="button"
-        title="管理拆书预设"
-        aria-label="管理拆书预设"
+        :title="t('longBookAnalysis.managePresets')"
+        :aria-label="t('longBookAnalysis.managePresets')"
         :disabled="disabled"
         @click="emit('managePresets')"
       >
-        <AppIcon name="settings" :size="17" />
+        {{ t("longBookAnalysis.managePresets") }}
       </button>
+      <slot />
     </div>
   </div>
   <Teleport to="body"
@@ -114,30 +126,33 @@ onMounted(() => void act(() => c.loadSources()));
       <section
         role="dialog"
         aria-modal="true"
-        aria-label="粘贴短篇"
+        :aria-label="t('shortBookAnalysis.pasteStory')"
         class="short-paste-dialog"
       >
-        <h2>粘贴短篇</h2>
+        <h2>{{ t("shortBookAnalysis.pasteStory") }}</h2>
         <label
-          >书名<input
+          >{{ t("shortBookAnalysis.bookTitle")
+          }}<input
             v-model="pasteTitle"
             maxlength="256"
             :disabled="disabled" /></label
         ><label
-          >完整正文<textarea
+          >{{ t("shortBookAnalysis.completeText")
+          }}<textarea
             v-model="pasteText"
             maxlength="2000000"
             :disabled="disabled"
           />
         </label>
         <footer>
-          <button :disabled="disabled" @click="pasteOpen = false">取消</button
+          <button :disabled="disabled" @click="pasteOpen = false">
+            {{ t("cloudBackup.cancel") }}</button
           ><button
             class="analysis-primary-button"
             :disabled="disabled"
             @click="paste"
           >
-            添加短篇
+            {{ t("shortBookAnalysis.addStory") }}
           </button>
         </footer>
       </section>

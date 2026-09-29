@@ -1,3 +1,4 @@
+import { createScopedTranslator } from "../i18n";
 import {
   createEmptyLongMarkdownFileReference,
   longStoryPlotBodyFileId,
@@ -30,6 +31,8 @@ import type { LongApprovalEditorFocus } from "../utils/approvalNavigation";
 import { orderLongChapterNavigationItems } from "../utils/orderLongChapterNavigationItems";
 import type { LongDocumentState } from "./useLongEditorDocumentSession";
 import { useLongStoryPlotDeleteConfirmation } from "./useLongStoryPlotDeleteConfirmation";
+
+const t = createScopedTranslator("workspace.longEditorStructureSelection");
 
 export interface LongStructureTitleTarget {
   kind: "worldbuilding" | "volume" | "plotPoint" | "chapterCard";
@@ -580,16 +583,20 @@ export function useLongEditorStructureSelection(options: {
       plots.length >= 200_000
     ) {
       if (plots.length >= 200_000) {
-        uiMessage.warning("故事情节数量已达上限。");
+        uiMessage.warning(t("theStoryPlotLimitHasBeenReached"));
       }
       return;
     }
     const usedTitles = new Set(plots.map(({ title }) => title));
     let sequence = plots.length + 1;
-    let title = `故事情节 ${sequence}`;
+    let title = t("storyPlot", {
+      sequence: sequence
+    });
     while (usedTitles.has(title)) {
       sequence += 1;
-      title = `故事情节 ${sequence}`;
+      title = t("storyPlot", {
+        sequence: sequence
+      });
     }
     const id = createId("storyplot");
     const updatedAt = new Date().toISOString();
@@ -623,7 +630,7 @@ export function useLongEditorStructureSelection(options: {
     );
     if (!current || options.host.currentReadOnly.value) return;
     if (!title) {
-      uiMessage.warning("故事情节名称不能为空。");
+      uiMessage.warning(t("theStoryPlotNameCannotBeEmpty"));
       (event.target as HTMLInputElement).value = current.title;
       return;
     }
@@ -726,7 +733,7 @@ export function useLongEditorStructureSelection(options: {
     if (!current) return;
     if (!title) {
       input.value = current.title;
-      uiMessage.warning("世界观条目名称不能为空。");
+      uiMessage.warning(t("theWorldbuildingEntryNameCannotBeEmpty"));
       return;
     }
     const categoryId = props.selection?.key.slice("worldbuilding:".length);
@@ -765,7 +772,7 @@ export function useLongEditorStructureSelection(options: {
     const name = characterNameDraft.value.trim();
     if (!name) {
       resetCharacterNameDraft();
-      uiMessage.warning("人物姓名不能为空。");
+      uiMessage.warning(t("theCharacterNameCannotBeEmpty"));
       return;
     }
     if (name === props.selection?.title) {

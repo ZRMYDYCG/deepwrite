@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import { onUnmounted, ref } from "vue";
 import {
   MarketplaceBindEmailInputSchema,
@@ -7,6 +8,8 @@ import {
 import { uiMessage } from "../ui-feedback";
 import { marketplaceAccountError } from "../utils/marketplaceAccountError";
 import MarketplaceEmailFields from "./MarketplaceEmailFields.vue";
+
+const t = createScopedTranslator("components.marketplaceBindEmail");
 const props = defineProps<{ session: MarketplaceSession }>();
 const emit = defineEmits<{ updated: [session: MarketplaceSession] }>();
 const open = ref(false);
@@ -26,7 +29,7 @@ async function bind(): Promise<void> {
     emailCode: emailCode.value
   });
   if (!parsed.success) {
-    uiMessage.warning("请填写有效邮箱和 6 位验证码。");
+    uiMessage.warning(t("enterAValidEmailAndSixDigitVerificationCode"));
     return;
   }
   pending.value = true;
@@ -36,11 +39,11 @@ async function bind(): Promise<void> {
     emailCode.value = "";
     open.value = false;
     emit("updated", session);
-    uiMessage.success("邮箱已验证并绑定。");
+    uiMessage.success(t("emailVerifiedAndLinked"));
   } catch (error: unknown) {
     if (alive)
       uiMessage.error(
-        marketplaceAccountError(error, "邮箱绑定失败，请稍后重试。")
+        marketplaceAccountError(error, t("couldNotLinkEmailTryAgainLater"))
       );
   } finally {
     if (alive) pending.value = false;
@@ -48,7 +51,9 @@ async function bind(): Promise<void> {
 }
 </script>
 <template>
-  <span v-if="session.user?.emailVerifiedAt" class="verified">邮箱已验证</span>
+  <span v-if="session.user?.emailVerifiedAt" class="verified">{{
+    t("emailVerified")
+  }}</span>
   <div v-else class="bind-entry">
     <button
       type="button"
@@ -56,15 +61,17 @@ async function bind(): Promise<void> {
       :disabled="pending || sending"
       @click="open = !open"
     >
-      {{ open ? "暂不绑定" : "绑定邮箱（可选）" }}
+      {{ open ? t("skipForNow") : t("linkEmailOptional") }}
     </button>
     <form
       v-if="open"
       class="bind-form"
-      aria-label="绑定邮箱"
+      :aria-label="t('linkEmail')"
       @submit.prevent="bind"
     >
-      <p>老用户可以自愿绑定邮箱，不绑定也能继续正常使用。</p>
+      <p>
+        {{ t("existingUsersMayLinkAnEmailVoluntarilyTheApp") }}
+      </p>
       <MarketplaceEmailFields
         v-model:email="email"
         v-model:code="emailCode"
@@ -77,7 +84,7 @@ async function bind(): Promise<void> {
         type="submit"
         :disabled="pending || sending"
       >
-        {{ pending ? "验证中…" : "验证并绑定" }}
+        {{ pending ? t("verifying") : t("verifyAndLink") }}
       </button>
     </form>
   </div>

@@ -1,0 +1,21 @@
+export default {
+  book: "Book",
+  skillLibrary: "Skill library",
+  materialLibrary: "Material library",
+  newWork: "New work",
+  newValue: "New {arg0}",
+  createFromTemplate: "Create from template",
+  newGroup: "New group",
+  openExistingWork: "Open existing work",
+  openExistingValue: "Open existing {arg0}",
+  importExistingWork: "Import existing work",
+  refreshNovels: "Refresh novels",
+  importLegacyValue: "Import legacy {arg0}",
+  importValueFromFilesOrFolders: "Import {arg0} from files or folders",
+  skill: "Skill",
+  material: "Material",
+  expandValue: "Expand {arg0}",
+  collapseValue: "Collapse {arg0}",
+  createOrImportValue: "Create or import {arg0}",
+  contentUnderValue: "Content under {arg0}"
+};

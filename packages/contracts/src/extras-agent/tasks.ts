@@ -13,7 +13,7 @@ import {
   ContextCompactionRequestSchema,
   ContextCompactionRunSettingsSchema,
   ConversationCheckpointSchema
-} from "../session/context-compaction";
+} from "../session/context-compaction-state";
 import { ShortBookAnalysisRuntimeContextSchema } from "../short-book-analysis";
 import { ShortBookAnalysisPresetSchema } from "../short-book-analysis-presets";
 import { StyleComparisonRuntimeContextSchema } from "../style-comparison";

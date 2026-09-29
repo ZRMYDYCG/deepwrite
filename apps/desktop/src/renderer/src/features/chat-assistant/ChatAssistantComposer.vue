@@ -1,12 +1,20 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../../i18n";
 import { ref } from "vue";
 import type { ThinkingLevel } from "@deepwrite/contracts/renderer";
 import ContextCompactionButton from "../../components/ContextCompactionButton.vue";
+import VoiceInputBar from "../../components/VoiceInputBar.vue";
+import { useVoiceInput } from "../../composables/useVoiceInput";
+import { useSettingsStore } from "../../stores/settingsStore";
 import AppIcon from "../../components/AppIcon.vue";
 import PopupSelect, {
   type PopupSelectOption,
   type PopupSelectValue
 } from "../../components/PopupSelect.vue";
+
+const t = createScopedTranslator("extras");
+
+const settingsStore = useSettingsStore();
 
 const props = defineProps<{
   sessionId?: string;
@@ -36,6 +44,15 @@ const emit = defineEmits<{
 }>();
 
 const input = ref<HTMLTextAreaElement | null>(null);
+const voice = useVoiceInput({
+  sessionKey: () => props.sessionId ?? "",
+  draft: () => props.draft,
+  input,
+  updateDraft: (value) => emit("update:draft", value),
+  canStart: () => props.runtimeAvailable && !props.busy,
+  canSend: () => props.canSend && props.runtimeAvailable && !props.busy,
+  send: () => emit("send")
+});
 
 function focus(): void {
   input.value?.focus();
@@ -48,7 +65,7 @@ function handleInput(event: Event): void {
 function handleKeydown(event: KeyboardEvent): void {
   if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
   event.preventDefault();
-  if (props.canSend) emit("send");
+  if (props.canSend && !voice.active.value) emit("send");
 }
 
 function handleThinking(value: PopupSelectValue): void {
@@ -56,9 +73,11 @@ function handleThinking(value: PopupSelectValue): void {
 }
 
 function webSearchTitle(): string {
-  if (props.busy) return "当前回复完成或停止后，才能切换智能搜索";
+  if (props.busy) return t("chatAssistant.waitBeforeSearchChange");
   if (!props.webSearchAvailable) return props.webSearchDisabledReason;
-  return props.webSearchEnabled ? "关闭智能搜索" : "开启智能搜索";
+  return props.webSearchEnabled
+    ? t("chatAssistant.disableSmartSearch")
+    : t("chatAssistant.enableSmartSearch");
 }
 
 defineExpose({ focus });
@@ -71,26 +90,41 @@ defineExpose({ focus });
       :value="draft"
       :placeholder="
         runtimeAvailable
-          ? '给聊天助手发送消息'
-          : '浏览器预览不可发送，请启动桌面客户端'
+          ? t('chatAssistant.messageAssistant')
+          : t('chatAssistant.desktopRequiredToSend')
       "
-      :disabled="!runtimeAvailable || busy"
+      :disabled="!runtimeAvailable || busy || voice.active.value"
       rows="1"
       @input="handleInput"
       @keydown="handleKeydown"
     />
-    <div class="chat-assistant-toolbar">
+    <VoiceInputBar
+      v-if="voice.active.value"
+      :state="voice.state.value"
+      :elapsed-ms="voice.elapsedMs.value"
+      :levels="voice.levels.value"
+      :send-disabled="busy || !runtimeAvailable"
+      @cancel="voice.cancel"
+      @stop="voice.stop"
+      @send="voice.stopAndSend"
+      @retry="voice.retry"
+    />
+    <div v-else class="chat-assistant-toolbar">
       <button
         class="chat-assistant-placeholder-action"
         type="button"
         disabled
-        title="附件功能后续开放"
-        aria-label="附件功能后续开放"
+        :title="t('chatAssistant.attachmentsComingSoon')"
+        :aria-label="t('chatAssistant.attachmentsComingSoon')"
       >
         <AppIcon name="plus" :size="19" />
       </button>
       <ContextCompactionButton
-        v-if="sessionId && hasHistory"
+        v-if="
+          settingsStore.generalSettings.contextCompaction.showManualButton &&
+          sessionId &&
+          hasHistory
+        "
         :session-id="sessionId"
         :disabled="busy || !runtimeAvailable"
       />
@@ -102,17 +136,17 @@ defineExpose({ focus });
         type="button"
         :disabled="busy || !webSearchAvailable"
         :title="webSearchTitle()"
-        aria-label="智能搜索"
+        :aria-label="t('chatAssistant.smartSearch')"
         :aria-pressed="webSearchEnabled"
         @click="emit('toggleWebSearch', !webSearchEnabled)"
       >
-        <span>智能搜索</span>
+        <span>{{ t("chatAssistant.smartSearch") }}</span>
       </button>
       <PopupSelect
         :model-value="selectedModelId"
         :options="modelOptions"
-        accessible-label="聊天模型"
-        placeholder="默认模型"
+        :accessible-label="t('chatAssistant.chatModel')"
+        :placeholder="t('chatAssistant.defaultModel')"
         variant="compact"
         size="small"
         align="end"
@@ -124,7 +158,7 @@ defineExpose({ focus });
       <PopupSelect
         :model-value="thinkingLevel"
         :options="thinkingOptions"
-        accessible-label="思考等级"
+        :accessible-label="t('longBookAnalysis.thinkingLevel')"
         variant="compact"
         size="small"
         align="end"
@@ -134,9 +168,10 @@ defineExpose({ focus });
       <button
         class="chat-assistant-placeholder-action"
         type="button"
-        disabled
-        title="语音功能后续开放"
-        aria-label="语音功能后续开放"
+        :disabled="!runtimeAvailable || busy"
+        :title="t('chatAssistant.voiceInput')"
+        :aria-label="t('chatAssistant.voiceInput')"
+        @click="voice.start"
       >
         <AppIcon name="mic" :size="18" />
       </button>
@@ -144,7 +179,7 @@ defineExpose({ focus });
         v-if="canStop"
         class="chat-assistant-send is-stop"
         type="button"
-        aria-label="停止生成"
+        :aria-label="t('chatAssistant.stopGeneration')"
         @click="emit('stop')"
       >
         <AppIcon name="stop" :size="15" />
@@ -153,7 +188,7 @@ defineExpose({ focus });
         v-else
         class="chat-assistant-send"
         type="button"
-        aria-label="发送消息"
+        :aria-label="t('chatAssistant.sendMessage')"
         :disabled="!canSend"
         @click="emit('send')"
       >

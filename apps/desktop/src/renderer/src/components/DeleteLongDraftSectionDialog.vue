@@ -1,6 +1,9 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import { onBeforeUnmount, onMounted } from "vue";
 import AppIcon from "./AppIcon.vue";
+
+const t = createScopedTranslator("components.deleteLongDraftSectionDialog");
 
 const props = withDefaults(
   defineProps<{
@@ -13,10 +16,9 @@ const props = withDefaults(
   }>(),
   {
     pending: false,
-    eyebrow: "正文",
-    itemLabel: "小节",
-    description:
-      "将永久删除该小节及对应章卡、章节正文、章末人物状态、下一章接续包，以及相关剧情落点和伏笔触点。"
+    eyebrow: "",
+    itemLabel: "",
+    description: ""
   }
 );
 
@@ -53,13 +55,23 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
       >
         <header>
           <div>
-            <span>{{ eyebrow }}</span>
-            <h2 id="delete-long-draft-section-title">删除{{ itemLabel }}</h2>
+            <span>{{ eyebrow || t("manuscript") }}</span>
+            <h2 id="delete-long-draft-section-title">
+              {{
+                t("deleteMessageDetail", {
+                  arg0: (itemLabel || t("section")) ?? ""
+                })
+              }}
+            </h2>
           </div>
           <button
             class="close-button"
             type="button"
-            :aria-label="`关闭删除${itemLabel}弹窗`"
+            :aria-label="
+              t('closeDeleteValueDialog', {
+                arg0: itemLabel || t('section')
+              })
+            "
             :disabled="pending"
             @click="close"
           >
@@ -68,21 +80,28 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
         </header>
 
         <div class="dialog-body">
-          <strong>确认删除“{{ sectionTitle }}”？</strong>
+          <strong>{{
+            t("deleteMessageDetailDetail", { arg0: sectionTitle ?? "" })
+          }}</strong>
           <p id="delete-long-draft-section-description" tabindex="0">
-            {{ description }}
+            {{
+              description ||
+              t("thisPermanentlyDeletesTheSectionItsChapterCardManuscript")
+            }}
           </p>
         </div>
 
         <footer>
-          <button type="button" :disabled="pending" @click="close">取消</button>
+          <button type="button" :disabled="pending" @click="close">
+            {{ t("cancel") }}
+          </button>
           <button
             class="danger-button"
             type="button"
             :disabled="pending"
             @click="emit('confirm')"
           >
-            {{ pending ? "删除中…" : "确认删除" }}
+            {{ pending ? t("deleting") : t("deleteMessage") }}
           </button>
         </footer>
       </section>

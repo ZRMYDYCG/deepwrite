@@ -1,3 +1,4 @@
+import { createScopedTranslator } from "../i18n";
 import { createConversationPreferenceState } from "./conversationPreferenceState";
 import { createConversationPersistenceState } from "./conversationPersistenceState";
 import { flushConversationsBeforeClose } from "./conversationClose";
@@ -22,6 +23,8 @@ import {
 } from "vue";
 import { defineStore } from "pinia";
 import type { AgentConversationController } from "../composables/useAgentConversation";
+
+const t = createScopedTranslator("workspace");
 
 export interface DisposeConversationStoreOptions {
   flush?: boolean;
@@ -111,8 +114,12 @@ export const useConversationStore = defineStore("conversation", () => {
   ): AgentConversationController {
     const normalizedKey = key.trim();
     const normalizedScope = scope.trim();
-    if (!normalizedKey) throw new Error("会话 key 不能为空。");
-    if (!normalizedScope) throw new Error("会话 scope 不能为空。");
+    if (!normalizedKey)
+      throw new Error(t("conversationStore.conversationKeyCannotBeEmpty"));
+    if (!normalizedScope)
+      throw new Error(
+        t("conversationPreferenceState.conversationScopeCannotBeEmpty")
+      );
     const existing = controllers.value.get(normalizedKey);
     checkpointWatchers.get(normalizedKey)?.();
     if (existing && existing !== controller) {

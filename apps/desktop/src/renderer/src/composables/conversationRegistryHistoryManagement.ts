@@ -1,3 +1,4 @@
+import { createScopedTranslator } from "../i18n";
 import { createId } from "@deepwrite/shared";
 import type {
   ConversationHistoryApi,
@@ -12,6 +13,10 @@ import type {
   AgentConversationPersistenceRecord,
   UseAgentConversationOptions
 } from "./useAgentConversation";
+
+const t = createScopedTranslator(
+  "workspace.conversationRegistryHistoryManagement"
+);
 
 type PendingMutation = {
   batch: ConversationHistoryBatch;
@@ -35,7 +40,7 @@ export function createRegistryHistoryManagement(
       sessionId,
       maxBytes: 64 * 1024
     });
-    if (!session) throw new Error("此历史对话已不存在。");
+    if (!session) throw new Error(t("thisConversationNoLongerExists"));
     // Preserve the exact request after an uncertain acknowledgement. A rejected
     // operation can be prepared again once a later write changed its precondition.
     if (
@@ -82,11 +87,13 @@ export function createRegistryHistoryManagement(
     }
     const receipt = await api.commit(operation.batch);
     if (receipt.batchId !== operation.batch.batchId)
-      throw new Error("历史管理确认编号不匹配，请重试。");
+      throw new Error(
+        t("historyOperationAcknowledgmentDoesNotMatchPleaseTryAgain")
+      );
     const current = await api.session({ key, sessionId, maxBytes: 4096 });
     if (!current || current.deleted !== deleted) {
       pending.delete(identity);
-      throw new Error("会话状态已变化，请刷新历史后重试。");
+      throw new Error(t("conversationStateChangedRefreshHistoryAndTryAgain"));
     }
     const record =
       !deleted && current.revision !== receipt.revision

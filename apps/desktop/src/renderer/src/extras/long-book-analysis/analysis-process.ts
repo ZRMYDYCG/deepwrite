@@ -1,5 +1,13 @@
+import {
+  localizedMessage,
+  resolveLocalizedText,
+  type LocalizedText
+} from "../analysis-ui/localized-text";
+import { createScopedTranslator, locale } from "../../i18n";
 import type { Ref } from "vue";
 import type { LongBookAnalysisPhase } from "./analysis-pipeline-types";
+
+const t = createScopedTranslator("extras.longBookAnalysis");
 
 export type LongBookAnalysisProcessTone = "info" | "success" | "error";
 
@@ -14,22 +22,38 @@ export interface LongBookAnalysisProcessEntry {
 
 export interface LongBookAnalysisProcessState {
   processEntries: Ref<LongBookAnalysisProcessEntry[]>;
-  currentActivity: Ref<string>;
+  currentActivity: Ref<string, LocalizedText>;
   liveOutput: Ref<string>;
 }
 
 const PHASE_LABELS: Record<LongBookAnalysisPhase, string> = {
-  batch: "分批提炼",
-  reduce: "归并笔记",
-  final: "生成正式结果"
+  get batch() {
+    return t("batchExtraction");
+  },
+  get reduce() {
+    return t("mergeNotes");
+  },
+  get final() {
+    return t("generateFinal");
+  }
 };
 
 const TOOL_LABELS: Record<string, string> = {
-  list_analysis_inputs: "正在核对当前输入清单",
-  read_analysis_input: "正在读取章节或分析笔记",
-  search_analysis_inputs: "正在搜索章节证据",
-  write_analysis_note: "正在保存本阶段分析笔记",
-  write_analysis_result: "正在生成可编辑结果"
+  get list_analysis_inputs() {
+    return t("checkingInputList");
+  },
+  get read_analysis_input() {
+    return t("readingChaptersNotes");
+  },
+  get search_analysis_inputs() {
+    return t("searchingEvidence");
+  },
+  get write_analysis_note() {
+    return t("savingPhaseNotes");
+  },
+  get write_analysis_result() {
+    return t("generatingEditableResult");
+  }
 };
 
 export function analysisPhaseLabel(phase: LongBookAnalysisPhase): string {
@@ -41,9 +65,13 @@ export function formatAnalysisProgress(
   completedUnits: number,
   estimatedUnits: number
 ): string {
-  if (!phase) return "尚未开始";
+  if (!phase) return t("notStarted");
   const total = Math.max(1, completedUnits, estimatedUnits);
-  return `${analysisPhaseLabel(phase)} · 处理步骤 ${Math.min(completedUnits, total)}/${total}`;
+  return t("analysisStepProgress", {
+    phase: analysisPhaseLabel(phase),
+    completed: Math.min(completedUnits, total),
+    total: total
+  });
 }
 
 export class LongBookAnalysisProcessTracker {
@@ -61,59 +89,84 @@ export class LongBookAnalysisProcessTracker {
   }
 
   start(
-    presetName: string,
+    presetName: LocalizedText,
     selectionStart: number,
     selectionEnd: number,
     batchCount: number
   ): void {
     this.reset();
     this.add(
-      `开始执行“${presetName}”预设`,
-      `仅运行当前预设 · 第 ${selectionStart}-${selectionEnd} 章 · ${batchCount} 个分析批次`
+      () =>
+        t("startingPreset", {
+          name: resolveLocalizedText(presetName)
+        }),
+      localizedMessage("extras.longBookAnalysis.presetRunScope", {
+        start: selectionStart,
+        end: selectionEnd,
+        batches: batchCount
+      })
     );
-    this.state.currentActivity.value = "正在准备第一个分析批次";
+    this.state.currentActivity.value = localizedMessage(
+      "extras.longBookAnalysis.preparingFirstBatch"
+    );
   }
 
-  beginUnit(phase: LongBookAnalysisPhase, detail: string): void {
+  beginUnit(phase: LongBookAnalysisPhase, detail: LocalizedText): void {
     this.phase = phase;
     this.state.liveOutput.value = "";
-    this.state.currentActivity.value = analysisPhaseLabel(phase);
-    this.add(analysisPhaseLabel(phase), detail);
+    this.state.currentActivity.value = () => analysisPhaseLabel(phase);
+    this.add(() => analysisPhaseLabel(phase), detail);
   }
 
   retry(): void {
-    this.add("继续执行", "从上次停止或失败的步骤继续");
-    this.state.currentActivity.value = "正在重新启动当前步骤";
+    this.add(
+      localizedMessage("extras.longBookAnalysis.continueRun"),
+      localizedMessage("extras.longBookAnalysis.resumeDescription")
+    );
+    this.state.currentActivity.value = localizedMessage(
+      "extras.longBookAnalysis.restartingStep"
+    );
   }
 
   requestStop(): void {
-    this.add("正在停止", "等待当前模型请求安全结束");
-    this.state.currentActivity.value = "正在停止";
+    this.add(
+      localizedMessage("extras.analysisUi.stopping"),
+      localizedMessage("extras.longBookAnalysis.waitingForRequestEnd")
+    );
+    this.state.currentActivity.value = localizedMessage(
+      "extras.analysisUi.stopping"
+    );
   }
 
   thinking(): void {
-    if (this.state.currentActivity.value !== "模型正在整理当前阶段")
-      this.add("模型正在整理当前阶段");
-    this.state.currentActivity.value = "模型正在整理当前阶段";
+    if (this.state.currentActivity.value !== t("organizingPhase"))
+      this.add(localizedMessage("extras.longBookAnalysis.organizingPhase"));
+    this.state.currentActivity.value = localizedMessage(
+      "extras.longBookAnalysis.organizingPhase"
+    );
   }
 
   appendMessage(delta: string): void {
-    if (this.state.currentActivity.value !== "模型正在输出当前阶段说明")
-      this.add("模型正在输出当前阶段说明");
+    if (this.state.currentActivity.value !== t("describingPhase"))
+      this.add(localizedMessage("extras.longBookAnalysis.describingPhase"));
     const next = `${this.state.liveOutput.value}${delta}`;
     this.state.liveOutput.value = next.slice(-20_000);
-    this.state.currentActivity.value = "模型正在输出当前阶段说明";
+    this.state.currentActivity.value = localizedMessage(
+      "extras.longBookAnalysis.describingPhase"
+    );
   }
 
   completeMessage(content: string): void {
     if (!this.state.liveOutput.value.trim() && content.trim()) {
       this.state.liveOutput.value = content.slice(-20_000);
     }
-    this.state.currentActivity.value = "当前模型步骤已完成";
+    this.state.currentActivity.value = localizedMessage(
+      "extras.longBookAnalysis.modelStepComplete"
+    );
   }
 
   toolStarted(toolName: string): void {
-    const label = TOOL_LABELS[toolName] ?? "正在执行分析工具";
+    const label = () => TOOL_LABELS[toolName] ?? t("runningAnalysisTool");
     this.state.currentActivity.value = label;
     this.add(label);
   }
@@ -121,8 +174,11 @@ export class LongBookAnalysisProcessTracker {
   toolCompleted(toolName: string, isError: boolean): void {
     if (isError) {
       this.add(
-        `${TOOL_LABELS[toolName] ?? "分析工具"}失败`,
-        "模型将决定是否重试当前动作",
+        () =>
+          t("toolFailed", {
+            tool: TOOL_LABELS[toolName] ?? t("analysisTool")
+          }),
+        localizedMessage("extras.longBookAnalysis.modelRetryDecision"),
         "error"
       );
     }
@@ -130,35 +186,62 @@ export class LongBookAnalysisProcessTracker {
 
   noteWritten(characterCount: number): void {
     this.add(
-      "本阶段分析笔记已生成",
-      `${characterCount.toLocaleString()} 字符`,
+      localizedMessage("extras.longBookAnalysis.phaseNotesGenerated"),
+      () =>
+        t("characters", {
+          count: characterCount.toLocaleString(locale.value)
+        }),
       "success"
     );
   }
 
-  resultWritten(title: string): void {
-    this.add("可编辑结果已生成", title, "success");
-    this.state.currentActivity.value = "结果已显示，可随时写入资料库";
+  resultWritten(title: LocalizedText): void {
+    this.add(
+      localizedMessage("extras.longBookAnalysis.editableResultGenerated"),
+      title,
+      "success"
+    );
+    this.state.currentActivity.value = localizedMessage(
+      "extras.longBookAnalysis.resultWaitingForStep"
+    );
   }
 
   complete(): void {
-    this.add("当前预设执行完成", "结果已保留在下方预览区", "success");
-    this.state.currentActivity.value = "执行完成";
+    this.add(
+      localizedMessage("extras.longBookAnalysis.presetRunComplete"),
+      localizedMessage("extras.longBookAnalysis.resultRetainedPreview"),
+      "success"
+    );
+    this.state.currentActivity.value = localizedMessage(
+      "extras.longBookAnalysis.runComplete"
+    );
   }
 
-  fail(message: string): void {
-    this.add("执行失败", message, "error");
-    this.state.currentActivity.value = "执行失败，可从当前步骤重试";
+  fail(message: LocalizedText): void {
+    this.add(
+      localizedMessage("extras.longBookAnalysis.runFailed"),
+      message,
+      "error"
+    );
+    this.state.currentActivity.value = localizedMessage(
+      "extras.longBookAnalysis.runFailedRetry"
+    );
   }
 
   stopped(): void {
-    this.add("执行已停止", "已完成的步骤仍然保留", "info");
-    this.state.currentActivity.value = "已停止，可继续";
+    this.add(
+      localizedMessage("extras.longBookAnalysis.runStopped"),
+      localizedMessage("extras.longBookAnalysis.completedStepsRetained"),
+      "info"
+    );
+    this.state.currentActivity.value = localizedMessage(
+      "extras.longBookAnalysis.stoppedCanContinue"
+    );
   }
 
   private add(
-    title: string,
-    detail?: string,
+    title: LocalizedText,
+    detail?: LocalizedText,
     tone: LongBookAnalysisProcessTone = "info"
   ): void {
     this.sequence += 1;
@@ -167,8 +250,12 @@ export class LongBookAnalysisProcessTracker {
       {
         id: `analysis_process_${this.sequence}`,
         createdAt: new Date().toISOString(),
-        title,
-        ...(detail ? { detail } : {}),
+        get title() {
+          return resolveLocalizedText(title);
+        },
+        get detail() {
+          return detail ? resolveLocalizedText(detail) : "";
+        },
         phase: this.phase,
         tone
       }

@@ -1,5 +1,9 @@
+import { formatError } from "../../i18n/errors";
+import { createScopedTranslator } from "../../i18n";
 import type { AgentConversationController } from "../../composables/useAgentConversation";
 import { uiMessage } from "../../ui-feedback";
+
+const t = createScopedTranslator("extras.chatAssistant");
 
 export function useChatAssistantHistoryActions(options: {
   controller: () => Pick<
@@ -22,16 +26,12 @@ export function useChatAssistantHistoryActions(options: {
         ? conversation.openConversation(sessionId)
         : conversation.selectConversation(sessionId));
       if (!selected) {
-        notifications.info("当前回复完成或停止后，才能切换聊天记录");
+        notifications.info(t("waitBeforeHistoryChange"));
         return;
       }
       options.focusInput();
     } catch (error) {
-      notifications.error(
-        error instanceof Error
-          ? error.message
-          : "暂时无法打开这条历史对话，请重试。"
-      );
+      notifications.error(formatError(error, t("openHistoryFailed")));
     }
   }
   return { newConversation, selectConversation };

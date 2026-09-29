@@ -6,7 +6,7 @@ import {
 } from "../long-book-analysis";
 import { RevisionAnalysisResultSchema } from "../revision-analysis";
 import { validateAgentEventContext } from "../session/envelopes";
-import { AgentRuntimeRefSchema } from "../session/runtime";
+import { AgentRuntimeRefSchema } from "../session/agent-event-identity";
 import { StyleComparisonResultSchema } from "../style-comparison";
 import { ExtrasAgentIdSchema } from "./ids";
 

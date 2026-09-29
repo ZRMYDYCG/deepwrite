@@ -1,5 +1,8 @@
+import { createScopedTranslator } from "../../i18n";
 import type { ProposalCoordinatorContext } from "../useProposalCoordinator";
 import type { SystemEventEnvelope } from "@deepwrite/contracts";
+
+const t = createScopedTranslator("workspace.libraryHydration");
 type LibraryEditorMutationEvent = Extract<
   SystemEventEnvelope,
   { type: "library.editor_mutation" }
@@ -18,7 +21,7 @@ export async function hydrateLibraryProposalDocument(
   );
   if (!initial || initial.catalogContentLoaded !== false) return;
   const api = context.api();
-  if (!api) throw new Error("资料库文件服务当前不可用。");
+  if (!api) throw new Error(t("theLibraryFileServiceIsCurrentlyUnavailable"));
   const loaded = await api.catalog.readDocument(
     payload.operation === "edit-overview"
       ? { projectId: payload.libraryId, target: "overview" }
@@ -33,7 +36,9 @@ export async function hydrateLibraryProposalDocument(
     (document) => document.id === initial.id
   );
   if (!current || current.catalogContentStamp !== initial.catalogContentStamp)
-    throw new Error("资料库内容版本已变化，请重新生成。");
+    throw new Error(
+      t("theLibraryContentVersionChangedGenerateTheContentAgain")
+    );
   if (current.catalogContentLoaded !== false) return;
   context.editor.documents.value = context.editor.documents.value.map(
     (document) =>

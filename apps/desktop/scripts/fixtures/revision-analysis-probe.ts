@@ -1,6 +1,8 @@
+import "./analysis-probe-i18n";
 import { createApp, h, nextTick, ref } from "vue";
 import { RevisionAnalysisPage } from "../../src/renderer/src/components/lazyAppComponents";
 import { useRevisionAnalysis } from "../../src/renderer/src/extras/revision-analysis/useRevisionAnalysis";
+import { thinkingLabel } from "../../src/renderer/src/components/modelSettingsDraft";
 import {
   applyAppearanceThemeToDocument,
   defaultAppearanceTheme
@@ -29,6 +31,14 @@ const model = {
   contextWindow: 200000,
   maxTokens: 16000
 } as ModelConfig;
+const alternateModel: ModelConfig = {
+  ...model,
+  id: "revision-alternate-model",
+  label: "修改验证备用模型",
+  reasoning: true,
+  thinkingLevelOptions: ["low", "high"]
+};
+const models = [model, alternateModel];
 const library = {
   id: "library",
   title: "我的修改技能",
@@ -81,16 +91,16 @@ const api = {
   }
 } as unknown as DeepWriteApi;
 const c = useRevisionAnalysis({ api: () => api });
-c.setConfiguredModels([model]);
+c.setConfiguredModels(models);
 const visible = ref(true);
-const catalog = { skills: [library] } as unknown as CatalogSnapshot;
+const catalog = ref({ skills: [library] } as unknown as CatalogSnapshot);
 createApp({
   render: () =>
     visible.value
       ? h(RevisionAnalysisPage, {
           controller: c,
-          models: [model],
-          catalogSnapshot: catalog
+          models,
+          catalogSnapshot: catalog.value
         })
       : h("div", "其他页面，修改分析在后台继续")
 }).mount("#app");
@@ -125,6 +135,41 @@ function event(type: string, payload: Record<string, unknown> = {}) {
     payload: { sessionId: request.sessionId, runId: "probe-run", ...payload }
   } as SystemEventEnvelope);
 }
+async function selectHeaderModel() {
+  const trigger = document.querySelector<HTMLButtonElement>(
+    ".analysis-page-header .analysis-model-trigger"
+  );
+  check(trigger, "模型配置必须位于右上角页头");
+  trigger.click();
+  await frame();
+  const selects = document.querySelectorAll<HTMLButtonElement>(
+    '.analysis-model-panel [role="combobox"]'
+  );
+  check(selects.length === 2, "模型设置只包含模型和思考强度");
+  for (const [index, text] of [
+    [0, alternateModel.label],
+    [1, thinkingLabel("high")]
+  ] as const) {
+    selects[index]!.click();
+    await frame();
+    const option = [
+      ...document.querySelectorAll<HTMLElement>('[role="option"]')
+    ].find((item) => item.textContent?.trim() === text);
+    check(option, `右上角配置缺少选项：${text}`);
+    option.click();
+    await frame();
+  }
+  trigger.click();
+  await frame();
+  check(!document.querySelector(".analysis-model-panel"), "模型配置可以收起");
+  check(
+    !document.querySelector(
+      '.analysis-content [role="combobox"], .analysis-content .analysis-settings'
+    ),
+    "正文不应保留开始前模型或分析设置"
+  );
+  check(!document.querySelector(".revision-result"), "生成前不应出现保存设置");
+}
 async function run() {
   const deadline = Date.now() + 15000;
   while (!document.querySelector('[aria-label="修改前正文"]')) {
@@ -134,6 +179,7 @@ async function run() {
   await frame();
   await c.loadSettings();
   await frame();
+  await selectHeaderModel();
   fill(
     "修改前正文",
     "雨落在窗上。\n她感到非常悲伤，因为那封信让她想起很久以前的事情。\n她把信收进抽屉。\n夜色深了。"
@@ -143,7 +189,38 @@ async function run() {
     "雨敲着窗。\n她捏住信角，半晌没松手。\n她把信收进抽屉。\n夜色深了。\n抽屉没有关严。"
   );
   await frame();
-  button("比较差异").click();
+  check(!c.changes.value.length, "初始未手动比较差异");
+  button("开始分析").click();
+  await frame();
+  await frame();
+  check(c.isBusy.value && c.changes.value.length === 2, "直接开始自动比较差异");
+  check(
+    request?.modelId === alternateModel.id && request.thinkingLevel === "high",
+    "真实分析请求必须跟随右上角模型与思考强度选择"
+  );
+  check(!document.querySelector(":popover-open"), "开始后过程默认收起");
+  const trigger = document.querySelector<HTMLButtonElement>(
+    ".analysis-status-trigger"
+  )!;
+  trigger.click();
+  await frame();
+  check(
+    document.querySelector(".analysis-process-drawer:popover-open"),
+    "可以打开过程抽屉"
+  );
+  document
+    .querySelector<HTMLButtonElement>('[aria-label="关闭执行过程"]')!
+    .click();
+  await frame();
+  check(
+    c.isBusy.value && document.activeElement === trigger,
+    "关闭过程不中止并恢复焦点"
+  );
+  await c.stop();
+  await frame();
+  document.querySelector<HTMLElement>(".revision-materials > summary")!.click();
+  await frame();
+  button("刷新差异").click();
   await frame();
   check(c.changes.value.length === 2, "应有两组差异");
   fill("差异 1 的修改理由", "用动作代替解释，让情绪留白。");
@@ -200,11 +277,53 @@ async function run() {
   await frame();
   check(saved.length === 1, "技能应保存一次");
   check(button("已保存此版技能").disabled, "重复保存应被禁用");
+  const nextResult = { ...c.result.value, title: "新的动作修改方法" };
+  button("重新分析").click();
+  await frame();
+  check(
+    select.textContent?.includes(library.title),
+    "旧结果保留期间不能提前清空目标库"
+  );
+  check(request.task.agentId === "revision-analysis", "重新分析请求应存在");
+  event("extras_agent.output_updated", {
+    agentId: "revision-analysis",
+    jobId: request.task.input.jobId,
+    output: { kind: "revision-analysis-result", result: nextResult }
+  });
+  event("agent.message_completed");
+  await frame();
+  check(
+    !select.textContent?.includes(library.title) &&
+      button("保存到技能库").disabled,
+    "新结果成功后必须重新选择保存目标"
+  );
+  select.click();
+  await frame();
+  const nextOption = [
+    ...document.querySelectorAll<HTMLElement>('[role="option"]')
+  ].find((el) => el.textContent?.includes(library.title));
+  check(nextOption, "新结果可以选择目标技能库");
+  nextOption.click();
+  c.result.value!.body += "\n- 本次结果补充。";
+  catalog.value = { ...catalog.value, skills: [{ ...library }] };
+  await frame();
+  check(
+    !button("保存到技能库").disabled,
+    "编辑当前结果与刷新目录应保留有效目标"
+  );
+  catalog.value = { ...catalog.value, skills: [] };
+  await frame();
+  check(button("保存到技能库").disabled, "目标库删除后必须清空失效选择");
+  catalog.value = { ...catalog.value, skills: [library] };
+  await frame();
   return {
     differenceGroups: c.changes.value.length,
     backgroundCompleted: true,
     editedSkillSaved: saved.length,
-    duplicateBlocked: true
+    duplicateBlocked: true,
+    headerModelSelection: true,
+    newResultRequiresDestination: true,
+    removedDestinationCleared: true
   };
 }
 async function show(
@@ -225,17 +344,36 @@ async function show(
   });
   await frame();
   const page = document.querySelector<HTMLElement>(".revision-analysis-page")!;
+  document
+    .querySelector<HTMLButtonElement>('[aria-label="关闭执行过程"]')
+    ?.click();
   page.scrollTop = 0;
   if (state === "results")
     document
       .querySelector(".revision-result")!
       .scrollIntoView({ block: "start" });
+  if (state === "process") {
+    document
+      .querySelector<HTMLButtonElement>(".analysis-status-trigger")!
+      .click();
+    await frame();
+    const drawer = document.querySelector<HTMLElement>(
+      ".analysis-process-drawer:popover-open"
+    )!;
+    check(
+      drawer && drawer.scrollWidth <= drawer.clientWidth + 1,
+      "过程抽屉不能横向溢出"
+    );
+  }
   if (menu) {
     document
-      .querySelector(".revision-controls")!
-      .scrollIntoView({ block: "start" });
+      .querySelector<HTMLButtonElement>(".analysis-model-trigger")!
+      .click();
+    await frame();
     document
-      .querySelector<HTMLButtonElement>('[aria-label="修改分析模型"]')!
+      .querySelector<HTMLButtonElement>(
+        '.analysis-model-panel [role="combobox"]'
+      )!
       .click();
   }
   await frame();

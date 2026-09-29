@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import type {
   AgentTeamProfileCreateInput,
   AgentTeamProfileRenameInput,
@@ -41,6 +42,8 @@ import {
   resetWorkspaceFeatureSubagent,
   stopWorkspaceFeatureSubagent
 } from "./workspaceFeatureModuleAuthoring";
+
+const t = createScopedTranslator("components.workspaceFeatureModules");
 
 defineProps<{
   module: WorkspaceFeatureModule;
@@ -89,6 +92,7 @@ const emit = defineEmits<{
   setAgentTeamEnabled: [input: AgentTeamProfileSetEnabledInput];
   saveAgentTeam: [input: AgentTeamProfileSaveInput];
   chooseWorkspaceDirectory: [];
+  resetWorkspaceDirectory: [];
   refreshFreeModels: [];
   openOfficialModels: [];
   refreshCatalog: [];
@@ -103,6 +107,7 @@ const emit = defineEmits<{
     :workspace-directory-path="module.workspaceDirectoryPath"
     :workspace-directory-loading="module.workspaceDirectoryLoading"
     @choose-workspace-directory="emit('chooseWorkspaceDirectory')"
+    @reset-workspace-directory="emit('resetWorkspaceDirectory')"
     :permission-mode="module.permissionMode"
     :auto-approve-cross-stage-operations="
       module.autoApproveCrossStageOperations
@@ -193,7 +198,7 @@ const emit = defineEmits<{
     class="agent-team-main-view"
     :left-collapsed="leftCollapsed"
     expand-button-class="agent-team-expand-sidebar"
-    label="智能体团队"
+    :label="t('agentTeams')"
     @expand-left="emit('expandLeft')"
   >
     <AgentTeamSettingsPanel
@@ -230,7 +235,7 @@ const emit = defineEmits<{
     class="workspace-settings-main-view"
     :left-collapsed="leftCollapsed"
     expand-button-class="workspace-settings-expand-sidebar"
-    label="工作目录"
+    :label="t('workspaceFolder')"
     @expand-left="emit('expandLeft')"
   >
     <WorkspaceDirectoryFeature
@@ -245,7 +250,7 @@ const emit = defineEmits<{
     class="long-book-analysis-main-view"
     :left-collapsed="leftCollapsed"
     expand-button-class="long-book-analysis-expand-sidebar"
-    label="修改分析"
+    :label="t('revisionAnalysis')"
     @expand-left="emit('expandLeft')"
   >
     <RevisionAnalysisPage
@@ -262,7 +267,7 @@ const emit = defineEmits<{
     class="long-book-analysis-main-view"
     :left-collapsed="leftCollapsed"
     expand-button-class="long-book-analysis-expand-sidebar"
-    label="短篇拆书分析"
+    :label="t('shortStoryAnalysis')"
     @expand-left="emit('expandLeft')"
   >
     <ShortBookAnalysisPage
@@ -279,7 +284,7 @@ const emit = defineEmits<{
     class="long-book-analysis-main-view"
     :left-collapsed="leftCollapsed"
     expand-button-class="long-book-analysis-expand-sidebar"
-    label="长篇拆书分析"
+    :label="t('novelAnalysis')"
     @expand-left="emit('expandLeft')"
   >
     <LongBookAnalysisPage
@@ -296,7 +301,7 @@ const emit = defineEmits<{
     class="style-comparison-main-view"
     :left-collapsed="leftCollapsed"
     expand-button-class="marketplace-expand-sidebar"
-    label="文风比对"
+    :label="t('styleComparison')"
     @expand-left="emit('expandLeft')"
   >
     <StyleComparisonPage
@@ -308,13 +313,13 @@ const emit = defineEmits<{
   <main
     v-else-if="module.kind === 'marketplace'"
     class="marketplace-main-view"
-    aria-label="技能广场"
+    :aria-label="t('skillMarketplace')"
   >
     <button
       v-if="leftCollapsed"
       class="icon-button marketplace-expand-sidebar"
       type="button"
-      aria-label="展开左侧栏"
+      :aria-label="t('expandSidebar')"
       @click="emit('expandLeft')"
     >
       <AppIcon name="panel-left" :size="18" />
@@ -331,12 +336,12 @@ const emit = defineEmits<{
   <main
     v-else-if="module.kind === 'device-sync'"
     class="marketplace-main-view"
-    aria-label="双端同步"
+    :aria-label="t('deviceSync')"
   >
     <button
       v-if="leftCollapsed"
       class="pane-toggle-button"
-      aria-label="展开侧栏"
+      :aria-label="t('expandSidebarLabel')"
       @click="emit('expandLeft')"
     >
       <AppIcon name="panel-left" :size="18" />
@@ -351,13 +356,13 @@ const emit = defineEmits<{
   <main
     v-else-if="module.kind === 'cloud-backup'"
     class="marketplace-main-view"
-    aria-label="云端备份"
+    :aria-label="t('cloudBackup')"
   >
     <button
       v-if="leftCollapsed"
       class="icon-button marketplace-expand-sidebar"
       type="button"
-      aria-label="展开左侧栏"
+      :aria-label="t('expandSidebar')"
       @click="emit('expandLeft')"
     >
       <AppIcon name="panel-left" :size="18" />
@@ -368,13 +373,13 @@ const emit = defineEmits<{
   <main
     v-else-if="module.kind === 'zhuque-detection'"
     class="zhuque-detection-main-view"
-    aria-label="朱雀检测"
+    :aria-label="t('aITextDetection')"
   >
     <button
       v-if="leftCollapsed"
       class="icon-button zhuque-detection-expand-sidebar"
       type="button"
-      aria-label="展开左侧栏"
+      :aria-label="t('expandSidebar')"
       @click="emit('expandLeft')"
     >
       <AppIcon name="panel-left" :size="18" />

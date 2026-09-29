@@ -1,3 +1,4 @@
+import { createScopedTranslator } from "../i18n";
 import {
   ATTACHED_CONTEXT_MAX_ITEMS,
   MATERIAL_KINDS,
@@ -12,6 +13,8 @@ import {
   SKILL_KIND_LABELS
 } from "../data/catalogWorkspace";
 import type { ComposerReferenceOption } from "../types/conversation";
+
+const t = createScopedTranslator("workspace.longLibraryReferences");
 
 function catalogAttachmentId(
   domain: "material" | "skill",
@@ -45,7 +48,9 @@ export function longSkillReferences(
         references.push({
           id: catalogAttachmentId("skill", library.id, entry.id),
           label: `${library.title} · ${entry.title}`,
-          detail: `${SKILL_KIND_LABELS[library.skillKind]} · 当前长篇已绑定`
+          detail: t("linkedToThisNovel", {
+            value: SKILL_KIND_LABELS[library.skillKind]
+          })
         });
         if (references.length >= ATTACHED_CONTEXT_MAX_ITEMS) {
           return references;
@@ -81,7 +86,9 @@ export function longMaterialReferences(
         references.push({
           id: catalogAttachmentId("material", library.id, entry.id),
           label: `${library.title} · ${entry.title}`,
-          detail: `${MATERIAL_KIND_LABELS[entryKind]} · 当前长篇已绑定`
+          detail: t("linkedToThisNovel", {
+            value: MATERIAL_KIND_LABELS[entryKind]
+          })
         });
         if (references.length >= ATTACHED_CONTEXT_MAX_ITEMS) {
           return references;

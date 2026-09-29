@@ -1,3 +1,5 @@
+import { formatError } from "../i18n/errors";
+import { createScopedTranslator } from "../i18n";
 import {
   CATALOG_PROJECT_MAX_CONTENT_ITEMS,
   type CatalogIndexSnapshot,
@@ -8,6 +10,8 @@ import {
 } from "@deepwrite/contracts";
 import { ref, type Ref, type ShallowRef } from "vue";
 import type { WorkspaceDocument } from "../types/workspace";
+
+const t = createScopedTranslator("workspace.externalLibraryImportCoordinator");
 
 export interface ExternalLibraryImportDialogState {
   domain: "material" | "skill";
@@ -58,7 +62,7 @@ export function useExternalLibraryImportCoordinator(
   ): void {
     if (!context.api()) {
       context.notifications.warning(
-        "浏览器预览不能读取本地文件，请使用桌面客户端。"
+        t("theBrowserPreviewCannotReadLocalFilesUseThe")
       );
       return;
     }
@@ -84,11 +88,13 @@ export function useExternalLibraryImportCoordinator(
       if (!selection) return;
       dialog.value = { ...current, selection };
       if (selection.candidates.length === 0) {
-        context.notifications.warning("所选位置中没有可导入的文本内容");
+        context.notifications.warning(
+          t("noImportableTextWasFoundAtTheSelectedLocation")
+        );
       }
     } catch (error: unknown) {
       context.notifications.error(
-        error instanceof Error ? error.message : "扫描外部文件失败。"
+        formatError(error, t("failedToScanExternalFiles"))
       );
     } finally {
       context.mutationPending.value = false;
@@ -110,7 +116,9 @@ export function useExternalLibraryImportCoordinator(
     }
     const library = context.findLibrary(current.domain, payload.libraryId);
     if (!library || ("isBuiltin" in library && library.isBuiltin)) {
-      context.notifications.warning("目标资料库已不可用或为只读内容");
+      context.notifications.warning(
+        t("theDestinationLibraryIsUnavailableOrReadOnly")
+      );
       return;
     }
     const selectedIds = new Set(payload.candidateIds);
@@ -122,7 +130,9 @@ export function useExternalLibraryImportCoordinator(
       library.entries.length + entries.length >
       CATALOG_PROJECT_MAX_CONTENT_ITEMS
     ) {
-      context.notifications.warning("所选条目超过目标资料库剩余容量");
+      context.notifications.warning(
+        t("theSelectedEntriesExceedTheRemainingLibraryCapacity")
+      );
       return;
     }
 
@@ -156,19 +166,25 @@ export function useExternalLibraryImportCoordinator(
       ).length;
       context.notifications.success(
         renamedCount > 0
-          ? `已导入 ${result.entries.length} 条，${renamedCount} 条因重名自动改名`
-          : `已导入 ${result.entries.length} 条到“${library.title}”`
+          ? t("importedEntriesWereRenamedToAvoidDuplicates", {
+              length: result.entries.length,
+              renamedCount: renamedCount
+            })
+          : t("importedEntriesInto", {
+              length: result.entries.length,
+              title: library.title
+            })
       );
     } catch (error: unknown) {
       if (context.isConflict(error)) {
         await context.refreshWorkspaceDirectory();
         await context.refreshCatalog();
         context.notifications.warning(
-          "目标资料库已在外部更新，已刷新重名结果；请确认后重试"
+          t("theDestinationLibraryWasUpdatedExternallyDuplicateNamesHave")
         );
       } else {
         context.notifications.error(
-          error instanceof Error ? error.message : "批量导入资料失败。"
+          formatError(error, t("failedToImportMaterialsInBulk"))
         );
       }
     } finally {

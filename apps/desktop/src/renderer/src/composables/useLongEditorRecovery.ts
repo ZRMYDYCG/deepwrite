@@ -1,3 +1,4 @@
+import { createScopedTranslator } from "../i18n";
 import { onBeforeUnmount, onMounted, type ComputedRef, type Ref } from "vue";
 import type {
   LongFileId,
@@ -5,6 +6,8 @@ import type {
 } from "@deepwrite/contracts";
 import { uiMessage } from "../ui-feedback";
 import { isEditableLongFile } from "../types/longWorkspace";
+
+const t = createScopedTranslator("workspace.longEditorRecovery");
 
 export const RECOVERY_STORAGE_PREFIX = "deepwrite:long-editor-recovery:v1:";
 export const RECOVERY_WRITE_DEBOUNCE_MS = 300;
@@ -186,19 +189,13 @@ export function useLongEditorRecovery(options: {
       RECOVERY_MAX_RECORD_CHARACTERS - 16 * 1024
     ) {
       removeStoredRecovery(state.bookId, state.file.id);
-      warnRecoveryWriteFailure(
-        key,
-        "当前长篇文件过大，无法写入本机崩溃恢复副本；请立即手动保存。"
-      );
+      warnRecoveryWriteFailure(key, t("thisNovelFileIsTooLargeToSaveA"));
       return;
     }
     const serialized = JSON.stringify(record);
     if (serialized.length > RECOVERY_MAX_RECORD_CHARACTERS) {
       removeStoredRecovery(state.bookId, state.file.id);
-      warnRecoveryWriteFailure(
-        key,
-        "当前长篇文件过大，无法写入本机崩溃恢复副本；请立即手动保存。"
-      );
+      warnRecoveryWriteFailure(key, t("thisNovelFileIsTooLargeToSaveA"));
       return;
     }
 
@@ -206,7 +203,7 @@ export function useLongEditorRecovery(options: {
     if (!storage) {
       warnRecoveryWriteFailure(
         key,
-        "本机存储当前不可用，无法保存长篇崩溃恢复副本；请立即手动保存。"
+        t("localStorageIsUnavailableANovelRecoveryCopyCannot")
       );
       return;
     }
@@ -222,7 +219,7 @@ export function useLongEditorRecovery(options: {
       removeStoredRecovery(state.bookId, state.file.id);
       warnRecoveryWriteFailure(
         key,
-        "长篇崩溃恢复副本写入失败，请立即手动保存当前文件。"
+        t("failedToSaveTheNovelRecoveryCopySaveThe")
       );
     }
   }

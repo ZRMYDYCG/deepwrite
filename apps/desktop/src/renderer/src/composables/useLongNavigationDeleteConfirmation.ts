@@ -1,3 +1,4 @@
+import { t } from "../i18n";
 import type {
   LongChapterCardId,
   LongWorkspaceImpactConfirmation,
@@ -183,7 +184,7 @@ export function useLongNavigationDeleteConfirmation(options: Options) {
       kind: "chapterCard",
       id: chapterCard.id,
       title: chapterCard.title,
-      label: "章卡",
+      label: t("workspace.longImpactConfirmation.chapterCard"),
       description: longDeletionDescription(index, "chapterCard", chapterCard.id)
     });
   }

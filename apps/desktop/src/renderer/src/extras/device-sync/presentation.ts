@@ -1,4 +1,7 @@
+import { createScopedTranslator } from "../../i18n";
 import type { SyncStatus } from "@deepwrite/contracts/renderer";
+
+const t = createScopedTranslator("extras.deviceSync");
 
 export function syncPresentation(status: SyncStatus) {
   const included = status.items.filter((item) => item.included);
@@ -16,24 +19,30 @@ export function syncPresentation(status: SyncStatus) {
   );
   const awaiting = peers.filter((device) => !device.receivedCurrent);
   const title = !status.firstSyncConfirmed
-    ? "首次同步：对齐所选内容"
+    ? t("firstSyncAlignment")
     : status.progress.phase === "failed"
-      ? "操作未完成，暂不能确认最新状态"
+      ? t("latestStatusUnknown")
       : problems.length
-        ? `${problems.length} 项同步未完成`
+        ? t("incompleteItems", { count: problems.length })
         : both.length
-          ? `${both.length} 项两端都有修改`
+          ? t("conflictingItems", { count: both.length })
           : uploads.length
-            ? `${uploads.length} 项本机修改待上传`
+            ? t("pendingUploadCount", {
+                count: uploads.length
+              })
             : downloads.length
-              ? `${downloads.length} 项远端更新待下载`
+              ? t("pendingDownloadCount", {
+                  count: downloads.length
+                })
               : !status.lastCheckedAt
-                ? "本机无待上传修改，尚未检查远端"
-                : "本机与远端已同步";
+                ? t("localCleanRemoteUnchecked")
+                : t("devicesSynced");
   const receipt = !peers.length
-    ? "尚未发现另一台设备的同步记录"
+    ? t("noOtherSyncRecords")
     : awaiting.length
-      ? `${awaiting.map((device) => device.name).join("、")}尚未确认取回本机最新提交`
-      : "另一端已确认取回本机最新提交";
+      ? t("devicesNotAcknowledged", {
+          devices: awaiting.map((device) => device.name).join("、")
+        })
+      : t("otherDeviceAcknowledged");
   return { uploads, downloads, both, problems, adoptionKeys, title, receipt };
 }

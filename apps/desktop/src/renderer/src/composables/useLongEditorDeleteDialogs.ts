@@ -1,3 +1,4 @@
+import { createScopedTranslator } from "../i18n";
 import {
   computed,
   nextTick,
@@ -21,6 +22,8 @@ import {
   useLongNavigationDeleteConfirmation,
   type LongNavigationDeleteTarget
 } from "./useLongNavigationDeleteConfirmation";
+
+const t = createScopedTranslator("workspace.longEditorDeleteDialogs");
 
 export type { LongNavigationDeleteTarget } from "./useLongNavigationDeleteConfirmation";
 
@@ -120,9 +123,9 @@ export function useLongEditorDeleteDialogs(options: {
       description: expectedImpact
         ? longImpactConfirmationDescription(
             expectedImpact,
-            "该条目及其正文文件将被删除，分类内容与连续性投影会同步更新。"
+            t("thisEntryAndItsContentFileWillBeDeleted")
           )
-        : "该条目及其正文文件将被删除，分类内容与连续性投影会同步更新。",
+        : t("thisEntryAndItsContentFileWillBeDeleted"),
       previewPending: worldbuildingDeletePreviewPending.value,
       pending: worldbuildingDeletePending.value,
       ...(expectedImpact ? { expectedImpact } : {})

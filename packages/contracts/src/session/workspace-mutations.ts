@@ -3,7 +3,7 @@ import { z } from "zod";
 import { MaterialStageIdSchema, SkillStageIdSchema } from "../catalog";
 import { SHORT_WORKSPACE_FILE_MAX_CHARACTERS } from "../expert-draft";
 import { ShortWorkspaceStageIdSchema } from "../workspace";
-import { AgentRuntimeRefSchema } from "./runtime";
+import { AgentRuntimeRefSchema } from "./agent-event-identity";
 
 export const WorkspaceEditorMutationTargetSchema = z.discriminatedUnion(
   "kind",

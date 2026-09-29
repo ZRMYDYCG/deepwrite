@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { formatError } from "../i18n/errors";
+import { createScopedTranslator } from "../i18n";
 import { computed, reactive, ref, watch } from "vue";
 import { LONG_AGENTS_MD_MAX_CHARACTERS } from "@deepwrite/contracts";
 import type {
@@ -33,6 +35,8 @@ import PopupSelect, {
 import LongImpactConfirmationDetails from "./LongImpactConfirmationDetails.vue";
 import LongStructureDeleteDialog from "./LongStructureDeleteDialog.vue";
 import LongWorldbuildingSyncDialog from "./LongWorldbuildingSyncDialog.vue";
+
+const t = createScopedTranslator("components.longStructureManager");
 
 type StructurePanel = "foundation" | "features" | "agents";
 type FoundationSection = "worldbuilding" | "characterTypes";
@@ -78,13 +82,38 @@ const emit = defineEmits<{
   modalActiveChange: [active: boolean];
 }>();
 const formatOptions: readonly PopupSelectOption[] = [
-  { value: "list", label: "条目列表" },
-  { value: "text", label: "连续文本" }
+  {
+    value: "list",
+    get label() {
+      return t("entryList");
+    }
+  },
+  {
+    value: "text",
+    get label() {
+      return t("continuousText");
+    }
+  }
 ];
 const worldbuildingItemLayoutOptions: readonly PopupSelectOption[] = [
-  { value: "top-tabs", label: "上方横向标签" },
-  { value: "right-list", label: "右侧纵向列表" },
-  { value: "left-tree", label: "左侧树形结构" }
+  {
+    value: "top-tabs",
+    get label() {
+      return t("horizontalTabsAbove");
+    }
+  },
+  {
+    value: "right-list",
+    get label() {
+      return t("verticalListOnTheRight");
+    }
+  },
+  {
+    value: "left-tree",
+    get label() {
+      return t("treeOnTheLeft");
+    }
+  }
 ];
 
 const panelOptions: ReadonlyArray<{
@@ -94,18 +123,30 @@ const panelOptions: ReadonlyArray<{
 }> = [
   {
     value: "agents",
-    label: "长篇上下文",
-    description: "五阶段作用说明"
+    get label() {
+      return t("novelContext");
+    },
+    get description() {
+      return t("fiveStageOverview");
+    }
   },
   {
     value: "foundation",
-    label: "基础结构",
-    description: "世界观分类"
+    get label() {
+      return t("basicStructure");
+    },
+    get description() {
+      return t("worldbuildingCategory");
+    }
   },
   {
     value: "features",
-    label: "功能配置",
-    description: "世界观条目样式"
+    get label() {
+      return t("featureSettings");
+    },
+    get description() {
+      return t("worldbuildingEntryLayout");
+    }
   }
 ];
 
@@ -166,7 +207,10 @@ const syncBookSelectOptions = computed<PopupSelectOption[]>(() =>
       value: book.id,
       label:
         book.categoryCount > 0
-          ? `${book.title}（${book.categoryCount} 个分类）`
+          ? t("valueValueCategories", {
+              arg0: book.title,
+              arg1: book.categoryCount
+            })
           : book.title
     }))
 );
@@ -203,7 +247,7 @@ const worldbuildingRows = computed<ManagerRow[]>(() =>
       kind: "worldbuilding" as const,
       id: category.id,
       title: category.title,
-      detail: category.format === "list" ? "条目列表" : "连续文本",
+      detail: category.format === "list" ? t("entryList") : t("continuousText"),
       readOnly: isLongMigrationEvidenceCategoryId(category.id)
     }))
 );
@@ -219,7 +263,7 @@ const characterTypeRows = computed<ManagerRow[]>(() =>
         kind: "characterType" as const,
         id: characterType.id,
         title: characterType.title,
-        detail: `连续文本 · ${count} 人`
+        detail: t("continuousTextValueCharacters", { arg0: count })
       };
     })
 );
@@ -231,11 +275,11 @@ const rows = computed(() =>
 const formTitle = computed(() =>
   activeFoundationSection.value === "characterTypes"
     ? formMode.value === "create"
-      ? "新建人物类型"
-      : "编辑人物类型"
+      ? t("newCharacterType")
+      : t("editCharacterType")
     : formMode.value === "create"
-      ? "新建世界观分类"
-      : "编辑世界观分类"
+      ? t("newWorldbuildingCategory")
+      : t("editWorldbuildingCategory")
 );
 
 watch(
@@ -351,7 +395,7 @@ function openCreate(): void {
 
 function openEdit(row: ManagerRow): void {
   if (row.readOnly) {
-    uiMessage.info("迁移证据是只读资料，不能改名、改格式或删除。");
+    uiMessage.info(t("migrationEvidenceIsReadOnlyItCannotBeRenamed"));
     return;
   }
   resetDraft();
@@ -404,7 +448,7 @@ function finishMutation(
 function openSync(): void {
   if (mutationLocked.value) return;
   if (!syncBookSelectOptions.value.length) {
-    uiMessage.warning("当前没有其他可同步的长篇书籍。");
+    uiMessage.warning(t("noOtherNovelsAreAvailableToSync"));
     return;
   }
   selectedSyncBookId.value = String(
@@ -430,11 +474,11 @@ function confirmSync(): void {
   if (mutationLocked.value) return;
   const source = selectedSyncBook.value;
   if (!source) {
-    uiMessage.warning("请选择要同步的长篇书籍。");
+    uiMessage.warning(t("selectANovelToSync"));
     return;
   }
   if (source.categoryCount <= 0) {
-    uiMessage.warning("所选长篇没有可同步的世界观分类。");
+    uiMessage.warning(t("theSelectedNovelHasNoWorldbuildingCategoriesToSync"));
     return;
   }
   const prepared = syncPreparedChange.value;
@@ -479,7 +523,7 @@ function emitMutation(
     return applyMutationBatch(batch, surface);
   } catch (error) {
     uiMessage.warning(
-      error instanceof Error ? error.message : "无法生成长篇结构变更。"
+      formatError(error, t("couldNotGenerateNovelStructureChanges"))
     );
     return false;
   }
@@ -509,7 +553,7 @@ function applyMutationBatch(
 function submitForm(): void {
   const title = draft.title.trim();
   if (!title) {
-    uiMessage.warning("请输入标题。");
+    uiMessage.warning(t("enterATitle"));
     return;
   }
 
@@ -524,7 +568,7 @@ function submitForm(): void {
       if (formMode.value === "create") {
         return builder.createCharacterType({ title });
       }
-      if (!draft.id) throw new Error("缺少待编辑人物类型的稳定 ID。");
+      if (!draft.id) throw new Error(t("theCharacterTypeSStableIDIsMissing"));
       return builder.updateCharacterType(draft.id, { title });
     }
     if (formMode.value === "create") {
@@ -534,7 +578,7 @@ function submitForm(): void {
       });
     }
     if (!draft.id) {
-      throw new Error("缺少待编辑条目的稳定 ID。");
+      throw new Error(t("theEntrySStableIDIsMissing"));
     }
     return builder.updateWorldbuilding(draft.id, {
       title,
@@ -553,7 +597,7 @@ function canMove(row: ManagerRow, direction: LongOrderDirection): boolean {
 
 function reorder(row: ManagerRow, direction: LongOrderDirection): void {
   if (row.readOnly) {
-    uiMessage.info("迁移证据保持稳定顺序，不能重排。");
+    uiMessage.info(t("migrationEvidenceHasAFixedOrderAndCannotBe"));
     return;
   }
   emitMutation((builder) =>
@@ -567,7 +611,9 @@ function saveAgentsMd(): boolean {
   if (mutationLocked.value || props.agentsMdPending) return false;
   if (agentsMdOverLimit.value) {
     uiMessage.warning(
-      `长篇上下文不能超过 ${LONG_AGENTS_MD_MAX_CHARACTERS} 个字符。`
+      t("novelContextCannotExceedValueCharacters", {
+        arg0: LONG_AGENTS_MD_MAX_CHARACTERS
+      })
     );
     return false;
   }
@@ -576,7 +622,7 @@ function saveAgentsMd(): boolean {
   emit("saveAgentsMd", agentsMdDraft.value, {
     succeed: () => {
       finishMutation(requestId, "succeeded");
-      uiMessage.success("已保存长篇上下文。");
+      uiMessage.success(t("novelContextSaved"));
     },
     fail: () => finishMutation(requestId, "failed"),
     appliedButRefreshFailed: () =>
@@ -596,7 +642,9 @@ function flushAgentsMdIfNeeded(): Promise<boolean> {
     }
     if (agentsMdOverLimit.value) {
       uiMessage.warning(
-        `长篇上下文不能超过 ${LONG_AGENTS_MD_MAX_CHARACTERS} 个字符。`
+        t("novelContextCannotExceedValueCharacters", {
+          arg0: LONG_AGENTS_MD_MAX_CHARACTERS
+        })
       );
       resolve(false);
       return;
@@ -626,18 +674,26 @@ defineExpose({
 </script>
 
 <template>
-  <section class="long-structure-manager" aria-label="结构管理">
+  <section class="long-structure-manager" :aria-label="t('manageStructure')">
     <header class="manager-header">
       <div>
         <p class="manager-eyebrow">LONG-FORM STRUCTURE</p>
-        <h2>结构管理</h2>
+        <h2>{{ t("manageStructure") }}</h2>
         <p>
-          在这里管理世界观分类、人物类型、功能配置和长篇上下文；具体内容请在对应工作区编辑。
+          {{
+            t(
+              "manageWorldbuildingCategoriesCharacterTypesFeaturesAndNovelContext"
+            )
+          }}
         </p>
       </div>
     </header>
 
-    <div class="structure-panel-tabs" role="tablist" aria-label="结构管理分区">
+    <div
+      class="structure-panel-tabs"
+      role="tablist"
+      :aria-label="t('structureManagementSections')"
+    >
       <button
         v-for="panel in panelOptions"
         :id="`long-structure-panel-${panel.value}`"
@@ -663,7 +719,11 @@ defineExpose({
       aria-labelledby="long-structure-panel-foundation"
     >
       <header class="manager-toolbar">
-        <div class="section-tabs" role="tablist" aria-label="基础结构类型">
+        <div
+          class="section-tabs"
+          role="tablist"
+          :aria-label="t('basicStructureType')"
+        >
           <button
             id="long-structure-section-worldbuilding"
             type="button"
@@ -672,7 +732,7 @@ defineExpose({
             :disabled="mutationLocked"
             @click="setFoundationSection('worldbuilding')"
           >
-            世界观分类
+            {{ t("worldbuildingCategory") }}
           </button>
           <button
             id="long-structure-section-character-types"
@@ -682,7 +742,7 @@ defineExpose({
             :disabled="mutationLocked"
             @click="setFoundationSection('characterTypes')"
           >
-            人物类型
+            {{ t("characterType") }}
           </button>
         </div>
         <div class="toolbar-actions">
@@ -692,7 +752,7 @@ defineExpose({
             :disabled="mutationLocked"
             @click="openSync"
           >
-            加载其他书籍世界观
+            {{ t("loadWorldbuildingFromAnotherBook") }}
           </button>
           <button
             class="primary-button"
@@ -702,8 +762,8 @@ defineExpose({
           >
             {{
               activeFoundationSection === "characterTypes"
-                ? "新建人物类型"
-                : "新建世界观分类"
+                ? t("newCharacterType")
+                : t("newWorldbuildingCategory")
             }}
           </button>
         </div>
@@ -713,15 +773,17 @@ defineExpose({
         <strong>
           {{
             activeFoundationSection === "characterTypes"
-              ? "还没有人物类型，可先创建第一项。"
-              : "还没有世界观分类，可先创建第一项。"
+              ? t("noCharacterTypesYetCreateTheFirstOne")
+              : t("noWorldbuildingCategoriesYetCreateTheFirstOne")
           }}
         </strong>
         <span>
           {{
             activeFoundationSection === "characterTypes"
-              ? "人物类型只管理分类，人物内容始终使用连续文本。"
-              : "创建后会生成完整稳定 ID，并带齐对应的空文件引用。"
+              ? t(
+                  "characterTypesManageCategoriesOnlyCharacterContentAlwaysUses"
+                )
+              : t("creationGeneratesStableIDsAndAllMatchingEmptyFile")
           }}
         </span>
       </div>
@@ -731,15 +793,20 @@ defineExpose({
           <div class="row-copy">
             <strong>{{ row.title }}</strong>
             <span>
-              {{ row.detail }}{{ row.readOnly ? " · 迁移证据只读" : "" }}
+              {{ row.detail
+              }}{{ row.readOnly ? t("readOnlyMigrationEvidence") : "" }}
             </span>
             <code>{{ row.id }}</code>
           </div>
           <div class="row-actions">
             <button
               type="button"
-              :aria-label="`上移${row.title}`"
-              title="上移"
+              :aria-label="
+                t('moveValueUp', {
+                  arg0: row.title
+                })
+              "
+              :title="t('moveUp')"
               :disabled="mutationLocked || !canMove(row, 'up')"
               @click="reorder(row, 'up')"
             >
@@ -747,8 +814,12 @@ defineExpose({
             </button>
             <button
               type="button"
-              :aria-label="`下移${row.title}`"
-              title="下移"
+              :aria-label="
+                t('moveValueDown', {
+                  arg0: row.title
+                })
+              "
+              :title="t('moveDown')"
               :disabled="mutationLocked || !canMove(row, 'down')"
               @click="reorder(row, 'down')"
             >
@@ -756,20 +827,28 @@ defineExpose({
             </button>
             <button
               type="button"
-              :aria-label="`编辑${row.title}`"
+              :aria-label="
+                t('editValue', {
+                  arg0: row.title
+                })
+              "
               :disabled="mutationLocked || row.readOnly"
               @click="openEdit(row)"
             >
-              编辑
+              {{ t("edit") }}
             </button>
             <button
               class="delete-button"
               type="button"
-              :aria-label="`删除${row.title}`"
+              :aria-label="
+                t('deleteValue', {
+                  arg0: row.title
+                })
+              "
               :disabled="mutationLocked || row.readOnly"
               @click="openDelete(row)"
             >
-              删除
+              {{ t("delete") }}
             </button>
           </div>
         </li>
@@ -778,8 +857,8 @@ defineExpose({
       <p class="manager-footnote">
         {{
           activeFoundationSection === "characterTypes"
-            ? "排序只调整人物类型的展示顺序；人物仍保留核心档案和人物关系两份文本文档。"
-            : "排序只调整世界观分类的展示顺序，不会改动分类中的现有内容。"
+            ? t("reorderingChangesOnlyTheDisplayOrderOfCharacterTypes")
+            : t("reorderingChangesOnlyTheDisplayOrderOfWorldbuildingCategories")
         }}
       </p>
     </div>
@@ -794,16 +873,15 @@ defineExpose({
       <div class="feature-settings-list">
         <section class="feature-setting-card">
           <div class="feature-setting-copy">
-            <strong>世界观条目样式</strong>
+            <strong>{{ t("worldbuildingEntryLayout") }}</strong>
             <span>
-              选择列表型世界观分类中的概览与条目如何排列。
-              左侧树形结构会把概览与条目放到世界观分类下方。
+              {{ t("chooseTheLayoutForOverviewsAndEntriesInList") }}
             </span>
           </div>
           <PopupSelect
             :model-value="snapshot.featureSettings.worldbuildingItemLayout"
             :options="worldbuildingItemLayoutOptions"
-            accessible-label="选择世界观条目样式"
+            :accessible-label="t('selectWorldbuildingEntryLayout')"
             :disabled="mutationLocked"
             :menu-z-index="2300"
             @update:model-value="setWorldbuildingItemLayout"
@@ -811,10 +889,9 @@ defineExpose({
         </section>
         <section class="feature-setting-card">
           <div class="feature-setting-copy">
-            <strong>人物与连续性条目样式</strong>
+            <strong>{{ t("characterAndContinuityLayout") }}</strong>
             <span>
-              统一选择人物集合与连续性账本文件的排列方式。
-              左侧树形结构会把人物与账本文件放到对应标题下方。
+              {{ t("chooseASharedLayoutForCharacterCollectionsAndContinuity") }}
             </span>
           </div>
           <PopupSelect
@@ -822,7 +899,7 @@ defineExpose({
               snapshot.featureSettings.characterAndContinuityItemLayout
             "
             :options="worldbuildingItemLayoutOptions"
-            accessible-label="选择人物与连续性条目样式"
+            :accessible-label="t('selectCharacterAndContinuityLayout')"
             :disabled="mutationLocked"
             :menu-z-index="2300"
             @update:model-value="setCharacterAndContinuityItemLayout"
@@ -830,15 +907,15 @@ defineExpose({
         </section>
         <section class="feature-setting-card">
           <div class="feature-setting-copy">
-            <strong>剧情设计条目样式</strong>
+            <strong>{{ t("plotDesignEntryLayout") }}</strong>
             <span>
-              选择全书故事线、剧情点和章卡集合的排列方式；左侧树形结构不会改变故事情节面板。
+              {{ t("chooseTheLayoutForTheOverallStorylinePlotPoints") }}
             </span>
           </div>
           <PopupSelect
             :model-value="snapshot.featureSettings.plotItemLayout"
             :options="worldbuildingItemLayoutOptions"
-            accessible-label="选择剧情设计条目样式"
+            :accessible-label="t('selectPlotDesignEntryLayout')"
             :disabled="mutationLocked"
             :menu-z-index="2300"
             @update:model-value="setPlotItemLayout"
@@ -857,23 +934,28 @@ defineExpose({
       <section class="agents-context-card">
         <div class="section-heading">
           <div>
-            <h3>长篇上下文</h3>
+            <h3>{{ t("novelContext") }}</h3>
             <p>
-              介绍世界观、人物、剧情点、正文和持续性账本五个阶段的作用。
-              对话时会注入给当前智能体；内容保存在本书目录的 AGENTS.md。
+              {{
+                t(
+                  "describeTheRolesOfWorldbuildingCharactersPlotPointsManuscript"
+                )
+              }}
             </p>
           </div>
-          <span
-            >{{ agentsMdCharacterCount }} /
-            {{ LONG_AGENTS_MD_MAX_CHARACTERS }} 字符</span
-          >
+          <span>{{
+            t("charactersMessage", {
+              arg0: agentsMdCharacterCount ?? "",
+              arg1: LONG_AGENTS_MD_MAX_CHARACTERS ?? ""
+            })
+          }}</span>
         </div>
         <textarea
           v-model="agentsMdDraft"
           :disabled="mutationLocked || agentsMdPending"
           spellcheck="false"
-          aria-label="长篇上下文"
-          placeholder="介绍五个阶段各自负责什么…"
+          :aria-label="t('novelContext')"
+          :placeholder="t('describeEachOfTheFiveStages')"
         />
         <footer class="agents-context-actions">
           <button
@@ -887,7 +969,9 @@ defineExpose({
             "
             @click="saveAgentsMd"
           >
-            {{ pendingMutation?.surface === "agents" ? "保存中…" : "保存" }}
+            {{
+              pendingMutation?.surface === "agents" ? t("saving") : t("save")
+            }}
           </button>
         </footer>
       </section>
@@ -915,7 +999,7 @@ defineExpose({
               <button
                 class="close-button"
                 type="button"
-                aria-label="关闭"
+                :aria-label="t('close')"
                 :disabled="mutationLocked"
                 @click="closeForm"
               >
@@ -925,7 +1009,7 @@ defineExpose({
 
             <fieldset class="modal-body" :disabled="mutationLocked">
               <label class="form-field">
-                <span>标题</span>
+                <span>{{ t("title") }}</span>
                 <input
                   v-model="draft.title"
                   maxlength="256"
@@ -939,11 +1023,11 @@ defineExpose({
                 v-if="activeFoundationSection === 'worldbuilding'"
                 class="form-field"
               >
-                <span>内容格式</span>
+                <span>{{ t("contentFormat") }}</span>
                 <PopupSelect
                   :model-value="draft.format"
                   :options="formatOptions"
-                  accessible-label="选择世界观内容格式"
+                  :accessible-label="t('selectWorldbuildingContentFormat')"
                   :menu-z-index="2300"
                   @update:model-value="setFormat"
                 />
@@ -951,7 +1035,7 @@ defineExpose({
               <LongImpactConfirmationDetails
                 v-if="pendingFormImpact"
                 :confirmation="pendingFormImpact.confirmation"
-                fallback="格式转换不会删除现有从属内容。"
+                :fallback="t('changingTheFormatPreservesExistingChildContent')"
               />
             </fieldset>
 
@@ -961,7 +1045,7 @@ defineExpose({
                 :disabled="mutationLocked"
                 @click="closeForm"
               >
-                取消
+                {{ t("cancel") }}
               </button>
               <button
                 class="primary-button"
@@ -970,12 +1054,12 @@ defineExpose({
               >
                 {{
                   pendingMutation?.surface === "form"
-                    ? "保存中…"
+                    ? t("saving")
                     : pendingFormImpact
-                      ? "确认按上述影响转换并保存"
+                      ? t("convertAndSaveWithTheImpactShown")
                       : formMode === "create"
-                        ? "创建"
-                        : "保存修改"
+                        ? t("create")
+                        : t("saveChanges")
                 }}
               </button>
             </footer>

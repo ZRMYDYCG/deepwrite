@@ -1,13 +1,18 @@
+import { createScopedTranslator } from "../../i18n";
 import {
   isDeepSeekWebSearchCompatible,
   type ModelApi
 } from "@deepwrite/contracts/renderer";
 
-export const WORKSPACE_WEB_SEARCH_DISABLED_REASON =
-  "仅支持 Provider 为 DeepSeek，且 API 类型为 OpenAI Responses 或 Anthropic Messages 的模型";
+const t = createScopedTranslator("workspace.webSearch");
 
-export const WORKSPACE_WEB_SEARCH_AUTO_DISABLED_MESSAGE =
-  "联网已关闭：仅 DeepSeek 的 Responses 或 Anthropic API 模型支持此功能";
+export const WORKSPACE_WEB_SEARCH_DISABLED_REASON = t(
+  "onlyDeepseekModelsUsingTheOpenaiResponsesOrAnthropic"
+);
+
+export const WORKSPACE_WEB_SEARCH_AUTO_DISABLED_MESSAGE = t(
+  "webAccessIsOffOnlyDeepseekModelsUsingThe"
+);
 
 type WebSearchModel =
   | {

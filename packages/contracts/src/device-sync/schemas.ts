@@ -1,3 +1,4 @@
+import { syncDisplayTextSchema } from "./display-text";
 import { z } from "zod";
 import {
   syncIdSchema,
@@ -87,6 +88,7 @@ export const syncHistorySchema = z
     title: z.string(),
     at: z.string().datetime(),
     description: z.string(),
+    descriptionText: syncDisplayTextSchema.optional(),
     item: syncItemSchema.nullable()
   })
   .strict();
@@ -104,6 +106,8 @@ export const syncIssueSchema = z
       "first-sync"
     ]),
     message: z.string(),
+    messageText: syncDisplayTextSchema.optional(),
+    titleText: syncDisplayTextSchema.optional(),
     paths: z.array(z.string()),
     local: syncItemSchema.nullable(),
     base: syncItemSchema.nullable().optional(),

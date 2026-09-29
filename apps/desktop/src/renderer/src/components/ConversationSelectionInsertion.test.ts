@@ -21,7 +21,7 @@ describe("assistant response selection insertion", () => {
     );
     expect(selectionSource).toContain("createConversationTextReference({");
     expect(listSource).not.toContain("<EditorSelectionMenu");
-    expect(menuSource).toContain("插入输入框");
+    expect(menuSource).toContain('nativeText("insertReference")');
   });
 
   it("merges response selections into the composer and preserves navigation", () => {

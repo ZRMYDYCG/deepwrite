@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { formatError } from "../i18n/errors";
+import { createScopedTranslator } from "../i18n";
 import {
   computed,
   defineAsyncComponent,
@@ -12,22 +14,22 @@ import AppIcon from "./AppIcon.vue";
 import { useAnnouncedVersion } from "../composables/useAnnouncedVersion";
 import { AuthorSupportDialog } from "./lazyAppComponents";
 import { uiMessage } from "../ui-feedback";
+
+const t = createScopedTranslator("components.sidebarProfileMenu");
 const VersionUpdateDialog = defineAsyncComponent(
   () => import("./VersionUpdateDialog.vue")
 );
 const props = defineProps<{ marketplaceDisplayName?: string | undefined }>();
 const emit = defineEmits<{ openSettings: [] }>();
 
-const DEFAULT_USER_NAME = "作者";
-
 const accountMenuRoot = ref<HTMLElement | null>(null);
 const accountMenuOpen = ref(false);
 const profileDialog = ref<"contact" | "update" | "support" | null>(null);
 const displayedUserName = computed(
-  () => props.marketplaceDisplayName?.trim() || DEFAULT_USER_NAME
+  () => props.marketplaceDisplayName?.trim() || t("author")
 );
 const avatarInitial = computed(
-  () => Array.from(displayedUserName.value.trim())[0] ?? "作"
+  () => Array.from(displayedUserName.value.trim())[0] ?? t("a")
 );
 const updateState = ref<UpdateState>({
   status: "idle",
@@ -52,7 +54,7 @@ const updateInstalling = computed(
 
 function showUpdateError(state: UpdateState): void {
   if (state.status === "error") {
-    uiMessage.error(state.message ?? "更新操作失败，请稍后重试");
+    uiMessage.error(state.message ?? t("updateFailedTryAgainLater"));
   }
 }
 
@@ -78,7 +80,7 @@ async function openUpdateDialog(): Promise<void> {
     updateState.value = {
       ...updateState.value,
       status: "unsupported",
-      message: "当前环境不支持桌面端更新检查。"
+      message: t("thisEnvironmentDoesNotSupportDesktopUpdateChecks")
     };
     return;
   }
@@ -92,7 +94,7 @@ async function openUpdateDialog(): Promise<void> {
       updateState.value = await window.deepwrite.updates.check();
     }
   } catch (error: unknown) {
-    uiMessage.error(error instanceof Error ? error.message : "检查更新失败");
+    uiMessage.error(formatError(error, t("couldNotCheckForUpdates")));
   }
 }
 
@@ -101,7 +103,7 @@ async function checkUpdate(): Promise<void> {
   try {
     updateState.value = await window.deepwrite!.updates.check();
   } catch (error: unknown) {
-    uiMessage.error(error instanceof Error ? error.message : "检查更新失败");
+    uiMessage.error(formatError(error, t("couldNotCheckForUpdates")));
   }
 }
 
@@ -110,7 +112,7 @@ async function downloadUpdate(): Promise<void> {
   try {
     updateState.value = await window.deepwrite!.updates.download();
   } catch (error: unknown) {
-    uiMessage.error(error instanceof Error ? error.message : "下载更新失败");
+    uiMessage.error(formatError(error, t("couldNotDownloadUpdate")));
   }
 }
 
@@ -120,9 +122,7 @@ async function installUpdate(): Promise<void> {
     await window.deepwrite!.updates.install();
   } catch (error: unknown) {
     if (updateState.value.status !== "error") {
-      uiMessage.error(
-        error instanceof Error ? error.message : "启动更新安装失败"
-      );
+      uiMessage.error(formatError(error, t("couldNotStartUpdateInstallation")));
     }
   }
 }
@@ -198,7 +198,7 @@ onBeforeUnmount(() => {
               v-if="hasVersionNotice"
               class="version-notice-dot avatar-version-notice"
               role="img"
-              aria-label="版本更新提醒"
+              :aria-label="t('updateNotification')"
             />
           </span>
           <span class="account-copy">
@@ -214,25 +214,25 @@ onBeforeUnmount(() => {
         >
           <button type="button" role="menuitem" @click="openSettings">
             <AppIcon name="settings" :size="16" />
-            <span>设置</span>
+            <span>{{ t("settings") }}</span>
           </button>
           <button type="button" role="menuitem" @click="openUpdateDialog">
             <AppIcon name="download" :size="16" />
-            <span>版本更新</span>
+            <span>{{ t("updates") }}</span>
             <span
               v-if="hasVersionNotice"
               class="version-notice-dot menu-version-notice"
               role="img"
-              aria-label="版本更新提醒"
+              :aria-label="t('updateNotification')"
             />
           </button>
           <button type="button" role="menuitem" @click="openContactDialog">
             <AppIcon name="message" :size="16" />
-            <span>联系作者</span>
+            <span>{{ t("contactAuthor") }}</span>
           </button>
           <button type="button" role="menuitem" @click="openSupportDialog">
             <AppIcon name="sparkles" :size="16" />
-            <span>赞赏作者</span>
+            <span>{{ t("supportTheAuthor") }}</span>
           </button>
         </div>
       </div>
@@ -240,8 +240,8 @@ onBeforeUnmount(() => {
       <button
         class="icon-button account-settings-button"
         type="button"
-        aria-label="打开设置"
-        title="设置"
+        :aria-label="t('openSettings')"
+        :title="t('settings')"
         @click="openSettings"
       >
         <AppIcon name="settings" :size="16" />
@@ -267,12 +267,14 @@ onBeforeUnmount(() => {
         <header>
           <div>
             <span class="dialog-eyebrow">DeepWrite</span>
-            <h2 id="contact-author-dialog-title">联系作者</h2>
+            <h2 id="contact-author-dialog-title">
+              {{ t("contactAuthor") }}
+            </h2>
           </div>
           <button
             class="dialog-close"
             type="button"
-            aria-label="关闭"
+            :aria-label="t('close')"
             @click="closeProfileDialog"
           >
             ×
@@ -281,10 +283,10 @@ onBeforeUnmount(() => {
 
         <div class="dialog-content">
           <p class="dialog-description contact-author-description">
-            如果你有任何反馈，或者想体验最新版本，请添加作者微信并加入交流群。
+            {{ t("forFeedbackOrEarlyAccessToNewVersionsAdd") }}
           </p>
           <div class="author-contact-card">
-            <span>微信号</span>
+            <span>{{ t("weChatID") }}</span>
             <strong>deepseekwrite</strong>
           </div>
           <div class="dialog-actions">
@@ -293,7 +295,7 @@ onBeforeUnmount(() => {
               type="button"
               @click="closeProfileDialog"
             >
-              我知道了
+              {{ t("gotIt") }}
             </button>
           </div>
         </div>

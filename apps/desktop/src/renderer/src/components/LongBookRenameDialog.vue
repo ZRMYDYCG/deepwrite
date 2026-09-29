@@ -1,6 +1,9 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { uiMessage } from "../ui-feedback";
+
+const t = createScopedTranslator("components.longBookRenameDialog");
 
 const props = defineProps<{
   open: boolean;
@@ -37,7 +40,7 @@ function submit(): void {
   if (props.pending) return;
   const title = nameDraft.value.trim();
   if (!title) {
-    uiMessage.warning("请输入长篇名称");
+    uiMessage.warning(t("enterANovelName"));
     nameInput.value?.focus();
     return;
   }
@@ -64,12 +67,14 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
         <header>
           <div>
             <span class="dialog-eyebrow">{{ title }}</span>
-            <h2 id="long-book-rename-dialog-title">修改长篇名称</h2>
+            <h2 id="long-book-rename-dialog-title">
+              {{ t("renameNovel") }}
+            </h2>
           </div>
           <button
             class="dialog-close"
             type="button"
-            aria-label="关闭"
+            :aria-label="t('close')"
             :disabled="pending"
             @click="requestClose"
           >
@@ -79,18 +84,18 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
 
         <form class="dialog-content" @submit.prevent="submit">
           <label class="book-resource-name-field">
-            <span>长篇名称</span>
+            <span>{{ t("novelName") }}</span>
             <input
               ref="nameInput"
               v-model="nameDraft"
               type="text"
               maxlength="256"
               autocomplete="off"
-              aria-label="长篇名称"
+              :aria-label="t('novelName')"
             />
           </label>
           <p class="book-resource-help">
-            侧栏和长篇工作区显示名称会同步更新，本地项目文件夹名称不会被自动修改。
+            {{ t("theSidebarAndNovelWorkspaceWillShowTheNew") }}
           </p>
 
           <div class="dialog-actions">
@@ -100,14 +105,14 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
               :disabled="pending"
               @click="requestClose"
             >
-              取消
+              {{ t("cancel") }}
             </button>
             <button
               class="dialog-primary-button"
               type="submit"
               :disabled="pending"
             >
-              {{ pending ? "保存中…" : "保存名称" }}
+              {{ pending ? t("saving") : t("saveName") }}
             </button>
           </div>
         </form>

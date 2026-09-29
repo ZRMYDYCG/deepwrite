@@ -1,3 +1,5 @@
+import { formatError } from "../../i18n/errors";
+import { createScopedTranslator } from "../../i18n";
 import { onScopeDispose, watch } from "vue";
 import { defineStore } from "pinia";
 import { STYLE_COMPARISON_METHOD_LIMIT } from "@deepwrite/contracts/renderer";
@@ -9,6 +11,8 @@ import { uiMessage } from "../../ui-feedback";
 import { createPromptProfile } from "../agent-runtime/promptProfile";
 import { createStyleComparisonController } from "./controller";
 
+const t = createScopedTranslator("extras.styleComparison");
+
 /** Where the method lived before the unified extras agent settings. */
 const LEGACY_METHOD_KEY = "deepwrite.style-comparison.method.v1";
 const AUTO_SAVE_DELAY_MS = 800;
@@ -19,7 +23,7 @@ function runtimeApi() {
 
 function api() {
   const current = runtimeApi();
-  if (!current) throw new Error("当前环境无法调用智能体。");
+  if (!current) throw new Error(t("agentUnavailable"));
   return current;
 }
 
@@ -47,9 +51,7 @@ export const useStyleComparisonStore = defineStore("style-comparison", () => {
     try {
       if (method.dirty.value) await method.save();
     } catch (error) {
-      uiMessage.error(
-        error instanceof Error ? error.message : "比对方法保存失败。"
-      );
+      uiMessage.error(formatError(error, t("saveComparisonMethodFailed")));
     }
   }
 
@@ -58,9 +60,7 @@ export const useStyleComparisonStore = defineStore("style-comparison", () => {
     try {
       await method.load();
     } catch (error) {
-      uiMessage.error(
-        error instanceof Error ? error.message : "比对方法加载失败。"
-      );
+      uiMessage.error(formatError(error, t("loadComparisonMethodFailed")));
       return;
     }
     const legacy = takeLegacyMethod();

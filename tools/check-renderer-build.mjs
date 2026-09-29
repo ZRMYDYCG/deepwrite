@@ -1,13 +1,21 @@
+import { assertRendererVendorGraph } from "./renderer-vendor-graph.mjs";
 import { gzipSync } from "node:zlib";
 import { access, readdir, readFile } from "node:fs/promises";
-import { dirname, join, normalize } from "node:path";
+import { basename, dirname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const rendererOut = fileURLToPath(
   new URL("../apps/desktop/out/renderer/", import.meta.url)
 );
 const indexPath = join(rendererOut, "index.html");
-const APP_READY_JS_BUDGET_BYTES = 1_000_000;
+// Preserve the application code budget and account explicitly for the added
+// Vue I18n dependency. Its dedicated build group excludes Vue and application
+// modules, and is measured from the same startup graph as every other script.
+const APP_READY_APPLICATION_JS_BUDGET_BYTES = 1_000_000;
+const I18N_RUNTIME_JS_BUDGET_BYTES = 60_000;
+const APP_READY_JS_BUDGET_BYTES =
+  APP_READY_APPLICATION_JS_BUDGET_BYTES + I18N_RUNTIME_JS_BUDGET_BYTES;
+const APP_READY_LANGUAGE_DATA_BUDGET_BYTES = 800_000;
 const APP_READY_BASELINE_BYTES = 2_504_722;
 
 try {
@@ -122,6 +130,56 @@ console.log(
     `app-ready ${appReady.rawBytes.toLocaleString("en-US")} B raw / ${appReady.gzipBytes.toLocaleString("en-US")} B gzip ` +
     `(${reductionPercent.toFixed(1)}% below baseline).`
 );
+
+// Language dictionaries are parsed as data before mount. Report them explicitly
+// so moving data out of JavaScript never hides the total startup payload.
+const localeResources = await measureJavaScript(
+  ["zh-CN", "en-US"].map((locale) =>
+    join(rendererOut, "locales", `${locale}.json`)
+  )
+);
+console.log(
+  `Renderer language data: ${localeResources.rawBytes.toLocaleString("en-US")} B raw / ${localeResources.gzipBytes.toLocaleString("en-US")} B gzip; total app-ready JS + language data ${(appReady.rawBytes + localeResources.rawBytes).toLocaleString("en-US")} B raw.`
+);
+if (localeResources.rawBytes >= APP_READY_LANGUAGE_DATA_BUDGET_BYTES) {
+  console.error("Renderer language data exceeds its 800,000 B budget.");
+  process.exit(1);
+}
+
+const i18nRuntimePaths = appReadyPaths.filter((path) =>
+  /^i18n-runtime-[^/]+\.js$/.test(basename(path))
+);
+if (i18nRuntimePaths.length !== 1) {
+  throw new Error(
+    "Expected one isolated internationalization runtime in the startup graph."
+  );
+}
+await assertRendererVendorGraph(i18nRuntimePaths[0]);
+const i18nRuntime = await measureJavaScript(i18nRuntimePaths);
+const applicationBytes = appReady.rawBytes - i18nRuntime.rawBytes;
+console.log(
+  `Renderer application JS: ${applicationBytes.toLocaleString("en-US")} B raw; ` +
+    `internationalization runtime: ${i18nRuntime.rawBytes.toLocaleString("en-US")} B raw / ${i18nRuntime.gzipBytes.toLocaleString("en-US")} B gzip.`
+);
+if (applicationBytes >= APP_READY_APPLICATION_JS_BUDGET_BYTES) {
+  throw new Error(
+    "Renderer application JavaScript exceeds its 1,000,000 B budget."
+  );
+}
+if (i18nRuntime.rawBytes >= I18N_RUNTIME_JS_BUDGET_BYTES) {
+  throw new Error(
+    "Renderer internationalization runtime exceeds its 60,000 B budget."
+  );
+}
+const totalStartupBytes = appReady.rawBytes + localeResources.rawBytes;
+if (
+  totalStartupBytes >=
+  APP_READY_JS_BUDGET_BYTES + APP_READY_LANGUAGE_DATA_BUDGET_BYTES
+) {
+  throw new Error(
+    "Renderer total startup code and language data exceed their combined budget."
+  );
+}
 
 if (appReady.rawBytes >= APP_READY_JS_BUDGET_BYTES) {
   console.error(

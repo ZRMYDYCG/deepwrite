@@ -171,11 +171,11 @@ describe("long workspace proposal approval: quarantine-deduplication-and-finaliz
 
   it("does not offer an endless retry when a v4 audit mismatch escapes repair", async () => {
     const test = harness();
-    test.commitChapter.mockRejectedValueOnce(
-      new Error(
-        "catalog.command_failed: v4 连续性账本的文件清单与章节索引不一致：commit_old。"
-      )
-    );
+    test.commitChapter.mockRejectedValueOnce({
+      code: "long.ledger.audit_failed",
+      message: "Ledger file list does not match chapter index: commit_old.",
+      details: { commitId: "commit_old" }
+    });
 
     await test.controller.handleEvent(ledgerEvent());
 
@@ -183,7 +183,7 @@ describe("long workspace proposal approval: quarantine-deduplication-and-finaliz
       {
         event: { type: "long.ledger_commit_proposal" },
         status: "error",
-        error: expect.stringContaining("commit_old"),
+        error: "连续性账本与当前章节不一致，请刷新工作区并核对后重试。",
         errorRetryable: false
       }
     ]);

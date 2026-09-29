@@ -1,3 +1,4 @@
+import { createScopedTranslator } from "../../i18n";
 import {
   CHAT_PROJECT_DEFAULT_PROFILE_ID,
   chatAssistantProjectKey
@@ -10,6 +11,8 @@ import type {
   ExtrasChatTask
 } from "@deepwrite/contracts";
 
+const t = createScopedTranslator("extras.chatAssistant");
+
 /** A project's chat prompt as the project dialog edits it. */
 export interface ChatAssistantProjectConfig {
   project: ChatAssistantProjectRef;
@@ -19,7 +22,7 @@ export interface ChatAssistantProjectConfig {
 
 function profilesApi(): ExtrasAgentApi["profiles"] {
   const api = window.deepwrite?.extrasAgents?.profiles;
-  if (!api) throw new Error("桌面桥接尚未就绪，请稍后重试。");
+  if (!api) throw new Error(t("desktopBridgeNotReady"));
   return api;
 }
 
@@ -51,7 +54,7 @@ function defaultProjectPrompt(profiles: readonly ChatProjectProfile[]): string {
   const fallback = profiles.find(
     (profile) => profile.id === CHAT_PROJECT_DEFAULT_PROFILE_ID
   );
-  if (!fallback) throw new Error("默认项目提示词不可用，请重新打开聊天。");
+  if (!fallback) throw new Error(t("defaultProjectPromptUnavailable"));
   return fallback.systemPrompt;
 }
 
@@ -109,7 +112,7 @@ export async function saveChatRole(
     profiles: upsert(profiles.map(editable), { ...role })
   });
   const stored = saved.profiles.find((profile) => profile.id === role.id);
-  if (!stored) throw new Error("保存人物配置失败。");
+  if (!stored) throw new Error(t("saveCharacterFailed"));
   return stored;
 }
 

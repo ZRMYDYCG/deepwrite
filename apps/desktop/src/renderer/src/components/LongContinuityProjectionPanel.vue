@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import { computed } from "vue";
 import type {
   LongContinuityDomain,
@@ -7,6 +8,8 @@ import type {
 } from "@deepwrite/contracts";
 import { uiMessage } from "../ui-feedback";
 import AppIcon from "./AppIcon.vue";
+
+const t = createScopedTranslator("components.longContinuityProjectionPanel");
 
 const props = withDefaults(
   defineProps<{
@@ -26,11 +29,36 @@ const emit = defineEmits<{
 }>();
 
 const domainMeta = {
-  character: { label: "人物", icon: "user" },
-  relationship: { label: "人物关系", icon: "user" },
-  world: { label: "世界观", icon: "globe" },
-  plot: { label: "剧情", icon: "history" },
-  foreshadowing: { label: "伏笔", icon: "pin" }
+  character: {
+    get label() {
+      return t("characters");
+    },
+    icon: "user"
+  },
+  relationship: {
+    get label() {
+      return t("characterRelationships");
+    },
+    icon: "user"
+  },
+  world: {
+    get label() {
+      return t("worldbuilding");
+    },
+    icon: "globe"
+  },
+  plot: {
+    get label() {
+      return t("plot");
+    },
+    icon: "history"
+  },
+  foreshadowing: {
+    get label() {
+      return t("foreshadowing");
+    },
+    icon: "pin"
+  }
 } as const;
 
 const projection = computed(() => props.snapshot.ledger.projection);
@@ -92,7 +120,7 @@ function subjectLabel(
     );
     if (character) {
       return fact.domain === "relationship"
-        ? `${character.name} · 人物关系`
+        ? t("valueCharacterRelationships", { arg0: character.name })
         : character.name;
     }
   }
@@ -136,14 +164,18 @@ function subjectLabel(
     if (thread) return thread.title;
     for (const candidate of props.snapshot.plot.foreshadowing) {
       const beat = candidate.beats.find((item) => item.id === id);
-      if (beat) return `${candidate.title} · 触点 ${beat.order}`;
+      if (beat)
+        return t("valueTouchpointValue", {
+          arg0: candidate.title,
+          arg1: beat.order
+        });
     }
   }
   return id;
 }
 
 function chapterLabel(chapterCardId: string | null): string {
-  if (!chapterCardId) return "未关联章节";
+  if (!chapterCardId) return t("noLinkedChapter");
   return (
     props.snapshot.plot.chapterCards.find(({ id }) => id === chapterCardId)
       ?.title ?? chapterCardId
@@ -151,37 +183,48 @@ function chapterLabel(chapterCardId: string | null): string {
 }
 
 function commitLabel(commitId: string | null): string {
-  if (!commitId) return "尚未入账";
+  if (!commitId) return t("notCommitted");
   const commit = props.snapshot.ledger.commits.find(
     ({ id }) => id === commitId
   );
-  return commit ? `提交 #${commit.sequence}` : commitId;
+  return commit
+    ? t("commitValue", {
+        arg0: commit.sequence
+      })
+    : commitId;
 }
 
 async function copyEvidence(fact: LongContinuityFact): Promise<void> {
   const evidence = fact.evidence.trim();
   if (!evidence) {
-    uiMessage.info("该事实没有可复制的来源证据。");
+    uiMessage.info(t("thisFactHasNoSourceEvidenceToCopy"));
     return;
   }
   try {
     await navigator.clipboard.writeText(evidence);
-    uiMessage.success("来源证据已复制。");
+    uiMessage.success(t("sourceEvidenceCopied"));
   } catch {
-    uiMessage.error("复制失败，请稍后重试。");
+    uiMessage.error(t("copyFailedTryAgainLater"));
   }
 }
 </script>
 
 <template>
-  <section class="continuity-projection" aria-label="连续性账本来源映射">
+  <section
+    class="continuity-projection"
+    :aria-label="t('continuityLedgerSourceMapping')"
+  >
     <article class="projection-card">
       <header v-if="!hideHeading" class="projection-heading">
         <div>
-          <span class="projection-kicker">来源映射</span>
-          <strong>连续性来源</strong>
+          <span class="projection-kicker">{{ t("sourceMapping") }}</span>
+          <strong>{{ t("continuitySources") }}</strong>
         </div>
-        <span>{{ facts.length }} 项</span>
+        <span>{{
+          t("itemsMessage", {
+            arg0: facts.length ?? ""
+          })
+        }}</span>
       </header>
 
       <div v-if="groupedFacts.length" class="projection-groups">
@@ -220,15 +263,17 @@ async function copyEvidence(fact: LongContinuityFact): Promise<void> {
                     type="button"
                     @click="emit('selectCommit', fact.sourceCommitId)"
                   >
-                    查看入账记录
+                    {{ t("viewCommittedRecord") }}
                   </button>
                 </div>
                 <details class="projection-evidence">
-                  <summary>来源证据</summary>
+                  <summary>
+                    {{ t("sourceEvidence") }}
+                  </summary>
                   <p>{{ fact.evidence }}</p>
                   <button type="button" @click="copyEvidence(fact)">
                     <AppIcon name="copy" :size="13" />
-                    复制证据
+                    {{ t("copyEvidence") }}
                   </button>
                 </details>
               </dd>
@@ -241,12 +286,12 @@ async function copyEvidence(fact: LongContinuityFact): Promise<void> {
         <span class="projection-empty-icon">
           <AppIcon name="ledger" :size="18" />
         </span>
-        <strong>还没有已入账的当前事实</strong>
+        <strong>{{ t("noCommittedCurrentFactsYet") }}</strong>
         <p>
           {{
             subjectId || domain
-              ? "当前对象尚无连续性来源映射。完成相关章节核验后会显示在这里。"
-              : "完成第一章连续性核验后，人物、世界观与剧情的当前事实会显示在这里。"
+              ? t("thisObjectHasNoContinuitySourceMappingYetComplete")
+              : t("afterTheFirstChapterSContinuityVerificationCurrentCharacter")
           }}
         </p>
       </div>

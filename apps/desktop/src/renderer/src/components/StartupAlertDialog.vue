@@ -1,5 +1,8 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import { nextTick, ref, watch } from "vue";
+
+const t = createScopedTranslator("components.startupAlertDialog");
 
 const props = defineProps<{
   open: boolean;
@@ -40,12 +43,14 @@ watch(
         <header>
           <div>
             <span class="dialog-eyebrow">DeepWrite</span>
-            <h2 id="startup-alert-title">温馨提醒</h2>
+            <h2 id="startup-alert-title">
+              {{ t("reminder") }}
+            </h2>
           </div>
           <button
             class="icon-button startup-alert-close"
             type="button"
-            aria-label="关闭提醒"
+            :aria-label="t('closeReminder')"
             @click="emit('close')"
           >
             ×
@@ -54,14 +59,14 @@ watch(
 
         <div id="startup-alert-content" class="startup-alert-content">
           <div class="startup-alert-lead">
-            <span>本次公告</span>
+            <span>{{ t("announcement") }}</span>
             <p>{{ messages[0] }}</p>
           </div>
 
           <ol
             v-if="messages.length > 1"
             class="startup-alert-list"
-            aria-label="更多提醒"
+            :aria-label="t('moreReminders')"
           >
             <li
               v-for="(message, index) in messages.slice(1)"
@@ -82,7 +87,7 @@ watch(
             type="button"
             @click="emit('close')"
           >
-            我知道了
+            {{ t("gotIt") }}
           </button>
         </footer>
       </section>

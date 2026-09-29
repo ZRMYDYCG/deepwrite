@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
+
+const t = createScopedTranslator("components.longContinuityLedgerNavigation");
 export interface LongContinuityLedgerNavigationItem {
   id: string;
   label: string;
@@ -22,7 +25,7 @@ const emit = defineEmits<{
     v-if="mode === 'top-tabs'"
     class="long-editor-file-tabs long-continuity-ledger-tabs"
     role="tablist"
-    :aria-label="`${title}文件`"
+    :aria-label="t('valueFile', { arg0: title })"
   >
     <button
       v-for="file in items"
@@ -44,11 +47,11 @@ const emit = defineEmits<{
   <aside
     v-else
     class="long-story-plot-pane long-entry-list-pane long-continuity-ledger-list"
-    aria-label="连续性账本文件列表"
+    :aria-label="t('continuityLedgerFiles')"
   >
     <header>
       <div>
-        <strong>本章记录</strong>
+        <strong>{{ t("chapterRecords") }}</strong>
         <span>{{ items.length }}</span>
       </div>
     </header>

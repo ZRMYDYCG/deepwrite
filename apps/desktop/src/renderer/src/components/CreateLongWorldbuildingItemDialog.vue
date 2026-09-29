@@ -1,7 +1,12 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { uiMessage } from "../ui-feedback";
 import AppIcon from "./AppIcon.vue";
+
+const t = createScopedTranslator(
+  "components.createLongWorldbuildingItemDialog"
+);
 
 const props = defineProps<{
   open: boolean;
@@ -26,7 +31,7 @@ function close(): void {
 function submit(): void {
   const normalizedTitle = title.value.trim();
   if (!normalizedTitle) {
-    uiMessage.warning("请输入世界观条目名称。");
+    uiMessage.warning(t("enterAWorldbuildingEntryName"));
     titleInput.value?.focus({ preventScroll: true });
     return;
   }
@@ -117,13 +122,17 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
         <form @submit.prevent="submit">
           <header>
             <div>
-              <span>世界观 · {{ categoryTitle }}</span>
-              <h2 id="create-long-worldbuilding-item-title">新建世界观条目</h2>
+              <span>{{
+                t("worldbuildingMessage", { arg0: categoryTitle ?? "" })
+              }}</span>
+              <h2 id="create-long-worldbuilding-item-title">
+                {{ t("newWorldbuildingEntry") }}
+              </h2>
             </div>
             <button
               class="close-button"
               type="button"
-              aria-label="关闭新建世界观条目弹窗"
+              :aria-label="t('closeNewWorldbuildingEntryDialog')"
               :disabled="pending"
               @click="close"
             >
@@ -133,25 +142,27 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
 
           <fieldset :disabled="pending">
             <label>
-              <span>条目名称</span>
+              <span>{{ t("entryName") }}</span>
               <input
                 ref="titleInput"
                 v-model="title"
                 maxlength="256"
                 autocomplete="off"
-                placeholder="例如：守夜人"
+                :placeholder="t('forExampleNightWatchers')"
                 required
               />
             </label>
-            <p>确认后才会创建空白条目，之后可继续编辑正文。</p>
+            <p>
+              {{ t("aBlankEntryIsCreatedAfterConfirmationYouCan") }}
+            </p>
           </fieldset>
 
           <footer>
             <button type="button" :disabled="pending" @click="close">
-              取消
+              {{ t("cancel") }}
             </button>
             <button class="primary-button" type="submit" :disabled="pending">
-              {{ pending ? "创建中…" : "确认新建" }}
+              {{ pending ? t("creating") : t("create") }}
             </button>
           </footer>
         </form>

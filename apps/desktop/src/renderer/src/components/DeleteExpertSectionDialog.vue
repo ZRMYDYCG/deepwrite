@@ -1,6 +1,9 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import { computed, onBeforeUnmount, onMounted } from "vue";
 import AppIcon from "./AppIcon.vue";
+
+const t = createScopedTranslator("components.deleteExpertSectionDialog");
 
 const props = defineProps<{
   open: boolean;
@@ -10,7 +13,7 @@ const props = defineProps<{
 }>();
 
 const unitLabel = computed(() =>
-  props.workspaceType === "script" ? "剧集" : "小节"
+  props.workspaceType === "script" ? t("episode") : t("section")
 );
 
 const emit = defineEmits<{
@@ -37,13 +40,19 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
       >
         <header>
           <div>
-            <span class="dialog-eyebrow">正文编写</span>
-            <h2 id="delete-expert-section-title">删除{{ unitLabel }}</h2>
+            <span class="dialog-eyebrow">{{ t("manuscriptWriting") }}</span>
+            <h2 id="delete-expert-section-title">
+              {{
+                t("deleteMessageDetail", {
+                  arg0: unitLabel ?? ""
+                })
+              }}
+            </h2>
           </div>
           <button
             class="dialog-close"
             type="button"
-            aria-label="关闭"
+            :aria-label="t('close')"
             @click="emit('close')"
           >
             ×
@@ -54,14 +63,22 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
           <div class="book-remove-warning">
             <AppIcon name="trash" :size="20" />
             <div>
-              <strong>确认删除“{{ sectionTitle }}”？</strong>
+              <strong>{{
+                t("deleteMessageDetailDetail", { arg0: sectionTitle ?? "" })
+              }}</strong>
               <p>
                 {{
-                  hasContent
-                    ? `该${unitLabel}的标题、正文和人物状态都会删除。`
-                    : `该空${unitLabel}会从正文结构中删除。`
+                  t("clickApplyOnTheRightToSaveMessage", {
+                    arg0:
+                      (hasContent
+                        ? t("thisValueSTitleManuscriptAndCharacterStateWill", {
+                            arg0: unitLabel
+                          })
+                        : t("thisEmptyValueWillBeRemovedFromTheManuscript", {
+                            arg0: unitLabel
+                          })) ?? ""
+                  })
                 }}
-                删除后需点击右侧“应用”保存，此操作无法自动撤销。
               </p>
             </div>
           </div>
@@ -72,14 +89,14 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
               type="button"
               @click="emit('close')"
             >
-              取消
+              {{ t("cancel") }}
             </button>
             <button
               class="dialog-primary-button is-danger"
               type="button"
               @click="emit('confirm')"
             >
-              确认删除
+              {{ t("deleteMessage") }}
             </button>
           </div>
         </div>

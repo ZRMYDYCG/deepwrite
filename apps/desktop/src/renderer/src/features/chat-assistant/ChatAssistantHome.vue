@@ -1,7 +1,10 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../../i18n";
 import { computed, ref, watch } from "vue";
 import AppIcon from "../../components/AppIcon.vue";
 import type { ConversationHistoryItem } from "../../types/conversation";
+
+const t = createScopedTranslator("extras.chatAssistant");
 
 const props = defineProps<{
   history: readonly ConversationHistoryItem[];
@@ -28,8 +31,8 @@ function formatHistoryTime(value: string): string {
   const timestamp = Date.parse(value);
   if (!Number.isFinite(timestamp)) return "";
   const elapsedDays = Math.floor((Date.now() - timestamp) / 86_400_000);
-  if (elapsedDays <= 0) return "今天";
-  return `${elapsedDays} 天`;
+  if (elapsedDays <= 0) return t("today");
+  return t("daysAgo", { count: elapsedDays });
 }
 
 function selectConversation(sessionId: string): void {
@@ -46,7 +49,7 @@ function selectConversation(sessionId: string): void {
     <template v-if="history.length">
       <div class="chat-assistant-home-spacer" />
       <div class="chat-assistant-recent">
-        <span>最近聊天</span>
+        <span>{{ t("recentChats") }}</span>
         <button
           v-for="item in visibleHistory"
           :key="item.sessionId"
@@ -64,13 +67,13 @@ function selectConversation(sessionId: string): void {
           type="button"
           @click="showAllHistory = true"
         >
-          查看全部
+          {{ t("viewAll") }}
         </button>
       </div>
     </template>
     <div v-else class="chat-assistant-empty">
       <AppIcon name="message" :size="28" />
-      <strong>开始一段新聊天</strong>
+      <strong>{{ t("startNewChat") }}</strong>
       <span>{{ emptyHint }}</span>
     </div>
   </section>

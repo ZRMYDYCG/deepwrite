@@ -1,0 +1,187 @@
+.settings-select-item {
+  flex-wrap: wrap;
+}
+
+.settings-select-item .settings-item-text {
+  min-width: min(240px, 100%);
+}
+
+.general-select-control {
+  width: 210px;
+  min-width: 160px;
+  max-width: 210px;
+  flex: 0 1 210px;
+}
+
+.voice-model-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.voice-profile-fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid var(--theme-line-soft);
+}
+
+.voice-input {
+  box-sizing: border-box;
+  width: 280px;
+  min-width: 160px;
+  max-width: 100%;
+  flex: 0 1 280px;
+  min-height: 38px;
+  padding: 9px 11px;
+  border: 1px solid var(--theme-line);
+  border-radius: 8px;
+  outline: none;
+  background: var(--surface-main);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.928571rem;
+}
+
+.voice-input:focus,
+.voice-test-result textarea:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+.voice-input::placeholder,
+.voice-test-result textarea::placeholder {
+  color: var(--text-tertiary);
+}
+
+.voice-button,
+.voice-text-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  gap: 7px;
+  padding: 8px 12px;
+  border: 1px solid var(--theme-line);
+  border-radius: 8px;
+  background: var(--surface-main);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.928571rem;
+  cursor: pointer;
+}
+
+.voice-text-button {
+  padding: 2px 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.857143rem;
+}
+
+.voice-button:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+
+.voice-text-button:hover:not(:disabled) {
+  color: var(--text-primary);
+}
+
+.voice-button.is-primary {
+  border-color: var(--neutral-solid);
+  background: var(--neutral-solid);
+  color: var(--surface-main);
+}
+
+.voice-button.is-primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--neutral-solid) 88%, #fff);
+}
+
+.voice-button:focus-visible,
+.voice-text-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+button:disabled,
+input:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.voice-test-result {
+  padding: 14px 18px;
+}
+
+.voice-test-result textarea {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  min-height: 100px;
+  padding: 10px 12px;
+  resize: vertical;
+  border: 1px solid var(--theme-line);
+  border-radius: 8px;
+  outline: none;
+  background: var(--surface-main);
+  color: var(--text-primary);
+  font: inherit;
+  line-height: 1.6;
+}
+
+.voice-usage-value {
+  flex-shrink: 0;
+  color: var(--text-secondary);
+  font-size: 0.928571rem;
+}
+
+.voice-table-wrap {
+  display: block;
+  padding: 0;
+  overflow-x: auto;
+}
+
+.voice-usage-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.857143rem;
+  text-align: left;
+}
+
+.voice-usage-table caption {
+  padding: 16px;
+  color: var(--text-primary);
+  font-weight: 600;
+  text-align: left;
+}
+
+.voice-usage-table th,
+.voice-usage-table td {
+  padding: 12px 16px;
+  border-top: 1px solid var(--theme-line-soft);
+  line-height: 1.6;
+}
+
+.voice-usage-table th {
+  background: var(--surface-muted);
+  color: var(--text-secondary);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.voice-usage-table td {
+  overflow-wrap: anywhere;
+}
+
+.voice-usage-table small {
+  display: block;
+  color: var(--text-tertiary);
+}
+
+.voice-empty {
+  padding: 24px 16px;
+  color: var(--text-tertiary);
+  font-size: 0.928571rem;
+  text-align: center;
+}

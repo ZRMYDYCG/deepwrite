@@ -1,3 +1,4 @@
+import { createScopedTranslator } from "../i18n";
 import { computed, reactive, ref, toRef, watch } from "vue";
 import type {
   MaterialKind,
@@ -10,6 +11,8 @@ import type {
   LinkedSkillIdsByKind
 } from "@deepwrite/contracts";
 import { MATERIAL_KINDS, SKILL_KINDS } from "./bookLibraryKinds";
+
+const t = createScopedTranslator("workspace.bookLibrarySelection");
 export interface BookLibrarySelectionProps {
   materials: readonly MaterialLibrary[];
   skills: readonly SkillLibrary[];
@@ -71,21 +74,21 @@ export function useBookLibrarySelection(props: BookLibrarySelectionProps) {
     kind: (typeof MATERIAL_KINDS)[number]
   ): string {
     if (workspaceType.value === "long") {
-      if (kind.id === "plot") return "长线情节与结构参考";
-      if (kind.id === "other") return "自定义长篇素材";
+      if (kind.id === "plot") return t("longFormPlotAndStructureReferences");
+      if (kind.id === "other") return t("customNovelMaterials");
     }
     return workspaceType.value === "script" && kind.id === "plot"
-      ? "剧情设计与细化"
+      ? t("plotDesignAndRefinement")
       : kind.description;
   }
 
   function skillKindDescription(kind: (typeof SKILL_KINDS)[number]): string {
     if (workspaceType.value === "long") {
-      if (kind.id === "general") return "多个长篇阶段均可使用";
-      if (kind.id === "style") return "章节与分节写作方法";
+      if (kind.id === "general") return t("availableAcrossMultipleNovelStages");
+      if (kind.id === "style") return t("chapterAndSectionWritingMethods");
     }
     return workspaceType.value === "script" && kind.id === "style"
-      ? "正文与分集写作方法"
+      ? t("manuscriptAndEpisodeWritingMethods")
       : kind.description;
   }
 
@@ -171,14 +174,16 @@ export function useBookLibrarySelection(props: BookLibrarySelectionProps) {
   }
 
   function skillLibraryLabel(library: SkillLibrary): string {
-    return library.isBuiltin ? `${library.title} · 官方` : library.title;
+    return library.isBuiltin
+      ? t("official", { title: library.title })
+      : library.title;
   }
 
   function materialSelectOptions(
     kind: MaterialKind
   ): Array<{ value: string; label: string }> {
     return [
-      { value: "", label: "不关联" },
+      { value: "", label: t("noAssociation") },
       ...(props.preserveMissing &&
       selectedMaterialIds[kind] &&
       !materialCandidates(kind).some(
@@ -187,7 +192,7 @@ export function useBookLibrarySelection(props: BookLibrarySelectionProps) {
         ? [
             {
               value: selectedMaterialIds[kind],
-              label: "已失效的素材库（请重新选择）"
+              label: t("materialLibraryUnavailableSelectAgain")
             }
           ]
         : []),
@@ -202,14 +207,14 @@ export function useBookLibrarySelection(props: BookLibrarySelectionProps) {
     kind: SkillKind
   ): Array<{ value: string; label: string }> {
     return [
-      { value: "", label: "不绑定" },
+      { value: "", label: t("notLinked") },
       ...(props.preserveMissing &&
       selectedSkillIds[kind] &&
       !skillCandidates(kind).some((item) => item.id === selectedSkillIds[kind])
         ? [
             {
               value: selectedSkillIds[kind],
-              label: "已失效的技能库（请重新选择）"
+              label: t("skillLibraryUnavailableSelectAgain")
             }
           ]
         : []),
@@ -221,14 +226,14 @@ export function useBookLibrarySelection(props: BookLibrarySelectionProps) {
   }
 
   const materialGroupOptions = computed(() => [
-    { value: "", label: "不关联" },
+    { value: "", label: t("noAssociation") },
     ...availableMaterialGroups.value.map((group) => ({
       value: group.id,
       label: group.title
     }))
   ]);
   const skillGroupOptions = computed(() => [
-    { value: "", label: "不绑定" },
+    { value: "", label: t("notLinked") },
     ...availableSkillGroups.value.map((group) => ({
       value: group.id,
       label: group.title

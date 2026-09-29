@@ -1,3 +1,5 @@
+import { formatError } from "../i18n/errors";
+import { createScopedTranslator } from "../i18n";
 import { computed, ref, shallowRef, type ComputedRef } from "vue";
 import type {
   LongWorkspaceImpactConfirmation,
@@ -10,6 +12,8 @@ import {
   isLongMigrationEvidenceCategoryId,
   type LongStructureMutationCompletion
 } from "../types/longWorkspace";
+
+const t = createScopedTranslator("workspace.longStructureDeleteConfirmation");
 
 export interface LongStructureDeleteRow {
   kind: "worldbuilding" | "characterType";
@@ -67,15 +71,18 @@ export function useLongStructureDeleteConfirmation(options: Options) {
   const pendingWorldbuildingDeleteDescription = computed(() => {
     const target = pendingDelete.value;
     if (target?.kind !== "worldbuilding") return "";
-    if (target.previewPending) return "正在核对关联关系与删除影响…";
+    if (target.previewPending)
+      return t("checkingRelationshipsAndDeletionImpact");
     const category = options.snapshot.value.worldbuilding.find(
       ({ id }) => id === target.id
     );
-    if (!category) return "该分类已不存在。";
+    if (!category) return t("thisCategoryNoLongerExists");
     if (category.format === "list" && category.items.length > 0) {
-      return `删除会直接保存到本机，并级联删除 ${category.items.length} 个从属内容及其文件。`;
+      return t("thisDeletionWillBeSavedLocallyImmediatelyAndWill", {
+        length: category.items.length
+      });
     }
-    return "该分类没有从属条目；确认后将直接删除分类及其内容文件。";
+    return t("thisCategoryHasNoDependentEntriesConfirmingWillDelete");
   });
 
   function reset(): void {
@@ -92,7 +99,7 @@ export function useLongStructureDeleteConfirmation(options: Options) {
       (row.kind === "worldbuilding" &&
         isLongMigrationEvidenceCategoryId(row.id))
     ) {
-      options.notify.info("迁移证据是只读资料，不能删除。");
+      options.notify.info(t("migrationEvidenceIsReadOnlyAndCannotBeDeleted"));
       return;
     }
     moveCharactersToTypeId.value = "";
@@ -168,7 +175,7 @@ export function useLongStructureDeleteConfirmation(options: Options) {
       pendingDelete.value = pending;
     } catch (error: unknown) {
       options.notify.warning(
-        error instanceof Error ? error.message : "无法读取结构删除影响。"
+        formatError(error, t("couldNotReadTheImpactOfDeletingThisStructure"))
       );
       reset();
     }

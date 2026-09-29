@@ -1,3 +1,4 @@
+import { createScopedTranslator } from "../i18n";
 import type { CatalogDraftRecovery } from "@deepwrite/contracts";
 import { ref, watch, type Ref, type ShallowRef } from "vue";
 import type { EditorDraftState } from "../types/workspace";
@@ -6,6 +7,8 @@ import {
   dirtyDraftRecovery,
   mergeRecoveredEditorDrafts
 } from "../utils/draftRecoveryState";
+
+const t = createScopedTranslator("workspace");
 
 export interface DraftRecoveryApi {
   loadDraftRecovery(): Promise<CatalogDraftRecovery>;
@@ -27,7 +30,7 @@ export interface DraftRecoveryPersistence {
   phase: Ref<DraftRecoveryPersistencePhase>;
   recoveredCount: Ref<number>;
   load(): Promise<number>;
-  flush(options?: { notify?: boolean }): Promise<void>;
+  flush(options?: { notify?: boolean; strict?: boolean }): Promise<void>;
   beforeUnload(): void;
   nextTimestamp(): string;
   dispose(): Promise<void>;
@@ -37,8 +40,10 @@ const DEFAULT_DEBOUNCE_MS = 250;
 
 function loadWarning(error: unknown): string {
   return error instanceof Error
-    ? `草稿恢复文件读取失败：${error.message}`
-    : "草稿恢复文件暂时无法读取";
+    ? t("draftRecoveryPersistence.failedToReadDraftRecoveryFile", {
+        message: error.message
+      })
+    : t("draftRecoveryPersistence.theDraftRecoveryFileIsTemporarilyUnreadable");
 }
 
 /**
@@ -168,7 +173,9 @@ export function useDraftRecoveryPersistence(
         if (notifyPendingFailure && !warningShown) {
           warningShown = true;
           options.warning(
-            "未保存草稿暂时无法写入恢复文件，请先保存文稿再关闭应用"
+            t(
+              "draftRecoveryPersistence.unsavedDraftsCouldNotBeWrittenToTheRecovery"
+            )
           );
         }
         return;
@@ -176,16 +183,38 @@ export function useDraftRecoveryPersistence(
     }
   }
 
-  async function flush(flushOptions: { notify?: boolean } = {}): Promise<void> {
-    if (disposed || phase.value !== "ready") return;
+  function assertPersisted(): void {
+    if (phase.value !== "ready" || persistedRevision < revision) {
+      throw new Error(t("builtins.recoveryPending"));
+    }
+  }
+
+  async function flush(
+    flushOptions: { notify?: boolean; strict?: boolean } = {}
+  ): Promise<void> {
+    if (flushOptions.strict && loadPromise) await loadPromise;
+    if (disposed || phase.value !== "ready") {
+      if (
+        flushOptions.strict &&
+        Object.keys(dirtyDraftRecovery(options.drafts.value)).length
+      ) {
+        assertPersisted();
+      }
+      return;
+    }
     cancelTimer();
     notifyPendingFailure ||= flushOptions.notify !== false;
-    if (drainPromise) return drainPromise;
+    if (drainPromise) {
+      await drainPromise;
+      if (flushOptions.strict) assertPersisted();
+      return;
+    }
 
     const operation = drain();
     drainPromise = operation;
     try {
       await operation;
+      if (flushOptions.strict) assertPersisted();
     } finally {
       if (drainPromise === operation) {
         drainPromise = null;

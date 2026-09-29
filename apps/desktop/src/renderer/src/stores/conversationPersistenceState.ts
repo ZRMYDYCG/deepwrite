@@ -1,3 +1,5 @@
+import { formatError } from "../i18n/errors";
+import { t } from "../i18n";
 import { createControllerPersistenceScheduler } from "./conversationControllerPersistence";
 import { computed, markRaw, ref, shallowRef, triggerRef } from "vue";
 import {
@@ -45,7 +47,12 @@ export function createConversationPersistenceState(
     failed(key, error) {
       persistenceErrors.value.set(
         key,
-        error instanceof Error ? error.message : "保存会话状态失败。"
+        formatError(
+          error,
+          t(
+            "workspace.conversationPersistenceState.failedToSaveConversationState"
+          )
+        )
       );
       triggerRef(persistenceErrors);
       persistenceErrorHandler?.(key, error);

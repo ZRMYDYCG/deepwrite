@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import {
   computed,
   nextTick,
@@ -18,6 +19,8 @@ import type {
 import { uiMessage } from "../ui-feedback";
 import AppIcon from "./AppIcon.vue";
 import PopupSelect from "./PopupSelect.vue";
+
+const t = createScopedTranslator("components.libraryProjectDialog");
 
 type LibraryDomain = "material" | "skill";
 type LibraryDialogOperation =
@@ -72,42 +75,93 @@ const stageId = ref<MaterialStageId>("other");
 const libraryKind = ref<MaterialKind | SkillKind>("character");
 const titleInput = ref<HTMLInputElement | null>(null);
 const domainLabel = computed(() =>
-  props.domain === "material" ? "素材" : "技能"
+  props.domain === "material" ? t("material") : t("skill")
 );
 const heading = computed(() => {
-  if (props.operation === "create-library") return `新建${domainLabel.value}库`;
+  if (props.operation === "create-library")
+    return t("newValueLibrary", {
+      arg0: domainLabel.value
+    });
   if (props.operation === "create-entry")
-    return `在“${props.libraryTitle ?? "资料库"}”中新建条目`;
+    return t("newEntryInValue", {
+      arg0: props.libraryTitle ?? t("library")
+    });
   if (props.operation === "rename-library")
-    return `修改${domainLabel.value}库名称`;
-  if (props.operation === "rename-entry") return `修改条目名称`;
-  return `删除“${props.entryTitle ?? "条目"}”`;
+    return t("renameValueLibrary", {
+      arg0: domainLabel.value
+    });
+  if (props.operation === "rename-entry") return t("renameEntry");
+  return t("deleteValue", {
+    arg0: props.entryTitle ?? t("entry")
+  });
 });
 const libraryKindOptions = computed(() =>
   props.domain === "material"
     ? [
-        { value: "character", label: "人设素材库" },
-        { value: "gimmick", label: "梗素材库" },
-        { value: "plot", label: "剧情素材库" },
-        { value: "draft", label: "正文素材库" },
-        { value: "other", label: "其他素材库" }
+        {
+          value: "character",
+          label: t("characterMaterialLibrary")
+        },
+        {
+          value: "gimmick",
+          label: t("ideaMaterialLibrary")
+        },
+        {
+          value: "plot",
+          label: t("plotMaterialLibrary")
+        },
+        {
+          value: "draft",
+          label: t("manuscriptMaterialLibrary")
+        },
+        {
+          value: "other",
+          label: t("otherMaterialLibrary")
+        }
       ]
     : [
-        { value: "general", label: "通用技能库" },
-        { value: "plot", label: "剧情设计技能库" },
-        { value: "style", label: "文风写作技能库" },
-        { value: "other", label: "其他技能库" }
+        {
+          value: "general",
+          label: t("generalSkillLibrary")
+        },
+        {
+          value: "plot",
+          label: t("plotDesignSkillLibrary")
+        },
+        {
+          value: "style",
+          label: t("writingStyleSkillLibrary")
+        },
+        {
+          value: "other",
+          label: t("otherSkillLibrary")
+        }
       ]
 );
 const stageOptions = computed(() => {
   const allOptions = [
-    { value: "gimmick", label: "梗" },
-    { value: "character", label: "人设" },
-    { value: "pacing", label: "剧情设计" },
-    { value: "intro", label: "导语设计" },
-    { value: "plot_refine", label: "剧情细化" },
-    { value: "draft_excerpt", label: "优秀正文片段" },
-    { value: "other", label: "其他素材" }
+    { value: "gimmick", label: t("idea") },
+    {
+      value: "character",
+      label: t("characterConcept")
+    },
+    { value: "pacing", label: t("plotDesign") },
+    {
+      value: "intro",
+      label: t("introductionDesign")
+    },
+    {
+      value: "plot_refine",
+      label: t("plotDevelopment")
+    },
+    {
+      value: "draft_excerpt",
+      label: t("manuscriptExcerpts")
+    },
+    {
+      value: "other",
+      label: t("otherMaterials")
+    }
   ];
   const allowedByKind: Record<MaterialLibraryKind, readonly string[]> = {
     character: ["character"],
@@ -131,7 +185,7 @@ function requestClose(): void {
 function submit(): void {
   if (props.operation === "remove-entry") {
     if (!props.libraryId || !props.entryId) {
-      uiMessage.error("未找到要删除的条目");
+      uiMessage.error(t("entryToDeleteNotFound"));
       return;
     }
     emit("removeEntry", {
@@ -146,8 +200,8 @@ function submit(): void {
   if (!normalizedTitle) {
     uiMessage.warning(
       props.operation === "create-library"
-        ? "请输入资料库名称"
-        : "请输入条目名称"
+        ? t("enterALibraryName")
+        : t("enterAnEntryName")
     );
     titleInput.value?.focus();
     return;
@@ -170,7 +224,7 @@ function submit(): void {
   }
   if (props.operation === "rename-library") {
     if (!props.libraryId) {
-      uiMessage.error("未找到要修改的资料库");
+      uiMessage.error(t("libraryToRenameNotFound"));
       return;
     }
     emit("renameLibrary", {
@@ -182,7 +236,7 @@ function submit(): void {
   }
   if (props.operation === "rename-entry") {
     if (!props.libraryId || !props.entryId) {
-      uiMessage.error("未找到要修改的条目");
+      uiMessage.error(t("entryToRenameNotFound"));
       return;
     }
     emit("renameEntry", {
@@ -194,7 +248,7 @@ function submit(): void {
     return;
   }
   if (!props.libraryId) {
-    uiMessage.error("未找到要新增内容的资料库");
+    uiMessage.error(t("targetLibraryNotFound"));
     return;
   }
   if (props.domain === "material") {
@@ -260,15 +314,15 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
       >
         <header>
           <div>
-            <span class="dialog-eyebrow"
-              >{{ domainLabel }}库 · 本地文件夹项目</span
-            >
+            <span class="dialog-eyebrow">{{
+              t("libraryLocalFolderProjectMessage", { arg0: domainLabel ?? "" })
+            }}</span>
             <h2 id="library-project-dialog-title">{{ heading }}</h2>
           </div>
           <button
             class="dialog-close"
             type="button"
-            aria-label="关闭"
+            :aria-label="t('close')"
             :disabled="submitting"
             @click="requestClose"
           >
@@ -282,31 +336,47 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
         >
           <template v-if="operation === 'create-library'">
             <p class="dialog-description">
-              新资料库会自动保存在当前工作目录中，无需再次选择目录。
+              {{ t("newLibrariesAreSavedAutomaticallyInTheCurrentWorkspace") }}
             </p>
             <label class="book-resource-name-field">
-              <span>{{ domainLabel }}库名称</span>
+              <span>{{
+                t("libraryNameMessage", {
+                  arg0: domainLabel ?? ""
+                })
+              }}</span>
               <input
                 ref="titleInput"
                 v-model="title"
                 type="text"
                 maxlength="80"
                 autocomplete="off"
-                :placeholder="`请输入${domainLabel}库名称`"
+                :placeholder="
+                  t('enterAValueLibraryName', {
+                    arg0: domainLabel
+                  })
+                "
                 :disabled="submitting"
               />
             </label>
             <p class="book-resource-help">
-              此资料库由短篇、剧本和长篇共用，可在任意作品中绑定。
+              {{ t("thisLibraryIsSharedAcrossShortStoriesScreenplaysAnd") }}
             </p>
             <label
               class="book-resource-name-field catalog-resource-stage-field"
             >
-              <span>{{ domainLabel }}库分类</span>
+              <span>{{
+                t("libraryCategoryMessage", {
+                  arg0: domainLabel ?? ""
+                })
+              }}</span>
               <PopupSelect
                 :model-value="libraryKind"
                 :options="libraryKindOptions"
-                :accessible-label="`${domainLabel}库分类`"
+                :accessible-label="
+                  t('valueLibraryCategory', {
+                    arg0: domainLabel
+                  })
+                "
                 size="large"
                 :disabled="submitting"
                 :menu-min-width="220"
@@ -316,8 +386,7 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
               />
             </label>
             <p class="book-resource-help">
-              文件夹中会保存 deepwrite.json，正文条目位于 entries/*.md；可由
-              Finder、Git 或文本编辑器直接管理。
+              {{ t("theFolderContainsDeepwriteJsonWithEntriesInEntries") }}
             </p>
           </template>
 
@@ -331,15 +400,17 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
             <p class="dialog-description">
               {{
                 operation === "create-entry"
-                  ? "新条目会立即创建为 entries 目录中的 Markdown 文件，之后可在编辑器或外部工具中继续编写。"
-                  : "新名称会立即保存到本地资料库项目。"
+                  ? t("newEntriesAreImmediatelyCreatedAsMarkdownFilesIn")
+                  : t("theNewNameIsSavedImmediatelyToTheLocal")
               }}
             </p>
             <label class="book-resource-name-field">
               <span>{{
                 operation === "rename-library"
-                  ? `${domainLabel}库名称`
-                  : "条目名称"
+                  ? t("valueLibraryName", {
+                      arg0: domainLabel
+                    })
+                  : t("entryName")
               }}</span>
               <input
                 ref="titleInput"
@@ -349,8 +420,8 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
                 autocomplete="off"
                 :placeholder="
                   operation === 'rename-library'
-                    ? `请输入${domainLabel}库名称`
-                    : '请输入条目名称'
+                    ? t('enterAValueLibraryName', { arg0: domainLabel })
+                    : t('enterAnEntryName')
                 "
                 :disabled="submitting"
               />
@@ -359,11 +430,11 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
               v-if="showEntryStageField"
               class="book-resource-name-field catalog-resource-stage-field"
             >
-              <span>内容阶段</span>
+              <span>{{ t("contentStage") }}</span>
               <PopupSelect
                 :model-value="stageId"
                 :options="stageOptions"
-                accessible-label="内容阶段"
+                :accessible-label="t('contentStage')"
                 size="large"
                 :disabled="submitting"
                 :menu-min-width="220"
@@ -377,11 +448,16 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
           <div v-else class="catalog-resource-warning">
             <AppIcon name="trash" :size="20" />
             <div>
-              <strong>这会删除对应的 Markdown 文件</strong>
+              <strong>{{
+                t("thisDeletesTheCorrespondingMarkdownFile")
+              }}</strong>
               <p>
-                “{{ entryTitle }}”将从“{{
-                  libraryTitle
-                }}”及磁盘中删除，未保存修改也会丢失；此操作不能通过重新打开资料库恢复。
+                {{
+                  t("willBeDeletedFromAndFromDiskMessage", {
+                    arg0: entryTitle ?? "",
+                    arg1: libraryTitle ?? ""
+                  })
+                }}
               </p>
             </div>
           </div>
@@ -393,7 +469,7 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
               :disabled="submitting"
               @click="requestClose"
             >
-              取消
+              {{ t("cancel") }}
             </button>
             <button
               class="dialog-primary-button"
@@ -403,15 +479,17 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
             >
               {{
                 submitting
-                  ? "处理中…"
+                  ? t("processing")
                   : operation === "create-library"
-                    ? `创建${domainLabel}库`
+                    ? t("createValueLibrary", {
+                        arg0: domainLabel
+                      })
                     : operation === "create-entry"
-                      ? "创建条目"
+                      ? t("createEntry")
                       : operation === "rename-library" ||
                           operation === "rename-entry"
-                        ? "保存名称"
-                        : "确认删除"
+                        ? t("saveName")
+                        : t("delete")
               }}
             </button>
           </div>

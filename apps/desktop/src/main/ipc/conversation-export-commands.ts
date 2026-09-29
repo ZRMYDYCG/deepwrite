@@ -1,3 +1,4 @@
+import { nativeText } from "../native-i18n";
 import { randomUUID } from "node:crypto";
 import { basename } from "node:path";
 import {
@@ -65,9 +66,11 @@ async function begin(
     };
     created.selection = (async (): Promise<SelectedFile> => {
       const selection = await ctx.dialog.showSaveDialog(ctx.getMainWindow(), {
-        title: "导出当前对话（含未保存内容）",
+        title: nativeText("exportConversation"),
         defaultPath: safeName(command.payload.suggestedName),
-        filters: [{ name: "JSON 对话文件", extensions: ["json"] }],
+        filters: [
+          { name: nativeText("conversationFile"), extensions: ["json"] }
+        ],
         properties: ["createDirectory", "showOverwriteConfirmation"]
       });
       if (created.invalidated || selection.canceled || !selection.filePath)

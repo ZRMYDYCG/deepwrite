@@ -6,7 +6,11 @@ import type {
   ShortBookAnalysisPreset,
   ShortBookAnalysisSource
 } from "@deepwrite/contracts/renderer";
-import { createExtrasAgentsFake } from "../agent-runtime/extrasAgent.test-support";
+import {
+  createExtrasAgentsFake,
+  outputEvent,
+  runEvent
+} from "../agent-runtime/extrasAgent.test-support";
 import { useShortBookAnalysis } from "./useShortBookAnalysis";
 const preset: ShortBookAnalysisPreset = {
   id: "preset",
@@ -116,7 +120,7 @@ it("deletes saved sources, repairs selection and active editor, and preserves st
     ]);
     expect(c.selectedIds.value).toEqual(["book-0"]);
     expect(c.activeId.value).toBe("book-2");
-    expect(c.result.value).toBeNull();
+    expect(c.result.value?.content).toBe("旧分析");
     await c.deleteSource("book-0");
     expect(c.activeId.value).toBe("book-2");
     await c.deleteSource("book-2");
@@ -183,9 +187,11 @@ it("retains selections on preset change, enforces ten and saves edited results t
     expect(c.selectionValid.value).toBe(true);
     expect(() => c.toggleBook("book-10")).toThrow("10");
     c.selectedPresetId.value = "single";
-    expect(() => c.toggleBook("book-10")).toThrow("仅支持一本");
-    expect(c.selectedIds.value).toHaveLength(10);
-    expect(c.selectionValid.value).toBe(false);
+    c.toggleBook("book-10");
+    expect(c.selectedIds.value).toEqual(["book-10"]);
+    expect(c.selectionValid.value).toBe(true);
+    c.toggleBook("book-0");
+    expect(c.selectedIds.value).toEqual(["book-0"]);
     c.selectedPresetId.value = "preset";
     c.updateBook("book-0", { title: "测试0", text: "" });
     expect(c.selectionValid.value).toBe(false);
@@ -201,6 +207,7 @@ it("retains selections on preset change, enforces ten and saves edited results t
       } as ModelConfig
     ]);
     c.start();
+    expect(createLibraryEntry).not.toHaveBeenCalled();
     expect(fake.run.mock.calls[0]![0].task).toMatchObject({
       agentId: "short-book-analysis",
       profileId: "preset"
@@ -209,7 +216,22 @@ it("retains selections on preset change, enforces ten and saves edited results t
       c.updateBook("book-0", { title: "修改", text: "修改" })
     ).toThrow("正在处理");
     expect(() => c.toggleBook("book-0")).toThrow();
-    c.status.value = "completed";
+    await Promise.resolve();
+    const request = fake.run.mock.calls[0]![0];
+    expect(request.task.input).not.toHaveProperty("libraryId");
+    c.handleEvent(
+      outputEvent(request, {
+        kind: "book-analysis-result",
+        result: {
+          name: "生成结果",
+          description: "用于提炼写作方法。",
+          content: "原始内容"
+        }
+      })
+    );
+    c.handleEvent(runEvent("agent.message_completed", request));
+    await vi.waitFor(() => expect(c.status.value).toBe("completed"));
+    expect(createLibraryEntry).not.toHaveBeenCalled();
     c.result.value = {
       name: "已编辑结果",
       description: "用于提炼写作方法。",
@@ -225,6 +247,23 @@ it("retains selections on preset change, enforces ten and saves edited results t
       stageId: "pacing",
       baseProjectRevision: 7
     });
+    c.presets.value.push({
+      ...preset,
+      id: "skill",
+      name: "技能分析",
+      output: { domain: "skill", kind: "general", stageId: "outline" }
+    });
+    c.selectedPresetId.value = "skill";
+    c.start();
+    expect(c.resultIsPrevious.value).toBe(true);
+    await c.persistResult({ libraryId: "library" });
+    expect(createLibraryEntry).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        domain: "material",
+        stageId: "pacing",
+        title: "已编辑结果"
+      })
+    );
   } finally {
     c.dispose();
     scope.stop();
@@ -252,6 +291,41 @@ it("saves and resets presets through the unified extras agent profiles", async (
     ]);
     await c.resetPresets();
     expect(c.presets.value.map((item) => item.id)).toEqual(["preset"]);
+  } finally {
+    c.dispose();
+    scope.stop();
+  }
+});
+
+it("selects an imported single book immediately but leaves multiple-book selection explicit", async () => {
+  const scope = effectScope();
+  const api = {
+    shortBookAnalysis: {
+      chooseSources: async () => [book(1)],
+      sources: {
+        list: async () => ({ sources: [] }),
+        load: async () => book(2)
+      }
+    }
+  } as unknown as DeepWriteApi;
+  const c = scope.run(() => useShortBookAnalysis({ api: () => api }))!;
+  try {
+    c.presets.value = [
+      { ...preset, id: "single", selectionMode: "single" },
+      preset
+    ];
+    c.selectedPresetId.value = "single";
+    await c.chooseSources();
+    expect(c.selectedIds.value).toEqual(["book-1"]);
+    expect(c.selectionValid.value).toBe(true);
+    await c.loadSource("book-2");
+    expect(c.selectedIds.value).toEqual(["book-2"]);
+    c.toggleBook("book-1");
+    expect(c.selectedIds.value).toEqual(["book-1"]);
+    c.selectedPresetId.value = "preset";
+    c.selectedIds.value = [];
+    await c.chooseSources();
+    expect(c.selectedIds.value).toEqual([]);
   } finally {
     c.dispose();
     scope.stop();

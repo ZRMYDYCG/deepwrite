@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { metadataEditFailureMessage } from "./metadataEditMessages";
+import { createScopedTranslator } from "../i18n";
 import { computed } from "vue";
 import {
   parseSkillMarkdown,
@@ -7,6 +9,8 @@ import {
 } from "@deepwrite/contracts/renderer";
 import { uiMessage } from "../ui-feedback";
 import LibraryMetadataPopover from "./LibraryMetadataPopover.vue";
+
+const t = createScopedTranslator("components.skillMetadataEditor");
 
 const props = defineProps<{
   content: string;
@@ -18,20 +22,20 @@ const emit = defineEmits<{ change: [content: string] }>();
 const fields = computed(() => readSkillMarkdownMetadata(props.content));
 const preview = computed(() => ({
   title: parseSkillMarkdown(props.content).valid
-    ? "当前智能体目录"
-    : "当前技能说明",
-  name: fields.value.name || "尚未填写名称",
-  nameSource: fields.value.name ? "使用配置名称" : "需要填写名称",
-  description: fields.value.description || "尚未填写使用说明",
+    ? t("currentAgentCatalog")
+    : t("currentSkillNotes"),
+  name: fields.value.name || t("nameNotProvided"),
+  nameSource: fields.value.name ? t("useConfiguredName") : t("nameRequired"),
+  description: fields.value.description || t("usageNotesNotProvided"),
   descriptionSource: fields.value.description
-    ? "使用配置说明"
-    : "需要填写使用说明"
+    ? t("useConfiguredNotes")
+    : t("usageNotesRequired")
 }));
 function applyMetadata(values: { name: string; description: string }): boolean {
   if (props.readOnly) return false;
   const result = updateSkillMarkdownMetadata(props.content, values);
   if (!result.updated) {
-    uiMessage.info(result.message);
+    uiMessage.info(metadataEditFailureMessage(result));
     return false;
   }
   emit("change", result.content);
@@ -44,12 +48,14 @@ function applyMetadata(values: { name: string; description: string }): boolean {
     :content="content"
     :entry-id="entryId"
     :read-only="readOnly"
-    label="技能说明"
-    hint="填写名称和使用说明，帮助智能体识别技能及其适用场景。技能还需要正文才可使用。"
+    :label="t('skillNotes')"
+    :hint="t('provideANameAndUsageNotesToHelpThe')"
     :optional="false"
     :initial-name="fields.name ?? title"
     :initial-description="fields.description ?? ''"
-    placeholder="例如：在设计人物关系时使用，检查人物动机、关系冲突和成长变化。"
+    :placeholder="
+      t('forExampleUseWhenDesigningCharacterRelationshipsToExamine')
+    "
     :preview="preview"
     :apply-metadata="applyMetadata"
   />

@@ -1,0 +1,55 @@
+import { z } from "zod";
+
+/** Stable presentation codes cross IPC; user titles remain interpolation data. */
+export const syncDisplayTextSchema = z
+  .object({
+    code: z.enum([
+      "checkingLocal",
+      "checkingRemote",
+      "checkingUpdates",
+      "checkedUpdates",
+      "checkIncomplete",
+      "firstPreview",
+      "firstPreviewSummary",
+      "confirmFirst",
+      "readingChanges",
+      "uploading",
+      "downloading",
+      "transferFailed",
+      "validationFailed",
+      "syncSummary",
+      "partialSummary",
+      "noChanges",
+      "previewIncomplete",
+      "initializationFailed",
+      "cancelled",
+      "syncFailed",
+      "restored",
+      "checkingSource",
+      "downloadingSource",
+      "sourceReady",
+      "recheckingRemote",
+      "replacingLocal",
+      "initialized",
+      "directionConflict",
+      "mergeConflict",
+      "deletionPending",
+      "noLocalVersion",
+      "remoteDiverged",
+      "noRemoteVersion",
+      "missingDependencies",
+      "referencedResource",
+      "remoteInvalid",
+      "localInvalid",
+      "beforeRestore",
+      "beforeSync",
+      "receivedChanges",
+      "receivedRemote",
+      "preparedUpload",
+      "uploaded",
+      "legacyHistory"
+    ]),
+    params: z.record(z.string(), z.union([z.string(), z.number()])).optional()
+  })
+  .strict();
+export type SyncDisplayText = z.infer<typeof syncDisplayTextSchema>;

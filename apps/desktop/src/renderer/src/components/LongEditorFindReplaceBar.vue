@@ -1,7 +1,10 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import type { EditorEntrySearchResult } from "../types/editorEntrySearch";
 import AppIcon from "./AppIcon.vue";
 import EditorEntrySearchRow from "./EditorEntrySearchRow.vue";
+
+const t = createScopedTranslator("components.longEditorFindReplaceBar");
 
 defineProps<{
   findPanelMode: "find" | "replace";
@@ -43,7 +46,9 @@ const findInput = defineModel<HTMLInputElement | null>("findInput", {
     ref="findPanelElement"
     class="long-editor-find-panel"
     role="dialog"
-    :aria-label="findPanelMode === 'replace' ? '查找和替换' : '查找文字'"
+    :aria-label="
+      findPanelMode === 'replace' ? t('findAndReplace') : t('findText')
+    "
     @keydown.esc.stop="emit('close')"
   >
     <div class="long-editor-find-row">
@@ -53,8 +58,8 @@ const findInput = defineModel<HTMLInputElement | null>("findInput", {
           ref="findInput"
           :value="searchQuery"
           type="text"
-          aria-label="查找文字"
-          placeholder="查找"
+          :aria-label="t('findText')"
+          :placeholder="t('find')"
           @input="
             emit(
               'update:searchQuery',
@@ -71,8 +76,8 @@ const findInput = defineModel<HTMLInputElement | null>("findInput", {
       <button
         class="long-editor-find-icon-button is-previous"
         type="button"
-        aria-label="查找上一个"
-        title="查找上一个"
+        :aria-label="t('findPrevious')"
+        :title="t('findPrevious')"
         @click="emit('findMatch', -1)"
       >
         <AppIcon name="chevron" :size="14" />
@@ -80,8 +85,8 @@ const findInput = defineModel<HTMLInputElement | null>("findInput", {
       <button
         class="long-editor-find-icon-button"
         type="button"
-        aria-label="查找下一个"
-        title="查找下一个"
+        :aria-label="t('findNext')"
+        :title="t('findNext')"
         @click="emit('findMatch', 1)"
       >
         <AppIcon name="chevron" :size="14" />
@@ -89,8 +94,8 @@ const findInput = defineModel<HTMLInputElement | null>("findInput", {
       <button
         class="long-editor-find-icon-button"
         type="button"
-        aria-label="关闭查找"
-        title="关闭"
+        :aria-label="t('closeFind')"
+        :title="t('close')"
         @click="emit('close')"
       >
         <AppIcon name="close" :size="14" />
@@ -102,8 +107,8 @@ const findInput = defineModel<HTMLInputElement | null>("findInput", {
         <input
           :value="replacementText"
           type="text"
-          aria-label="替换为"
-          placeholder="替换为"
+          :aria-label="t('replaceWith')"
+          :placeholder="t('replaceWith')"
           :disabled="currentReadOnly"
           @input="
             emit(
@@ -120,7 +125,7 @@ const findInput = defineModel<HTMLInputElement | null>("findInput", {
         :disabled="currentReadOnly"
         @click="emit('replaceCurrent')"
       >
-        替换
+        {{ t("replace") }}
       </button>
       <button
         class="long-editor-find-action"
@@ -128,7 +133,7 @@ const findInput = defineModel<HTMLInputElement | null>("findInput", {
         :disabled="currentReadOnly"
         @click="emit('replaceAll')"
       >
-        全部
+        {{ t("all") }}
       </button>
     </div>
     <EditorEntrySearchRow

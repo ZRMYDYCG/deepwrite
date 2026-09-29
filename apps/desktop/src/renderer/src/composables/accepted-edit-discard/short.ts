@@ -1,9 +1,12 @@
+import { createScopedTranslator } from "../../i18n";
 import { createShortWorkspaceContentRevision } from "@deepwrite/contracts";
 import type { AgentEditProposal } from "../../types/conversation";
 import type { ProposalCoordinatorContext } from "../proposal-coordinator/types";
 import { captureWorkspaceDocumentBaselines } from "../../utils/catalogSaveReconciliation";
 import { draftCharacterStateTitle } from "../../utils/draftFileTitles";
 import { AcceptedEditDiscardConflictError } from "../../utils/acceptedEditDiscard";
+
+const t = createScopedTranslator("workspace.short");
 
 type Context = ProposalCoordinatorContext;
 
@@ -16,12 +19,12 @@ function requireCurrentAcceptedDocument(
   );
   const snapshot = proposal.discardSnapshot;
   if (!document || snapshot?.beforeText === undefined) {
-    throw new Error("缺少修改前的完整内容，无法安全舍弃本次修改。");
+    throw new Error(t("theFullPreviousContentIsMissingThisEditCannot"));
   }
   const draft = context.editor.drafts.value[document.id];
   if (draft?.dirty) {
     throw new AcceptedEditDiscardConflictError(
-      "目标文件有未保存编辑，未舍弃本次修改。请先处理当前草稿。"
+      t("theTargetFileHasUnsavedEditsResolveTheCurrent")
     );
   }
   if (
@@ -30,7 +33,7 @@ function requireCurrentAcceptedDocument(
     document.title !== proposal.title
   ) {
     throw new AcceptedEditDiscardConflictError(
-      "目标文件已有后续修改，未覆盖最新内容；本次修改没有被舍弃。"
+      t("theTargetFileHasNewerChangesTheyWerePreserved")
     );
   }
   return { document, snapshot };
@@ -53,12 +56,12 @@ export async function discardAcceptedCatalogTextEdit(
     document.libraryId &&
     (document.domain === "material" || document.domain === "skill")
   ) {
-    if (!api) throw new Error("桌面文件服务当前不可用。");
+    if (!api) throw new Error(t("theDesktopFileServiceIsUnavailable"));
     const library = context.catalog.findCatalogLibrary(
       document.domain,
       document.libraryId
     );
-    if (!library) throw new Error("目标资料库已不存在。");
+    if (!library) throw new Error(t("theTargetLibraryNoLongerExists"));
     const updated = await api.catalog.updateLibrary({
       domain: document.domain,
       libraryId: document.libraryId,
@@ -81,12 +84,12 @@ export async function discardAcceptedCatalogTextEdit(
     document.libraryId &&
     (document.domain === "material" || document.domain === "skill")
   ) {
-    if (!api) throw new Error("桌面文件服务当前不可用。");
+    if (!api) throw new Error(t("theDesktopFileServiceIsUnavailable"));
     const library = context.catalog.findCatalogLibrary(
       document.domain,
       document.libraryId
     );
-    if (!library) throw new Error("目标资料库已不存在。");
+    if (!library) throw new Error(t("theTargetLibraryNoLongerExists"));
     const saved = await api.catalog.saveLibraryEntry({
       domain: document.domain,
       libraryId: document.libraryId,
@@ -116,9 +119,9 @@ export async function discardAcceptedCatalogTextEdit(
     return;
   }
   if (document.workspaceId && document.catalogDocumentId) {
-    if (!api) throw new Error("桌面文件服务当前不可用。");
+    if (!api) throw new Error(t("theDesktopFileServiceIsUnavailable"));
     const book = context.catalog.catalogBook(document.workspaceId);
-    if (!book) throw new Error("目标作品已不存在。");
+    if (!book) throw new Error(t("theTargetProjectNoLongerExists"));
     const expectedDocuments = captureWorkspaceDocumentBaselines(
       context.editor.documents.value,
       document.workspaceId
@@ -167,11 +170,11 @@ async function discardDraftSectionRename(
       candidate.catalogDocumentId
   );
   if (!api || !book || !document?.catalogDocumentId) {
-    throw new Error("目标章节已不可用，无法舍弃本次改名。");
+    throw new Error(t("theTargetChapterIsUnavailableThisRenameCannotBe"));
   }
   if (document.title !== target.title) {
     throw new AcceptedEditDiscardConflictError(
-      "章节名称已有后续修改，未舍弃本次改名。"
+      t("theChapterHasBeenRenamedAgainThisRenameWas")
     );
   }
   const expectedDocuments = captureWorkspaceDocumentBaselines(
@@ -230,7 +233,7 @@ async function discardCharacterStructureEdit(
   const api = context.api();
   const book = context.catalog.catalogBook(proposal.workspaceId);
   if (!api || !book || book.characterStructure.format !== "list") {
-    throw new Error("人物结构已不可用，无法舍弃本次修改。");
+    throw new Error(t("theCharacterStructureIsUnavailableThisEditCannotBe"));
   }
   const mutation = target.mutation;
   if (mutation.type === "updateItem") {
@@ -245,7 +248,7 @@ async function discardCharacterStructureEdit(
       book.projectRevision === undefined
     ) {
       throw new AcceptedEditDiscardConflictError(
-        "人物名称已有后续修改，未舍弃本次修改。"
+        t("theCharacterHasBeenRenamedAgainThisEditWas")
       );
     }
     await api.catalog.mutateCharacterStructure({
@@ -263,7 +266,7 @@ async function discardCharacterStructureEdit(
       book.projectRevision !== proposal.discardSnapshot.appliedProjectRevision
     ) {
       throw new AcceptedEditDiscardConflictError(
-        "人物顺序已有后续修改，未舍弃本次移动。"
+        t("theCharacterOrderHasChangedAgainThisMoveWas")
       );
     }
     await api.catalog.mutateCharacterStructure({
@@ -276,7 +279,7 @@ async function discardCharacterStructureEdit(
       }
     });
   } else {
-    throw new Error("这不是可舍弃的修改提案。");
+    throw new Error(t("thisProposalCannotBeDiscarded"));
   }
   await context.catalog.loadSnapshot();
 }
@@ -297,7 +300,7 @@ async function discardPlotStructureEdit(
     !book ||
     book.projectRevision === undefined
   ) {
-    throw new Error("剧情结构已不可用，无法舍弃本次修改。");
+    throw new Error(t("thePlotStructureIsUnavailableThisEditCannotBe"));
   }
   const current = book.plotStages.find(({ id }) => id === mutation.stageId);
   if (
@@ -308,7 +311,7 @@ async function discardPlotStructureEdit(
     beforeDescription === undefined
   ) {
     throw new AcceptedEditDiscardConflictError(
-      "剧情结构已有后续修改，未舍弃本次修改。"
+      t("thePlotStructureHasNewerChangesThisEditWas")
     );
   }
   await api.catalog.mutatePlotStructure({

@@ -1,3 +1,4 @@
+import { t } from "../i18n";
 import { computed, watch, type Ref } from "vue";
 import type { EditorTextReference } from "../types/conversation";
 import type { PendingEditorReferenceNotifications } from "./usePendingEditorReferences";
@@ -98,7 +99,11 @@ export function useConversationTextReferences(options: {
         : undefined;
     if (!message) {
       local.removeEditorReference(reference.id);
-      options.notifications.warning("引用的智能体回复已不存在，已移除这条引用");
+      options.notifications.warning(
+        t(
+          "workspace.conversationTextReferences.theReferencedAgentReplyNoLongerExistsItsReference"
+        )
+      );
       return;
     }
     message.scrollIntoView({ block: "center" });

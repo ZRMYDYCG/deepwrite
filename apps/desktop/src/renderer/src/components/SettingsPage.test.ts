@@ -6,6 +6,7 @@ import featureHostCoordinatorSource from "../composables/useWorkspaceFeatureHost
 import featureHostModuleSource from "../composables/workspaceFeatureHostModule.ts?raw";
 import settingsFeatureModuleSource from "../composables/settingsFeatureModule.ts?raw";
 import bodyTextSource from "./BodyTextSettingsPanel.vue?raw";
+import configurationPanelSource from "./ConfigurationSettingsPanel.vue?raw";
 import generalPanelSource from "./GeneralSettingsPanel.vue?raw";
 import fontSource from "./AppearanceFontSettings.vue?raw";
 import appearancePanelSource from "./AppearanceSettingsPanel.vue?raw";
@@ -23,19 +24,53 @@ describe("SettingsPage", () => {
     expect(source).toContain('ref(props.initialCategory ?? "general")');
   });
 
+  it("adds storage to general settings while both workspace-directory entrances share the coordinator", () => {
+    expect(source).toContain("<StorageSettingsPanel");
+    expect(source).toContain("<WorkspaceDirectoryFeature");
+    expect(source).toContain("workspaceFolder");
+    expect(source).toContain(
+      ':workspace-directory-path="workspaceDirectoryPath"'
+    );
+    expect(source).toContain(
+      "@choose-workspace-directory=\"emit('chooseWorkspaceDirectory')\""
+    );
+    expect(source).toContain(
+      "@reset-workspace-directory=\"emit('resetWorkspaceDirectory')\""
+    );
+    expect(featureModulesSource).toContain(
+      "@reset-workspace-directory=\"emit('resetWorkspaceDirectory')\""
+    );
+    const settingsHost = appSource.slice(
+      appSource.indexOf("v-if=\"workspaceFeatureModule?.kind === 'settings'\""),
+      appSource.indexOf("<div\n    v-else")
+    );
+    expect(settingsHost).toContain(
+      '@choose-workspace-directory="featureHost.chooseWorkspaceDirectory"'
+    );
+    expect(settingsHost).toContain(
+      '@reset-workspace-directory="featureHost.resetWorkspaceDirectory"'
+    );
+  });
+
   it("offers a persisted auto-save switch in general settings", () => {
-    expectSourceToContain(generalSettingsSource, "<strong>自动保存</strong>");
+    expectSourceToContain(generalSettingsSource, "autoSave");
     expect(generalSettingsSource).toContain(':checked="autoSaveEnabled"');
     expectSourceToContain(generalSettingsSource, "emit('updateAutoSave'");
   });
 
-  it("offers a persisted context usage visibility switch in general settings", () => {
-    expectSourceToContain(
-      generalSettingsSource,
-      "<strong>上下文使用显示</strong>"
+  it("groups persisted context controls on the configuration page", () => {
+    expect(source).toContain("activeCategory === 'configuration'");
+    expect(source).toContain("<ConfigurationSettingsPanel");
+    expect(configurationPanelSource).toContain("contextSettings");
+    expectSourceToContain(configurationPanelSource, "showContextUsage");
+    expect(configurationPanelSource).toContain(':checked="showContextUsage"');
+    expect(configurationPanelSource).toContain("'updateShowContextUsage'");
+    expect(configurationPanelSource).toContain(
+      "<ContextCompactionSettingsCard"
     );
-    expect(generalSettingsSource).toContain(':checked="showContextUsage"');
-    expect(generalSettingsSource).toContain("'updateShowContextUsage'");
+    expect(configurationPanelSource).toContain("'updateContextCompaction'");
+    expect(generalPanelSource).not.toContain("上下文使用显示");
+    expect(generalPanelSource).not.toContain("ContextCompactionSettingsCard");
     expect(source).toContain(':show-context-usage="showContextUsage"');
     expect(featureModulesSource).toContain(
       ':show-context-usage="module.showContextUsage"'
@@ -57,8 +92,8 @@ describe("SettingsPage", () => {
     expect(generalSettingsSource).toContain(
       "permissionMode === 'auto-approve'"
     );
-    expectSourceToContain(generalSettingsSource, "<strong>请求批准</strong>");
-    expectSourceToContain(generalSettingsSource, "<strong>替我审批</strong>");
+    expectSourceToContain(generalSettingsSource, "requestApproval");
+    expectSourceToContain(generalSettingsSource, "autoApproval");
     expect(generalSettingsSource).not.toContain(
       "permissionMode === 'full-access'"
     );
@@ -72,17 +107,12 @@ describe("SettingsPage", () => {
   });
 
   it("offers an independent persisted cross-stage auto-approval switch", () => {
-    expectSourceToContain(
-      generalSettingsSource,
-      "<strong>跨阶段操作自动审批</strong>"
-    );
+    expectSourceToContain(generalSettingsSource, "crossStageApproval");
     expect(generalSettingsSource).toContain(
       ':checked="autoApproveCrossStageOperations"'
     );
-    expect(generalSettingsSource).toContain(
-      "主智能体和子智能体的跨阶段操作将自动允许"
-    );
-    expect(generalSettingsSource).toContain("变更提案仍按上方审批方式处理");
+    expect(generalSettingsSource).toContain("crossStageApprovalDescription");
+    expect(generalSettingsSource).toContain("crossStageApprovalDescription");
     expect(generalSettingsSource).toContain(
       "'updateAutoApproveCrossStageOperations'"
     );
@@ -96,8 +126,8 @@ describe("SettingsPage", () => {
   });
 
   it("offers a persisted network proxy switch that defaults to direct access", () => {
-    expectSourceToContain(generalSettingsSource, "网络设置");
-    expectSourceToContain(generalSettingsSource, "<strong>网络代理</strong>");
+    expectSourceToContain(generalSettingsSource, "network");
+    expectSourceToContain(generalSettingsSource, "proxy");
     expect(generalSettingsSource).toContain(':checked="useNetworkProxy"');
     expect(generalSettingsSource).toContain("'updateUseNetworkProxy'");
     expect(source).toContain(':use-network-proxy="useNetworkProxy"');
@@ -113,11 +143,11 @@ describe("SettingsPage", () => {
   });
 
   it("offers both persisted creative-workspace pane layouts", () => {
-    expectSourceToContain(generalSettingsSource, "<strong>页面布局</strong>");
+    expectSourceToContain(generalSettingsSource, "layout");
     expect(generalSettingsSource).toContain('value: "agent-editor"');
     expect(generalSettingsSource).toContain('value: "editor-agent"');
-    expect(generalSettingsSource).toContain("目录｜智能体｜文本内容");
-    expect(generalSettingsSource).toContain("目录｜文本内容｜智能体");
+    expect(generalSettingsSource).toContain("agentFirst");
+    expect(generalSettingsSource).toContain("agentFirst");
     expect(generalSettingsSource).toContain(
       ':model-value="workspacePaneLayout"'
     );
@@ -129,9 +159,9 @@ describe("SettingsPage", () => {
 
   it("offers a persisted default text view mode with both choices", () => {
     expect(generalPanelSource).not.toContain("默认文本模式");
-    expectSourceToContain(bodyTextSource, "<strong>默认文本模式</strong>");
-    expect(bodyTextSource).toContain('{ value: "edit", label: "编辑" }');
-    expect(bodyTextSource).toContain('{ value: "preview", label: "预览" }');
+    expectSourceToContain(bodyTextSource, "defaultTextMode");
+    expect(bodyTextSource).toContain("edit");
+    expect(bodyTextSource).toContain("preview");
     expect(bodyTextSource).toContain(':model-value="defaultTextViewMode"');
     expectSourceToContain(bodyTextSource, "emit('updateDefaultTextViewMode'");
     expect(featureModulesSource).toContain(
@@ -165,8 +195,10 @@ describe("SettingsPage", () => {
   });
 
   it("configures the default plot stages for newly created short books", () => {
-    expect(workspaceAgentFormSource).toContain("剧情默认阶段配置");
-    expect(workspaceAgentFormSource).toContain("下一本新建短篇");
+    expect(workspaceAgentFormSource).toContain("defaultPlotStages");
+    expect(workspaceAgentFormSource).toContain(
+      "choosePlotStagesToCreateAndEnableForThe"
+    );
     expect(shortAgentSource).toContain("props.plotStages.map");
     expect(shortAgentSource).toContain("selectedDefaultPlotStageIds");
     expect(shortAgentSource).toContain("defaultPlotStageIds");
@@ -182,8 +214,8 @@ describe("SettingsPage", () => {
   });
 
   it("provides dedicated skill and material library agent categories", () => {
-    expect(source).toContain('label: "技能库配置"');
-    expect(source).toContain('label: "素材库配置"');
+    expect(source).toContain("skillLibrarySettings");
+    expect(source).toContain("materialLibrarySettings");
     expect(source).toContain("<LibraryAgentSettingsPanel");
     expect(source).toContain('domain="skill"');
     expect(source).toContain('domain="material"');
@@ -192,16 +224,10 @@ describe("SettingsPage", () => {
   });
 
   it("orders usage, free, custom, old-site, and new-site model settings", () => {
-    const usageIndex = source.indexOf('{ id: "usage", label: "用量"');
-    const freeModelsIndex = source.indexOf(
-      '{ id: "free-models", label: "免费模型"'
-    );
-    const customModelsIndex = source.indexOf(
-      '{ id: "custom-models", label: "自定义模型配置"'
-    );
-    const officialModelsIndex = source.indexOf(
-      '{ id: "official-models", label: "旧官方小站模型"'
-    );
+    const usageIndex = source.indexOf('id: "usage"');
+    const freeModelsIndex = source.indexOf('id: "free-models"');
+    const customModelsIndex = source.indexOf('id: "custom-models"');
+    const officialModelsIndex = source.indexOf('id: "official-models"');
     const siteOfficialModelsIndex = source.indexOf(
       'id: "site-official-models"'
     );
@@ -226,7 +252,7 @@ describe("SettingsPage", () => {
     expect(source).toContain('emit("loadOfficialModels")');
     expect(source).toContain('if (id === "site-official-models")');
     expect(source).toContain("<SiteOfficialModelsPanel");
-    expect(source).toContain('label: "新官方小站模型"');
+    expect(source).toContain("officialSiteModels");
     expect(source).toContain("emit('saveSiteOfficialToken', $event)");
     expect(source).toContain("emit('clearSiteOfficialToken')");
     expect(source).toContain('emit("loadSiteOfficialModels")');
@@ -271,8 +297,8 @@ describe("SettingsPage", () => {
 
   it("lets users pick UI and editor font families from appearance settings", () => {
     expect(source).toContain("<AppearanceSettingsPanel");
-    expect(fontSource).toContain("<strong>界面字体</strong>");
-    expect(fontSource).toContain("<strong>正文字体</strong>");
+    expect(fontSource).toContain("interfaceFont");
+    expect(fontSource).toContain("manuscriptFont");
     expect(fontSource).toContain("appearance.setUiFontFamily");
     expect(fontSource).toContain("appearance.setEditorFontFamily");
     expect(fontSource).toContain(':model-value="uiFontModelValue"');
@@ -284,7 +310,7 @@ describe("SettingsPage", () => {
     expect(fontSource).toContain("listAppearanceUiFontFamilyOptions");
     expect(fontSource).toContain("listAppearanceEditorFontFamilyOptions");
     expect(fontSource).toContain('@option-action="requestDelete"');
-    expect(fontSource).toContain("上传字体");
+    expect(fontSource).toContain("uploadFont");
     expect(appearancePanelSource).toContain("appearance.whenReady()");
     expect(appearancePanelSource).toContain(':disabled="!ready"');
   });

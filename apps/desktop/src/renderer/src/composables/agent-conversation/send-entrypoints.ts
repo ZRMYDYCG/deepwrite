@@ -1,3 +1,4 @@
+import { createScopedTranslator } from "../../i18n";
 import type { AgentConversationContext } from "./context";
 import type {
   ExtrasChatTask,
@@ -5,15 +6,54 @@ import type {
   UserPromptAttachment,
   WorkspaceRuntimeContext
 } from "@deepwrite/contracts";
-import { LongWorkspaceRuntimeContextSchema } from "@deepwrite/contracts/renderer";
+import { cloneJsonRecord } from "./clone";
 import type { ConversationMessageRewriteRequest } from "../../types/conversation";
 import type { WorkspaceDocument } from "../../types/workspace";
 import type { WorkspaceContextAttachments } from "./types";
+
+const t = createScopedTranslator("workspace.sendEntrypoints");
 
 type SendEntrypointsContext = Pick<
   AgentConversationContext,
   "sendMessage" | "sessionId" | "messages"
 >;
+type LongSendContext = SendEntrypointsContext &
+  Pick<AgentConversationContext, "epoch" | "draft" | "submitting" | "isBusy">;
+
+async function withLongRuntime(
+  ctx: LongSendContext,
+  context: LongWorkspaceRuntimeContext,
+  submit: (context: LongWorkspaceRuntimeContext) => Promise<void>
+): Promise<boolean> {
+  if (ctx.isBusy.value) return false;
+  const epoch = ctx.epoch;
+  const sessionId = ctx.sessionId.value;
+  const draft = ctx.draft.value;
+  const snapshot = cloneJsonRecord(context);
+  let handedOff = false;
+  ctx.submitting.value = true;
+  try {
+    const { validateLongRuntimeContext } =
+      await import("./long-runtime-validation");
+    if (
+      ctx.epoch !== epoch ||
+      ctx.sessionId.value !== sessionId ||
+      ctx.draft.value !== draft
+    )
+      return false;
+    const validated = validateLongRuntimeContext(snapshot);
+    // sendMessage sets its own pending state synchronously for a long override.
+    // Transfer ownership without yielding between releasing and starting send.
+    ctx.submitting.value = false;
+    handedOff = true;
+    await submit(validated);
+    return true;
+  } finally {
+    if (!handedOff && ctx.epoch === epoch && ctx.sessionId.value === sessionId)
+      ctx.submitting.value = false;
+  }
+}
+
 /** Sends the draft as a turn of a "更多功能" chat agent. */
 export async function sendAssistantMessage(
   ctx: SendEntrypointsContext,
@@ -44,7 +84,7 @@ export async function resendMessage(
   );
 }
 export async function sendLongMessage(
-  ctx: SendEntrypointsContext,
+  ctx: LongSendContext,
   context: LongWorkspaceRuntimeContext,
   attachments: Pick<
     WorkspaceRuntimeContext,
@@ -52,25 +92,28 @@ export async function sendLongMessage(
   > = {},
   promptAttachments: UserPromptAttachment[] = []
 ): Promise<void> {
-  const longWorkspace = LongWorkspaceRuntimeContextSchema.parse(context);
-  await ctx.sendMessage(
-    {
-      id: longWorkspace.bookId,
-      domain: "creation",
-      title: longWorkspace.title,
-      eyebrow: "长篇创作",
-      path: [longWorkspace.title],
-      content: "",
-      readOnly: true
-    },
-    [],
-    attachments,
-    promptAttachments,
-    { longWorkspace }
+  const attachedContext = cloneJsonRecord(attachments);
+  const uploadedAttachments = cloneJsonRecord(promptAttachments);
+  await withLongRuntime(ctx, context, (longWorkspace) =>
+    ctx.sendMessage(
+      {
+        id: longWorkspace.bookId,
+        domain: "creation",
+        title: longWorkspace.title,
+        eyebrow: t("longFormWriting"),
+        path: [longWorkspace.title],
+        content: "",
+        readOnly: true
+      },
+      [],
+      attachedContext,
+      uploadedAttachments,
+      { longWorkspace }
+    )
   );
 }
 export async function resendLongMessage(
-  ctx: SendEntrypointsContext,
+  ctx: LongSendContext,
   request: ConversationMessageRewriteRequest,
   context: LongWorkspaceRuntimeContext,
   attachments: Pick<
@@ -78,26 +121,30 @@ export async function resendLongMessage(
     "attachedSkills" | "attachedMaterials"
   > = {}
 ): Promise<boolean> {
-  const longWorkspace = LongWorkspaceRuntimeContextSchema.parse(context);
+  const attachedContext = cloneJsonRecord(attachments);
+  const rewrite = cloneJsonRecord(request);
   const sourceSessionId = ctx.sessionId.value;
-  await ctx.sendMessage(
-    {
-      id: longWorkspace.bookId,
-      domain: "creation",
-      title: longWorkspace.title,
-      eyebrow: "长篇创作",
-      path: [longWorkspace.title],
-      content: "",
-      readOnly: true
-    },
-    [],
-    attachments,
-    [],
-    { longWorkspace },
-    undefined,
-    request
+  const sent = await withLongRuntime(ctx, context, (longWorkspace) =>
+    ctx.sendMessage(
+      {
+        id: longWorkspace.bookId,
+        domain: "creation",
+        title: longWorkspace.title,
+        eyebrow: t("longFormWriting"),
+        path: [longWorkspace.title],
+        content: "",
+        readOnly: true
+      },
+      [],
+      attachedContext,
+      [],
+      { longWorkspace },
+      undefined,
+      rewrite
+    )
   );
   return (
+    sent &&
     ctx.sessionId.value === sourceSessionId &&
     !ctx.messages.value.some((message) => message.id === request.messageId)
   );

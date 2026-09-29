@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import {
   computed,
   type CSSProperties,
@@ -16,6 +17,8 @@ import {
   requestContextCompaction
 } from "../composables/agent-conversation/context-compaction";
 import AppIcon from "./AppIcon.vue";
+
+const t = createScopedTranslator("components.contextCompactionButton");
 
 const props = defineProps<{ sessionId: string; disabled?: boolean }>();
 
@@ -108,15 +111,25 @@ onBeforeUnmount(() => {
       ref="trigger"
       class="context-compaction-trigger"
       type="button"
-      :aria-label="pending ? '已安排压缩上下文，点击修改' : '压缩上下文'"
-      :title="pending ? '下次发送前会先压缩上下文' : '压缩上下文'"
+      :aria-label="
+        pending
+          ? t('contextCompactionScheduledClickToEdit')
+          : t('compactContext')
+      "
+      :title="
+        pending
+          ? t('contextWillBeCompactedBeforeTheNextMessage')
+          : t('compactContext')
+      "
       :aria-expanded="open"
       :aria-controls="panelId"
       :disabled="disabled"
       @click="toggle"
     >
       <AppIcon name="archive" :size="14" />
-      <span v-if="pending" class="context-compaction-pending">发送时压缩</span>
+      <span v-if="pending" class="context-compaction-pending">{{
+        t("compactOnSend")
+      }}</span>
     </button>
     <Teleport to="body">
       <section
@@ -125,21 +138,27 @@ onBeforeUnmount(() => {
         ref="panel"
         class="context-compaction-panel"
         role="dialog"
-        aria-label="压缩上下文"
+        :aria-label="t('compactContext')"
         :style="position"
         @keydown.esc.prevent="close(true)"
       >
-        <strong>压缩上下文</strong>
+        <strong>{{ t("compactContext") }}</strong>
         <p>
-          把较早的对话整理成检查点，保留你的要求、已定的决定和进度；作品正文与设定不受影响。会在下次发送时、回复之前执行。
+          {{
+            t(
+              "summarizeEarlierMessagesIntoACheckpointPreservingYourRequirements"
+            )
+          }}
         </p>
         <label class="context-compaction-field">
-          <span>需要重点保留的内容（可选）</span>
+          <span>{{ t("detailsToPreserveOptional") }}</span>
           <textarea
             v-model="instructions"
             rows="2"
             :maxlength="CONTEXT_COMPACTION_INSTRUCTIONS_MAX_LENGTH"
-            placeholder="例如：第三章的伏笔安排、我对对白风格的要求"
+            :placeholder="
+              t('forExampleChapter3ForeshadowingAndMyDialogueStyle')
+            "
           />
         </label>
         <div class="context-compaction-actions">
@@ -149,10 +168,10 @@ onBeforeUnmount(() => {
             class="dialog-secondary-button"
             @click="cancel"
           >
-            取消压缩
+            {{ t("cancelCompaction") }}
           </button>
           <button type="button" class="dialog-primary-button" @click="schedule">
-            {{ pending ? "更新" : "发送时压缩" }}
+            {{ pending ? t("update") : t("compactOnSend") }}
           </button>
         </div>
       </section>

@@ -1,3 +1,4 @@
+import { createScopedTranslator, locale } from "../i18n";
 import type {
   AgentSubagentRun,
   AgentToolTrace,
@@ -9,6 +10,8 @@ import {
   foldWorkGroups,
   type WorkGroupDisplayItem
 } from "./conversationWorkGroups";
+
+const t = createScopedTranslator("components.subagentRunPresentation");
 
 export type SubagentDisplayItem =
   | { id: string; type: "thinking"; content: string; createdAt: string }
@@ -103,9 +106,15 @@ const subagentStatusLabels: Record<
   Exclude<AgentSubagentRun["status"], "running">,
   string
 > = {
-  completed: "已完成",
-  error: "失败",
-  stopped: "已停止"
+  get completed() {
+    return t("completed");
+  },
+  get error() {
+    return t("failed");
+  },
+  get stopped() {
+    return t("stopped");
+  }
 };
 
 function retryCountdownSeconds(run: AgentSubagentRun, now: number): number {
@@ -121,9 +130,11 @@ export function subagentStatusLabel(
   run: AgentSubagentRun,
   now: number
 ): string {
-  if (run.retry?.state === "trying") return "正在重试";
+  if (run.retry?.state === "trying") return t("retrying");
   if (run.retry?.state === "scheduled") {
-    return `${retryCountdownSeconds(run, now)}s 后重试`;
+    return t("retryInValueS", {
+      arg0: retryCountdownSeconds(run, now)
+    });
   }
   if (run.status === "running") return subagentPhaseLabel(run);
   return subagentStatusLabels[run.status];
@@ -133,7 +144,10 @@ export function subagentRetryProgress(
   run: AgentSubagentRun
 ): string | undefined {
   if (!run.retry) return undefined;
-  return `第 ${Math.max(1, run.retry.attempt - 1)}/${Math.max(1, run.retry.maxAttempts - 1)} 次`;
+  return t("attemptValueValue", {
+    arg0: Math.max(1, run.retry.attempt - 1),
+    arg1: Math.max(1, run.retry.maxAttempts - 1)
+  });
 }
 
 export function subagentRetryStatus(
@@ -142,8 +156,14 @@ export function subagentRetryStatus(
 ): string | undefined {
   const progress = subagentRetryProgress(run);
   if (!run.retry || !progress) return undefined;
-  if (run.retry.state === "trying") return `正在重试（${progress}）`;
-  return `网络波动，${retryCountdownSeconds(run, now)}s 后重试（${progress}）`;
+  if (run.retry.state === "trying")
+    return t("retryingValue", {
+      arg0: progress
+    });
+  return t("connectionInterruptedRetryInValueSValue", {
+    arg0: retryCountdownSeconds(run, now),
+    arg1: progress
+  });
 }
 
 export function subagentDuration(run: AgentSubagentRun, now: number): string {
@@ -181,13 +201,20 @@ export function subagentReviewHint(
   run: AgentSubagentRun
 ): string | undefined {
   const pendingCount = subagentPendingReviewCount(message, run);
-  if (pendingCount > 0) return `${pendingCount} 项待审阅`;
+  if (pendingCount > 0)
+    return t("valueItemsAwaitingReview", {
+      arg0: pendingCount
+    });
   const writeCount = subagentWriteToolCount(run);
-  return writeCount > 0 ? `${writeCount} 次写入调用` : undefined;
+  return writeCount > 0
+    ? t("valueWriteCalls", {
+        arg0: writeCount
+      })
+    : undefined;
 }
 
 export function subagentUsageLabel(run: AgentSubagentRun): string | undefined {
   return run.usage
-    ? `${run.usage.totalTokens.toLocaleString("zh-CN")} tokens`
+    ? `${run.usage.totalTokens.toLocaleString(locale.value)} tokens`
     : undefined;
 }

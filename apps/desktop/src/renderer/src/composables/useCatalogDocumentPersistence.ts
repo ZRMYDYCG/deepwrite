@@ -1,3 +1,7 @@
+import { patchCatalogDocument } from "../utils/patchCatalogDocument";
+import { formatError } from "../i18n/errors";
+import { getErrorCode } from "../i18n/errors";
+import { createScopedTranslator } from "../i18n";
 import {
   createShortWorkspaceContentRevision,
   type Book,
@@ -25,6 +29,8 @@ import {
   normalizeFixedWorkspaceDocumentDraft,
   resolveWorkspaceDocumentTitle
 } from "../utils/fixedWorkspaceDocumentTitle";
+
+const t = createScopedTranslator("workspace");
 
 export interface CatalogDocumentPersistenceNotifications {
   error(message: string): void;
@@ -203,41 +209,50 @@ export function useCatalogDocumentPersistence(
       const withProjectRevision =
         savedProjectRevision === undefined
           ? document
-          : { ...document, catalogProjectRevision: savedProjectRevision };
+          : patchCatalogDocument(document, {
+              catalogProjectRevision: savedProjectRevision
+            });
       if (document.id === payload.id) {
         if (current.catalogLibraryField === "overview") {
-          return {
-            ...withProjectRevision,
+          return patchCatalogDocument(withProjectRevision, {
             content: payload.content,
             catalogContentLoaded: true
-          };
+          });
         }
-        const path = [...withProjectRevision.path];
-        if (document.draftFileKind === "body" && path.length >= 2) {
-          path[path.length - 2] = payload.title;
-        } else if (path.length) {
-          path[path.length - 1] = payload.title;
-        }
-        return {
-          ...withProjectRevision,
-          title: payload.title,
+        const renamed = payload.title !== current.title;
+        return patchCatalogDocument(withProjectRevision, {
           content: payload.content,
           catalogContentLoaded: true,
-          path
-        };
+          ...(renamed
+            ? {
+                title: payload.title,
+                get path() {
+                  const path = [...withProjectRevision.path];
+                  const titleIndex =
+                    document.draftFileKind === "body"
+                      ? path.length - 2
+                      : path.length - 1;
+                  if (titleIndex >= 0) path[titleIndex] = payload.title;
+                  return path;
+                }
+              }
+            : {})
+        });
       }
       if (
         current.draftFileKind === "body" &&
         document.draftFileKind === "character-state" &&
-        document.expertSectionId === current.expertSectionId
+        document.expertSectionId === current.expertSectionId &&
+        payload.title !== current.title
       ) {
-        const path = [...withProjectRevision.path];
-        if (path.length >= 2) path[path.length - 2] = payload.title;
-        return {
-          ...withProjectRevision,
+        return patchCatalogDocument(withProjectRevision, {
           title: draftCharacterStateTitle(payload.title),
-          path
-        };
+          get path() {
+            const path = [...withProjectRevision.path];
+            if (path.length >= 2) path[path.length - 2] = payload.title;
+            return path;
+          }
+        });
       }
       return withProjectRevision;
     });
@@ -345,11 +360,19 @@ export function useCatalogDocumentPersistence(
         )
       );
       if (refreshIndex && !(await catalog.refreshIndex())) {
-        throw new Error("保存后未能读取最新目录快照。");
+        throw new Error(
+          t(
+            "catalogDocumentPersistence.theLatestDirectorySnapshotCouldNotBeReadAfter"
+          )
+        );
       }
       const latestBook = catalog.findBook(workspaceId);
       if (!latestBook) {
-        throw new Error("保存后的书籍没有出现在最新目录快照中。");
+        throw new Error(
+          t(
+            "catalogDocumentPersistence.theSavedBookIsMissingFromTheLatestDirectory"
+          )
+        );
       }
       const latestRevision = latestBook.projectRevision;
       if (
@@ -357,14 +380,22 @@ export function useCatalogDocumentPersistence(
         (latestRevision === undefined ||
           latestRevision < minimumProjectRevision)
       ) {
-        throw new Error("保存后的目录尚未达到本次写入版本。");
+        throw new Error(
+          t(
+            "catalogDocumentPersistence.theDirectoryHasNotReachedTheSavedVersionYet"
+          )
+        );
       }
       if (
         latestRevision !== undefined &&
         currentRevision !== undefined &&
         latestRevision < currentRevision
       ) {
-        throw new Error("保存后读取到的目录版本发生回退。");
+        throw new Error(
+          t(
+            "catalogDocumentPersistence.theDirectoryVersionReadAfterSavingMovedBackwards"
+          )
+        );
       }
 
       const scopedDocuments = documents.value.filter(
@@ -374,7 +405,11 @@ export function useCatalogDocumentPersistence(
       );
       const loaded = await loader.ensureLoaded(scopedDocuments);
       if (!loaded.ok) {
-        throw new Error("保存后未能读取最新文稿内容。");
+        throw new Error(
+          t(
+            "catalogDocumentPersistence.theLatestManuscriptContentCouldNotBeReadAfter"
+          )
+        );
       }
       editorDrafts.value = rebaseDraftsForMatchingDocuments(
         editorDrafts.value,
@@ -391,7 +426,9 @@ export function useCatalogDocumentPersistence(
     } catch {
       if (notifyFailure) {
         uiMessage.warning(
-          "文稿已保存，但最新目录版本暂未同步；下次聚焦窗口时会自动重试"
+          t(
+            "catalogDocumentPersistence.manuscriptSavedButTheLatestDirectoryVersionHasNot"
+          )
         );
       }
       return false;
@@ -492,7 +529,9 @@ export function useCatalogDocumentPersistence(
       library?.entries.some((entry) => entry.id === expectedEntryId) === true;
     if (loaded && library && revisionMatches && entryMatches) return true;
     uiMessage.warning(
-      "资料库修改已写入磁盘，但最新目录暂未同步；窗口重新聚焦后会自动重试"
+      t(
+        "catalogDocumentPersistence.libraryChangesSavedToDiskButTheLatestDirectory"
+      )
     );
     return false;
   }
@@ -580,7 +619,9 @@ export function useCatalogDocumentPersistence(
     );
     if (!createdDocument) {
       uiMessage.warning(
-        "资料条目已创建，但目录定位暂未同步；窗口重新聚焦后会自动重试"
+        t(
+          "catalogDocumentPersistence.libraryEntryCreatedButItsDirectoryLocationHasNot"
+        )
       );
       return;
     }
@@ -627,17 +668,19 @@ export function useCatalogDocumentPersistence(
   }
 
   function isCatalogConflict(error: unknown): boolean {
-    return (
-      error instanceof Error && error.message.startsWith("catalog.conflict:")
-    );
+    return getErrorCode(error) === "catalog.conflict";
   }
 
   async function readLatestCatalogDocument(
     documentId: string
   ): Promise<WorkspaceDocument> {
-    if (!api()) throw new Error("桌面文件服务当前不可用。");
+    if (!api()) throw new Error(t("short.theDesktopFileServiceIsUnavailable"));
     if (!(await catalog.refreshIndex())) {
-      throw new Error("无法刷新目录索引，当前草稿仍保留在恢复区");
+      throw new Error(
+        t(
+          "catalogDocumentPersistence.cannotRefreshTheDirectoryIndexTheCurrentDraftRemains"
+        )
+      );
     }
     const result = await loader.ensureOne(documentId, { refresh: true });
     const document = result.document;
@@ -647,15 +690,27 @@ export function useCatalogDocumentPersistence(
     const failure = result.failures[0];
     if (failure?.error instanceof Error) throw failure.error;
     if (failure?.code === "reader-unavailable") {
-      throw new Error("桌面文件服务当前不可用。");
+      throw new Error(t("short.theDesktopFileServiceIsUnavailable"));
     }
     if (failure?.code === "stale-descriptor") {
-      throw new Error("磁盘版本在读取期间再次变化，请重试。");
+      throw new Error(
+        t(
+          "catalogDocumentPersistence.theDiskVersionChangedAgainWhileReadingPleaseTry"
+        )
+      );
     }
     if (failure?.code === "invalid-result") {
-      throw new Error("磁盘版本返回了无效内容，当前草稿仍保留在恢复区");
+      throw new Error(
+        t(
+          "catalogDocumentPersistence.theDiskVersionReturnedInvalidContentTheCurrentDraft"
+        )
+      );
     }
-    throw new Error("磁盘版本已不存在，当前草稿仍保留在恢复区");
+    throw new Error(
+      t(
+        "catalogDocumentPersistence.theDiskVersionNoLongerExistsTheCurrentDraft"
+      )
+    );
   }
 
   async function openSaveConflict(
@@ -693,8 +748,12 @@ export function useCatalogDocumentPersistence(
         editorDrafts.value = nextDrafts;
         uiMessage.info(
           hasNewerDraft
-            ? "磁盘已包含较早修改；你随后输入的新草稿仍保留"
-            : "磁盘版本已经包含当前修改，无需重复保存"
+            ? t(
+                "catalogDocumentPersistence.earlierEditsAreAlreadyOnDiskYourNewerDraft"
+              )
+            : t(
+                "catalogDocumentPersistence.theDiskVersionAlreadyContainsTheseChangesNoAdditional"
+              )
         );
         // The failed save returns `false`, so the outer auto-save runner cannot
         // infer that a newer draft survived this conflict-equivalent outcome.
@@ -710,9 +769,12 @@ export function useCatalogDocumentPersistence(
       };
     } catch (snapshotError: unknown) {
       uiMessage.error(
-        snapshotError instanceof Error
-          ? snapshotError.message
-          : "读取磁盘冲突版本失败，当前草稿仍保留"
+        formatError(
+          snapshotError,
+          t(
+            "catalogDocumentPersistence.failedToReadTheConflictingDiskVersionTheCurrent"
+          )
+        )
       );
     }
   }
@@ -764,7 +826,9 @@ export function useCatalogDocumentPersistence(
       const savedProjectRevision = saved.projectRevision;
       applyDocumentLocally(normalizedPayload, savedProjectRevision, payload);
       if (saveOptions.announceSuccess !== false) {
-        uiMessage.success("文稿已保存到本机");
+        uiMessage.success(
+          t("catalogDocumentPersistence.manuscriptSavedLocally")
+        );
       }
       const expectedDocuments = captureWorkspaceDocumentBaselines(
         documents.value,
@@ -803,7 +867,10 @@ export function useCatalogDocumentPersistence(
       if (isCatalogConflict(error)) await openSaveConflict(document, payload);
       else {
         uiMessage.error(
-          error instanceof Error ? error.message : "保存文稿失败。"
+          formatError(
+            error,
+            t("catalogDocumentPersistence.failedToSaveManuscript")
+          )
         );
       }
       return false;
@@ -863,7 +930,12 @@ export function useCatalogDocumentPersistence(
       );
       if (saveOptions.announceSuccess !== false) {
         uiMessage.success(
-          `${document.domain === "material" ? "素材" : "技能"}内容已保存到本机文件夹`
+          t("catalogDocumentPersistence.contentSavedToTheLocalFolder", {
+            value:
+              document.domain === "material"
+                ? t("catalogWorkspace.material")
+                : t("catalogWorkspace.skill")
+          })
         );
       }
       return true;
@@ -872,7 +944,10 @@ export function useCatalogDocumentPersistence(
       if (isCatalogConflict(error)) await openSaveConflict(document, payload);
       else {
         uiMessage.error(
-          error instanceof Error ? error.message : "保存资料库内容失败。"
+          formatError(
+            error,
+            t("catalogDocumentPersistence.failedToSaveLibraryContent")
+          )
         );
       }
       return false;
@@ -923,7 +998,11 @@ export function useCatalogDocumentPersistence(
         payload
       );
       if (saveOptions.announceSuccess !== false) {
-        uiMessage.success("资料库介绍已保存到本机文件夹");
+        uiMessage.success(
+          t(
+            "catalogDocumentPersistence.libraryIntroductionSavedToTheLocalFolder"
+          )
+        );
       }
       return true;
     } catch (error: unknown) {
@@ -931,7 +1010,10 @@ export function useCatalogDocumentPersistence(
       if (isCatalogConflict(error)) await openSaveConflict(document, payload);
       else {
         uiMessage.error(
-          error instanceof Error ? error.message : "保存资料库介绍失败。"
+          formatError(
+            error,
+            t("catalogDocumentPersistence.failedToSaveLibraryIntroduction")
+          )
         );
       }
       return false;
@@ -946,7 +1028,11 @@ export function useCatalogDocumentPersistence(
   ): Promise<CatalogDocumentPersistOutcome> {
     if (saveConflict.value) {
       if (announceSuccess) {
-        uiMessage.info("请先处理当前保存冲突，再保存其他文稿");
+        uiMessage.info(
+          t(
+            "catalogDocumentPersistence.resolveTheCurrentSaveConflictBeforeSavingOtherDocuments"
+          )
+        );
       }
       return "paused";
     }
@@ -960,7 +1046,9 @@ export function useCatalogDocumentPersistence(
     };
     if (!normalizedPayload.title.trim()) {
       if (announceSuccess) {
-        uiMessage.warning("请输入文档标题后再保存");
+        uiMessage.warning(
+          t("catalogDocumentPersistence.enterADocumentTitleBeforeSaving")
+        );
       }
       return "paused";
     }
@@ -969,7 +1057,11 @@ export function useCatalogDocumentPersistence(
       acceptingWorkspaceIds.value.has(document.workspaceId)
     ) {
       if (announceSuccess) {
-        uiMessage.info("正在保存同一作品的智能体修改，请稍候");
+        uiMessage.info(
+          t(
+            "catalogDocumentPersistence.agentEditsForTheSameProjectAreBeingSaved"
+          )
+        );
       }
       return "retry";
     }
@@ -1031,7 +1123,11 @@ export function useCatalogDocumentPersistence(
       if (saveConflict.value !== conflict) return;
       if (editorDrafts.value[conflict.documentId] !== draftAtReload) {
         saveConflict.value = null;
-        uiMessage.info("读取期间检测到新的编辑，已保留当前草稿");
+        uiMessage.info(
+          t(
+            "catalogDocumentPersistence.newEditsWereDetectedWhileReadingTheCurrentDraft"
+          )
+        );
         scheduleDirtyAutoSaves();
         return;
       }
@@ -1039,11 +1135,14 @@ export function useCatalogDocumentPersistence(
       delete nextDrafts[conflict.documentId];
       editorDrafts.value = nextDrafts;
       saveConflict.value = null;
-      uiMessage.success("已重新加载磁盘版本");
+      uiMessage.success(t("catalogDocumentPersistence.diskVersionReloaded"));
       scheduleDirtyAutoSaves();
     } catch (error: unknown) {
       uiMessage.error(
-        error instanceof Error ? error.message : "重新加载磁盘版本失败"
+        formatError(
+          error,
+          t("catalogDocumentPersistence.failedToReloadDiskVersion")
+        )
       );
     } finally {
       saveConflictSubmitting.value = false;
@@ -1081,7 +1180,10 @@ export function useCatalogDocumentPersistence(
       }
     } catch (error: unknown) {
       uiMessage.error(
-        error instanceof Error ? error.message : "覆盖磁盘版本失败"
+        formatError(
+          error,
+          t("catalogDocumentPersistence.failedToOverwriteDiskVersion")
+        )
       );
     } finally {
       saveConflictSubmitting.value = false;

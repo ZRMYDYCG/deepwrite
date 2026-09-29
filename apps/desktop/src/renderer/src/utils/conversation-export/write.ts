@@ -1,3 +1,4 @@
+import { createScopedTranslator } from "../../i18n";
 import type {
   ConversationExportApi,
   ConversationExportFinished
@@ -5,6 +6,8 @@ import type {
 import type { AgentConversationController } from "../../composables/useAgentConversation";
 import { captureCurrentConversation } from "./capture";
 import { conversationJsonChunks } from "./json-chunks";
+
+const t = createScopedTranslator("workspace.write");
 
 async function retry<T>(action: () => Promise<T>): Promise<T> {
   try {
@@ -14,7 +17,7 @@ async function retry<T>(action: () => Promise<T>): Promise<T> {
   }
 }
 function canceled(signal: AbortSignal): void {
-  if (signal.aborted) throw new DOMException("导出已取消。", "AbortError");
+  if (signal.aborted) throw new DOMException(t("exportCanceled"), "AbortError");
 }
 export async function exportCurrentConversation(
   controller: AgentConversationController,
@@ -26,7 +29,9 @@ export async function exportCurrentConversation(
   const nonce = crypto.randomUUID();
   const beginInput = {
     nonce,
-    suggestedName: `DeepWrite-对话-${snapshot.capturedAt.slice(0, 10)}.json`
+    suggestedName: t("deepwriteConversationJson", {
+      slice: snapshot.capturedAt.slice(0, 10)
+    })
   };
   const start = await retry(() => api.begin(beginInput));
   if (start.canceled) return;
@@ -39,7 +44,7 @@ export async function exportCurrentConversation(
       const chunk = { token: start.token, seq, text };
       const progress = await retry(() => api.append(chunk));
       if (progress.nextSeq !== seq + 1)
-        throw new Error("导出确认顺序不一致，请重新导出。");
+        throw new Error(t("exportConfirmationsAreOutOfOrderPleaseRestartThe"));
       seq += 1;
     }
     canceled(signal);

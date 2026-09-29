@@ -1,7 +1,10 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import type { LongImportWriteClawResult } from "@deepwrite/contracts";
 import { computed, onBeforeUnmount, onMounted } from "vue";
 import AppIcon from "./AppIcon.vue";
+
+const t = createScopedTranslator("components.longMigrationReportDialog");
 
 type LongMigrationSourceKind = LongImportWriteClawResult["sourceKind"];
 
@@ -19,14 +22,18 @@ const emit = defineEmits<{
 }>();
 
 const sourceLabels: Record<LongMigrationSourceKind, string> = {
-  "write-claw-zip": "旧版本长篇压缩包",
+  get "write-claw-zip"() {
+    return t("legacyNovelArchive");
+  },
   "long-workspace-json": "long_workspace.json",
   "book-json": "book.json"
 };
 
 const sourceLabel = computed(() => sourceLabels[props.sourceKind]);
 const legacyVersionLabel = computed(() =>
-  props.legacySchemaVersion > 0 ? `v${props.legacySchemaVersion}` : "未知版本"
+  props.legacySchemaVersion > 0
+    ? `v${props.legacySchemaVersion}`
+    : t("unknownVersion")
 );
 
 function handleKeydown(event: KeyboardEvent): void {
@@ -58,24 +65,30 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
             <AppIcon name="check" :size="20" />
           </span>
           <div>
-            <span>旧版本长篇导入</span>
-            <h2 id="long-migration-dialog-title">导入完成</h2>
+            <span>{{ t("importLegacyNovel") }}</span>
+            <h2 id="long-migration-dialog-title">
+              {{ t("importComplete") }}
+            </h2>
           </div>
         </header>
 
         <main class="long-migration-content">
           <p id="long-migration-summary" class="long-migration-summary">
             “<strong :title="title">{{ title }}</strong
-            >”已创建为独立的 DeepWrite 长篇项目，可以继续编辑。
+            >{{ t("hasBeenCreatedAsASeparateDeepWriteNovelProject") }}
           </p>
 
           <dl class="long-migration-meta">
             <div>
-              <dt>导入来源</dt>
+              <dt>
+                {{ t("importSource") }}
+              </dt>
               <dd>{{ sourceLabel }}</dd>
             </div>
             <div>
-              <dt>旧数据版本</dt>
+              <dt>
+                {{ t("legacyDataVersion") }}
+              </dt>
               <dd>{{ legacyVersionLabel }}</dd>
             </div>
           </dl>
@@ -84,24 +97,24 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
             <h3>
               {{
                 committedChapterPolicy === "legacy-checkpoints"
-                  ? "已提交章已恢复为迁移检查点"
-                  : "未发现可恢复的旧版提交链"
+                  ? t("committedChaptersRestoredAsMigrationCheckpoints")
+                  : t("noRecoverableLegacyCommitChainFound")
               }}
             </h3>
             <p v-if="committedChapterPolicy === 'legacy-checkpoints'">
-              旧版已提交前缀及其判定已恢复为只读、不可逆的连续性检查点；缺少精确
-              before/after 的旧记录仅作迁移证据，不用于恢复历史前态。
+              {{ t("thePreviouslyCommittedPrefixAndItsDecisionsWereRestored") }}
             </p>
             <p v-else>
-              当前来源没有完整的旧版提交链；正文与全部迁移证据已保留，可在核验后按当前账本规则提交。
+              {{ t("theSourceHasNoCompleteLegacyCommitChainManuscripts") }}
             </p>
           </section>
 
           <section class="long-migration-source-note">
-            <h3>源文件保持不变</h3>
+            <h3>
+              {{ t("sourceFilesUnchanged") }}
+            </h3>
             <p>
-              导入只会新建 DeepWrite
-              长篇项目，不会修改、覆盖或删除所选的旧版本源文件。
+              {{ t("importCreatesANewDeepWriteNovelProjectWithoutModifying") }}
             </p>
           </section>
 
@@ -111,7 +124,11 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
             aria-labelledby="long-migration-warnings-title"
           >
             <h3 id="long-migration-warnings-title">
-              需要留意的迁移提示（{{ warnings.length }}）
+              {{
+                t("migrationNotesToReviewMessage", {
+                  arg0: warnings.length ?? ""
+                })
+              }}
             </h3>
             <ol>
               <li v-for="(warning, index) in warnings" :key="index">
@@ -123,7 +140,9 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
 
           <section v-else class="long-migration-complete">
             <AppIcon name="check" :size="16" />
-            <p>全部可迁移内容已完成处理，没有需要额外留意的迁移提示。</p>
+            <p>
+              {{ t("allEligibleContentHasBeenMigratedNoAdditionalMigration") }}
+            </p>
           </section>
         </main>
 
@@ -134,7 +153,7 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
             autofocus
             @click="emit('close')"
           >
-            关闭
+            {{ t("close") }}
           </button>
         </footer>
       </section>

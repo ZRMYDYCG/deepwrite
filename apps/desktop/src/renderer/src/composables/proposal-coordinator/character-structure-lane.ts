@@ -1,3 +1,5 @@
+import { formatError } from "../../i18n/errors";
+import { createScopedTranslator } from "../../i18n";
 import type { AgentEditProposal } from "../../types/conversation";
 import type { AgentConversationController } from "../useAgentConversation";
 import {
@@ -12,6 +14,8 @@ import type {
   ProposalLaneContext,
   WorkspaceEditorMutationEvent
 } from "./types";
+
+const t = createScopedTranslator("workspace.proposalCoordinator");
 
 export function createCharacterStructureLane(ctx: ProposalLaneContext) {
   const {
@@ -62,7 +66,9 @@ export function createCharacterStructureLane(ctx: ProposalLaneContext) {
     const book = catalogBook(proposal.workspaceId);
     const currentApi = api();
     if (!target || !book || !currentApi) {
-      const message = "人物结构目标已不可用，无法应用本次变更。";
+      const message = t(
+        "theTargetCharacterStructureIsUnavailableThisChangeCannot"
+      );
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: "conflict",
         statusMessage: message
@@ -75,7 +81,7 @@ export function createCharacterStructureLane(ctx: ProposalLaneContext) {
         ? target.mutation.itemId
         : undefined;
     if (target.mutation.type === "createItem" && !createdItemId) {
-      const message = "人物创建缺少稳定条目 id，无法完成顺序写入。";
+      const message = t("characterCreationIsMissingAStableEntryIdOrdered");
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: "error",
         statusMessage: message
@@ -85,7 +91,9 @@ export function createCharacterStructureLane(ctx: ProposalLaneContext) {
     }
     conversation.updateEditProposal(request.runId, request.proposalId, {
       status: "accepting",
-      statusMessage: automatic ? "正在自动保存人物结构…" : "正在保存人物结构…"
+      statusMessage: automatic
+        ? t("automaticallySavingCharacterStructure")
+        : t("savingCharacterStructure")
     });
     setAgentEditWorkspaceAccepting(proposal.workspaceId, true);
     try {
@@ -120,9 +128,7 @@ export function createCharacterStructureLane(ctx: ProposalLaneContext) {
             document.catalogDocumentId === createdItemId
         )
       ) {
-        throw new Error(
-          "人物条目已创建，但刷新工作区后仍无法定位人物文件；请重试以完成正文映射。"
-        );
+        throw new Error(t("characterEntryCreatedButItsFileCouldNotBe"));
       }
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: "accepted",
@@ -136,14 +142,16 @@ export function createCharacterStructureLane(ctx: ProposalLaneContext) {
               }
             }),
         statusMessage: automatic
-          ? "已自动批准并保存人物结构变更。"
-          : "人物结构变更已保存到本地。"
+          ? t("characterStructureChangesAutomaticallyApprovedAndSaved")
+          : t("characterStructureChangesSavedLocally")
       });
-      if (!automatic) uiMessage.success("人物结构变更已保存");
+      if (!automatic) uiMessage.success(t("characterStructureChangesSaved"));
     } catch (error) {
       await loadCatalogSnapshot();
-      const message =
-        error instanceof Error ? error.message : "人物结构变更保存失败。";
+      const message = formatError(
+        error,
+        t("failedToSaveCharacterStructureChanges")
+      );
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: isCatalogConflict(error) ? "conflict" : "error",
         statusMessage: message
@@ -163,7 +171,7 @@ export function createCharacterStructureLane(ctx: ProposalLaneContext) {
     if (mutationTarget?.kind === "character-structure") {
       const book = catalogBook(event.payload.workspaceId);
       if (!book || book.characterStructure.format !== "list") {
-        const message = "当前人物结构不是条目样式，本次条目操作未进入审阅。";
+        const message = t("theCurrentCharacterStructureIsNotListBasedThis");
         sourceConversation.markToolConflict(
           event.payload.runId,
           event.payload.toolCallId,
@@ -233,12 +241,23 @@ export function createCharacterStructureLane(ctx: ProposalLaneContext) {
         documentId,
         title:
           source.type === "createItem"
-            ? `创建人物条目：${source.title}`
+            ? t("createCharacterEntry", {
+                title: source.title
+              })
             : source.type === "updateItem"
-              ? `修改人物名称：${previousItemTitle} → ${source.title}`
+              ? t("renameCharacter", {
+                  previousItemTitle: previousItemTitle ?? "",
+                  title: source.title
+                })
               : source.type === "moveItem"
-                ? `${source.direction === "up" ? "上移" : "下移"}人物条目：${source.title}`
-                : `删除人物条目：${source.title}`,
+                ? t("characterEntry", {
+                    value:
+                      source.direction === "up" ? t("moveUp") : t("moveDown"),
+                    title: source.title
+                  })
+                : t("deleteCharacterEntry", {
+                    title: source.title
+                  }),
         summary: event.payload.summary,
         status: "pending",
         baseRevision: event.payload.baseRevision,

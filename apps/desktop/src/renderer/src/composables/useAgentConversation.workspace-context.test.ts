@@ -670,7 +670,7 @@ describe("agent conversation controller: workspace-context", () => {
     controller.dispose();
   });
 
-  it("sends long-form prompts with an exclusive long workspace context", () => {
+  it("sends long-form prompts with an exclusive long workspace context", async () => {
     const deferred = createDeferredApi();
     const controller = useAgentConversation({
       api: () => deferred.api,
@@ -737,6 +737,7 @@ describe("agent conversation controller: workspace-context", () => {
       }
     );
 
+    await vi.waitFor(() => expect(deferred.prompts).toHaveLength(1));
     expect(deferred.prompts[0]?.workspaceContext).toEqual({
       longWorkspace: expect.objectContaining({
         bookId: "longbook_context",

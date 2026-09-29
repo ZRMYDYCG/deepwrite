@@ -1,5 +1,9 @@
+import { formatError } from "../i18n/errors";
+import { createScopedTranslator } from "../i18n";
 import { replaceLongBookSummary } from "../types/longWorkspace";
 import type { LongBookLifecycleCoordinatorOptions } from "./longBookLifecycleTypes";
+
+const t = createScopedTranslator("workspace.longConflictResolution");
 
 interface Options extends Pick<
   LongBookLifecycleCoordinatorOptions,
@@ -44,7 +48,7 @@ export function useLongConflictResolution(options: Options) {
         if (state.activeBookId.value === bookId) {
           if (!(await session.refreshActiveWorkspace(bookId))) {
             notifications.warning(
-              "文件冲突已解决，但工作区刷新失败，请重新打开这本长篇。"
+              t("fileConflictsWereResolvedButTheWorkspaceRefreshFailed")
             );
             return;
           }
@@ -53,15 +57,21 @@ export function useLongConflictResolution(options: Options) {
         if (options.isDisposed()) return;
         notifications.success(
           result.resolvedPaths.length
-            ? `已解决 ${result.resolvedPaths.length} 处文件冲突，已保留磁盘修改和恢复备份，可以继续操作`
-            : "已同步磁盘状态，可以继续操作"
+            ? t("resolvedFileConflictsDiskChangesAndRecoveryBackupsWere", {
+                length: result.resolvedPaths.length
+              })
+            : t("diskStateSyncedYouCanContinue")
         );
       } catch (error: unknown) {
         if (!options.isDisposed()) {
-          const detail =
-            error instanceof Error ? error.message : "请稍后重试。";
+          const detail = formatError(error, t("pleaseTryAgainShortly"));
           notifications.error(
-            `${resolved ? "文件冲突已解决，但刷新失败" : "解决冲突失败"}：${detail}`
+            t("message", {
+              value: resolved
+                ? t("fileConflictsResolvedButRefreshFailed")
+                : t("failedToResolveConflicts"),
+              detail: detail
+            })
           );
         }
       } finally {

@@ -1,3 +1,8 @@
+export {
+  BUILTIN_AGENT_METADATA,
+  DEFAULT_LONG_AGENT_WELCOME_SHORTCUTS
+} from "./builtin-agent-metadata";
+export { ErrorPayloadSchema } from "./error-payload";
 /**
  * Renderer-focused contracts entry.
  *
@@ -9,6 +14,14 @@ export type * from "./book-templates";
 export { DEFAULT_NEW_BOOK_ENABLED_PLOT_STAGE_IDS } from "./catalog";
 export { loadBookTemplateDraftSchema } from "./load-book-template-schema";
 export type * from "./appearance";
+export type * from "./voice";
+export {
+  createDefaultVoiceSettings,
+  VOICE_PROFILE_DEFAULTS,
+  VOICE_MAX_DURATION_MS,
+  VOICE_MAX_BASE64_LENGTH,
+  VoiceSettingsInputSchema
+} from "./voice";
 export type * from "./app-alert";
 export type * from "./agent-team";
 export type * from "./agent-team-catalog";
@@ -18,6 +31,13 @@ export type * from "./cloud-backup";
 export type * from "./envelope";
 export type * from "./expert-draft";
 export type * from "./general-settings";
+export type * from "./storage-settings";
+export {
+  StorageLocationSchema,
+  StorageSettingsSnapshotSchema,
+  StorageDirectoryKindSchema,
+  StorageChangeResultSchema
+} from "./storage-settings";
 export type * from "./body-text-format";
 export type * from "./library-agent";
 export type * from "./long-agent-settings";
@@ -208,7 +228,6 @@ export {
   longCommitInputCheckpointChapterId
 } from "./long-ledger";
 export {
-  LONG_BOOK_GENRES,
   LONG_CHARACTER_CORE_FOCUS_MAX_CHARACTERS,
   LONG_CHARACTER_FOCUS_MAX_CHARACTERS,
   LONG_CHARACTER_OVERVIEW_FOCUS_MAX_CHARACTERS,
@@ -217,18 +236,20 @@ export {
   LONG_WORLDBUILDING_DIRECTORY_MAX_CATEGORIES,
   LONG_WORLDBUILDING_DIRECTORY_MAX_ITEMS,
   LONG_WORLDBUILDING_FOCUS_MAX_CHARACTERS,
-  LONG_WORLDBUILDING_OVERVIEW_FOCUS_MAX_CHARACTERS,
-  LongBookGenreSchema,
-  LongWorkspaceRuntimeContextSchema
-} from "./long-workspace-api";
+  LONG_WORLDBUILDING_OVERVIEW_FOCUS_MAX_CHARACTERS
+} from "./long-workspace-limits";
+export { LONG_BOOK_GENRES, LongBookGenreSchema } from "./long-book-genres";
+export { LongWorkspaceRuntimeContextSchema } from "./long-workspace-runtime/context";
 export {
   LongWorkspaceImpactConfirmationSchema,
   LongWorkspaceOperationBatchSchema,
   applyLongWorkspaceOperations,
-  longWorkspaceImpactIsDestructive,
-  longWorkspaceOperationsRequireImpactConfirmation,
   previewLongWorkspaceOperations
 } from "./long-workspace-operations";
+export {
+  longWorkspaceImpactIsDestructive,
+  longWorkspaceOperationsRequireImpactConfirmation
+} from "./long-workspace-operations/impact-policy";
 export { MARKETPLACE_CONTENT_MAX_CHARACTERS } from "./marketplace";
 export {
   DEFAULT_LONG_AGENT_PROFILES,
@@ -303,10 +324,10 @@ export {
   CONTEXT_COMPACTION_BUDGET_MAX_TOKENS,
   CONTEXT_COMPACTION_BUDGET_MIN_TOKENS,
   CONTEXT_COMPACTION_INSTRUCTIONS_MAX_LENGTH,
-  ConversationCheckpointSchema,
   DEFAULT_CONTEXT_COMPACTION_BUDGET_TOKENS,
   createDefaultContextCompactionSettings
-} from "./session/context-compaction";
+} from "./session/context-compaction-defaults";
+export { ConversationCheckpointSchema } from "./session/context-compaction-state";
 export {
   LongChapterBodyChangeSchema,
   LongCharacterFileChangeSchema,
@@ -369,6 +390,7 @@ export { LibraryManagementScopeSchema } from "./library-management-scope";
 
 export type * from "./device-sync";
 export { syncRequestSchema } from "./device-sync/api";
+export { syncIssueSchema } from "./device-sync/schemas";
 export {
   syncConfigSchema,
   syncJoinCodeSchema

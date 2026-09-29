@@ -10,8 +10,8 @@ describe("BookResourceDialog binding editor", () => {
     expect(dialogSource).toContain("create-short-binding-modes");
     expect(dialogSource).toContain("create-short-kind-grid");
     expect(dialogSource).toContain("create-short-group-picker");
-    expect(dialogSource).toContain("按分类选择");
-    expect(dialogSource).toContain("选择分组");
+    expect(dialogSource).toContain("chooseByCategory");
+    expect(dialogSource).toContain("selectGroup");
   });
 
   it("submits categorized bindings without flattening away their purpose", () => {

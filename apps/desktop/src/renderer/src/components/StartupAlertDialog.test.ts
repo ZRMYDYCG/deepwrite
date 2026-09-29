@@ -15,14 +15,14 @@ describe("StartupAlertDialog", () => {
 
   it("gives the lead announcement more emphasis than the supporting messages", () => {
     expect(source).toContain('class="startup-alert-lead"');
-    expect(source).toContain("本次公告");
+    expect(source).toContain("announcement");
     expect(source).toContain('class="startup-alert-list"');
     expect(source).toContain('class="startup-alert-index"');
     expect(source).toContain("linear-gradient(");
   });
 
   it("requires an explicit close action before acknowledging the reminder", () => {
-    expect(source).toContain("我知道了");
+    expect(source).toContain("gotIt");
     expect(source).toContain("@click=\"emit('close')\"");
     expect(source).not.toContain("@mousedown.self");
   });

@@ -1,7 +1,10 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import { computed } from "vue";
 import { handleHorizontalOverflowWheel } from "../utils/horizontalOverflow";
 import AppIcon from "./AppIcon.vue";
+
+const t = createScopedTranslator("components.longWorldbuildingNavigation");
 
 export interface LongWorldbuildingNavigationItem {
   id: string;
@@ -34,7 +37,7 @@ const activeItem = computed(
   <nav
     v-if="mode === 'top-tabs'"
     class="section-tabs-bar long-worldbuilding-tabs"
-    aria-label="世界观条目"
+    :aria-label="t('worldbuildingEntry')"
   >
     <div
       class="section-tabs-scroll"
@@ -51,10 +54,10 @@ const activeItem = computed(
         role="tab"
         :aria-selected="activeItemId === null"
         :aria-busy="pendingOverview"
-        title="概览"
+        :title="t('overview')"
         @click="emit('selectOverview')"
       >
-        概览
+        {{ t("overview") }}
       </button>
       <button
         v-for="item in items"
@@ -78,8 +81,8 @@ const activeItem = computed(
       v-if="!readOnly"
       class="long-worldbuilding-add"
       type="button"
-      aria-label="新建世界观条目"
-      title="新建条目"
+      :aria-label="t('newWorldbuildingEntry')"
+      :title="t('newEntry')"
       @click="emit('addItem')"
     >
       <AppIcon name="plus" :size="15" />
@@ -88,8 +91,12 @@ const activeItem = computed(
       v-if="!readOnly"
       class="long-worldbuilding-remove"
       type="button"
-      aria-label="删除当前世界观条目"
-      :title="activeItem ? '删除当前世界观条目' : '请先选择一个世界观条目'"
+      :aria-label="t('deleteCurrentWorldbuildingEntry')"
+      :title="
+        activeItem
+          ? t('deleteCurrentWorldbuildingEntry')
+          : t('selectAWorldbuildingEntryFirst')
+      "
       :disabled="locked || !activeItem"
       @click="activeItem && emit('deleteItem', activeItem.id)"
     >
@@ -100,18 +107,18 @@ const activeItem = computed(
   <aside
     v-else
     class="long-story-plot-pane long-entry-list-pane"
-    aria-label="世界观条目列表"
+    :aria-label="t('worldbuildingEntries')"
   >
     <header>
       <div>
-        <strong>世界观条目</strong>
+        <strong>{{ t("worldbuildingEntry") }}</strong>
         <span>{{ items.length }}</span>
       </div>
       <div v-if="!readOnly" class="long-entry-list-actions">
         <button
           type="button"
-          aria-label="新建世界观条目"
-          title="新建条目"
+          :aria-label="t('newWorldbuildingEntry')"
+          :title="t('newEntry')"
           :disabled="locked"
           @click="emit('addItem')"
         >
@@ -119,8 +126,12 @@ const activeItem = computed(
         </button>
         <button
           type="button"
-          aria-label="删除当前世界观条目"
-          :title="activeItem ? '删除当前世界观条目' : '请先选择一个世界观条目'"
+          :aria-label="t('deleteCurrentWorldbuildingEntry')"
+          :title="
+            activeItem
+              ? t('deleteCurrentWorldbuildingEntry')
+              : t('selectAWorldbuildingEntryFirst')
+          "
           :disabled="locked || !activeItem"
           @click="activeItem && emit('deleteItem', activeItem.id)"
         >
@@ -145,7 +156,7 @@ const activeItem = computed(
           @click="emit('selectOverview')"
         >
           <span class="long-story-plot-card-order">—</span>
-          <span class="long-story-plot-card-title">概览</span>
+          <span class="long-story-plot-card-title">{{ t("overview") }}</span>
         </button>
       </article>
       <article

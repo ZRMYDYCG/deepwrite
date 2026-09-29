@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../../i18n";
 import type { ConversationHistoryItem } from "../../types/conversation";
 import AppIcon from "../../components/AppIcon.vue";
 import ConversationHistoryMenu from "../../components/ConversationHistoryMenu.vue";
@@ -6,6 +7,8 @@ import PopupSelect, {
   type PopupSelectOption,
   type PopupSelectValue
 } from "../../components/PopupSelect.vue";
+
+const t = createScopedTranslator("extras.chatAssistant");
 
 defineProps<{
   title: string;
@@ -36,7 +39,7 @@ const emit = defineEmits<{
         class="chat-assistant-context-select"
         :model-value="activeContextKey"
         :options="contextOptions"
-        accessible-label="切换聊天上下文"
+        :accessible-label="t('switchContext')"
         variant="compact"
         size="small"
         :disabled="contextDisabled"
@@ -57,7 +60,7 @@ const emit = defineEmits<{
       />
       <button
         type="button"
-        aria-label="新建聊天"
+        :aria-label="t('newConversation')"
         :disabled="busy"
         @click="emit('newConversation')"
       >
@@ -65,7 +68,7 @@ const emit = defineEmits<{
       </button>
       <button
         type="button"
-        aria-label="复制最后一条回复"
+        :aria-label="t('copyLastReply')"
         :disabled="!canCopy"
         @click="emit('copyLastReply')"
       >
@@ -73,7 +76,7 @@ const emit = defineEmits<{
       </button>
       <button
         type="button"
-        aria-label="最小化聊天助手"
+        :aria-label="t('minimizeAssistant')"
         @click="emit('minimize')"
       >
         <AppIcon name="minus" :size="18" />

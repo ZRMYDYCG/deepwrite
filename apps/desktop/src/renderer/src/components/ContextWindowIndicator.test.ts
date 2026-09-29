@@ -16,8 +16,8 @@ describe("ContextWindowIndicator", () => {
 
     expect(modelConfig).toBeGreaterThan(-1);
     expect(indicator).toBeGreaterThan(modelConfig);
-    expect(modelConfigSource).toContain("思考等级");
-    expect(modelConfigSource).toContain("温度");
+    expect(modelConfigSource).toContain("reasoningLevel");
+    expect(modelConfigSource).toContain("temperature");
     expect(composerSource).not.toContain('accessible-label="选择温度"');
   });
 
@@ -53,9 +53,9 @@ describe("ContextWindowIndicator", () => {
   });
 
   it("shows actual percentages, exact tokens, and explicit unmeasured states", () => {
-    expect(indicatorSource).toContain("已使用 ${usedPercentageLabel.value}");
-    expect(indicatorSource).toContain("等待实际用量");
-    expect(indicatorSource).toContain("上下文上限不可用");
+    expect(indicatorSource).toContain("usedValueValueRemaining");
+    expect(indicatorSource).toContain("awaitingActualUsage");
+    expect(indicatorSource).toContain("contextLimitUnavailable");
     expect(indicatorSource).toContain("tokens`");
     expect(indicatorSource).toContain(':stroke-dashoffset="dashOffset"');
     expect(indicatorSource).toContain('<svg viewBox="0 0 16 16"');

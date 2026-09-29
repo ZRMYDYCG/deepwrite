@@ -1,3 +1,4 @@
+import { syncDisplayTextSchema } from "./display-text";
 import {
   SYNC_INITIALIZATION_ERRORS,
   syncInitializationPreviewSchema
@@ -87,6 +88,7 @@ export const syncStatusSchema = z
         completed: z.number(),
         total: z.number(),
         title: z.string(),
+        titleText: syncDisplayTextSchema.optional(),
         filesCompleted: z.number().optional(),
         filesTotal: z.number().optional()
       })
@@ -122,6 +124,7 @@ export const syncStatusSchema = z
           title: z.string(),
           at: z.string(),
           description: z.string(),
+          descriptionText: syncDisplayTextSchema.optional(),
           canRestore: z.boolean()
         })
         .strict()

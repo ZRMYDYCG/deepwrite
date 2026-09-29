@@ -1,3 +1,5 @@
+import { formatError } from "../i18n/errors";
+import { createScopedTranslator } from "../i18n";
 import {
   MaterialStageIdSchema,
   SkillStageIdSchema,
@@ -23,6 +25,8 @@ import type {
   WorkspaceDocument
 } from "../types/workspace";
 import { useExternalLibraryImportCoordinator } from "./useExternalLibraryImportCoordinator";
+
+const t = createScopedTranslator("workspace");
 
 export interface LibraryProjectDialogState {
   operation:
@@ -182,11 +186,20 @@ export function useCatalogLibraryTransactionsCoordinator(
       );
       if (target) context.selectDocument(target.id, true);
       uiMessage.success(
-        `已创建${payload.domain === "material" ? "素材" : "技能"}库“${created.title}”`
+        t("catalogLibraryTransactionsCoordinator.createdLibrary", {
+          value:
+            payload.domain === "material"
+              ? t("catalogWorkspace.material")
+              : t("catalogWorkspace.skill"),
+          title: created.title
+        })
       );
     } catch (error: unknown) {
       uiMessage.error(
-        error instanceof Error ? error.message : "创建资料库失败。"
+        formatError(
+          error,
+          t("catalogLibraryTransactionsCoordinator.failedToCreateLibrary")
+        )
       );
     } finally {
       catalogMutationPending.value = false;
@@ -206,12 +219,21 @@ export function useCatalogLibraryTransactionsCoordinator(
       await context.refreshCatalog();
       libraryGroupDialog.value = null;
       uiMessage.success(
-        `已创建${payload.domain === "material" ? "素材" : "技能"}分组“${created.title}”`
+        t("catalogLibraryTransactionsCoordinator.createdGroup", {
+          value:
+            payload.domain === "material"
+              ? t("catalogWorkspace.material")
+              : t("catalogWorkspace.skill"),
+          title: created.title
+        })
       );
     } catch (error: unknown) {
       await context.refreshCatalog();
       uiMessage.error(
-        error instanceof Error ? error.message : "创建资料库分组失败。"
+        formatError(
+          error,
+          t("catalogLibraryTransactionsCoordinator.failedToCreateLibraryGroup")
+        )
       );
     } finally {
       catalogMutationPending.value = false;
@@ -229,16 +251,27 @@ export function useCatalogLibraryTransactionsCoordinator(
       await context.refreshWorkspaceDirectory();
       await context.refreshCatalog();
       libraryGroupDialog.value = null;
-      uiMessage.success(`已保存分组“${updated.title}”`);
+      uiMessage.success(
+        t("catalogLibraryTransactionsCoordinator.savedGroup", {
+          title: updated.title
+        })
+      );
     } catch (error: unknown) {
       if (context.isConflict(error)) {
         await context.refreshCatalog();
         libraryGroupDialog.value = null;
-        uiMessage.warning("分组配置已在外部更新，已重新加载；请确认后再次编辑");
+        uiMessage.warning(
+          t(
+            "catalogLibraryTransactionsCoordinator.theGroupWasUpdatedExternallyAndHasBeenReloaded"
+          )
+        );
       } else {
         await context.refreshCatalog();
         uiMessage.error(
-          error instanceof Error ? error.message : "更新分组绑定失败。"
+          formatError(
+            error,
+            t("catalogLibraryTransactionsCoordinator.failedToUpdateGroupLinks")
+          )
         );
       }
     } finally {
@@ -286,18 +319,31 @@ export function useCatalogLibraryTransactionsCoordinator(
       );
       if (target) context.selectDocument(target.id, true);
       uiMessage.success(
-        `已创建${payload.domain === "material" ? "素材" : "技能"}条目“${created.title}”`
+        t("catalogLibraryTransactionsCoordinator.createdEntry", {
+          value:
+            payload.domain === "material"
+              ? t("catalogWorkspace.material")
+              : t("catalogWorkspace.skill"),
+          title: created.title
+        })
       );
     } catch (error: unknown) {
       if (context.isConflict(error)) {
         await context.refreshCatalog();
         libraryProjectDialog.value = null;
         uiMessage.warning(
-          "资料库已在外部更新，已重新加载；请从新目录状态重新创建条目"
+          t(
+            "catalogLibraryTransactionsCoordinator.theLibraryWasUpdatedExternallyAndHasBeenReloaded"
+          )
         );
       } else {
         uiMessage.error(
-          error instanceof Error ? error.message : "创建资料库条目失败。"
+          formatError(
+            error,
+            t(
+              "catalogLibraryTransactionsCoordinator.failedToCreateLibraryEntry"
+            )
+          )
         );
       }
     } finally {
@@ -314,7 +360,9 @@ export function useCatalogLibraryTransactionsCoordinator(
     if (!api || catalogMutationPending.value) return;
     const library = context.findLibrary(payload.domain, payload.libraryId);
     if (!library) {
-      uiMessage.error("未找到要修改的资料库");
+      uiMessage.error(
+        t("catalogLibraryTransactionsCoordinator.theLibraryToEditWasNotFound")
+      );
       return;
     }
     catalogMutationPending.value = true;
@@ -325,11 +373,16 @@ export function useCatalogLibraryTransactionsCoordinator(
       });
       await context.refreshCatalog();
       libraryProjectDialog.value = null;
-      uiMessage.success("资料库名称已更新");
+      uiMessage.success(
+        t("catalogLibraryTransactionsCoordinator.libraryRenamed")
+      );
     } catch (error: unknown) {
       await context.refreshCatalog();
       uiMessage.error(
-        error instanceof Error ? error.message : "修改资料库名称失败。"
+        formatError(
+          error,
+          t("catalogLibraryTransactionsCoordinator.failedToRenameLibrary")
+        )
       );
     } finally {
       catalogMutationPending.value = false;
@@ -351,7 +404,9 @@ export function useCatalogLibraryTransactionsCoordinator(
     );
     const library = context.findLibrary(payload.domain, payload.libraryId);
     if (!document || !library) {
-      uiMessage.error("未找到要修改的条目");
+      uiMessage.error(
+        t("catalogLibraryTransactionsCoordinator.theEntryToEditWasNotFound")
+      );
       return;
     }
     document = await context.ensureDocumentLoaded(document);
@@ -370,11 +425,16 @@ export function useCatalogLibraryTransactionsCoordinator(
       });
       await context.refreshCatalog();
       libraryProjectDialog.value = null;
-      uiMessage.success("条目名称已更新");
+      uiMessage.success(
+        t("catalogLibraryTransactionsCoordinator.entryRenamed")
+      );
     } catch (error: unknown) {
       await context.refreshCatalog();
       uiMessage.error(
-        error instanceof Error ? error.message : "修改条目名称失败。"
+        formatError(
+          error,
+          t("catalogLibraryTransactionsCoordinator.failedToRenameEntry")
+        )
       );
     } finally {
       catalogMutationPending.value = false;
@@ -389,7 +449,11 @@ export function useCatalogLibraryTransactionsCoordinator(
     const source = context.findLibrary(payload.domain, payload.sourceLibraryId);
     const target = context.findLibrary(payload.domain, payload.targetLibraryId);
     if (!source || !target) {
-      uiMessage.error("拖拽目标资料库已不存在，请刷新后重试");
+      uiMessage.error(
+        t(
+          "catalogLibraryTransactionsCoordinator.theDestinationLibraryNoLongerExistsRefreshAndTry"
+        )
+      );
       return;
     }
     catalogMutationPending.value = true;
@@ -409,13 +473,18 @@ export function useCatalogLibraryTransactionsCoordinator(
       if (targetDocument) context.selectDocument(targetDocument.id, false);
       uiMessage.success(
         payload.sourceLibraryId === payload.targetLibraryId
-          ? "条目顺序已更新"
-          : "条目已移动到目标资料库"
+          ? t("catalogLibraryTransactionsCoordinator.entryOrderUpdated")
+          : t(
+              "catalogLibraryTransactionsCoordinator.entryMovedToTheDestinationLibrary"
+            )
       );
     } catch (error: unknown) {
       await context.refreshCatalog();
       uiMessage.error(
-        error instanceof Error ? error.message : "移动资料库条目失败。"
+        formatError(
+          error,
+          t("catalogLibraryTransactionsCoordinator.failedToMoveLibraryEntry")
+        )
       );
     } finally {
       catalogMutationPending.value = false;
@@ -428,7 +497,11 @@ export function useCatalogLibraryTransactionsCoordinator(
     const source = context.findLibrary(payload.domain, payload.sourceLibraryId);
     const target = context.findLibrary(payload.domain, payload.targetLibraryId);
     if (!source || !target) {
-      uiMessage.error("拖拽目标资料库已不存在，请刷新后重试");
+      uiMessage.error(
+        t(
+          "catalogLibraryTransactionsCoordinator.theDestinationLibraryNoLongerExistsRefreshAndTry"
+        )
+      );
       return;
     }
     if (
@@ -441,7 +514,11 @@ export function useCatalogLibraryTransactionsCoordinator(
     if (!("materialKind" in source) || !("materialKind" in target)) return;
     const entry = source.entries.find(({ id }) => id === payload.entryId);
     if (!entry) {
-      uiMessage.error("要移动的素材条目已不存在，请刷新后重试");
+      uiMessage.error(
+        t(
+          "catalogLibraryTransactionsCoordinator.theMaterialEntryToMoveNoLongerExistsRefresh"
+        )
+      );
       return;
     }
     if (source.materialKind === target.materialKind) {
@@ -502,7 +579,11 @@ export function useCatalogLibraryTransactionsCoordinator(
       if (!result.deleted) {
         await context.refreshCatalog();
         libraryProjectDialog.value = null;
-        uiMessage.warning("条目已经不存在，目录已重新加载");
+        uiMessage.warning(
+          t(
+            "catalogLibraryTransactionsCoordinator.theEntryNoLongerExistsTheDirectoryHasBeen"
+          )
+        );
         return;
       }
       if (dialogState?.documentId) {
@@ -518,16 +599,30 @@ export function useCatalogLibraryTransactionsCoordinator(
       );
       libraryProjectDialog.value = null;
       uiMessage.success(
-        `已删除${payload.domain === "material" ? "素材" : "技能"}条目文件`
+        t("catalogLibraryTransactionsCoordinator.deletedEntryFile", {
+          value:
+            payload.domain === "material"
+              ? t("catalogWorkspace.material")
+              : t("catalogWorkspace.skill")
+        })
       );
     } catch (error: unknown) {
       if (context.isConflict(error)) {
         await context.refreshCatalog();
         libraryProjectDialog.value = null;
-        uiMessage.warning("资料库已在外部更新，已重新加载；请确认后再次删除");
+        uiMessage.warning(
+          t(
+            "catalogLibraryTransactionsCoordinator.theLibraryWasUpdatedExternallyAndHasBeenReloaded2"
+          )
+        );
       } else {
         uiMessage.error(
-          error instanceof Error ? error.message : "删除资料库条目失败。"
+          formatError(
+            error,
+            t(
+              "catalogLibraryTransactionsCoordinator.failedToDeleteLibraryEntry"
+            )
+          )
         );
       }
     } finally {
@@ -602,7 +697,9 @@ export function useCatalogLibraryTransactionsCoordinator(
     const libraryId = payload.node.libraryId;
     const entryId = payload.node.catalogEntryId;
     if (!libraryId || !entryId) {
-      uiMessage.error("未找到要复制的条目");
+      uiMessage.error(
+        t("catalogLibraryTransactionsCoordinator.theEntryToCopyWasNotFound")
+      );
       return;
     }
     const clipboard = resolveLibraryEntryClipboardPayload(
@@ -612,12 +709,22 @@ export function useCatalogLibraryTransactionsCoordinator(
       payload.node.label
     );
     if (!clipboard) {
-      uiMessage.error("未找到要复制的条目内容");
+      uiMessage.error(
+        t(
+          "catalogLibraryTransactionsCoordinator.theEntryContentToCopyWasNotFound"
+        )
+      );
       return;
     }
     libraryEntryClipboard.value = clipboard;
     uiMessage.success(
-      `已复制${payload.domain === "material" ? "素材" : "技能"}条目“${clipboard.title}”`
+      t("catalogLibraryTransactionsCoordinator.copiedEntry", {
+        value:
+          payload.domain === "material"
+            ? t("catalogWorkspace.material")
+            : t("catalogWorkspace.skill"),
+        title: clipboard.title
+      })
     );
   }
 
@@ -629,18 +736,28 @@ export function useCatalogLibraryTransactionsCoordinator(
     const clipboard = libraryEntryClipboard.value;
     const libraryId = payload.node.libraryId;
     if (!clipboard) {
-      uiMessage.warning("剪贴板中没有可粘贴的条目");
+      uiMessage.warning(
+        t("catalogLibraryTransactionsCoordinator.theClipboardHasNoEntryToPaste")
+      );
       return;
     }
     if (!libraryId) {
-      uiMessage.error("未找到要粘贴到的资料库");
+      uiMessage.error(
+        t(
+          "catalogLibraryTransactionsCoordinator.theDestinationLibraryWasNotFound"
+        )
+      );
       return;
     }
     if (clipboard.domain !== payload.domain) {
       uiMessage.warning(
         clipboard.domain === "material"
-          ? "当前复制的是素材条目，只能粘贴到素材库"
-          : "当前复制的是技能条目，只能粘贴到技能库"
+          ? t(
+              "catalogLibraryTransactionsCoordinator.materialEntriesCanOnlyBePastedIntoMaterialLibraries"
+            )
+          : t(
+              "catalogLibraryTransactionsCoordinator.skillEntriesCanOnlyBePastedIntoSkillLibraries"
+            )
       );
       return;
     }
@@ -648,16 +765,28 @@ export function useCatalogLibraryTransactionsCoordinator(
       payload.node.workspaceType &&
       clipboard.workspaceType !== payload.node.workspaceType
     ) {
-      uiMessage.warning("不同创作类型的资料库条目不能直接交叉粘贴");
+      uiMessage.warning(
+        t(
+          "catalogLibraryTransactionsCoordinator.entriesCannotBePastedAcrossLibrariesOfDifferentProject"
+        )
+      );
       return;
     }
     if (payload.node.readOnly || payload.node.unavailable) {
-      uiMessage.warning("目标资料库为只读或不可用，无法粘贴条目");
+      uiMessage.warning(
+        t(
+          "catalogLibraryTransactionsCoordinator.theDestinationLibraryIsReadOnlyOrUnavailableThe"
+        )
+      );
       return;
     }
     const library = context.findLibrary(payload.domain, libraryId);
     if (!library) {
-      uiMessage.error("未找到要粘贴到的资料库");
+      uiMessage.error(
+        t(
+          "catalogLibraryTransactionsCoordinator.theDestinationLibraryWasNotFound"
+        )
+      );
       return;
     }
     if (
@@ -665,7 +794,11 @@ export function useCatalogLibraryTransactionsCoordinator(
       "isBuiltin" in library &&
       library.isBuiltin
     ) {
-      uiMessage.warning("内置技能库为只读内容，不能粘贴条目");
+      uiMessage.warning(
+        t(
+          "catalogLibraryTransactionsCoordinator.builtInSkillLibrariesAreReadOnlyEntriesCannot"
+        )
+      );
       return;
     }
 
@@ -712,15 +845,29 @@ export function useCatalogLibraryTransactionsCoordinator(
       );
       if (target) context.selectDocument(target.id, true);
       uiMessage.success(
-        `已粘贴${payload.domain === "material" ? "素材" : "技能"}条目“${created.title}”到“${payload.node.label}”`
+        t("catalogLibraryTransactionsCoordinator.pastedEntryInto", {
+          value:
+            payload.domain === "material"
+              ? t("catalogWorkspace.material")
+              : t("catalogWorkspace.skill"),
+          title: created.title,
+          label: payload.node.label
+        })
       );
     } catch (error: unknown) {
       if (context.isConflict(error)) {
         await context.refreshCatalog();
-        uiMessage.warning("资料库已在外部更新，已重新加载；请再次粘贴");
+        uiMessage.warning(
+          t(
+            "catalogLibraryTransactionsCoordinator.theLibraryWasUpdatedExternallyAndHasBeenReloaded3"
+          )
+        );
       } else {
         uiMessage.error(
-          error instanceof Error ? error.message : "粘贴资料库条目失败。"
+          formatError(
+            error,
+            t("catalogLibraryTransactionsCoordinator.failedToPasteLibraryEntry")
+          )
         );
       }
     } finally {
@@ -740,7 +887,11 @@ export function useCatalogLibraryTransactionsCoordinator(
         projectId: payload.node.libraryId
       });
       if (!result.unregistered) {
-        throw new Error("资料库已经不在当前目录中。");
+        throw new Error(
+          t(
+            "catalogLibraryTransactionsCoordinator.theLibraryIsNoLongerInTheCurrentDirectory"
+          )
+        );
       }
       context.disposeLibraryConversation(
         payload.domain,
@@ -749,11 +900,17 @@ export function useCatalogLibraryTransactionsCoordinator(
       await context.refreshCatalog();
       libraryRemovalDialog.value = null;
       uiMessage.success(
-        `已从列表移除“${payload.node.label}”，本地文件夹仍完整保留`
+        t(
+          "catalogLibraryTransactionsCoordinator.removedFromTheListItsLocalFolderIsPreserved",
+          { label: payload.node.label }
+        )
       );
     } catch (error: unknown) {
       uiMessage.error(
-        error instanceof Error ? error.message : "移除资料库失败。"
+        formatError(
+          error,
+          t("catalogLibraryTransactionsCoordinator.failedToRemoveLibrary")
+        )
       );
     } finally {
       catalogMutationPending.value = false;
@@ -772,7 +929,11 @@ export function useCatalogLibraryTransactionsCoordinator(
         projectId: payload.node.libraryId
       });
       if (!result.deleted) {
-        throw new Error("资料库已经不在当前目录中。");
+        throw new Error(
+          t(
+            "catalogLibraryTransactionsCoordinator.theLibraryIsNoLongerInTheCurrentDirectory"
+          )
+        );
       }
       const removedDocumentIds = new Set(
         context.collectResourceNodeIds(payload.node)
@@ -788,10 +949,17 @@ export function useCatalogLibraryTransactionsCoordinator(
       );
       await context.refreshCatalog();
       libraryRemovalDialog.value = null;
-      uiMessage.success(`已删除“${payload.node.label}”及其本地文件夹`);
+      uiMessage.success(
+        t("catalogLibraryTransactionsCoordinator.deletedAndItsLocalFolder", {
+          label: payload.node.label
+        })
+      );
     } catch (error: unknown) {
       uiMessage.error(
-        error instanceof Error ? error.message : "删除资料库失败。"
+        formatError(
+          error,
+          t("catalogLibraryTransactionsCoordinator.failedToDeleteLibrary")
+        )
       );
     } finally {
       catalogMutationPending.value = false;
@@ -817,7 +985,11 @@ export function useCatalogLibraryTransactionsCoordinator(
     const isGroup = payload.action === "duplicate-group";
     const projectId = isGroup ? payload.node.groupId : payload.node.libraryId;
     if (!projectId) {
-      uiMessage.error(isGroup ? "未找到对应的分组" : "未找到对应的资料库");
+      uiMessage.error(
+        isGroup
+          ? t("catalogLibraryTransactionsCoordinator.theGroupWasNotFound")
+          : t("catalogLibraryTransactionsCoordinator.theLibraryWasNotFound")
+      );
       return;
     }
     const sourceLibraryIds = new Set<string>();
@@ -854,12 +1026,27 @@ export function useCatalogLibraryTransactionsCoordinator(
       }
       uiMessage.success(
         isGroup
-          ? `已复制分组“${payload.node.label}”为“${duplicated.title}”，同时复制 ${duplicated.copiedMemberLibraryIds.length} 个成员库`
-          : `已复制“${payload.node.label}”为“${duplicated.title}”`
+          ? t(
+              "catalogLibraryTransactionsCoordinator.copiedGroupAsIncludingMemberLibraries",
+              {
+                label: payload.node.label,
+                title: duplicated.title,
+                length: duplicated.copiedMemberLibraryIds.length
+              }
+            )
+          : t("catalogLibraryTransactionsCoordinator.copiedAs", {
+              label: payload.node.label,
+              title: duplicated.title
+            })
       );
     } catch (error: unknown) {
       uiMessage.error(
-        error instanceof Error ? error.message : "复制资料库项目失败。"
+        formatError(
+          error,
+          t(
+            "catalogLibraryTransactionsCoordinator.failedToDuplicateLibraryProject"
+          )
+        )
       );
     } finally {
       catalogMutationPending.value = false;
@@ -879,15 +1066,25 @@ export function useCatalogLibraryTransactionsCoordinator(
         projectId: payload.node.groupId
       });
       if (!result.unregistered) {
-        throw new Error("分组已经不在当前目录中。");
+        throw new Error(
+          t(
+            "catalogLibraryTransactionsCoordinator.theGroupIsNoLongerInTheCurrentDirectory"
+          )
+        );
       }
       await context.refreshCatalog();
       uiMessage.success(
-        `已解散分组“${payload.node.label}”，成员库已回到原分类`
+        t(
+          "catalogLibraryTransactionsCoordinator.dissolvedGroupItsLibrariesAreBackInTheirOriginal",
+          { label: payload.node.label }
+        )
       );
     } catch (error: unknown) {
       uiMessage.error(
-        error instanceof Error ? error.message : "解散分组失败。"
+        formatError(
+          error,
+          t("catalogLibraryTransactionsCoordinator.failedToDissolveGroup")
+        )
       );
     } finally {
       catalogMutationPending.value = false;
@@ -906,7 +1103,9 @@ export function useCatalogLibraryTransactionsCoordinator(
     }
     if (payload.action === "edit-group-bindings") {
       if (!payload.node.groupId) {
-        uiMessage.error("未找到对应的分组");
+        uiMessage.error(
+          t("catalogLibraryTransactionsCoordinator.theGroupWasNotFound")
+        );
         return;
       }
       libraryGroupDialog.value = {
@@ -921,7 +1120,9 @@ export function useCatalogLibraryTransactionsCoordinator(
     }
     const libraryId = payload.node.libraryId;
     if (!libraryId) {
-      uiMessage.error("未找到对应的本地资料库");
+      uiMessage.error(
+        t("catalogLibraryTransactionsCoordinator.theLocalLibraryWasNotFound")
+      );
       return;
     }
     if (payload.action === "copy-entry") {
@@ -944,7 +1145,11 @@ export function useCatalogLibraryTransactionsCoordinator(
         payload.action === "paste-entry" ||
         payload.action === "remove-entry")
     ) {
-      uiMessage.warning("内置技能库为只读内容，不能修改条目");
+      uiMessage.warning(
+        t(
+          "catalogLibraryTransactionsCoordinator.builtInSkillLibrariesAreReadOnlyEntriesCannot2"
+        )
+      );
       return;
     }
     if (payload.action === "paste-entry") {
@@ -981,7 +1186,9 @@ export function useCatalogLibraryTransactionsCoordinator(
     }
     if (payload.action === "rename-entry") {
       if (!payload.node.catalogEntryId) {
-        uiMessage.error("未找到要修改的条目");
+        uiMessage.error(
+          t("catalogLibraryTransactionsCoordinator.theEntryToEditWasNotFound")
+        );
         return;
       }
       libraryProjectDialog.value = {
@@ -989,14 +1196,19 @@ export function useCatalogLibraryTransactionsCoordinator(
         domain: payload.domain,
         libraryId,
         libraryTitle:
-          context.findLibrary(payload.domain, libraryId)?.title ?? "资料库",
+          context.findLibrary(payload.domain, libraryId)?.title ??
+          t("catalogLibraryTransactionsCoordinator.library"),
         entryId: payload.node.catalogEntryId,
         entryTitle: payload.node.label
       };
       return;
     }
     if (!payload.node.catalogEntryId) {
-      uiMessage.error("未找到要删除的条目文件");
+      uiMessage.error(
+        t(
+          "catalogLibraryTransactionsCoordinator.theEntryFileToDeleteWasNotFound"
+        )
+      );
       return;
     }
     libraryProjectDialog.value = {
@@ -1004,7 +1216,8 @@ export function useCatalogLibraryTransactionsCoordinator(
       domain: payload.domain,
       libraryId,
       libraryTitle:
-        context.findLibrary(payload.domain, libraryId)?.title ?? "资料库",
+        context.findLibrary(payload.domain, libraryId)?.title ??
+        t("catalogLibraryTransactionsCoordinator.library"),
       entryId: payload.node.catalogEntryId,
       entryTitle: payload.node.label,
       documentId: payload.node.id,

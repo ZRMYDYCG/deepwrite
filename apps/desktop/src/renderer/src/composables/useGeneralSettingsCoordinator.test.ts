@@ -104,6 +104,78 @@ function harness(
 }
 
 describe("general settings coordinator", () => {
+  it("blocks strict close after an unsuccessful save and retries the same preferences", async () => {
+    const test = harness();
+    const save = vi.mocked(test.api!.save);
+    save.mockRejectedValue(new Error("disk unavailable"));
+    test.coordinator.updateShowInMenuBar(true);
+    await expect(test.coordinator.drain({ strict: true })).rejects.toThrow(
+      "尚未保存"
+    );
+    save.mockResolvedValue({ persisted: true, settings: test.settings.value });
+    await expect(
+      test.coordinator.drain({ strict: true })
+    ).resolves.toBeUndefined();
+    expect(save).toHaveBeenLastCalledWith(
+      expect.objectContaining({ showInMenuBar: true })
+    );
+  });
+
+  it("waits for settings queued behind an earlier in-flight save", async () => {
+    const test = harness();
+    const pending = deferred<{
+      persisted: boolean;
+      settings: GeneralSettings;
+    }>();
+    const save = vi.mocked(test.api!.save);
+    save.mockImplementationOnce(() => pending.promise);
+    test.coordinator.updateShowInMenuBar(true);
+    let complete = false;
+    const closing = test.coordinator.drain({ strict: true }).then(() => {
+      complete = true;
+    });
+    test.coordinator.updateUseNetworkProxy(true);
+    await Promise.resolve();
+    expect(complete).toBe(false);
+    pending.resolve({ persisted: true, settings: test.settings.value });
+    await closing;
+    expect(save).toHaveBeenCalledTimes(2);
+    expect(save).toHaveBeenLastCalledWith(
+      expect.objectContaining({ useNetworkProxy: true })
+    );
+  });
+
+  it("keeps the selected language active when persistence fails and serializes subsequent changes", async () => {
+    const api = {
+      list: vi.fn(async () => ({
+        persisted: true,
+        settings: createDefaultGeneralSettings()
+      })),
+      save: vi
+        .fn()
+        .mockRejectedValueOnce(new Error("disk unavailable"))
+        .mockResolvedValue({
+          persisted: true,
+          settings: createDefaultGeneralSettings()
+        })
+    };
+    const { coordinator, settings, root, warning } = harness({ api });
+    await coordinator.load();
+    coordinator.updateLanguage("en-US");
+    expect(root.lang).toBe("en-US");
+    expect(settings.value.language).toBe("en-US");
+    await coordinator.drain();
+    expect(warning).toHaveBeenCalledWith(
+      "General settings are active for this session, but could not be saved locally: disk unavailable"
+    );
+    coordinator.updateLanguage("zh-CN");
+    await coordinator.drain();
+    expect(root.lang).toBe("zh-CN");
+    expect(api.save.mock.calls.map(([settings]) => settings.language)).toEqual([
+      "en-US",
+      "zh-CN"
+    ]);
+  });
   it("merges edited body kinds over persisted choices during initial loading", async () => {
     const pending = deferred<{
       persisted: boolean;
@@ -156,7 +228,7 @@ describe("general settings coordinator", () => {
     await coordinator.load();
 
     expect(root).toMatchObject({
-      lang: "zh-Hans-CN",
+      lang: "zh-CN",
       dataset: { appLanguage: "auto" }
     });
     expect(applyApprovalMode).toHaveBeenCalledWith("auto-approve");

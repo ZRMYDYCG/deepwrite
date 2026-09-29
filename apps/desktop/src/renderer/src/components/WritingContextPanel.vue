@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import { computed, ref, watch } from "vue";
 import {
   WRITING_CONTEXT_MAX_CHARACTERS,
@@ -6,6 +7,8 @@ import {
   type WorkspaceType
 } from "@deepwrite/contracts/renderer";
 import { uiMessage } from "../ui-feedback";
+
+const t = createScopedTranslator("components.writingContextPanel");
 
 export interface WritingContextSaveCompletion {
   succeed(): void;
@@ -28,7 +31,9 @@ const saved = ref("");
 const count = computed(() => writingContextCharacterCount(draft.value));
 const dirty = computed(() => draft.value !== saved.value);
 const label = computed(() =>
-  props.workspaceType === "script" ? "剧本上下文" : "短篇上下文"
+  props.workspaceType === "script"
+    ? t("screenplayContext")
+    : t("shortStoryContext")
 );
 
 watch(
@@ -48,7 +53,10 @@ async function flushIfNeeded(): Promise<boolean> {
   if (props.loading || props.pending) return false;
   if (count.value > WRITING_CONTEXT_MAX_CHARACTERS) {
     uiMessage.warning(
-      `${label.value}最多支持 ${WRITING_CONTEXT_MAX_CHARACTERS} 个字符。`
+      t("valueSupportsUpToValueCharacters", {
+        arg0: label.value,
+        arg1: WRITING_CONTEXT_MAX_CHARACTERS
+      })
     );
     return false;
   }
@@ -74,7 +82,7 @@ defineExpose({ flushIfNeeded });
         <p>AGENTS.MD</p>
         <h2>{{ label }}</h2>
         <span>
-          这里保存本作品长期有效的创作方法与约束。智能体每轮都会读取它，并与发送时的当前作品情况一起注入。
+          {{ t("storeLastingCreativeMethodsAndConstraintsForThisWork") }}
         </span>
       </div>
       <button
@@ -83,22 +91,26 @@ defineExpose({ flushIfNeeded });
         :disabled="loading || pending || !dirty"
         @click="flushIfNeeded"
       >
-        {{ pending ? "保存中…" : "保存上下文" }}
+        {{ pending ? t("saving") : t("saveContext") }}
       </button>
     </header>
 
-    <div v-if="loading" class="context-loading">正在读取上下文…</div>
+    <div v-if="loading" class="context-loading">
+      {{ t("readingContext") }}
+    </div>
     <template v-else>
       <textarea
         v-model="draft"
-        :aria-label="`${label}内容`"
+        :aria-label="t('valueContent', { arg0: label })"
         :disabled="pending"
         spellcheck="false"
       />
       <footer
         :class="{ 'is-over-limit': count > WRITING_CONTEXT_MAX_CHARACTERS }"
       >
-        <span>切换页签或关闭结构管理时会自动保存未提交修改。</span>
+        <span>{{
+          t("unsavedChangesAreSavedAutomaticallyWhenSwitchingTabsOr")
+        }}</span>
         <strong>{{ count }} / {{ WRITING_CONTEXT_MAX_CHARACTERS }}</strong>
       </footer>
     </template>

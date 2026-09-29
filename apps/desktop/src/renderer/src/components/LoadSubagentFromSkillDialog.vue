@@ -1,7 +1,7 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import {
   SUBAGENT_AUTHORING_MAX_SKILLS,
-  SUBAGENT_AUTHORING_OUTPUT_MODE_LABELS,
   SUBAGENT_AUTHORING_SKILL_BODY_MAX_LENGTH,
   type SkillLibrary,
   type SkillStageId,
@@ -14,6 +14,8 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { uiMessage } from "../ui-feedback";
 import PopupSelect, { type PopupSelectOption } from "./PopupSelect.vue";
 
+const t = createScopedTranslator("components.loadSubagentFromSkillDialog");
+
 export interface SubagentAuthoringSkillOption {
   id: string;
   libraryId: string;
@@ -23,6 +25,15 @@ export interface SubagentAuthoringSkillOption {
   body: string;
   stageId: SkillStageId;
 }
+
+const SUBAGENT_AUTHORING_OUTPUT_MODE_LABELS = {
+  get write() {
+    return t("writeDocuments");
+  },
+  get handoff() {
+    return t("returnConclusions");
+  }
+};
 
 const props = defineProps<{
   open: boolean;
@@ -120,7 +131,11 @@ function toggleSkill(skillId: string): void {
     return;
   }
   if (selectedSkillIds.value.length >= SUBAGENT_AUTHORING_MAX_SKILLS) {
-    uiMessage.warning(`一次最多选择 ${SUBAGENT_AUTHORING_MAX_SKILLS} 条技能`);
+    uiMessage.warning(
+      t("selectUpToValueSkillsAtOnce", {
+        arg0: SUBAGENT_AUTHORING_MAX_SKILLS
+      })
+    );
     return;
   }
   selectedSkillIds.value = [...selectedSkillIds.value, skillId];
@@ -128,7 +143,7 @@ function toggleSkill(skillId: string): void {
 
 function requestClose(): void {
   if (props.generating) {
-    uiMessage.warning("生成进行中，请先停止后再关闭");
+    uiMessage.warning(t("generationIsRunningStopItBeforeClosing"));
     return;
   }
   emit("close");
@@ -136,8 +151,9 @@ function requestClose(): void {
 
 function generate(): void {
   if (!canGenerate.value) {
-    if (!selectedSkills.value.length) uiMessage.warning("请先选择至少一条技能");
-    else if (!modelId.value) uiMessage.warning("请选择用于生成的模型");
+    if (!selectedSkills.value.length)
+      uiMessage.warning(t("selectAtLeastOneSkill"));
+    else if (!modelId.value) uiMessage.warning(t("selectAGenerationModel"));
     return;
   }
   emit("generate", {
@@ -161,7 +177,7 @@ function generate(): void {
 
 function confirmDraft(): void {
   if (!canConfirm.value) {
-    uiMessage.warning("请先生成并填写完整的子智能体草稿");
+    uiMessage.warning(t("generateAndCompleteTheSubagentDraftFirst"));
     return;
   }
   emit("confirm", {
@@ -217,18 +233,24 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
       >
         <header>
           <div>
-            <span class="dialog-eyebrow">智能体团队 · 技能转子智能体</span>
-            <h2 id="load-subagent-skill-title">从技能库加载</h2>
+            <span class="dialog-eyebrow">{{
+              t("agentTeamsSkillsToSubagent")
+            }}</span>
+            <h2 id="load-subagent-skill-title">
+              {{ t("loadFromSkillLibrary") }}
+            </h2>
             <p>
-              为「{{
-                parentAgentLabel
-              }}」从技能库生成子智能体草稿。请先确认产出方式，再由带工具的小智能体整理提示词。
+              {{
+                t("generateASubagentDraftForFromSkillsMessage", {
+                  arg0: parentAgentLabel ?? ""
+                })
+              }}
             </p>
           </div>
           <button
             class="dialog-close"
             type="button"
-            aria-label="关闭"
+            :aria-label="t('close')"
             :disabled="generating"
             @click="requestClose"
           >
@@ -239,13 +261,13 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
         <div class="dialog-content authoring-body">
           <section class="authoring-section">
             <div class="section-heading">
-              <strong>1. 选择技能</strong>
+              <strong>{{ t("text1SelectSkills") }}</strong>
             </div>
             <p class="section-hint">
-              可从全部技能库、全部阶段选择技能。生成时会读取所选技能正文，并将技能要点写入子智能体系统提示词。
+              {{ t("chooseSkillsFromAnyLibraryOrStageTheirContent") }}
             </p>
             <div v-if="!skillOptions.length" class="empty-skills">
-              当前技能库中没有技能条目，请先在技能库中添加技能。
+              {{ t("noSkillEntriesAvailableAddSkillsToTheLibrary") }}
             </div>
             <ul v-else class="skill-list">
               <li v-for="skill in skillOptions" :key="skill.id">
@@ -266,11 +288,15 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
           </section>
 
           <section class="authoring-section">
-            <strong>2. 确认产出方式</strong>
+            <strong>{{ t("text2ConfirmOutputMethod") }}</strong>
             <p class="section-hint">
-              这决定生成的系统提示词如何约束子智能体：直接改文档，还是只把结论交回主智能体。
+              {{ t("thisDeterminesWhetherTheGeneratedSystemPromptDirectsThe") }}
             </p>
-            <div class="mode-options" role="radiogroup" aria-label="产出方式">
+            <div
+              class="mode-options"
+              role="radiogroup"
+              :aria-label="t('outputMethod')"
+            >
               <label
                 v-for="mode in ['write', 'handoff'] as const"
                 :key="mode"
@@ -287,25 +313,27 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
                   <strong>{{
                     SUBAGENT_AUTHORING_OUTPUT_MODE_LABELS[mode]
                   }}</strong>
-                  <em v-if="mode === 'write'"
-                    >子智能体用写入 / 替换工具改文档，交接摘要只说明改动。</em
-                  >
-                  <em v-else>子智能体只交回结论与要点，不直接改文档。</em>
+                  <em v-if="mode === 'write'">{{
+                    t("theSubagentEditsDocumentsWithWriteReplaceToolsAnd")
+                  }}</em>
+                  <em v-else>{{
+                    t("theSubagentReportsConclusionsAndKeyPointsWithoutEditing")
+                  }}</em>
                 </span>
               </label>
             </div>
           </section>
 
           <section class="authoring-section">
-            <strong>3. 生成草稿</strong>
+            <strong>{{ t("text3GenerateDraft") }}</strong>
             <label class="form-field">
-              <span>生成模型</span>
+              <span>{{ t("generationModel") }}</span>
               <PopupSelect
                 :model-value="modelId"
                 :options="modelOptions"
-                accessible-label="生成模型"
+                :accessible-label="t('generationModel')"
                 :disabled="generating || !modelOptions.length"
-                placeholder="选择模型"
+                :placeholder="t('selectModel')"
                 @update:model-value="modelId = String($event)"
               />
             </label>
@@ -316,7 +344,7 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
                 :disabled="!canGenerate"
                 @click="generate"
               >
-                {{ generating ? "生成中…" : "生成子智能体草稿" }}
+                {{ generating ? t("generating") : t("generateSubagentDraft") }}
               </button>
               <button
                 type="button"
@@ -326,7 +354,7 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
                 :aria-hidden="!generating"
                 @click="emit('stop')"
               >
-                停止
+                {{ t("stop") }}
               </button>
             </div>
             <div class="authoring-status-slot" aria-live="polite">
@@ -344,9 +372,9 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
             v-if="draft || draftName"
             class="authoring-section draft-section"
           >
-            <strong>4. 确认草稿</strong>
+            <strong>{{ t("text4ReviewDraft") }}</strong>
             <label class="form-field">
-              <span>名称</span>
+              <span>{{ t("name") }}</span>
               <input
                 v-model="draftName"
                 type="text"
@@ -355,7 +383,7 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
               />
             </label>
             <label class="form-field">
-              <span>能力说明</span>
+              <span>{{ t("capabilities") }}</span>
               <textarea
                 v-model="draftDescription"
                 rows="3"
@@ -364,7 +392,7 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
               />
             </label>
             <label class="form-field">
-              <span>系统提示词</span>
+              <span>{{ t("systemPrompt") }}</span>
               <textarea
                 v-model="draftSystemPrompt"
                 rows="10"
@@ -382,7 +410,7 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
             :disabled="generating"
             @click="requestClose"
           >
-            取消
+            {{ t("cancel") }}
           </button>
           <button
             type="button"
@@ -390,7 +418,7 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
             :disabled="!canConfirm"
             @click="confirmDraft"
           >
-            加入团队草稿
+            {{ t("addToTeamDraft") }}
           </button>
         </footer>
       </section>

@@ -1,3 +1,5 @@
+import { formatError } from "../i18n/errors";
+import { createScopedTranslator, locale } from "../i18n";
 import { onBeforeUnmount, ref, watch } from "vue";
 import {
   PROMPT_ATTACHMENT_MAX_ITEMS,
@@ -10,6 +12,8 @@ import {
   promptAttachmentFilesFromClipboard,
   readPromptAttachment
 } from "../utils/promptAttachments";
+
+const t = createScopedTranslator("workspace.conversationAttachments");
 
 export function formatFileSize(size: number): string {
   if (size < 1_024) return `${size} B`;
@@ -50,7 +54,9 @@ export function useConversationAttachments(options: {
     attachment: UserPromptAttachment
   ): string | undefined {
     if (pendingAttachments.value.length >= PROMPT_ATTACHMENT_MAX_ITEMS) {
-      return `每条消息最多上传 ${PROMPT_ATTACHMENT_MAX_ITEMS} 个附件。`;
+      return t("eachMessageCanIncludeUpToAttachments", {
+        PROMPT_ATTACHMENT_MAX_ITEMS: PROMPT_ATTACHMENT_MAX_ITEMS
+      });
     }
     if (attachment.kind === "text") {
       const textLength = pendingAttachments.value.reduce(
@@ -59,7 +65,12 @@ export function useConversationAttachments(options: {
         attachment.content.length
       );
       if (textLength > PROMPT_TEXT_ATTACHMENTS_MAX_CONTENT_LENGTH) {
-        return `文本附件合计最多携带 ${PROMPT_TEXT_ATTACHMENTS_MAX_CONTENT_LENGTH.toLocaleString("zh-CN")} 个字符。`;
+        return t("textAttachmentsCanContainUpToCharactersInTotal", {
+          toLocaleString:
+            PROMPT_TEXT_ATTACHMENTS_MAX_CONTENT_LENGTH.toLocaleString(
+              locale.value
+            )
+        });
       }
     } else {
       const imageBytes = pendingAttachments.value.reduce(
@@ -67,7 +78,7 @@ export function useConversationAttachments(options: {
         attachment.size
       );
       if (imageBytes > PROMPT_IMAGE_ATTACHMENTS_MAX_BYTES) {
-        return "图片附件合计不能超过 25 MB。";
+        return t("imageAttachmentsCannotExceedMbInTotal");
       }
     }
     return undefined;
@@ -103,7 +114,12 @@ export function useConversationAttachments(options: {
           if (result.warning) uiMessage.warning(result.warning);
         } catch (error: unknown) {
           failures.push(
-            error instanceof Error ? error.message : `读取“${file.name}”失败。`
+            formatError(
+              error,
+              t("failedToRead", {
+                name: file.name
+              })
+            )
           );
         }
       }
@@ -117,10 +133,17 @@ export function useConversationAttachments(options: {
       uiMessage.error(
         failures.length === 1
           ? failures[0]!
-          : `${failures[0]}（另有 ${failures.length - 1} 个附件未添加）`
+          : t("additionalAttachmentsWereNotAdded", {
+              value: failures[0]!,
+              value2: failures.length - 1
+            })
       );
     } else if (added > 0) {
-      uiMessage.success(`已添加 ${added} 个附件`);
+      uiMessage.success(
+        t("addedAttachments", {
+          added: added
+        })
+      );
     }
   }
 
@@ -138,7 +161,7 @@ export function useConversationAttachments(options: {
     event.preventDefault();
     options.closeReferenceMenu();
     if (readingAttachments.value) {
-      uiMessage.warning("正在读取附件，请稍后再粘贴。");
+      uiMessage.warning(t("attachmentsAreBeingReadWaitBeforePastingAgain"));
       return;
     }
     void addAttachmentFiles(files);

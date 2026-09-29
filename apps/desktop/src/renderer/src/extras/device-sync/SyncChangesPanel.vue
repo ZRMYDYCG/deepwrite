@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../../i18n";
 import { computed, ref } from "vue";
 import type {
   SyncAdoptionSide,
@@ -6,6 +7,8 @@ import type {
 } from "@deepwrite/contracts/renderer";
 import { syncPresentation } from "./presentation";
 import SyncAdoptionButtons from "./SyncAdoptionButtons.vue";
+
+const t = createScopedTranslator("extras.deviceSync");
 const props = withDefaults(
   defineProps<{ status: SyncStatus; pending?: boolean }>(),
   { pending: false }
@@ -18,10 +21,16 @@ const first = computed(() =>
 );
 const groups = computed(() =>
   [
-    { title: "本机修改 · 待上传到远端", items: view.value.uploads },
-    { title: "远端更新 · 待下载到本机", items: view.value.downloads },
     {
-      title: "两端都有修改 · 选择采用的版本",
+      title: t("localChangesPending"),
+      items: view.value.uploads
+    },
+    {
+      title: t("remoteChangesPending"),
+      items: view.value.downloads
+    },
+    {
+      title: t("bothChangedChoose"),
       items: view.value.both.filter(
         (item) => !view.value.problems.some((issue) => issue.key === item.key)
       )
@@ -31,22 +40,22 @@ const groups = computed(() =>
 </script>
 <template>
   <section v-if="!status.firstSyncConfirmed" class="sync-card">
-    <h2>首次同步预览</h2>
+    <h2>{{ t("firstSyncPreview") }}</h2>
     <p>
-      {{
-        first?.message ?? "首次对齐本机与远端，之后只显示待上传和待下载的变化。"
-      }}
+      {{ first?.message ?? t("firstSyncDescription") }}
     </p>
     <template v-if="first">
-      <p>
-        点击上方“确认并开始首次同步”才会传输。同一作品按身份合并，两端冲突会单独确认。
-      </p>
+      <p>{{ t("firstSyncConfirmationHelp") }}</p>
       <button
         class="sync-button quiet"
         :aria-expanded="expanded"
         @click="expanded = !expanded"
       >
-        {{ expanded ? "收起完整清单" : `查看全部 ${first.paths.length} 项` }}
+        {{
+          expanded
+            ? t("collapseFullList")
+            : t("viewAllItems", { count: first.paths.length })
+        }}
       </button>
       <ul v-if="expanded">
         <li v-for="(title, index) in first.paths" :key="index">{{ title }}</li>
@@ -68,7 +77,7 @@ const groups = computed(() =>
       </div>
     </section>
     <p v-if="!groups.length && !view.problems.length">
-      没有待同步的变化。已同步内容可在“同步范围”中查看。
+      {{ t("noPendingChanges") }}
     </p>
   </template>
 </template>

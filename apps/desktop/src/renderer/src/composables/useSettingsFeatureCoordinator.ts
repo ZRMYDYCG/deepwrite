@@ -1,3 +1,5 @@
+import { formatError } from "../i18n/errors";
+import { createScopedTranslator } from "../i18n";
 import type {
   DeepWriteApi,
   AgentTeamProfileCreateInput,
@@ -16,6 +18,8 @@ import {
   type ModelSettingsNotifications
 } from "./useModelSettingsCoordinator";
 
+const t = createScopedTranslator("workspace");
+
 export type SettingsFeatureNotifications = ModelSettingsNotifications;
 
 export interface SettingsFeatureCoordinatorContext {
@@ -28,7 +32,7 @@ export interface SettingsFeatureCoordinatorContext {
 }
 
 function errorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error ? error.message : fallback;
+  return formatError(error, fallback);
 }
 
 export function useSettingsFeatureCoordinator(
@@ -47,7 +51,12 @@ export function useSettingsFeatureCoordinator(
         ])
       );
     } catch (error: unknown) {
-      uiMessage.error(errorMessage(error, "加载创作空间智能体设置失败。"));
+      uiMessage.error(
+        errorMessage(
+          error,
+          t("settingsFeatureCoordinator.failedToLoadWorkspaceAgentSettings")
+        )
+      );
     }
   }
 
@@ -58,7 +67,12 @@ export function useSettingsFeatureCoordinator(
       await settingsStore.ensureLongAgentsLoaded(() => api.longAgents.list());
       return true;
     } catch (error: unknown) {
-      uiMessage.error(errorMessage(error, "加载长篇智能体设置失败。"));
+      uiMessage.error(
+        errorMessage(
+          error,
+          t("settingsFeatureCoordinator.failedToLoadNovelAgentSettings")
+        )
+      );
       return false;
     }
   }
@@ -89,10 +103,23 @@ export function useSettingsFeatureCoordinator(
         saved
       ]);
       uiMessage.success(
-        `${saved.workspaceType === "script" ? "剧本" : "短篇"}智能体提示词、欢迎快捷与读取范围已保存，下一轮对话立即生效。`
+        t(
+          "settingsFeatureCoordinator.savedAgentPromptsWelcomeShortcutsAndReadPermissionsChanges",
+          {
+            value:
+              saved.workspaceType === "script"
+                ? t("catalogWorkspace.screenplay")
+                : t("catalogWorkspace.shortStory")
+          }
+        )
       );
     } catch (error: unknown) {
-      uiMessage.error(errorMessage(error, "保存创作空间智能体设置失败。"));
+      uiMessage.error(
+        errorMessage(
+          error,
+          t("settingsFeatureCoordinator.failedToSaveWorkspaceAgentSettings")
+        )
+      );
     } finally {
       settingsStore.workspaceAgentSaving = false;
     }
@@ -108,10 +135,17 @@ export function useSettingsFeatureCoordinator(
       const saved = await api.longAgents.save(settings);
       settingsStore.markLoaded("longAgents", saved);
       uiMessage.success(
-        "长篇四个阶段智能体的提示词、欢迎快捷与素材/技能读取范围已保存，下一轮对话立即生效。"
+        t(
+          "settingsFeatureCoordinator.savedPromptsWelcomeShortcutsAndMaterialSkillReadPermissions"
+        )
       );
     } catch (error: unknown) {
-      uiMessage.error(errorMessage(error, "保存长篇智能体设置失败。"));
+      uiMessage.error(
+        errorMessage(
+          error,
+          t("settingsFeatureCoordinator.failedToSaveNovelAgentSettings")
+        )
+      );
     } finally {
       settingsStore.longAgentSaving = false;
     }
@@ -123,7 +157,12 @@ export function useSettingsFeatureCoordinator(
     try {
       await settingsStore.ensureAgentTeamsLoaded(() => api.agentTeams.list());
     } catch (error: unknown) {
-      uiMessage.error(errorMessage(error, "加载智能体团队设置失败。"));
+      uiMessage.error(
+        errorMessage(
+          error,
+          t("settingsFeatureCoordinator.failedToLoadAgentTeamSettings")
+        )
+      );
     }
   }
 
@@ -152,8 +191,8 @@ export function useSettingsFeatureCoordinator(
     if (!api) return;
     await mutateAgentTeamCatalog(
       () => api.agentTeams.create(input),
-      "智能体团队已创建。",
-      "创建智能体团队失败。"
+      t("settingsFeatureCoordinator.agentTeamCreated"),
+      t("settingsFeatureCoordinator.failedToCreateAgentTeam")
     );
   }
 
@@ -164,8 +203,8 @@ export function useSettingsFeatureCoordinator(
     if (!api) return;
     await mutateAgentTeamCatalog(
       () => api.agentTeams.rename(input),
-      "智能体团队已重命名。",
-      "重命名智能体团队失败。"
+      t("settingsFeatureCoordinator.agentTeamRenamed"),
+      t("settingsFeatureCoordinator.failedToRenameAgentTeam")
     );
   }
 
@@ -176,8 +215,8 @@ export function useSettingsFeatureCoordinator(
     if (!api) return;
     await mutateAgentTeamCatalog(
       () => api.agentTeams.delete(input),
-      "智能体团队已删除。",
-      "删除智能体团队失败。"
+      t("settingsFeatureCoordinator.agentTeamDeleted"),
+      t("settingsFeatureCoordinator.failedToDeleteAgentTeam")
     );
   }
 
@@ -189,9 +228,9 @@ export function useSettingsFeatureCoordinator(
     await mutateAgentTeamCatalog(
       () => api.agentTeams.setEnabled(input),
       input.enabled
-        ? "团队已启用，下一轮对应类型的对话开始使用。"
-        : "团队已关闭，下一轮对应类型的对话不再使用团队配置。",
-      "更新团队启用状态失败。"
+        ? t("settingsFeatureCoordinator.teamEnabledItWillBeUsedForTheNext")
+        : t("settingsFeatureCoordinator.teamDisabledItWillNoLongerBeUsedFor"),
+      t("settingsFeatureCoordinator.failedToUpdateTeamStatus")
     );
   }
 
@@ -202,8 +241,8 @@ export function useSettingsFeatureCoordinator(
     if (!api) return;
     await mutateAgentTeamCatalog(
       () => api.agentTeams.save(input),
-      "智能体团队已保存。",
-      "保存智能体团队设置失败。"
+      t("settingsFeatureCoordinator.agentTeamSaved"),
+      t("settingsFeatureCoordinator.failedToSaveAgentTeamSettings")
     );
   }
 
@@ -216,10 +255,17 @@ export function useSettingsFeatureCoordinator(
     try {
       const result = await api.agentTeams.download(input);
       if (result.status === "saved") {
-        uiMessage.success("智能体团队压缩包已下载。");
+        uiMessage.success(
+          t("settingsFeatureCoordinator.agentTeamArchiveDownloaded")
+        );
       }
     } catch (error: unknown) {
-      uiMessage.error(errorMessage(error, "下载智能体团队失败。"));
+      uiMessage.error(
+        errorMessage(
+          error,
+          t("settingsFeatureCoordinator.failedToDownloadAgentTeam")
+        )
+      );
     } finally {
       settingsStore.agentTeamSaving = false;
     }
@@ -233,10 +279,19 @@ export function useSettingsFeatureCoordinator(
       const result = await api.agentTeams.install();
       if (result.status === "installed") {
         settingsStore.markLoaded("agentTeams", result.catalog);
-        uiMessage.success(`智能体团队“${result.teamName}”已安装。`);
+        uiMessage.success(
+          t("settingsFeatureCoordinator.agentTeamInstalled", {
+            teamName: result.teamName
+          })
+        );
       }
     } catch (error: unknown) {
-      uiMessage.error(errorMessage(error, "安装智能体团队失败。"));
+      uiMessage.error(
+        errorMessage(
+          error,
+          t("settingsFeatureCoordinator.failedToInstallAgentTeam")
+        )
+      );
     } finally {
       settingsStore.agentTeamSaving = false;
     }
@@ -250,7 +305,12 @@ export function useSettingsFeatureCoordinator(
         api.libraryAgents.list()
       );
     } catch (error: unknown) {
-      uiMessage.error(errorMessage(error, "加载资料库智能体设置失败。"));
+      uiMessage.error(
+        errorMessage(
+          error,
+          t("settingsFeatureCoordinator.failedToLoadLibraryAgentSettings")
+        )
+      );
     }
   }
 
@@ -263,9 +323,18 @@ export function useSettingsFeatureCoordinator(
     try {
       const saved = await api.libraryAgents.save(settings);
       settingsStore.markLoaded("libraryAgents", saved);
-      uiMessage.success("资料库智能体设置已保存，下一轮对话立即生效。");
+      uiMessage.success(
+        t(
+          "settingsFeatureCoordinator.libraryAgentSettingsSavedChangesApplyToTheNext"
+        )
+      );
     } catch (error: unknown) {
-      uiMessage.error(errorMessage(error, "保存资料库智能体设置失败。"));
+      uiMessage.error(
+        errorMessage(
+          error,
+          t("settingsFeatureCoordinator.failedToSaveLibraryAgentSettings")
+        )
+      );
     } finally {
       settingsStore.libraryAgentSaving = false;
     }
@@ -281,10 +350,20 @@ export function useSettingsFeatureCoordinator(
       const saved = await api.libraryAgents.reset(domain);
       settingsStore.markLoaded("libraryAgents", saved);
       uiMessage.success(
-        `${domain === "skill" ? "技能库" : "素材库"}智能体已恢复默认设置。`
+        t("settingsFeatureCoordinator.agentSettingsRestoredToDefaults", {
+          value:
+            domain === "skill"
+              ? t("catalogWorkspace.skillLibrary")
+              : t("catalogWorkspace.materialLibrary")
+        })
       );
     } catch (error: unknown) {
-      uiMessage.error(errorMessage(error, "恢复资料库智能体默认设置失败。"));
+      uiMessage.error(
+        errorMessage(
+          error,
+          t("settingsFeatureCoordinator.failedToRestoreLibraryAgentDefaults")
+        )
+      );
     } finally {
       settingsStore.libraryAgentSaving = false;
     }

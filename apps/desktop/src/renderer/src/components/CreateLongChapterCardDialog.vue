@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import {
   computed,
   nextTick,
@@ -14,6 +15,8 @@ import PopupSelect, {
   type PopupSelectValue
 } from "./PopupSelect.vue";
 
+const t = createScopedTranslator("components.createLongChapterCardDialog");
+
 const props = defineProps<{
   open: boolean;
   volumeTitle: string;
@@ -23,9 +26,11 @@ const props = defineProps<{
 }>();
 
 const fromDraft = computed(() => props.source === "draft");
-const unitLabel = computed(() => (fromDraft.value ? "小节" : "章卡"));
+const unitLabel = computed(() =>
+  fromDraft.value ? t("section") : t("chapterCard")
+);
 const titleFieldLabel = computed(() =>
-  fromDraft.value ? "小节名称" : "章卡标题"
+  fromDraft.value ? t("sectionName") : t("chapterCardTitle")
 );
 
 const emit = defineEmits<{
@@ -52,7 +57,11 @@ function selectArc(value: PopupSelectValue): void {
 function submit(): void {
   const normalizedTitle = title.value.trim();
   if (!normalizedTitle) {
-    uiMessage.warning(`请输入${titleFieldLabel.value}。`);
+    uiMessage.warning(
+      t("enterValue", {
+        arg0: titleFieldLabel.value
+      })
+    );
     titleInput.value?.focus({ preventScroll: true });
     return;
   }
@@ -146,14 +155,21 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
           <header>
             <div>
               <span
-                >{{ fromDraft ? "正文" : "剧情设计" }} · {{ volumeTitle }}</span
+                >{{ fromDraft ? t("manuscript") : t("plotDesign") }} ·
+                {{ volumeTitle }}</span
               >
-              <h2 id="create-long-chapter-card-title">新建{{ unitLabel }}</h2>
+              <h2 id="create-long-chapter-card-title">
+                {{
+                  t("newMessage", {
+                    arg0: unitLabel ?? ""
+                  })
+                }}
+              </h2>
             </div>
             <button
               class="close-button"
               type="button"
-              :aria-label="`关闭新建${unitLabel}弹窗`"
+              :aria-label="t('closeNewValueDialog', { arg0: unitLabel })"
               :disabled="pending"
               @click="close"
             >
@@ -169,34 +185,49 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
                 v-model="title"
                 maxlength="256"
                 autocomplete="off"
-                placeholder="例如：第一章 风雨将至"
+                :placeholder="t('forExampleChapter1AStormApproaches')"
                 required
               />
             </label>
             <label>
-              <span>关联剧情点（可选）</span>
+              <span>{{ t("linkedPlotPointOptional") }}</span>
               <PopupSelect
                 :model-value="primaryArcId"
-                :options="[{ value: '', label: '不关联剧情点' }, ...arcOptions]"
-                :accessible-label="`选择${unitLabel}关联剧情点`"
+                :options="[
+                  {
+                    value: '',
+                    label: t('noLinkedPlotPoint')
+                  },
+                  ...arcOptions
+                ]"
+                :accessible-label="
+                  t('selectPlotPointForValue', { arg0: unitLabel })
+                "
                 :disabled="pending"
                 :menu-z-index="2500"
                 @update:model-value="selectArc"
               />
             </label>
             <p v-if="fromDraft">
-              确认后会同步创建对应章卡。建议先在「剧情设计 →
-              章卡」中维护好章卡，再开始编写正文。
+              {{ t("aMatchingChapterCardWillBeCreatedConsiderPreparing") }}
             </p>
-            <p v-else>创建后可在章卡中继续补充完整内容。</p>
+            <p v-else>
+              {{ t("youCanCompleteTheChapterCardAfterCreatingIt") }}
+            </p>
           </fieldset>
 
           <footer>
             <button type="button" :disabled="pending" @click="close">
-              取消
+              {{ t("cancel") }}
             </button>
             <button class="primary-button" type="submit" :disabled="pending">
-              {{ pending ? "创建中…" : fromDraft ? "确认新建" : "创建章卡" }}
+              {{
+                pending
+                  ? t("creating")
+                  : fromDraft
+                    ? t("create")
+                    : t("createChapterCard")
+              }}
             </button>
           </footer>
         </form>

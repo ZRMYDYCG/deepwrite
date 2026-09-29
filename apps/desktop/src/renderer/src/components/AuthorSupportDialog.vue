@@ -1,15 +1,34 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import { onMounted, ref } from "vue";
 import wechatCode from "../assets/author-support/wechat.jpg";
 import alipayCode from "../assets/author-support/alipay.jpg";
+
+const t = createScopedTranslator("components.authorSupportDialog");
 
 const emit = defineEmits<{ close: [] }>();
 const closeButton = ref<HTMLButtonElement | null>(null);
 const doneButton = ref<HTMLButtonElement | null>(null);
 
 const paymentMethods = [
-  { name: "微信赞赏", instruction: "打开微信扫一扫", image: wechatCode },
-  { name: "支付宝", instruction: "打开支付宝扫一扫", image: alipayCode }
+  {
+    get name() {
+      return t("weChatDonation");
+    },
+    get instruction() {
+      return t("scanWithWeChat");
+    },
+    image: wechatCode
+  },
+  {
+    get name() {
+      return t("alipay");
+    },
+    get instruction() {
+      return t("scanWithAlipay");
+    },
+    image: alipayCode
+  }
 ];
 
 function handleTab(event: KeyboardEvent): void {
@@ -43,13 +62,15 @@ onMounted(() => closeButton.value?.focus());
         <header>
           <div>
             <span class="dialog-eyebrow">DeepWrite</span>
-            <h2 id="author-support-title">赞赏作者</h2>
+            <h2 id="author-support-title">
+              {{ t("supportTheAuthor") }}
+            </h2>
           </div>
           <button
             ref="closeButton"
             class="dialog-close"
             type="button"
-            aria-label="关闭赞赏作者"
+            :aria-label="t('closeSupportDialog')"
             @click="emit('close')"
           >
             ×
@@ -59,10 +80,16 @@ onMounted(() => closeButton.value?.focus());
         <div class="dialog-content author-support-content">
           <div class="author-support-copy">
             <p id="author-support-description" class="dialog-description">
-              赞赏金额将用于 DeepWrite 的服务器建设与维护、功能开发和体验改进。
+              {{
+                t(
+                  "donationsSupportDeepWriteSServersMaintenanceDevelopmentAndUsability"
+                )
+              }}
             </p>
             <p class="author-support-thanks">
-              感谢你支持 DeepWrite 持续成长。赞赏自愿，金额随心。
+              {{
+                t("thankYouForSupportingDeepWriteDonationsAreOptionalChoose")
+              }}
             </p>
           </div>
 
@@ -72,7 +99,14 @@ onMounted(() => closeButton.value?.focus());
                 <strong>{{ method.name }}</strong>
                 <span>{{ method.instruction }}</span>
               </figcaption>
-              <img :src="method.image" :alt="`${method.name}收款码`" />
+              <img
+                :src="method.image"
+                :alt="
+                  t('valuePaymentCode', {
+                    arg0: method.name
+                  })
+                "
+              />
             </figure>
           </div>
 
@@ -83,7 +117,7 @@ onMounted(() => closeButton.value?.focus());
               type="button"
               @click="emit('close')"
             >
-              关闭
+              {{ t("close") }}
             </button>
           </div>
         </div>

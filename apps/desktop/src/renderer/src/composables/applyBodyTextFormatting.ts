@@ -1,8 +1,11 @@
+import { createScopedTranslator } from "../i18n";
 import { nextTick } from "vue";
 import type { BodyTextFormat } from "@deepwrite/contracts";
 import type { BodyTextFormattingOptions } from "./useBodyTextFormatting";
 import { formatBodyText } from "../utils/bodyTextFormat";
 import { uiMessage } from "../ui-feedback";
+
+const t = createScopedTranslator("workspace.applyBodyTextFormatting");
 
 export function applyBodyTextFormatting(
   options: BodyTextFormattingOptions,
@@ -11,7 +14,7 @@ export function applyBodyTextFormatting(
   const content = options.content();
   const nextContent = formatBodyText(content, format);
   if (nextContent === content) {
-    uiMessage.info("正文已符合格式规范");
+    uiMessage.info(t("theManuscriptAlreadyMatchesTheFormattingRules"));
     return;
   }
   const input = options.editorInput();
@@ -23,7 +26,7 @@ export function applyBodyTextFormatting(
   };
   const delta = options.recordChange(nextContent, selection);
   options.updateContent(nextContent, delta);
-  uiMessage.success("已规范正文格式");
+  uiMessage.success(t("manuscriptFormattingApplied"));
   void nextTick(() => {
     if (
       key !== options.documentKey() ||

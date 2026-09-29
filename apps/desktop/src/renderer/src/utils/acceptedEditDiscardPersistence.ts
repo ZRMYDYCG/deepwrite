@@ -1,3 +1,4 @@
+import { t } from "../i18n";
 import type { AgentEditProposal } from "../types/conversation";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -56,7 +57,9 @@ export function parseStoredDiscardState(
     status: value.status === "discarding" ? "error" : value.status,
     message:
       value.status === "discarding"
-        ? "上次舍弃未确认完成；重试前会重新校验当前版本。"
+        ? t(
+            "workspace.acceptedEditDiscardPersistence.thePreviousDiscardWasNotConfirmedTheCurrentVersion"
+          )
         : value.message,
     updatedAt: value.updatedAt
   } as NonNullable<AgentEditProposal["discardState"]>;

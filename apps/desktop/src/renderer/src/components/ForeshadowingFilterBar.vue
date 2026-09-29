@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import AppIcon from "./AppIcon.vue";
 import PopupSelect, { type PopupSelectValue } from "./PopupSelect.vue";
 import {
@@ -9,6 +10,8 @@ import {
   type FilterValue,
   type SpanFilterValue
 } from "../composables/useForeshadowingFilters";
+
+const t = createScopedTranslator("components.foreshadowingFilterBar");
 
 defineProps<{
   query: string;
@@ -57,14 +60,14 @@ function setQuery(event: Event): void {
         @input="setQuery"
         type="search"
         autocomplete="off"
-        placeholder="搜索名称、问题、真相或触点"
-        aria-label="搜索伏笔"
+        :placeholder="t('searchNamesQuestionsTruthsOrTouchpoints')"
+        :aria-label="t('searchForeshadowing')"
       />
     </label>
     <PopupSelect
       :model-value="lifecycleFilter"
       :options="lifecycleFilterOptions"
-      accessible-label="按生命周期筛选伏笔"
+      :accessible-label="t('filterForeshadowingByLifecycle')"
       variant="compact"
       size="small"
       :disabled="disabled"
@@ -73,7 +76,7 @@ function setQuery(event: Event): void {
     <PopupSelect
       :model-value="spanFilter"
       :options="spanFilterOptions"
-      accessible-label="按跨度筛选伏笔"
+      :accessible-label="t('filterForeshadowingByScope')"
       variant="compact"
       size="small"
       :disabled="disabled"

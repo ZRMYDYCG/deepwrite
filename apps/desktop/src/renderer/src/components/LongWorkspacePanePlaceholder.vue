@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
+
+const t = createScopedTranslator("components.longWorkspacePanePlaceholder");
 withDefaults(
   defineProps<{
     kind: "agent" | "editor";
@@ -17,7 +20,7 @@ withDefaults(
       'is-center': kind === 'editor' && !rightPane
     }"
     :aria-busy="loading"
-    :aria-label="kind === 'editor' ? '长篇文件编辑器' : '长篇智能体'"
+    :aria-label="kind === 'editor' ? t('novelFileEditor') : t('novelAgent')"
   >
     <div class="placeholder-header" aria-hidden="true">
       <span class="placeholder-line" />
@@ -33,8 +36,8 @@ withDefaults(
       <span v-if="kind === 'editor'">
         {{
           loading
-            ? "正在打开长篇工作区…"
-            : "长篇工作区尚未载入，请重新选择书籍。"
+            ? t("openingNovelWorkspace")
+            : t("theNovelWorkspaceHasNotLoadedSelectTheBook")
         }}
       </span>
     </div>

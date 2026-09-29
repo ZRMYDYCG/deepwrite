@@ -1,3 +1,4 @@
+import { t } from "../i18n";
 import type { AgentConversationController } from "../composables/useAgentConversation";
 import { createConversationHistoryWrite } from "../utils/conversationHistoryWriter";
 import type { ConversationPersistenceWork } from "./conversationPersistenceQueue";
@@ -38,7 +39,11 @@ export function createControllerPersistenceScheduler(
           : {}),
         async save(adapter) {
           if (!adapter.history)
-            throw new Error("当前存储无法保存增量会话，请重试。");
+            throw new Error(
+              t(
+                "workspace.conversationControllerPersistence.theCurrentStorageCannotSaveConversationUpdatesPleaseTry"
+              )
+            );
           write ??= createConversationHistoryWrite(
             adapter.history,
             key,

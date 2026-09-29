@@ -1,3 +1,4 @@
+import { createScopedTranslator } from "../i18n";
 import type {
   Book,
   CatalogIndexSnapshot,
@@ -32,6 +33,8 @@ import { buildLibraryAgentWorkspaceContext } from "../utils/libraryAgentContext"
 import { activeAgentDocumentForSelection } from "../utils/agentRunPreferences";
 import { useBookPanePreferenceKey } from "./useBookPanePreferenceKey";
 import type { ResourceTreeLookup } from "../utils/resourceTreeLookup";
+
+const t = createScopedTranslator("workspace");
 
 type DraftFileKind = "body" | "character-state";
 
@@ -267,7 +270,9 @@ export function useWorkspaceResourceCoordinator(
       notifications.error(
         actionableFailure.error instanceof Error
           ? actionableFailure.error.message
-          : "读取正文失败，请重新选择后重试。"
+          : t(
+              "workspaceResourceCoordinator.failedToReadTheManuscriptSelectItAgainAnd"
+            )
       );
     }
     return result.ok;
@@ -290,7 +295,9 @@ export function useWorkspaceResourceCoordinator(
       notifications.error(
         actionableFailure.error instanceof Error
           ? actionableFailure.error.message
-          : "读取正文失败，请重新选择后重试。"
+          : t(
+              "workspaceResourceCoordinator.failedToReadTheManuscriptSelectItAgainAnd"
+            )
       );
     }
     return result.document ?? source;
@@ -318,8 +325,13 @@ export function useWorkspaceResourceCoordinator(
     if (!document) return undefined;
     const resolved = liveDocument(document);
     const workspaceLabel =
-      resolved.workspaceType === "script" ? "剧本" : "短篇";
-    const unitLabel = resolved.workspaceType === "script" ? "剧集" : "小节";
+      resolved.workspaceType === "script"
+        ? t("catalogWorkspace.screenplay")
+        : t("catalogWorkspace.shortStory");
+    const unitLabel =
+      resolved.workspaceType === "script"
+        ? t("workspaceResourceCoordinator.episode")
+        : t("workspaceResourceCoordinator.section");
     if (!node?.shortAgentId) return resolved;
     if (
       node.stageCategoryId === "draft" &&
@@ -336,7 +348,9 @@ export function useWorkspaceResourceCoordinator(
         ...contextDocument,
         id: "draft",
         title: directory.title,
-        eyebrow: `${workspaceLabel} · 正文`,
+        eyebrow: t("workspaceResourceCoordinator.manuscript", {
+          workspaceLabel: workspaceLabel
+        }),
         path: [
           resolved.workspaceTitle ?? resolved.path[0] ?? workspaceLabel,
           directory.title
@@ -352,10 +366,13 @@ export function useWorkspaceResourceCoordinator(
         ? {
             expertSectionId: promptSection.id,
             title: promptSection.title,
-            eyebrow: `${workspaceLabel} · ${unitLabel}编写`,
+            eyebrow: t("workspaceResourceCoordinator.writing", {
+              workspaceLabel: workspaceLabel,
+              unitLabel: unitLabel
+            }),
             path: [
               resolved.workspaceTitle ?? resolved.path[0] ?? workspaceLabel,
-              "正文",
+              t("catalogWorkspace.manuscript"),
               promptSection.title
             ]
           }
@@ -436,7 +453,9 @@ export function useWorkspaceResourceCoordinator(
           (left.characterItemOrder ?? 0) - (right.characterItemOrder ?? 0)
       );
     return [
-      ...(overview ? [{ id: overview.id, title: "概览" }] : []),
+      ...(overview
+        ? [{ id: overview.id, title: t("catalogWorkspace.overview") }]
+        : []),
       ...items.map((item) => ({ id: item.id, title: item.title }))
     ];
   });
@@ -489,14 +508,20 @@ export function useWorkspaceResourceCoordinator(
     return false;
   });
   const editorSectionTabsLabel = computed(() =>
-    editorShowsCharacterItemTabs.value ? "人物条目" : undefined
+    editorShowsCharacterItemTabs.value
+      ? t("workspaceResourceCoordinator.characterEntry")
+      : undefined
   );
   const editorCreateSectionLabel = computed(() =>
-    editorShowsCharacterItemTabs.value ? "新建人物条目" : undefined
+    editorShowsCharacterItemTabs.value
+      ? t("workspaceResourceCoordinator.newCharacterEntry")
+      : undefined
   );
   const editorDeleteSectionLabel = computed(() => {
-    if (editorShowsCharacterItemTabs.value) return "删除当前人物条目";
-    if (editorShowsExpertSectionTabs.value) return "删除当前小节";
+    if (editorShowsCharacterItemTabs.value)
+      return t("workspaceResourceCoordinator.deleteCurrentCharacterEntry");
+    if (editorShowsExpertSectionTabs.value)
+      return t("workspaceResourceCoordinator.deleteCurrentSection");
     return undefined;
   });
   const activePromptDocument = computed<WorkspaceDocument>(() => {
@@ -753,7 +778,15 @@ export function useWorkspaceResourceCoordinator(
     if (!directory) return;
     if (!directory.sections.some((section) => section.id === sectionId)) {
       notifications.warning(
-        `该${directory.workspaceType === "script" ? "剧集" : "小节"}已不存在，列表已刷新`
+        t(
+          "workspaceResourceCoordinator.thisNoLongerExistsTheListHasBeenRefreshed",
+          {
+            value:
+              directory.workspaceType === "script"
+                ? t("workspaceResourceCoordinator.episode")
+                : t("workspaceResourceCoordinator.section")
+          }
+        )
       );
       return;
     }
@@ -822,14 +855,19 @@ export function useWorkspaceResourceCoordinator(
         item.text === reference.text
     );
     if (duplicate) {
-      notifications.info("这段正文已经插入输入框");
+      notifications.info(
+        t("pendingEditorReferences.thisPassageIsAlreadyInTheInput")
+      );
       return;
     }
     if (
       state.pendingEditorReferences.value.length >= PROMPT_ATTACHMENT_MAX_ITEMS
     ) {
       notifications.warning(
-        `每条消息最多插入 ${PROMPT_ATTACHMENT_MAX_ITEMS} 段正文引用`
+        t(
+          "pendingEditorReferences.eachMessageCanIncludeUpToManuscriptReferences",
+          { PROMPT_ATTACHMENT_MAX_ITEMS: PROMPT_ATTACHMENT_MAX_ITEMS }
+        )
       );
       return;
     }
@@ -859,7 +897,11 @@ export function useWorkspaceResourceCoordinator(
     );
     if (!document) {
       removeEditorSelectionReference(reference.id);
-      notifications.warning("引用的正文文件已不存在，已移除这条引用");
+      notifications.warning(
+        t(
+          "workspaceResourceCoordinator.theReferencedManuscriptFileNoLongerExistsTheReference"
+        )
+      );
       return;
     }
     beginNavigationRequest();

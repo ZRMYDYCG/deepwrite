@@ -235,14 +235,14 @@ describe("quota merge UI behavior", () => {
   });
 
   it("wires a password-only dialog with explicit revocation and a busy form", () => {
-    expect(panel).toContain("增加额度");
+    expect(panel).toContain("addQuota");
     expect(panel).toContain('v-if="mergeOpen"');
     expect(dialog).toContain('type="password"');
     expect(dialog).toContain('autocomplete="new-password"');
     expect(dialog).toContain('aria-modal="true"');
     expect(dialog).toContain(':aria-busy="pending"');
-    expect(dialog).toContain("转入额度并注销来源 Key");
-    expect(dialog).toContain("当前密钥和有效期保持不变");
+    expect(dialog).toContain("transferQuotaAndRevokeSourceKey");
+    expect(dialog).toContain("allUnusedQuotaFromTheSourceKeyTransfersTo");
     expect(dialog).toContain("var(--surface-main)");
     expect(dialog).toContain("calc(100dvh - 32px)");
     expect(dialog).not.toContain("localStorage");

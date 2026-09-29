@@ -1,3 +1,5 @@
+import { formatError } from "../i18n/errors";
+import { t } from "../i18n";
 import type {
   ProposalCoordinator,
   ProposalCoordinatorContext
@@ -51,7 +53,12 @@ export function useLazyProposalCoordinator(
 
   function reportFailure(error: unknown): void {
     context.notifications.error(
-      error instanceof Error ? error.message : "加载智能体修改协调器失败。"
+      formatError(
+        error,
+        t(
+          "workspace.lazyProposalCoordinator.failedToLoadTheAgentEditCoordinator"
+        )
+      )
     );
   }
 

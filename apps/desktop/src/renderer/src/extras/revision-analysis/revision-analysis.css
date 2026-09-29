@@ -1,25 +1,3 @@
-.revision-analysis-page {
-  box-sizing: border-box;
-  height: 100%;
-  overflow: auto;
-  padding: 24px;
-  color: var(--text-primary);
-  background: var(--surface-main);
-}
-.revision-content {
-  display: grid;
-  gap: 18px;
-  max-width: 1500px;
-  margin: 0 auto;
-}
-.revision-analysis-page .analysis-page-header {
-  max-width: 1500px;
-  margin: 0 auto 20px;
-}
-.revision-analysis-page h1 {
-  font-size: 1.6rem;
-  margin: 6px 0;
-}
 .revision-analysis-page h2 {
   font-size: 1.15rem;
   margin: 0;
@@ -28,8 +6,8 @@
   font-size: 1rem;
   margin: 0 0 10px;
 }
-.revision-analysis-page p,
-.revision-analysis-page small {
+.revision-analysis-page small,
+.revision-result > header > span {
   color: var(--text-secondary);
 }
 .revision-inputs {
@@ -37,6 +15,7 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: start;
   gap: 18px;
+  margin-top: 18px;
 }
 .revision-analysis-page label {
   display: grid;
@@ -61,85 +40,52 @@
   resize: vertical;
 }
 .revision-analysis-page .revision-inputs textarea {
-  height: 520px;
-  min-height: 260px;
+  height: 260px;
+  min-height: 180px;
 }
 .revision-analysis-page textarea:focus,
-.revision-analysis-page input:focus {
+.revision-analysis-page input:focus,
+.revision-analysis-page summary:focus-visible,
+.revision-analysis-page .revision-text-button:focus-visible {
   outline: 2px solid var(--accent);
-  outline-offset: 1px;
-}
-.revision-analysis-page
-  :where(.analysis-primary-button, .revision-text-button) {
-  padding: 9px 14px;
-  border: 1px solid var(--theme-line);
-  border-radius: 9px;
-  background: var(--surface-raised);
-  color: var(--text-primary);
-  font: inherit;
-  cursor: pointer;
-}
-.revision-analysis-page
-  :where(.analysis-primary-button, .revision-text-button):hover:not(:disabled) {
-  background: var(--surface-hover);
-}
-.revision-analysis-page button.analysis-primary-button {
-  border-color: var(--text-primary);
-  background: var(--text-primary);
-  color: var(--surface-main);
-}
-.revision-analysis-page button.analysis-primary-button:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--text-primary) 88%, var(--surface-main));
-}
-.revision-analysis-page
-  :where(.analysis-primary-button, .revision-text-button):disabled {
-  opacity: 0.5;
-  cursor: default;
+  outline-offset: 2px;
 }
 .revision-analysis-page .revision-text-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 5px;
-  padding: 5px 9px;
-  border-color: transparent;
+  padding: 7px 10px;
+  border: 1px solid transparent;
   border-radius: 8px;
   background: transparent;
   color: var(--text-secondary);
+  font: inherit;
   font-size: 0.85rem;
   line-height: 1.5;
-  white-space: nowrap;
-  transition:
-    background-color 160ms ease,
-    border-color 160ms ease,
-    color 160ms ease;
+  cursor: pointer;
 }
 .revision-analysis-page .revision-text-button:hover:not(:disabled) {
   border-color: var(--theme-line-soft);
   background: var(--surface-hover);
   color: var(--text-primary);
 }
-.revision-analysis-page .revision-text-button:active:not(:disabled) {
-  background: var(--surface-selected);
+.revision-analysis-page .revision-text-button:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
-@media (prefers-reduced-motion: reduce) {
-  .revision-analysis-page .revision-text-button {
-    transition: none;
-  }
-}
-.revision-controls,
 .revision-save-controls {
   display: flex;
   flex-wrap: wrap;
   align-items: end;
   gap: 12px;
 }
-.revision-controls > label,
 .revision-save-controls > label {
   flex: 1 1 180px;
 }
-.revision-method {
-  margin-top: 16px;
+.revision-method,
+.revision-differences {
+  margin-top: 18px;
 }
 .revision-method summary {
   cursor: pointer;
@@ -147,10 +93,11 @@
   margin-bottom: 12px;
 }
 .revision-method textarea {
-  min-height: 190px;
+  min-height: 150px;
 }
-.revision-method .revision-controls {
-  margin-top: 10px;
+.revision-differences {
+  border-top: 1px solid var(--theme-line-soft);
+  padding-top: 18px;
 }
 .revision-differences > header,
 .revision-change > header,
@@ -170,9 +117,12 @@
 }
 .revision-change-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(180px, 0.7fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
   margin-top: 12px;
+}
+.revision-change-grid > label {
+  grid-column: 1 / -1;
 }
 .revision-change-grid > section {
   min-width: 0;
@@ -202,42 +152,9 @@
 .revision-result .revision-skill-body {
   min-height: 320px;
 }
-@media (max-width: 1000px) {
-  .revision-change-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .revision-change-grid > label {
-    grid-column: 1 / -1;
-  }
-}
 @media (max-width: 700px) {
-  .revision-analysis-page {
-    padding: 14px;
-  }
   .revision-inputs,
   .revision-change-grid {
     grid-template-columns: minmax(0, 1fr);
   }
-  .revision-controls > button {
-    flex: 1 1 auto;
-  }
-}
-
-.revision-analysis-page .analysis-setup-panel {
-  box-sizing: border-box;
-  border: 1px solid var(--theme-line-soft);
-  border-radius: 15px;
-  padding: 18px;
-  background: var(--surface-raised);
-  box-shadow: 0 1px 2px
-    color-mix(in srgb, var(--theme-foreground) 4%, transparent);
-}
-.revision-analysis-page .analysis-eyebrow {
-  color: var(--accent);
-  font-size: 0.85rem;
-}
-.revision-analysis-page
-  :where(.analysis-primary-button, .revision-text-button):focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
 }

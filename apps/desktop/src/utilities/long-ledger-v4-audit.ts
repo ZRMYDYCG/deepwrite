@@ -5,6 +5,13 @@ import {
   type LongWorkspaceIndexSnapshot
 } from "@deepwrite/contracts";
 
+export class LongLedgerAuditError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "LongLedgerAuditError";
+  }
+}
+
 /**
  * Text-file records keep the stable identities of checkpoint continuity files.
  * Their content remains directly editable and is intentionally not pinned.
@@ -21,7 +28,7 @@ export function assertLongV4LedgerFileAudit(
     ({ chapterCardId }) => chapterCardId === checkpointChapterCardId
   );
   if (!chapter) {
-    throw new Error(
+    throw new LongLedgerAuditError(
       record.schemaVersion === 4
         ? `v4 连续性账本引用了不存在的章节：${record.chapterCardId}。`
         : `v5 批量连续性账本引用了不存在的检查点章节：${checkpointChapterCardId}。`
@@ -59,7 +66,7 @@ export function assertLongV4LedgerFileAudit(
       return !current || current.path !== audited.path;
     });
   if (invalid) {
-    throw new Error(
+    throw new LongLedgerAuditError(
       record.schemaVersion === 4
         ? `v4 连续性账本的文件清单与章节索引不一致：${record.id}。`
         : `v5 批量连续性账本的文件清单与检查点章节索引不一致：${record.id}。`

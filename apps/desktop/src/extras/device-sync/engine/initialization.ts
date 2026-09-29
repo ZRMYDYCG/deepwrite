@@ -1,3 +1,4 @@
+import { syncProgressTitle } from "../../../localization/sync-display-text";
 import {
   clockIncludes,
   mergeSyncClocks,
@@ -83,7 +84,7 @@ export async function prepareSyncInitialization(
     phase: "checking",
     completed: 0,
     total: 0,
-    title: "检查初始化来源"
+    ...syncProgressTitle("checkingSource")
   };
   await options.workspace.recover();
   const local = await port.inspect();
@@ -110,7 +111,7 @@ export async function prepareSyncInitialization(
       phase: "transferring",
       completed: items.length,
       total,
-      title: `下载并校验：${revision.title}`
+      ...syncProgressTitle("downloadingSource", { title: revision.title })
     };
     try {
       const item = await remote.item(metadata.config.spaceId, revision);
@@ -166,7 +167,7 @@ export async function prepareSyncInitialization(
     phase: "idle",
     completed: items.length,
     total,
-    title: "远端数据已下载并校验，请确认后初始化本机"
+    ...syncProgressTitle("sourceReady")
   };
   return {
     preview,
@@ -205,7 +206,7 @@ export async function applySyncInitialization(
     phase: "checking",
     completed: 0,
     total: prepared.items.length,
-    title: "再次核对远端版本"
+    ...syncProgressTitle("recheckingRemote")
   };
   const remote = await connectedSyncRemote(options, metadata.config, signal);
   const devices = await remote.devices(metadata.config.spaceId);
@@ -230,7 +231,7 @@ export async function applySyncInitialization(
     phase: "applying",
     completed: 0,
     total: prepared.items.length,
-    title: "正在安全替换本机数据，请稍候"
+    ...syncProgressTitle("replacingLocal")
   };
   await port.replace(prepared.items, next, prepared.localFingerprint, signal);
   state.issues = [];
@@ -238,6 +239,9 @@ export async function applySyncInitialization(
     phase: "complete",
     completed: prepared.items.length,
     total: prepared.items.length,
-    title: `本机已初始化，已与“${prepared.preview.deviceName}”本次上传的 ${prepared.items.length} 项内容一致`
+    ...syncProgressTitle("initialized", {
+      device: prepared.preview.deviceName,
+      count: prepared.items.length
+    })
   };
 }

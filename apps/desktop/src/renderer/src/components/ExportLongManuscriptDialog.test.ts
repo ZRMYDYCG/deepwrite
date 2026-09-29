@@ -9,8 +9,10 @@ describe("ExportLongManuscriptDialog", () => {
     expect(dialogSource).toContain('id: "characters"');
     expect(dialogSource).toContain('id: "plot"');
     expect(dialogSource).toContain('id: "manuscript"');
-    expect(dialogSource).toContain("不使用内部 ID");
-    expect(dialogSource).toContain("可勾选单章或多章，每章一个 TXT");
+    expect(dialogSource).toContain(
+      "selectedContentExportsToOneFolderAsTXTFiles"
+    );
+    expect(dialogSource).toContain("selectOneOrMoreChaptersEachExportsAsA");
   });
 
   it("emits the selected sections together with manuscript chapter ids", () => {
@@ -32,9 +34,9 @@ describe("ExportLongManuscriptDialog", () => {
 
 describe("ExportLongManuscriptChapterList", () => {
   it("lets users select one chapter, many chapters, or a whole volume", () => {
-    expect(chapterListSource).toContain("选择正文章节");
-    expect(chapterListSource).toContain("全选");
-    expect(chapterListSource).toContain("取消全选");
+    expect(chapterListSource).toContain("selectManuscriptChapters");
+    expect(chapterListSource).toContain("selectAll");
+    expect(chapterListSource).toContain("deselectAll");
     expect(chapterListSource).toContain("toggleVolume");
     expect(chapterListSource).toContain("toggleChapter");
     expect(chapterListSource).toContain('type="checkbox"');

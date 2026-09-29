@@ -1,10 +1,13 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../../i18n";
+import AnalysisRunStatus from "../analysis-ui/AnalysisRunStatus.vue";
 import type { LongBookAnalysisController } from "./useLongBookAnalysis";
+
+const t = createScopedTranslator("extras.longBookAnalysis");
 
 defineProps<{
   controller: LongBookAnalysisController;
   selectionCount: number;
-  presetName: string;
   canStart: boolean;
 }>();
 defineEmits<{ start: []; showResult: [] }>();
@@ -13,8 +16,20 @@ defineEmits<{ start: []; showResult: [] }>();
 <template>
   <div class="analysis-run-bar">
     <div class="analysis-run-progress">
-      <strong>已选 {{ selectionCount }} 章</strong>
-      <span>{{ controller.progressText.value }}</span>
+      <strong>{{
+        t("selectedChapterCount", {
+          count: selectionCount
+        })
+      }}</strong>
+      <AnalysisRunStatus
+        :status="controller.status.value"
+        :entries="controller.processEntries.value"
+        :current-activity="controller.currentActivity.value"
+        :live-output="controller.liveOutput.value"
+        :error="controller.error.value"
+        :progress-text="controller.progressText.value"
+        :title="t('novelAnalysisProcess')"
+      />
     </div>
     <div class="analysis-run-actions">
       <button
@@ -22,14 +37,14 @@ defineEmits<{ start: []; showResult: [] }>();
         type="button"
         @click="$emit('showResult')"
       >
-        查看生成结果
+        {{ t("viewGeneratedResult") }}
       </button>
       <button
         v-if="controller.canRetry.value"
         type="button"
         @click="controller.retry"
       >
-        从失败阶段继续
+        {{ t("continueIncompletePhase") }}
       </button>
       <button
         v-if="controller.isBusy.value"
@@ -37,7 +52,7 @@ defineEmits<{ start: []; showResult: [] }>();
         :disabled="controller.status.value === 'stopping'"
         @click="controller.stop"
       >
-        停止
+        {{ t("stop") }}
       </button>
       <button
         v-else
@@ -46,7 +61,11 @@ defineEmits<{ start: []; showResult: [] }>();
         :disabled="!canStart"
         @click="$emit('start')"
       >
-        执行“{{ presetName }}”预设
+        {{
+          controller.result.value || controller.canRetry.value
+            ? t("analyzeAgain")
+            : t("startAnalysis")
+        }}
       </button>
     </div>
   </div>

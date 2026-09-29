@@ -1,3 +1,4 @@
+import { createScopedTranslator } from "../../i18n";
 import type {
   CatalogSnapshot,
   LongBookAnalysisPreset,
@@ -12,6 +13,8 @@ import {
   SKILL_STAGE_LABELS
 } from "../../data/catalogWorkspace";
 
+const t = createScopedTranslator("extras.longBookAnalysis");
+
 export interface AnalysisTaskOption {
   value: string;
   label: string;
@@ -21,13 +24,27 @@ export interface AnalysisTaskOption {
 export type AnalysisTargetLibrary = MaterialLibrary | SkillLibrary;
 
 const THINKING_LABELS: Record<string, string> = {
-  off: "关闭",
-  minimal: "最低",
-  low: "较低",
-  medium: "标准",
-  high: "深度",
-  xhigh: "极高",
-  max: "最高"
+  get off() {
+    return t("thinkingOff");
+  },
+  get minimal() {
+    return t("minimalThinking");
+  },
+  get low() {
+    return t("lowThinking");
+  },
+  get medium() {
+    return t("mediumThinking");
+  },
+  get high() {
+    return t("highThinking");
+  },
+  get xhigh() {
+    return t("extraHighThinking");
+  },
+  get max() {
+    return t("maxThinking");
+  }
 };
 
 export function analysisThinkingOptions(

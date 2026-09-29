@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import { computed, ref } from "vue";
 import {
   type AppLanguage,
@@ -29,22 +30,26 @@ import WorkspaceDirectoryFeature from "./WorkspaceDirectoryFeature.vue";
 import AppearanceSettingsPanel from "./AppearanceSettingsPanel.vue";
 import FreeModelsPanel from "./FreeModelsPanel.vue";
 import BodyTextSettingsPanel from "./BodyTextSettingsPanel.vue";
+import ConfigurationSettingsPanel from "./ConfigurationSettingsPanel.vue";
 import GeneralSettingsPanel from "./GeneralSettingsPanel.vue";
+import StorageSettingsPanel from "./StorageSettingsPanel.vue";
 import LibraryAgentSettingsPanel from "./LibraryAgentSettingsPanel.vue";
 import ModelSettingsFeature from "./ModelSettingsFeature.vue";
 import ModelUsagePanel from "./ModelUsagePanel.vue";
 import OfficialModelsPanel from "./OfficialModelsPanel.vue";
 import ShortAgentSettingsPanel from "./ShortAgentSettingsPanel.vue";
 import SiteOfficialModelsPanel from "./SiteOfficialModelsPanel.vue";
+import VoiceSettingsPanel from "./VoiceSettingsPanel.vue";
+
+const t = createScopedTranslator("components.settingsPage");
 
 interface SettingsCategory {
   id: string;
   label: string;
+  keywords?: string;
   icon?:
     | "directory"
-    | "user"
     | "sparkles"
-    | "keyboard"
     | "globe"
     | "model"
     | "ledger"
@@ -109,6 +114,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   back: [];
   chooseWorkspaceDirectory: [];
+  resetWorkspaceDirectory: [];
   updatePermissionMode: [mode: GeneralPermissionMode];
   updateAutoApproveCrossStageOperations: [enabled: boolean];
   updateAutoSave: [enabled: boolean];
@@ -147,41 +153,127 @@ const searchQuery = ref("");
 const sections: SettingsSection[] = [
   {
     id: "creation",
-    label: "创作",
+    get label() {
+      return t("writing");
+    },
     categories: [
-      { id: "directory", label: "工作目录", icon: "directory" },
-      { id: "short-agents", label: "创作空间配置", icon: "brain" },
-      { id: "skill-library-agent", label: "技能库配置", icon: "wand" },
-      { id: "material-library-agent", label: "素材库配置", icon: "archive" }
+      {
+        id: "directory",
+        get label() {
+          return t("workspaceFolder");
+        },
+        icon: "directory"
+      },
+      {
+        id: "short-agents",
+        get label() {
+          return t("workspaceSettings");
+        },
+        icon: "brain"
+      },
+      {
+        id: "skill-library-agent",
+        get label() {
+          return t("skillLibrarySettings");
+        },
+        icon: "wand"
+      },
+      {
+        id: "material-library-agent",
+        get label() {
+          return t("materialLibrarySettings");
+        },
+        icon: "archive"
+      }
     ]
   },
   {
     id: "models-and-usage",
-    label: "模型与用量",
+    get label() {
+      return t("modelsAndUsage");
+    },
     categories: [
-      { id: "usage", label: "用量", icon: "ledger" },
-      { id: "free-models", label: "免费模型", icon: "model" },
-      { id: "custom-models", label: "自定义模型配置", icon: "model" },
-      { id: "official-models", label: "旧官方小站模型", icon: "model" },
+      {
+        id: "usage",
+        get label() {
+          return t("usage");
+        },
+        icon: "ledger"
+      },
+      {
+        id: "free-models",
+        get label() {
+          return t("freeModels");
+        },
+        icon: "model"
+      },
+      {
+        id: "custom-models",
+        get label() {
+          return t("customModelSettings");
+        },
+        icon: "model"
+      },
+      {
+        id: "official-models",
+        get label() {
+          return t("legacyOfficialModels");
+        },
+        icon: "model"
+      },
       {
         id: "site-official-models",
-        label: "新官方小站模型",
+        get label() {
+          return t("officialSiteModels");
+        },
         icon: "model"
       }
     ]
   },
   {
     id: "personal",
-    label: "个人",
+    get label() {
+      return t("personal");
+    },
     categories: [
-      { id: "general", label: "常规", icon: "settings" },
-      { id: "body-text", label: "正文文本", icon: "wand" },
-      { id: "profile", label: "个人资料", icon: "user" },
-      { id: "appearance", label: "外观", icon: "sparkles" },
-      { id: "voice", label: "语音", icon: "brain" },
-      { id: "configuration", label: "配置", icon: "model" },
-      { id: "personalization", label: "个性化", icon: "sparkles" },
-      { id: "keyboard", label: "键盘快捷键", icon: "keyboard" }
+      {
+        id: "general",
+        get label() {
+          return t("general");
+        },
+        icon: "settings",
+        get keywords() {
+          return t("storageUserDataHistoryDefaultLocationWorkspaceFolder");
+        }
+      },
+      {
+        id: "body-text",
+        get label() {
+          return t("manuscriptText");
+        },
+        icon: "wand"
+      },
+      {
+        id: "appearance",
+        get label() {
+          return t("appearance");
+        },
+        icon: "sparkles"
+      },
+      {
+        id: "voice",
+        get label() {
+          return t("voiceSettings");
+        },
+        icon: "brain"
+      },
+      {
+        id: "configuration",
+        get label() {
+          return t("contextSettings");
+        },
+        icon: "model"
+      }
     ]
   }
 ];
@@ -193,7 +285,9 @@ const visibleSections = computed(() => {
     .map((section) => ({
       ...section,
       categories: section.categories.filter((category) =>
-        category.label.toLocaleLowerCase().includes(query)
+        `${category.label} ${category.keywords ?? ""}`
+          .toLocaleLowerCase()
+          .includes(query)
       )
     }))
     .filter((section) => section.categories.length);
@@ -206,7 +300,7 @@ const activeLabel = computed(() => {
     );
     if (found) return found.label;
   }
-  return "常规";
+  return t("general");
 });
 
 async function selectCategory(id: string): Promise<void> {
@@ -228,15 +322,19 @@ async function selectCategory(id: string): Promise<void> {
     <aside class="settings-sidebar">
       <button class="settings-back" type="button" @click="emit('back')">
         <AppIcon name="chevron" :size="14" />
-        <span>返回应用</span>
+        <span>{{ t("backToApp") }}</span>
       </button>
 
       <div class="settings-search">
         <AppIcon name="search" :size="14" />
-        <input v-model="searchQuery" type="search" placeholder="搜索设置..." />
+        <input
+          v-model="searchQuery"
+          type="search"
+          :placeholder="t('searchSettings')"
+        />
       </div>
 
-      <nav class="settings-nav" aria-label="设置分类">
+      <nav class="settings-nav" :aria-label="t('settingsCategories')">
         <div
           v-for="section in visibleSections"
           :key="section.id"
@@ -257,7 +355,7 @@ async function selectCategory(id: string): Promise<void> {
           </button>
         </div>
         <p v-if="!visibleSections.length" class="settings-search-empty">
-          没有匹配的设置
+          {{ t("noMatchingSettings") }}
         </p>
       </nav>
     </aside>
@@ -380,32 +478,37 @@ async function selectCategory(id: string): Promise<void> {
           "
         />
 
-        <GeneralSettingsPanel
-          v-else-if="activeCategory === 'general'"
-          :permission-mode="permissionMode"
-          :auto-approve-cross-stage-operations="autoApproveCrossStageOperations"
-          :auto-save-enabled="autoSaveEnabled"
-          :language="language"
-          :show-context-usage="showContextUsage"
-          :context-compaction="contextCompaction"
-          :model-settings="modelSettings"
-          :show-in-menu-bar="showInMenuBar"
-          :use-network-proxy="useNetworkProxy"
-          :workspace-pane-layout="workspacePaneLayout"
-          @update-permission-mode="emit('updatePermissionMode', $event)"
-          @update-auto-approve-cross-stage-operations="
-            emit('updateAutoApproveCrossStageOperations', $event)
-          "
-          @update-auto-save="emit('updateAutoSave', $event)"
-          @update-language="emit('updateLanguage', $event)"
-          @update-show-context-usage="emit('updateShowContextUsage', $event)"
-          @update-context-compaction="emit('updateContextCompaction', $event)"
-          @update-show-in-menu-bar="emit('updateShowInMenuBar', $event)"
-          @update-use-network-proxy="emit('updateUseNetworkProxy', $event)"
-          @update-workspace-pane-layout="
-            emit('updateWorkspacePaneLayout', $event)
-          "
-        />
+        <template v-else-if="activeCategory === 'general'">
+          <GeneralSettingsPanel
+            :permission-mode="permissionMode"
+            :auto-approve-cross-stage-operations="
+              autoApproveCrossStageOperations
+            "
+            :auto-save-enabled="autoSaveEnabled"
+            :language="language"
+            :show-in-menu-bar="showInMenuBar"
+            :use-network-proxy="useNetworkProxy"
+            :workspace-pane-layout="workspacePaneLayout"
+            @update-permission-mode="emit('updatePermissionMode', $event)"
+            @update-auto-approve-cross-stage-operations="
+              emit('updateAutoApproveCrossStageOperations', $event)
+            "
+            @update-auto-save="emit('updateAutoSave', $event)"
+            @update-language="emit('updateLanguage', $event)"
+            @update-show-in-menu-bar="emit('updateShowInMenuBar', $event)"
+            @update-use-network-proxy="emit('updateUseNetworkProxy', $event)"
+            @update-workspace-pane-layout="
+              emit('updateWorkspacePaneLayout', $event)
+            "
+          />
+          <StorageSettingsPanel
+            :workspace-directory-path="workspaceDirectoryPath"
+            :workspace-directory-loading="workspaceDirectoryLoading"
+            :runtime-available="runtimeAvailable"
+            @choose-workspace-directory="emit('chooseWorkspaceDirectory')"
+            @reset-workspace-directory="emit('resetWorkspaceDirectory')"
+          />
+        </template>
 
         <BodyTextSettingsPanel
           v-else-if="activeCategory === 'body-text'"
@@ -417,12 +520,30 @@ async function selectCategory(id: string): Promise<void> {
           @update-body-text-format="emit('updateBodyTextFormat', $event)"
         />
 
+        <ConfigurationSettingsPanel
+          v-else-if="activeCategory === 'configuration'"
+          :show-context-usage="showContextUsage"
+          :context-compaction="contextCompaction"
+          :model-settings="modelSettings"
+          @update-show-context-usage="emit('updateShowContextUsage', $event)"
+          @update-context-compaction="emit('updateContextCompaction', $event)"
+        />
+
         <AppearanceSettingsPanel v-else-if="activeCategory === 'appearance'" />
+
+        <VoiceSettingsPanel
+          v-else-if="activeCategory === 'voice'"
+          :runtime-available="runtimeAvailable"
+        />
 
         <section v-else class="settings-group">
           <div class="settings-card">
             <p class="settings-placeholder">
-              「{{ activeLabel }}」设置项待配置。
+              {{
+                t("settingsAreNotConfiguredMessage", {
+                  arg0: activeLabel ?? ""
+                })
+              }}
             </p>
           </div>
         </section>

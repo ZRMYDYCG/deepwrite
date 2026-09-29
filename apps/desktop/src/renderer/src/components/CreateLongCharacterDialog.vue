@@ -1,7 +1,10 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { uiMessage } from "../ui-feedback";
 import AppIcon from "./AppIcon.vue";
+
+const t = createScopedTranslator("components.createLongCharacterDialog");
 
 const props = defineProps<{
   open: boolean;
@@ -34,7 +37,7 @@ function aliasesFromDraft(): string[] {
 function submit(): void {
   const normalizedName = name.value.trim();
   if (!normalizedName) {
-    uiMessage.warning("请输入人物姓名。");
+    uiMessage.warning(t("enterACharacterName"));
     nameInput.value?.focus({ preventScroll: true });
     return;
   }
@@ -127,13 +130,17 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
         <form @submit.prevent="submit">
           <header>
             <div>
-              <span>人物设计 · {{ groupLabel }}</span>
-              <h2 id="create-long-character-title">新增人物</h2>
+              <span>{{
+                t("characterDesignMessage", { arg0: groupLabel ?? "" })
+              }}</span>
+              <h2 id="create-long-character-title">
+                {{ t("addCharacter") }}
+              </h2>
             </div>
             <button
               class="close-button"
               type="button"
-              aria-label="关闭新增人物弹窗"
+              :aria-label="t('closeAddCharacterDialog')"
               :disabled="pending"
               @click="close"
             >
@@ -143,7 +150,7 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
 
           <fieldset :disabled="pending">
             <label>
-              <span>人物姓名</span>
+              <span>{{ t("characterName") }}</span>
               <input
                 ref="nameInput"
                 v-model="name"
@@ -153,23 +160,31 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
               />
             </label>
             <label>
-              <span>别名</span>
+              <span>{{ t("aliases") }}</span>
               <textarea
                 v-model="aliasesText"
                 rows="3"
                 maxlength="8000"
-                placeholder="可选；多个别名可用逗号、顿号或换行分隔"
+                :placeholder="t('optionalSeparateAliasesWithCommasOrNewlines')"
               />
             </label>
-            <p>创建后会生成核心档案和人物关系；状态与轨迹映射自章节账本。</p>
+            <p>
+              {{ t("createsACoreProfileAndRelationshipsStateAndTrajectory") }}
+            </p>
           </fieldset>
 
           <footer>
             <button type="button" :disabled="pending" @click="close">
-              取消
+              {{ t("cancel") }}
             </button>
             <button class="primary-button" type="submit" :disabled="pending">
-              {{ pending ? "创建中…" : `创建${groupLabel}` }}
+              {{
+                pending
+                  ? t("creating")
+                  : t("createValue", {
+                      arg0: groupLabel
+                    })
+              }}
             </button>
           </footer>
         </form>

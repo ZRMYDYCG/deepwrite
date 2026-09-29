@@ -1,4 +1,7 @@
+import { createScopedTranslator } from "../i18n";
 import type { IconName } from "../types/workspace";
+
+const t = createScopedTranslator("components.sidebarMoreFeatures");
 export const moreFeatures: Array<{
   id:
     | "chat-assistant"
@@ -16,56 +19,92 @@ export const moreFeatures: Array<{
 }> = [
   {
     id: "chat-assistant",
-    label: "聊天",
-    description: "打开独立聊天助手",
+    get label() {
+      return t("chat");
+    },
+    get description() {
+      return t("openStandaloneChatAssistant");
+    },
     icon: "message"
   },
   {
-    id: "revision-analysis",
-    label: "修改分析",
-    description: "从文稿修改中学习可复用技能",
-    icon: "file"
-  },
-  {
     id: "short-book-analysis",
-    label: "短篇拆书分析",
-    description: "整篇分析，支持最多 10 本联合提炼",
+    get label() {
+      return t("shortStoryAnalysis");
+    },
+    get description() {
+      return t("analyzeFullWorksCombiningUpTo10Books");
+    },
     icon: "book"
   },
   {
     id: "long-book-analysis",
-    label: "长篇拆书分析",
-    description: "分批提炼长篇剧情、人物与文风",
+    get label() {
+      return t("novelAnalysis");
+    },
+    get description() {
+      return t("extractNovelPlotCharactersAndStyleInBatches");
+    },
     icon: "book"
   },
   {
+    id: "revision-analysis",
+    get label() {
+      return t("revisionAnalysis");
+    },
+    get description() {
+      return t("learnReusableSkillsFromManuscriptRevisions");
+    },
+    icon: "file"
+  },
+  {
     id: "style-comparison",
-    label: "文风比对",
-    description: "比较两份文本的文风与相似度",
+    get label() {
+      return t("styleComparison");
+    },
+    get description() {
+      return t("compareTheStyleAndSimilarityOfTwoTexts");
+    },
     icon: "file"
   },
   {
     id: "skill-marketplace",
-    label: "技能广场",
-    description: "发现、安装与发布写作技能",
+    get label() {
+      return t("skillMarketplace");
+    },
+    get description() {
+      return t("discoverInstallAndPublishWritingSkills");
+    },
     icon: "globe"
   },
   {
     id: "device-sync",
-    label: "双端同步",
-    description: "使用自己的网盘接续写作",
+    get label() {
+      return t("deviceSync");
+    },
+    get description() {
+      return t("continueWritingUsingYourOwnCloudDrive");
+    },
     icon: "archive"
   },
   {
     id: "cloud-backup",
-    label: "云端备份",
-    description: "备份创作空间和资料",
+    get label() {
+      return t("cloudBackup");
+    },
+    get description() {
+      return t("backUpTheWorkspaceAndReferences");
+    },
     icon: "archive"
   },
   {
     id: "zhuque-detection",
-    label: "朱雀检测",
-    description: "检测文本中的 AI 生成内容",
+    get label() {
+      return t("aITextDetection");
+    },
+    get description() {
+      return t("detectAIGeneratedText");
+    },
     icon: "globe"
   }
 ];

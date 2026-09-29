@@ -1,7 +1,10 @@
+import { createScopedTranslator } from "../../i18n";
 import {
   StyleComparisonDimensionSchema,
   type StyleComparisonDimension
 } from "@deepwrite/contracts/renderer";
+
+const t = createScopedTranslator("extras.styleComparison");
 
 // Show only complete public findings while JSON is streaming. Never infer a
 // final score from partial output or display the raw JSON / thinking events.
@@ -31,9 +34,20 @@ export function styleComparisonPreview(text: string): {
 }
 
 export function similarityLabel(score: number): string {
-  if (score >= 80) return "高度相似";
-  if (score >= 60) return "较为相似";
-  if (score >= 40) return "部分相似";
-  if (score >= 20) return "差异明显";
-  return "风格差异极大";
+  if (score >= 80) return t("highlySimilar");
+  if (score >= 60) return t("fairlySimilar");
+  if (score >= 40) return t("partlySimilar");
+  if (score >= 20) return t("clearlyDifferent");
+  return t("veryDifferent");
+}
+
+export function styleComparisonPublicOutput(text: string): string {
+  const preview = styleComparisonPreview(text);
+  const findings = [
+    preview.summary,
+    ...preview.dimensions.map((item) => `### ${item.name}\n${item.reason}`)
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+  return findings || (/^\s*(?:\{|```)/.test(text) ? "" : text.slice(-20_000));
 }

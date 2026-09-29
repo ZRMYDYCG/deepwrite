@@ -1,9 +1,12 @@
+import { createScopedTranslator } from "../../i18n";
 import {
   LONG_BOOK_ANALYSIS_MAX_CHAPTER_CHARACTERS,
   LongBookAnalysisChapterSchema,
   type LongBookAnalysisChapter
 } from "@deepwrite/contracts/renderer";
 import { createId } from "@deepwrite/shared";
+
+const t = createScopedTranslator("extras.longBookAnalysis");
 
 function normalize(
   chapters: readonly LongBookAnalysisChapter[]
@@ -23,7 +26,7 @@ export function renameAnalysisChapter(
   title: string
 ): LongBookAnalysisChapter[] {
   const nextTitle = title.trim();
-  if (!nextTitle) throw new Error("章节标题不能为空。");
+  if (!nextTitle) throw new Error(t("chapterTitleRequired"));
   return normalize(
     chapters.map((chapter) =>
       chapter.id === chapterId ? { ...chapter, title: nextTitle } : chapter
@@ -37,11 +40,11 @@ export function moveAnalysisChapter(
   targetIndex: number
 ): LongBookAnalysisChapter[] {
   const fromIndex = chapters.findIndex((chapter) => chapter.id === chapterId);
-  if (fromIndex < 0) throw new Error("未找到要移动的章节。");
+  if (fromIndex < 0) throw new Error(t("moveChapterMissing"));
   const boundedTarget = Math.max(0, Math.min(chapters.length - 1, targetIndex));
   const next = chapters.slice();
   const [chapter] = next.splice(fromIndex, 1);
-  if (!chapter) throw new Error("未找到要移动的章节。");
+  if (!chapter) throw new Error(t("moveChapterMissing"));
   next.splice(boundedTarget, 0, chapter);
   return normalize(next);
 }
@@ -54,10 +57,10 @@ export function splitAnalysisChapter(
 ): LongBookAnalysisChapter[] {
   const index = chapters.findIndex((chapter) => chapter.id === chapterId);
   const chapter = chapters[index];
-  if (!chapter) throw new Error("未找到要拆分的章节。");
+  if (!chapter) throw new Error(t("splitChapterMissing"));
   const left = chapter.text.slice(0, cursor).trim();
   const right = chapter.text.slice(cursor).trim();
-  if (!left || !right) throw new Error("请把光标放在章节正文中间再拆分。");
+  if (!left || !right) throw new Error(t("splitCursorRequired"));
   const next = chapters.slice();
   next.splice(
     index,
@@ -66,7 +69,11 @@ export function splitAnalysisChapter(
     {
       ...chapter,
       id: createId("analysis_chapter"),
-      title: secondTitle?.trim() || `${chapter.title}（续）`,
+      title:
+        secondTitle?.trim() ||
+        t("chapterContinuation", {
+          title: chapter.title
+        }),
       text: right,
       charCount: right.replace(/\s/gu, "").length
     }
@@ -83,12 +90,12 @@ export function mergeAnalysisChapter(
   const adjacentIndex = direction === "previous" ? index - 1 : index + 1;
   const chapter = chapters[index];
   const adjacent = chapters[adjacentIndex];
-  if (!chapter || !adjacent) throw new Error("当前章节没有可合并的相邻章节。");
+  if (!chapter || !adjacent) throw new Error(t("noAdjacentChapter"));
   const first = direction === "previous" ? adjacent : chapter;
   const second = direction === "previous" ? chapter : adjacent;
   const text = `${first.text.trim()}\n\n${second.text.trim()}`;
   if (text.length > LONG_BOOK_ANALYSIS_MAX_CHAPTER_CHARACTERS) {
-    throw new Error("合并后的章节超过 10,000,000 字符限制。");
+    throw new Error(t("mergedChapterTooLong"));
   }
   const next = chapters.slice();
   next.splice(Math.min(index, adjacentIndex), 2, {

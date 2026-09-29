@@ -1,3 +1,8 @@
+import {
+  resolveLocalizedText,
+  type LocalizedText
+} from "../analysis-ui/localized-text";
+import { createScopedTranslator } from "../../i18n";
 import { computed, ref, shallowRef } from "vue";
 import type {
   DeepWriteApi,
@@ -6,6 +11,8 @@ import type {
   RevisionAnalysisProfile,
   StyleComparisonProfile
 } from "@deepwrite/contracts/renderer";
+
+const t = createScopedTranslator("extras.agentRuntime");
 
 type PromptAgentId = "revision-analysis" | "style-comparison";
 type PromptProfile = RevisionAnalysisProfile | StyleComparisonProfile;
@@ -19,7 +26,7 @@ export function createPromptProfile(
   api: () => Pick<DeepWriteApi, "extrasAgents">,
   agentId: PromptAgentId,
   /** Rejects saving an empty prompt; omit when empty means "use default". */
-  emptyMessage?: string
+  emptyMessage?: LocalizedText
 ) {
   const profiles = shallowRef<readonly PromptProfile[]>([]);
   const systemPrompt = ref("");
@@ -49,9 +56,9 @@ export function createPromptProfile(
 
   async function save(): Promise<void> {
     const active = profile.value;
-    if (!active) throw new Error("方法尚未加载，请稍后重试。");
+    if (!active) throw new Error(t("methodLoading"));
     if (emptyMessage && !systemPrompt.value.trim())
-      throw new Error(emptyMessage);
+      throw new Error(resolveLocalizedText(emptyMessage));
     const submitted = systemPrompt.value;
     const next = profiles.value.map(({ builtin, ...stored }) => {
       void builtin;
@@ -84,7 +91,7 @@ export function createPromptProfile(
     async ensureSaved(): Promise<PromptProfile> {
       if (!profile.value) await load();
       if (dirty.value) await save();
-      if (!profile.value) throw new Error("方法尚未加载，请稍后重试。");
+      if (!profile.value) throw new Error(t("methodLoading"));
       return profile.value;
     }
   };

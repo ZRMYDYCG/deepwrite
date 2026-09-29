@@ -20,7 +20,7 @@ describe("LoadSubagentFromSkillDialog", () => {
   it("offers every indexed skill and defers body loading until generation", () => {
     expect(source).not.toContain("showAllStages");
     expect(source).not.toContain("if (!entry.body.trim()) continue");
-    expect(source).toContain("可从全部技能库、全部阶段选择技能");
+    expect(source).toContain("chooseSkillsFromAnyLibraryOrStageTheirContent");
     expect(source).toContain("libraryId: skill.libraryId");
     expect(source).toContain("entryId: skill.entryId");
   });

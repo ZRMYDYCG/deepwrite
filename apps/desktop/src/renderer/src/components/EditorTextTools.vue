@@ -1,5 +1,8 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import AppIcon from "./AppIcon.vue";
+
+const t = createScopedTranslator("components.editorTextTools");
 
 defineProps<{
   canUndo: boolean;
@@ -22,8 +25,8 @@ const emit = defineEmits<{
   <button
     class="text-tool-button"
     type="button"
-    aria-label="撤销"
-    title="撤销（⌘/Ctrl+Z）"
+    :aria-label="t('undo')"
+    :title="t('undoCtrlZ')"
     :disabled="!canUndo"
     @mousedown.prevent
     @click="emit('undo')"
@@ -33,8 +36,8 @@ const emit = defineEmits<{
   <button
     class="text-tool-button"
     type="button"
-    aria-label="还原"
-    title="还原（⌘/Ctrl+Shift+Z）"
+    :aria-label="t('redo')"
+    :title="t('redoCtrlShiftZ')"
     :disabled="!canRedo"
     @mousedown.prevent
     @click="emit('redo')"
@@ -45,8 +48,8 @@ const emit = defineEmits<{
     class="text-tool-button"
     :class="{ 'is-active': findPanelOpen && findPanelMode === 'find' }"
     type="button"
-    aria-label="查找"
-    title="查找（⌘/Ctrl+F）"
+    :aria-label="t('find')"
+    :title="t('findCtrlF')"
     :disabled="disabled"
     :aria-pressed="findPanelOpen && findPanelMode === 'find'"
     @mousedown.prevent
@@ -58,8 +61,8 @@ const emit = defineEmits<{
     class="text-tool-button"
     :class="{ 'is-active': findPanelOpen && findPanelMode === 'replace' }"
     type="button"
-    aria-label="替换"
-    title="替换（⌘⌥F / Ctrl+H）"
+    :aria-label="t('replace')"
+    :title="t('replaceFCtrlH')"
     :disabled="disabled"
     :aria-pressed="findPanelOpen && findPanelMode === 'replace'"
     @mousedown.prevent
@@ -71,8 +74,8 @@ const emit = defineEmits<{
     v-if="formatVisible"
     class="text-tool-button"
     type="button"
-    aria-label="一键规范格式"
-    title="一键规范格式"
+    :aria-label="t('formatManuscript')"
+    :title="t('formatManuscript')"
     :disabled="formatDisabled"
     @mousedown.prevent
     @click="emit('format')"

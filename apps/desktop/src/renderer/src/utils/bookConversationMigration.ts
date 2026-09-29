@@ -1,3 +1,4 @@
+import { createScopedTranslator } from "../i18n";
 import type { ConversationPersistenceApi } from "@deepwrite/contracts";
 import {
   mergeAgentConversationPersistenceSnapshots,
@@ -7,6 +8,8 @@ import {
   conversationHistoryPersistenceKey,
   HISTORY_PREFIX
 } from "./conversationPersistenceKeys";
+
+const t = createScopedTranslator("workspace.bookConversationMigration");
 
 const SHORT_LEGACY_LANES = [
   "general",
@@ -101,7 +104,7 @@ export async function migrateBookConversationHistory(
   if (!merged) return;
   onSnapshot?.(merged);
   if (current !== undefined && !isCompletePersistenceSnapshot(current)) {
-    throw new Error("已有书籍历史包含暂无法识别的记录，原始记录已保留。");
+    throw new Error(t("someExistingBookHistoryRecordsAreNotRecognizedThe"));
   }
   if (api.migrateHistory) {
     await save(
@@ -120,7 +123,8 @@ export async function migrateBookConversationHistory(
               value: values[index]
             }))
           });
-          if (!committed) throw new Error("历史记录在迁移期间已更新，请重试。");
+          if (!committed)
+            throw new Error(t("historyChangedDuringMigrationPleaseTryAgain"));
         }
       },
       key,

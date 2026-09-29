@@ -1,3 +1,4 @@
+import { t } from "../i18n";
 import { computed, ref, watch } from "vue";
 import { countNonWhitespaceCharacters } from "../utils/boundedTextHistory";
 import { createShortManuscriptExportInput } from "../utils/shortManuscriptExport";
@@ -6,7 +7,10 @@ import type { ShortManuscriptPreviewContext } from "./shortManuscriptPreviewCont
 export function useShortManuscriptCharacterCount(
   source: ShortManuscriptPreviewContext | null,
   isOpen: () => boolean,
-  loadErrorMessage = "读取全文字数失败，请重新打开导出窗口。"
+  loadErrorMessage: string | (() => string) = () =>
+    t(
+      "workspace.shortManuscriptCharacterCount.failedToReadTheFullCharacterCountReopenThe"
+    )
 ) {
   const book = computed(() => (isOpen() ? source?.book() : undefined));
   const loading = ref(false);
@@ -38,7 +42,12 @@ export function useShortManuscriptCharacterCount(
       try {
         await source.ensureDocumentsLoaded(documents);
       } catch {
-        if (current) source.reportError(loadErrorMessage);
+        if (current)
+          source.reportError(
+            typeof loadErrorMessage === "function"
+              ? loadErrorMessage()
+              : loadErrorMessage
+          );
       } finally {
         if (current) loading.value = false;
       }

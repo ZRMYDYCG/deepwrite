@@ -1,5 +1,8 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import AppIcon from "./AppIcon.vue";
+
+const t = createScopedTranslator("components.editorPaneToggle");
 
 defineProps<{
   rightPane?: boolean;
@@ -13,7 +16,7 @@ const emit = defineEmits<{ collapse: []; toggleRight: [] }>();
     v-if="rightPane !== false"
     class="icon-button editor-pane-toggle"
     type="button"
-    aria-label="收起文本内容栏"
+    :aria-label="t('collapseTextPane')"
     @click="emit('collapse')"
   >
     <AppIcon name="panel-right" :size="18" />
@@ -22,7 +25,7 @@ const emit = defineEmits<{ collapse: []; toggleRight: [] }>();
     v-else-if="rightPaneCollapsed"
     class="icon-button editor-pane-toggle"
     type="button"
-    aria-label="展开智能体栏"
+    :aria-label="t('expandAgentPane')"
     @click="emit('toggleRight')"
   >
     <AppIcon name="panel-right" :size="18" />

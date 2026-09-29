@@ -27,8 +27,8 @@ describe("editor find panel layout", () => {
     expect(longEditorSource).toContain("<EditorEntrySearchRow");
     expect(rightEditorSource).toContain("<EditorFindReplacePanel");
     expect(findPanelSource).toContain("<EditorEntrySearchRow");
-    expect(entrySearchSource).toContain('placeholder="搜索全部条目"');
-    expect(entrySearchSource).toContain('aria-label="条目搜索结果"');
+    expect(entrySearchSource).toContain("searchAllEntries");
+    expect(entrySearchSource).toContain("entrySearchResults");
     expect(entrySearchSource).toContain("@click=\"emit('select', index)\"");
   });
 

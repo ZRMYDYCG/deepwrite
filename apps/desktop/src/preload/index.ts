@@ -1,5 +1,7 @@
 import { bookTemplates, createBookFromTemplate } from "./book-templates-api";
 import { desktopEvents } from "./desktop-events-api";
+import { voice } from "./voice-api";
+import { storageSettings } from "./storage-settings-api";
 import { textContextMenu } from "./text-context-menu-api";
 import { analysisApis } from "./analysis-apis";
 import { conversationExport } from "./conversation-export-api";
@@ -992,6 +994,8 @@ async function exportLongManuscript(
 }
 
 const api: DeepWriteApi = {
+  storageSettings,
+  voice,
   textContextMenu,
   system: {
     health: getHealth

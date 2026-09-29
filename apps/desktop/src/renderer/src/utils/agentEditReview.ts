@@ -1,8 +1,11 @@
+import { createScopedTranslator } from "../i18n";
 import {
   createShortWorkspaceContentRevision,
   type WorkspaceEditorMutationPayload
 } from "@deepwrite/contracts";
 import type { AgentEditProposal } from "../types/conversation";
+
+const t = createScopedTranslator("workspace.agentEditReview");
 
 export type AgentEditAcceptance =
   "ready" | "already-applied" | "conflict" | "missing-proposed-text";
@@ -97,13 +100,17 @@ export function resolveAgentEditorMutationText(
   const target = mutation.mutationTarget;
   if (!target) return { text: mutation.text };
   if (target.kind.startsWith("expert-draft") && mutation.stageId !== "draft") {
-    return { error: "正文文件修改只能应用到正文目录。" };
+    return {
+      error: t("manuscriptFileEditsCanOnlyBeAppliedToThe")
+    };
   }
   if (
     target.kind.startsWith("character-") &&
     mutation.stageId !== "character_design"
   ) {
-    return { error: "人物文件修改只能应用到人物设计阶段。" };
+    return {
+      error: t("characterFileEditsCanOnlyBeAppliedToThe")
+    };
   }
   return { text: mutation.text };
 }

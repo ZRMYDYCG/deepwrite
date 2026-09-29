@@ -1,4 +1,7 @@
+import { createScopedTranslator } from "../../i18n";
 import type { CloudBackupChange } from "@deepwrite/contracts";
+
+const t = createScopedTranslator("extras.cloudBackup");
 
 export const CLOUD_BACKUP_CHANGE_ORDER = [
   "add",
@@ -11,10 +14,18 @@ export const CLOUD_BACKUP_CHANGE_LABELS: Record<
   CloudBackupChange["change"],
   string
 > = {
-  add: "将新增",
-  overwrite: "将覆盖",
-  keep: "不会改动",
-  drop: "云端将移除"
+  get add() {
+    return t("willAdd");
+  },
+  get overwrite() {
+    return t("willOverwrite");
+  },
+  get keep() {
+    return t("unchanged");
+  },
+  get drop() {
+    return t("willRemoveRemote");
+  }
 };
 
 export interface CloudBackupPreviewStatusSummary {

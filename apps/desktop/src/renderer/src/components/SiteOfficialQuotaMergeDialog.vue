@@ -1,5 +1,8 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
+
+const t = createScopedTranslator("components.siteOfficialQuotaMergeDialog");
 
 const props = defineProps<{ pending: boolean }>();
 const sourceKey = defineModel<string>("sourceKey", { required: true });
@@ -88,11 +91,13 @@ onBeforeUnmount(() => {
         @submit.prevent="emit('submit')"
       >
         <header>
-          <h2 id="site-quota-merge-title">增加额度</h2>
+          <h2 id="site-quota-merge-title">
+            {{ t("addQuota") }}
+          </h2>
           <button
             type="button"
             class="dialog-close"
-            aria-label="关闭"
+            :aria-label="t('close')"
             :disabled="pending"
             @click="close"
           >
@@ -101,11 +106,9 @@ onBeforeUnmount(() => {
         </header>
         <div class="dialog-content">
           <p id="site-quota-merge-description">
-            来源 Key
-            的全部未使用额度将转入当前已保存的密钥。当前密钥和有效期保持不变。转入成功后，来源
-            Key 将永久注销，无法再使用或再次转入。
+            {{ t("allUnusedQuotaFromTheSourceKeyTransfersTo") }}
           </p>
-          <label for="site-quota-source-key">来源 Key</label>
+          <label for="site-quota-source-key">{{ t("sourceKey") }}</label>
           <input
             id="site-quota-source-key"
             ref="input"
@@ -114,15 +117,19 @@ onBeforeUnmount(() => {
             autocomplete="new-password"
             :spellcheck="false"
             :maxlength="1024"
-            placeholder="请输入提供额度的来源 Key"
+            :placeholder="t('enterTheKeyProvidingTheQuota')"
             :disabled="pending"
           />
-          <small>来源 Key 仅用于本次转入，不会保存到本机。</small>
+          <small>{{ t("theSourceKeyIsUsedOnlyForThisTransfer") }}</small>
         </div>
         <footer>
-          <button type="button" :disabled="pending" @click="close">取消</button>
+          <button type="button" :disabled="pending" @click="close">
+            {{ t("cancel") }}
+          </button>
           <button class="is-danger" type="submit" :disabled="pending">
-            {{ pending ? "正在转入…" : "转入额度并注销来源 Key" }}
+            {{
+              pending ? t("transferring") : t("transferQuotaAndRevokeSourceKey")
+            }}
           </button>
         </footer>
       </form>

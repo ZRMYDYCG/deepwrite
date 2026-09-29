@@ -120,4 +120,24 @@ describe("WorkspaceDirectoryStore", () => {
       new WorkspaceDirectoryStore(join(root, "user-data")).save(file)
     ).rejects.toThrow(/真实文件夹/u);
   });
+
+  it("rejects installation folders without changing the saved workspace", async () => {
+    const root = await mkdtemp(join(tmpdir(), "deepwrite-workspace-install-"));
+    temporaryRoots.push(root);
+    const userData = join(root, "user-data");
+    const installation = join(root, "application");
+    const safe = join(root, "books");
+    const nested = join(installation, "books");
+    await Promise.all([
+      mkdir(userData),
+      mkdir(nested, { recursive: true }),
+      mkdir(safe)
+    ]);
+    const store = new WorkspaceDirectoryStore(userData, installation);
+    await store.save(safe);
+    await expect(store.save(installation)).rejects.toThrow("安装目录");
+    await expect(store.save(nested)).rejects.toThrow("安装目录");
+    await expect(store.save(root)).rejects.toThrow("安装目录");
+    expect((await store.list()).path).toBe(await realpath(safe));
+  });
 });

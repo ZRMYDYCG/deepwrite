@@ -1,3 +1,5 @@
+import { formatError } from "../../i18n/errors";
+import { createScopedTranslator } from "../../i18n";
 import { hydrateLibraryProposalDocument } from "./library-hydration";
 import type { ProposalCoordinatorContext } from "../useProposalCoordinator";
 import type { AgentConversationController } from "../useAgentConversation";
@@ -13,6 +15,8 @@ import {
 } from "../../utils/agentEditReview";
 import { buildAgentTextDiff } from "../../utils/agentTextDiff";
 import { textEditDiscardSnapshot } from "../../utils/acceptedEditDiscard";
+
+const t = createScopedTranslator("workspace");
 type LibraryEditorMutationEvent = Extract<
   SystemEventEnvelope,
   { type: "library.editor_mutation" }
@@ -108,7 +112,9 @@ export function createLibraryProposalStager(
       libraryReadOnly ||
       (event.payload.operation !== "create" && (!target || target.readOnly))
     ) {
-      const message = "目标资料库或条目不可写，本次智能体变更未进入审阅。";
+      const message = t(
+        "libraryLane.theTargetLibraryOrEntryIsNotWritableThese"
+      );
       sourceConversation.markToolConflict(
         event.payload.runId,
         event.payload.toolCallId,
@@ -151,8 +157,9 @@ export function createLibraryProposalStager(
       event.payload.baseRevision !== expectedBaseRevision ||
       (existing !== undefined && currentRevision !== existing.baseRevision)
     ) {
-      const message =
-        "资料库内容版本已变化，本次智能体变更未进入审阅，也没有覆盖你的最新编辑。";
+      const message = t(
+        "libraryLane.theLibraryContentVersionChangedTheseAgentChangesWere"
+      );
       if (existing) {
         sourceConversation.updateEditProposal(event.payload.runId, proposalId, {
           status: "conflict",
@@ -197,7 +204,11 @@ export function createLibraryProposalStager(
       hunks: diff.hunks,
       ...(diff.truncated ? { truncated: true } : {}),
       ...(noChanges
-        ? { statusMessage: "资料库内容没有实际变化，无需保存。" }
+        ? {
+            statusMessage: t(
+              "libraryLane.theLibraryContentHasNotChangedNoSaveIs"
+            )
+          }
         : {}),
       createdAt: existing?.createdAt ?? event.timestamp,
       updatedAt: event.timestamp,
@@ -248,8 +259,10 @@ export function createLibraryProposalStager(
     chain = chain
       .then(() => stage(event))
       .catch((error) => {
-        const message =
-          error instanceof Error ? error.message : "资料库变更未能进入审阅。";
+        const message = formatError(
+          error,
+          t("libraryStaging.theLibraryChangesCouldNotBeSubmittedForReview")
+        );
         allConversations()
           .find((conversation) =>
             conversation.acceptsRunEvent(

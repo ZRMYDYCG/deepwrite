@@ -26,6 +26,7 @@ interface PendingFontLoad {
   registered: RegisteredFont;
 }
 
+// Probe both CJK and Latin glyphs independently of the interface language.
 const FONT_LOAD_SAMPLE = "DeepWrite 深度写作";
 
 function fontSource(font: AppearanceCustomFont): string {

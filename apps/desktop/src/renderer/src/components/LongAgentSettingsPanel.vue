@@ -1,5 +1,10 @@
 <script setup lang="ts">
 import {
+  builtinAgentLabel,
+  builtinAgentDescription
+} from "../i18n/builtinLabels";
+import { createScopedTranslator } from "../i18n";
+import {
   DEFAULT_LONG_AGENT_SETTINGS,
   LONG_AGENT_IDS,
   LongAgentSettingsInputSchema,
@@ -14,6 +19,8 @@ import {
 } from "@deepwrite/contracts";
 import { computed, ref, watch } from "vue";
 import { uiMessage } from "../ui-feedback";
+
+const t = createScopedTranslator("components.longAgentSettingsPanel");
 
 interface ReadOption<T extends string> {
   id: T;
@@ -37,44 +44,136 @@ const emit = defineEmits<{
 const WORKSPACE_OPTIONS = [
   {
     id: "worldbuilding",
-    label: "世界观",
-    description: "规则、势力、地理、历史、术语、境界与物品"
+    get label() {
+      return t("worldbuilding");
+    },
+    get description() {
+      return t("rulesFactionsGeographyHistoryTerminologyRanksAndItems");
+    }
   },
   {
     id: "character_design",
-    label: "人物设计",
-    description: "人物核心、关系、当前状态与历史"
+    get label() {
+      return t("characterDesign");
+    },
+    get description() {
+      return t("coreProfilesRelationshipsCurrentStateAndHistory");
+    }
   },
   {
     id: "plot_design",
-    label: "剧情结构",
-    description: "卷、剧情弧、章卡、事件、落点与伏笔"
+    get label() {
+      return t("plotStructure");
+    },
+    get description() {
+      return t("volumesArcsChapterCardsEventsBeatsAndForeshadowing");
+    }
   },
   {
     id: "draft",
-    label: "正文",
-    description: "章节正文、人物状态与下一章交接"
+    get label() {
+      return t("manuscript");
+    },
+    get description() {
+      return t("chapterManuscriptsCharacterStateAndNextChapterHandoff");
+    }
   },
   {
     id: "continuity_ledger",
-    label: "连续性账本",
-    description: "已提交事实、摘要、决策与审计记录"
+    get label() {
+      return t("continuityLedger");
+    },
+    get description() {
+      return t("committedFactsSummariesDecisionsAndAuditRecords");
+    }
   }
 ] as const satisfies readonly ReadOption<LongWorkspaceRoot>[];
 
 const MATERIAL_OPTIONS = [
-  { id: "character", label: "人物素材", description: "人物设定类素材" },
-  { id: "gimmick", label: "卖点素材", description: "题材卖点与创意钩子" },
-  { id: "plot", label: "剧情素材", description: "剧情结构与桥段参考" },
-  { id: "draft", label: "正文素材", description: "正文片段与行文参考" },
-  { id: "other", label: "其他素材", description: "未归入以上分类的素材" }
+  {
+    id: "character",
+    get label() {
+      return t("characterMaterials");
+    },
+    get description() {
+      return t("characterDesignReferences");
+    }
+  },
+  {
+    id: "gimmick",
+    get label() {
+      return t("hookMaterials");
+    },
+    get description() {
+      return t("genreHooksAndCreativeIdeas");
+    }
+  },
+  {
+    id: "plot",
+    get label() {
+      return t("plotMaterials");
+    },
+    get description() {
+      return t("plotStructuresAndSceneReferences");
+    }
+  },
+  {
+    id: "draft",
+    get label() {
+      return t("manuscriptMaterials");
+    },
+    get description() {
+      return t("manuscriptExcerptsAndProseReferences");
+    }
+  },
+  {
+    id: "other",
+    get label() {
+      return t("otherMaterials");
+    },
+    get description() {
+      return t("materialsOutsideTheCategoriesAbove");
+    }
+  }
 ] as const satisfies readonly ReadOption<MaterialKind>[];
 
 const SKILL_OPTIONS = [
-  { id: "general", label: "通用技能", description: "跨阶段可复用的通用能力" },
-  { id: "plot", label: "剧情技能", description: "设定、剧情与结构设计能力" },
-  { id: "style", label: "文风技能", description: "正文行文与风格执行能力" },
-  { id: "other", label: "其他技能", description: "未归入以上分类的技能" }
+  {
+    id: "general",
+    get label() {
+      return t("generalSkills");
+    },
+    get description() {
+      return t("reusableCapabilitiesAcrossStages");
+    }
+  },
+  {
+    id: "plot",
+    get label() {
+      return t("plotSkills");
+    },
+    get description() {
+      return t("worldbuildingPlotAndStructuralDesign");
+    }
+  },
+  {
+    id: "style",
+    get label() {
+      return t("styleSkills");
+    },
+    get description() {
+      return t("proseAndWritingStyleExecution");
+    }
+  },
+  {
+    id: "other",
+    get label() {
+      return t("otherSkills");
+    },
+    get description() {
+      return t("skillsOutsideTheCategoriesAbove");
+    }
+  }
 ] as const satisfies readonly ReadOption<SkillKind>[];
 
 const agentId: LongAgentId = LONG_AGENT_IDS[0];
@@ -166,7 +265,7 @@ function resetActiveAgent(): void {
       skillKinds: [...builtin.readAccess.skillKinds]
     }
   };
-  uiMessage.info("长篇智能体已恢复内置值；点击保存后生效。");
+  uiMessage.info(t("theNovelAgentHasBeenResetToBuiltIn"));
 }
 
 function saveSettings(): void {
@@ -174,19 +273,10 @@ function saveSettings(): void {
   const agents = LONG_AGENT_IDS.map((id) => {
     const agent = draftAgents.value.find((candidate) => candidate.id === id);
     if (!agent) return null;
-    const shortcuts = agent.welcomeShortcuts.map((value) => value.trim());
-    if (shortcuts.length !== 3 || shortcuts.some((value) => !value)) {
-      uiMessage.warning("长篇智能体的三个欢迎快捷按钮都不能为空");
-      return null;
-    }
     return {
       id,
       systemPrompt: agent.systemPrompt,
-      welcomeShortcuts: [shortcuts[0]!, shortcuts[1]!, shortcuts[2]!] as [
-        string,
-        string,
-        string
-      ],
+      welcomeShortcuts: agent.welcomeShortcuts,
       readAccess: {
         workspaceRoots: [
           ...getDefaultLongAgentProfile(id).readAccess.workspaceRoots
@@ -202,9 +292,7 @@ function saveSettings(): void {
     agents
   });
   if (!parsed.success) {
-    uiMessage.warning(
-      parsed.error.issues[0]?.message ?? "长篇智能体设置不完整"
-    );
+    uiMessage.warning(t("novelAgentSettingsAreIncomplete"));
     return;
   }
   emit("save", parsed.data);
@@ -213,10 +301,10 @@ function saveSettings(): void {
 
 <template>
   <div v-if="loading" class="panel-state" aria-live="polite">
-    正在加载长篇智能体设置…
+    {{ t("loadingNovelAgentSettings") }}
   </div>
   <div v-else-if="loadError" class="panel-state" role="alert">
-    <strong>长篇智能体设置未加载</strong>
+    <strong>{{ t("novelAgentSettingsHaveNotLoaded") }}</strong>
     <p>{{ loadError }}</p>
     <button
       type="button"
@@ -224,72 +312,59 @@ function saveSettings(): void {
       :disabled="loading"
       @click="emit('retry')"
     >
-      重新加载
+      {{ t("reload") }}
     </button>
   </div>
   <div v-else-if="!settings || !activeAgent" class="panel-state">
-    暂无可用的长篇智能体设置。
+    {{ t("noNovelAgentSettingsAvailable") }}
   </div>
   <div v-else class="long-agent-settings-layout">
     <div class="agent-editor">
       <header class="agent-header">
-        <span>长篇</span>
-        <h3>{{ activeProfile?.label ?? "长篇智能体" }}</h3>
-        <p>{{ activeProfile?.description }}</p>
+        <span>{{ t("novel") }}</span>
+        <h3>
+          {{ builtinAgentLabel("long", activeProfile?.label) }}
+        </h3>
+        <p>{{ builtinAgentDescription("long", activeProfile?.description) }}</p>
       </header>
 
       <section class="settings-card prompt-card">
         <div class="section-heading">
           <div>
-            <h4>系统提示词</h4>
-            <p>作品、当前位置和已授权长篇工具会在运行时自动补充。</p>
+            <h4>{{ t("systemPrompt") }}</h4>
+            <p>
+              {{ t("theWorkCurrentLocationAndAuthorizedNovelToolsAre") }}
+            </p>
           </div>
-          <span>{{ activeAgent.systemPrompt.length }} 字符</span>
+          <span>{{
+            t("charactersMessage", {
+              arg0: activeAgent.systemPrompt.length ?? ""
+            })
+          }}</span>
         </div>
         <textarea
           v-model="activeAgent.systemPrompt"
           :disabled="formDisabled"
           spellcheck="false"
-          aria-label="长篇智能体系统提示词"
-          placeholder="输入当前长篇智能体的系统提示词…"
+          :aria-label="t('novelAgentSystemPrompt')"
+          :placeholder="t('enterTheNovelAgentSSystemPrompt')"
         />
       </section>
 
       <section class="settings-card">
         <div class="section-heading">
           <div>
-            <h4>欢迎快捷按钮</h4>
-            <p>空对话欢迎区显示三个快捷提问。</p>
-          </div>
-        </div>
-        <div class="welcome-shortcut-list">
-          <label
-            v-for="(_, index) in activeAgent.welcomeShortcuts"
-            :key="index"
-            class="welcome-shortcut-field"
-          >
-            <span>按钮 {{ index + 1 }}</span>
-            <input
-              v-model="activeAgent.welcomeShortcuts[index]"
-              type="text"
-              maxlength="200"
-              :disabled="formDisabled"
-              :aria-label="`长篇欢迎快捷按钮 ${index + 1}`"
-            />
-          </label>
-        </div>
-      </section>
-
-      <section class="settings-card">
-        <div class="section-heading">
-          <div>
-            <h4>读取范围</h4>
-            <p>分别配置当前智能体可以读取的素材类型和技能类型。</p>
+            <h4>{{ t("readAccess") }}</h4>
+            <p>
+              {{ t("configureWhichMaterialAndSkillCategoriesThisAgentMay") }}
+            </p>
           </div>
         </div>
 
         <fieldset>
-          <legend>素材库</legend>
+          <legend>
+            {{ t("materialLibrary") }}
+          </legend>
           <div class="option-grid">
             <label
               v-for="option in MATERIAL_OPTIONS"
@@ -313,7 +388,9 @@ function saveSettings(): void {
         </fieldset>
 
         <fieldset>
-          <legend>技能库</legend>
+          <legend>
+            {{ t("skillLibrary") }}
+          </legend>
           <div class="option-grid">
             <label
               v-for="option in SKILL_OPTIONS"
@@ -338,20 +415,30 @@ function saveSettings(): void {
       <section class="settings-card immutable-card">
         <div class="section-heading">
           <div>
-            <h4>阶段读取、写入与工具边界</h4>
-            <p>阶段范围与写入边界由应用内置并在 Main 与工具层强制校验。</p>
+            <h4>
+              {{ t("stageAccessAndToolBoundaries") }}
+            </h4>
+            <p>
+              {{ t("stageAccessAndWriteBoundariesAreBuiltIntoThe") }}
+            </p>
           </div>
-          <span>固定</span>
+          <span>{{ t("fixed") }}</span>
         </div>
         <p class="immutable-label">
-          阶段读取范围：世界观、人物、剧情、正文与连续性账本全部可读
+          {{
+            t(
+              "readableStagesAllWorldbuildingCharactersPlotManuscriptAndContinuity"
+            )
+          }}
         </p>
         <div class="immutable-list">
           <span v-for="option in WORKSPACE_OPTIONS" :key="`read:${option.id}`">
             {{ option.label }}
           </span>
         </div>
-        <p class="immutable-label">写入与可用工具</p>
+        <p class="immutable-label">
+          {{ t("writeAccessAndAvailableTools") }}
+        </p>
         <div class="immutable-list">
           <span
             v-for="root in immutableProfile.writeAccess.workspaceRoots"
@@ -378,7 +465,7 @@ function saveSettings(): void {
           :disabled="formDisabled"
           @click="resetActiveAgent"
         >
-          恢复默认
+          {{ t("restoreDefaults") }}
         </button>
         <button
           type="button"
@@ -386,7 +473,7 @@ function saveSettings(): void {
           :disabled="formDisabled || !hasCompleteDraft"
           @click="saveSettings"
         >
-          {{ saving ? "保存中…" : "保存长篇智能体设置" }}
+          {{ saving ? t("saving") : t("saveNovelAgentSettings") }}
         </button>
       </footer>
     </div>
@@ -453,8 +540,7 @@ function saveSettings(): void {
   font-size: 15px;
 }
 
-textarea,
-input[type="text"] {
+textarea {
   box-sizing: border-box;
   width: 100%;
   border: 1px solid var(--theme-line);
@@ -472,28 +558,9 @@ textarea {
   line-height: 1.55;
 }
 
-input[type="text"] {
-  min-height: 38px;
-  padding: 8px 10px;
-}
-
-textarea:focus,
-input[type="text"]:focus {
+textarea:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-soft);
-}
-
-.welcome-shortcut-list {
-  display: grid;
-  gap: 10px;
-}
-
-.welcome-shortcut-field {
-  display: grid;
-  grid-template-columns: 70px minmax(0, 1fr);
-  gap: 10px;
-  align-items: center;
-  color: var(--text-secondary);
 }
 
 fieldset {

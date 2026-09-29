@@ -1,3 +1,4 @@
+import { createScopedTranslator } from "../i18n";
 import {
   BUILT_IN_REASONING_LEVELS,
   type BuiltInReasoningLevel,
@@ -7,6 +8,8 @@ import {
   type ThinkingLevel,
   type ThinkingLevelOptions
 } from "@deepwrite/contracts";
+
+const t = createScopedTranslator("components.modelSettingsDraft");
 
 export interface DraftModel extends ModelConfig {
   apiKey?: string;
@@ -21,12 +24,24 @@ export type ModelConfigRow =
   | { key: string; type: "editor" };
 
 export const builtInThinkingLabels: Record<BuiltInReasoningLevel, string> = {
-  minimal: "最低",
-  low: "较低",
-  medium: "标准",
-  high: "深度",
-  xhigh: "极高",
-  max: "最高"
+  get minimal() {
+    return t("minimal");
+  },
+  get low() {
+    return t("low");
+  },
+  get medium() {
+    return t("medium");
+  },
+  get high() {
+    return t("high");
+  },
+  get xhigh() {
+    return t("extraHigh");
+  },
+  get max() {
+    return t("maximum");
+  }
 };
 
 export function isBuiltInThinkingLevel(
@@ -61,10 +76,10 @@ export function cloneDraftModel(model: DraftModel): DraftModel {
 }
 
 export function thinkingLabel(level: ThinkingLevel): string {
-  if (level === "off") return "关闭";
+  if (level === "off") return t("off");
   return isBuiltInThinkingLevel(level)
     ? builtInThinkingLabels[level]
-    : `自定义（${level}）`;
+    : t("customValue", { arg0: level });
 }
 
 export function toModelInput(model: DraftModel): ModelConfigInput {

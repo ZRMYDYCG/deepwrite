@@ -1,4 +1,8 @@
 import {
+  syncProgressTitle,
+  syncDisplayText
+} from "../../../localization/sync-display-text";
+import {
   applySyncInitialization,
   prepareSyncInitialization,
   type PreparedSyncInitialization
@@ -66,7 +70,7 @@ export class DeviceSyncService implements SyncApi {
       this.state.progress = {
         ...IDLE,
         phase: "checking",
-        title: "检查远端更新"
+        ...syncProgressTitle("checkingUpdates")
       };
       try {
         const remote = await connectedSyncRemote(
@@ -86,13 +90,13 @@ export class DeviceSyncService implements SyncApi {
         });
         this.state.progress = {
           ...IDLE,
-          title: "已检查远端更新，尚未上传或下载内容"
+          ...syncProgressTitle("checkedUpdates")
         };
       } catch (error) {
         this.state.progress = {
           ...IDLE,
           phase: this.controller.signal.aborted ? "cancelled" : "failed",
-          title: "未完成远端检查，当前显示上次检查记录"
+          ...syncProgressTitle("checkIncomplete")
         };
         if (!this.controller.signal.aborted) throw error;
       } finally {
@@ -182,7 +186,7 @@ export class DeviceSyncService implements SyncApi {
         this.state.progress = {
           ...IDLE,
           phase: this.controller.signal.aborted ? "cancelled" : "failed",
-          title: "初始化预览未完成，本机数据保持不变"
+          ...syncProgressTitle("previewIncomplete")
         };
         throw error;
       } finally {
@@ -205,7 +209,7 @@ export class DeviceSyncService implements SyncApi {
         this.state.progress = {
           ...IDLE,
           phase: this.controller.signal.aborted ? "cancelled" : "failed",
-          title: "初始化未完成，请检查提示后重试"
+          ...syncProgressTitle("initializationFailed")
         };
         throw error;
       } finally {
@@ -240,9 +244,9 @@ export class DeviceSyncService implements SyncApi {
         this.state.progress = {
           ...this.state.progress,
           phase: this.controller.signal.aborted ? "cancelled" : "failed",
-          title: this.controller.signal.aborted
-            ? "同步已取消，已保存内容不受影响"
-            : "同步未完成，请重试"
+          ...syncProgressTitle(
+            this.controller.signal.aborted ? "cancelled" : "syncFailed"
+          )
         };
         if (!this.controller.signal.aborted) throw error;
       } finally {
@@ -271,12 +275,12 @@ export class DeviceSyncService implements SyncApi {
         entry.key,
         current,
         entry.title,
-        "恢复历史前的版本"
+        syncDisplayText("beforeRestore").text
       );
       await this.options.workspace.apply(entry.key, current, entry.item);
       this.state.progress = {
         ...IDLE,
-        title: "已恢复到本机，下次手动同步时上传"
+        ...syncProgressTitle("restored")
       };
       return this.status();
     });

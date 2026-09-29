@@ -31,6 +31,7 @@ const props = withDefaults(
     longProposalItems?: readonly LongWorkspaceProposalItem[];
     longWorkspaceIndex?: LongWorkspaceIndexSnapshot | null;
     welcomeContent?: AgentWelcomeContent;
+    showWelcomeDetails?: boolean;
     handleConversationWheel?: (event: WheelEvent) => void;
     handleConversationScroll?: () => void;
     setScroller?: (el: unknown) => void;
@@ -42,6 +43,7 @@ const props = withDefaults(
     canRewriteHistory: false,
     longProposalItems: () => [],
     longWorkspaceIndex: null,
+    showWelcomeDetails: true,
     handleConversationWheel: () => undefined,
     handleConversationScroll: () => undefined,
     setScroller: () => undefined,
@@ -111,8 +113,8 @@ const { handleConversationContextMenu } = useConversationSelectionInsertion({
       <div v-if="welcomeContent" class="conversation-empty">
         <span class="empty-agent-mark"><AppIcon name="logo" :size="40" /></span>
         <h1>{{ welcomeContent.title }}</h1>
-        <p>{{ welcomeContent.description }}</p>
-        <div class="empty-suggestions">
+        <p v-if="showWelcomeDetails">{{ welcomeContent.description }}</p>
+        <div v-if="showWelcomeDetails" class="empty-suggestions">
           <button
             v-for="item in welcomeContent.questions"
             :key="item"

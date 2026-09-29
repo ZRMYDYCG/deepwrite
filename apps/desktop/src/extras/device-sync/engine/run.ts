@@ -1,4 +1,8 @@
 import {
+  syncProgressTitle,
+  syncIssueMessage
+} from "../../../localization/sync-display-text";
+import {
   checkedSyncItem,
   sameSyncContent,
   syncKey,
@@ -41,14 +45,14 @@ export async function runSync(
     phase: "saving",
     completed: 0,
     total: 0,
-    title: "检查本地保存状态"
+    ...syncProgressTitle("checkingLocal")
   };
   await options.workspace.recover();
   const snapshot = await options.workspace.list();
   state.progress = {
     ...state.progress,
     phase: "checking",
-    title: "检查网盘修改"
+    ...syncProgressTitle("checkingRemote")
   };
   const remote = await connectedSyncRemote(options, config, signal);
   const devices = await remote.devices(config.spaceId, metadata.devices);
@@ -103,10 +107,13 @@ export async function runSync(
   if (!metadata.firstSyncConfirmed && !confirmFirst) {
     state.issues.unshift({
       key: "__first__",
-      title: "首次同步预览",
+      ...syncProgressTitle("firstPreview"),
       token: "__first__",
       reason: "first-sync",
-      message: `本机 ${snapshot.items.length} 项，网盘 ${candidates.size} 项；按作品身份合并，同名的不同作品会分别保留。`,
+      ...syncIssueMessage("firstPreviewSummary", {
+        local: snapshot.items.length,
+        remote: candidates.size
+      }),
       paths: keys.map(
         (key) =>
           local.get(key)?.title ??
@@ -120,7 +127,7 @@ export async function runSync(
       phase: "partial",
       completed: 0,
       total: keys.length,
-      title: "确认首次同步内容"
+      ...syncProgressTitle("confirmFirst")
     };
     return;
   }
@@ -167,7 +174,9 @@ export async function runSync(
       phase: "transferring",
       completed,
       total,
-      title: `读取变化：${initial?.title ?? candidates.get(key)?.[0]?.revision.title ?? key}`
+      ...syncProgressTitle("readingChanges", {
+        title: initial?.title ?? candidates.get(key)?.[0]?.revision.title ?? key
+      })
     };
     const loaded = await readSyncCandidates(
       remote,
@@ -233,7 +242,10 @@ export async function runSync(
         phase: "transferring",
         completed,
         total,
-        title: `${sameSyncContent(initial, plan.item) ? "上传到远端" : "下载到本机"}：${identity.title}`
+        ...syncProgressTitle(
+          sameSyncContent(initial, plan.item) ? "uploading" : "downloading",
+          { title: identity.title }
+        )
       };
       const result = await transferSyncItem({
         options: options,
@@ -265,10 +277,14 @@ export async function runSync(
         title: initial?.title ?? plan.candidates[0]?.revision.title ?? key,
         token: "",
         reason: "failed",
-        message:
+        ...syncIssueMessage(
           error instanceof SyncItemValidationError
-            ? error.message
-            : "该作品正在写入、已发生新修改或结构不兼容，请保存后重试。",
+            ? "validationFailed"
+            : "transferFailed"
+        ),
+        ...(error instanceof SyncItemValidationError
+          ? { message: error.message }
+          : {}),
         paths: error instanceof SyncItemValidationError ? error.paths : [],
         local: initial,
         versions: []
@@ -286,15 +302,17 @@ export async function runSync(
     accepted,
     own?.sequence ?? 0
   );
-  const summary = `已上传 ${uploaded} 项，已下载 ${downloaded} 项`;
   state.progress = {
     phase: state.issues.length ? "partial" : "complete",
     completed,
     total,
-    title: state.issues.length
-      ? `${summary}，${state.issues.length} 项未完成`
-      : completed
-        ? summary
-        : "检查完成，没有需要传输的修改"
+    ...syncProgressTitle(
+      state.issues.length
+        ? "partialSummary"
+        : completed
+          ? "syncSummary"
+          : "noChanges",
+      { uploaded, downloaded, issues: state.issues.length }
+    )
   };
 }

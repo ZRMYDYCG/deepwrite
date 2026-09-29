@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
+
+const t = createScopedTranslator("components.approvalDiscardButton");
 withDefaults(
   defineProps<{
     discarding?: boolean;
@@ -17,11 +20,11 @@ const emit = defineEmits<{
   <button
     class="approval-target-button approval-discard-button"
     type="button"
-    title="舍弃本次修改"
-    aria-label="舍弃本次修改"
+    :title="t('discardTheseChanges')"
+    :aria-label="t('discardTheseChanges')"
     :disabled="discarding"
     @click.stop="emit('discard')"
   >
-    {{ discarding ? "舍弃中…" : "舍弃本次修改" }}
+    {{ discarding ? t("discarding") : t("discardTheseChanges") }}
   </button>
 </template>

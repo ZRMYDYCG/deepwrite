@@ -1,3 +1,13 @@
+import { presetLabel } from "../analysis-ui/preset-labels";
+import { formatError } from "../../i18n/errors";
+import {
+  localizedMessage,
+  resolveLocalizedText,
+  type LocalizedText,
+  localizedTextRef,
+  localizedNullableTextRef
+} from "../analysis-ui/localized-text";
+import { createScopedTranslator, locale } from "../../i18n";
 import { computed, ref, shallowRef } from "vue";
 import { createId } from "@deepwrite/shared";
 import {
@@ -11,17 +21,18 @@ import {
   type SystemEventEnvelope,
   type ThinkingLevel
 } from "@deepwrite/contracts/renderer";
-import type { LongBookAnalysisProcessEntry } from "../long-book-analysis/analysis-process";
+import type { AnalysisProcessEntry } from "../analysis-ui/analysis-process";
 import {
   startExtrasAgentTask,
   type ExtrasAgentTaskHandle
 } from "../agent-runtime/extrasAgentTask";
+
+const t = createScopedTranslator("extras");
 interface Job {
   context: ReturnType<typeof ShortBookAnalysisRuntimeContextSchema.parse>;
   preset: ShortBookAnalysisPreset;
   model: ModelConfig;
   thinkingLevel: ThinkingLevel;
-  libraryId: string;
 }
 export function createShortAnalysisRun(api: () => DeepWriteApi) {
   const status = ref<
@@ -29,11 +40,17 @@ export function createShortAnalysisRun(api: () => DeepWriteApi) {
   >("idle");
   const result = ref<ShortBookAnalysisResult | null>(null);
   const preset = shallowRef<ShortBookAnalysisPreset | null>(null);
-  const targetLibraryId = ref("");
-  const error = ref<string | null>(null);
+  const resultPreset = shallowRef<ShortBookAnalysisPreset | null>(null);
+  const resultContext = ref("");
+  const resultIsPrevious = computed(
+    () => Boolean(result.value) && status.value !== "completed"
+  );
+  const error = localizedNullableTextRef();
   const liveOutput = ref("");
-  const activity = ref("等待开始");
-  const entries = ref<LongBookAnalysisProcessEntry[]>([]);
+  const activity = localizedTextRef(
+    localizedMessage("extras.analysisUi.waitingToStart")
+  );
+  const entries = ref<(AnalysisProcessEntry & { createdAt: string })[]>([]);
   const isBusy = computed(
     () => status.value === "running" || status.value === "stopping"
   );
@@ -44,9 +61,9 @@ export function createShortAnalysisRun(api: () => DeepWriteApi) {
     () => status.value === "stopped" || status.value === "error"
   );
   function log(
-    message: string,
-    detail?: string,
-    tone: LongBookAnalysisProcessEntry["tone"] = "info"
+    message: LocalizedText,
+    detail?: LocalizedText,
+    tone: AnalysisProcessEntry["tone"] = "info"
   ) {
     activity.value = message;
     entries.value = [
@@ -54,8 +71,12 @@ export function createShortAnalysisRun(api: () => DeepWriteApi) {
       {
         id: createId("short_analysis_process"),
         createdAt: new Date().toISOString(),
-        title: message,
-        ...(detail ? { detail } : {}),
+        get title() {
+          return resolveLocalizedText(message);
+        },
+        get detail() {
+          return detail ? resolveLocalizedText(detail) : "";
+        },
         tone,
         phase: null
       }
@@ -63,24 +84,26 @@ export function createShortAnalysisRun(api: () => DeepWriteApi) {
     if (entries.value.length > 120)
       entries.value.splice(1, entries.value.length - 120);
   }
-  function setActivity(message: string) {
-    if (activity.value !== message) log(message);
+  function setActivity(message: LocalizedText) {
+    if (activity.value !== resolveLocalizedText(message)) log(message);
   }
   function clear() {
-    if (isBusy.value) throw new Error("分析运行中，不能修改输入。");
+    if (isBusy.value)
+      throw new Error(t("revisionAnalysis.inputsLockedWhileRunning"));
     job = null;
-    result.value = null;
     preset.value = null;
     status.value = "idle";
     error.value = null;
     entries.value = [];
     liveOutput.value = "";
-    activity.value = "等待开始";
+    activity.value = localizedMessage("extras.analysisUi.waitingToStart");
   }
   function fail(cause: unknown) {
     status.value = "error";
-    error.value = cause instanceof Error ? cause.message : "短篇拆书失败。";
-    log(error.value, undefined, "error");
+    const message = () =>
+      formatError(cause, t("shortBookAnalysis.shortAnalysisFailed"));
+    error.value = message;
+    log(message, undefined, "error");
   }
   function execute() {
     if (!job || disposed) return;
@@ -95,14 +118,22 @@ export function createShortAnalysisRun(api: () => DeepWriteApi) {
     );
     status.value = "running";
     error.value = null;
-    result.value = null;
     liveOutput.value = "";
     entries.value = [];
     log(
-      `正在联合分析 ${current.context.books.length} 本短篇`,
-      `预设：${current.preset.name} · ${current.context.books.map((book) => book.title).join("、")} · 共 ${current.context.books.reduce((total, book) => total + book.text.length, 0).toLocaleString()} 字符`
+      localizedMessage("extras.shortBookAnalysis.analyzingStoriesTogether", {
+        count: current.context.books.length
+      }),
+      () =>
+        t("shortBookAnalysis.shortRunSummary", {
+          preset: presetLabel(current.preset),
+          books: current.context.books.map((book) => book.title).join("、"),
+          characters: current.context.books
+            .reduce((total, book) => total + book.text.length, 0)
+            .toLocaleString(locale.value)
+        })
     );
-    log("正在提交分析请求");
+    log(localizedMessage("extras.shortBookAnalysis.submittingAnalysis"));
     let submitted: ShortBookAnalysisResult | undefined;
     const running = startExtrasAgentTask(
       api(),
@@ -117,27 +148,49 @@ export function createShortAnalysisRun(api: () => DeepWriteApi) {
       },
       {
         onAccepted() {
-          if (activity.value === "正在提交分析请求")
-            log("请求已接收，等待模型响应");
+          if (activity.value === t("shortBookAnalysis.submittingAnalysis"))
+            log(
+              localizedMessage("extras.shortBookAnalysis.awaitingModelResponse")
+            );
         },
         onDelta(delta) {
-          setActivity("模型正在输出分析说明");
+          setActivity(
+            localizedMessage("extras.shortBookAnalysis.modelDescribingAnalysis")
+          );
           liveOutput.value = (liveOutput.value + delta).slice(-200000);
         },
         onThinking() {
-          setActivity("模型正在分析全文");
+          setActivity(
+            localizedMessage("extras.shortBookAnalysis.modelAnalyzingText")
+          );
         },
         onToolRequested() {
-          log("正在生成结构化结果");
+          log(
+            localizedMessage(
+              "extras.shortBookAnalysis.generatingStructuredResult"
+            )
+          );
         },
         onToolCompleted(_toolName, isError) {
           if (isError)
-            log("生成结果时遇到错误", "等待模型修正或重试当前动作", "error");
+            log(
+              localizedMessage(
+                "extras.shortBookAnalysis.resultGenerationError"
+              ),
+              localizedMessage(
+                "extras.shortBookAnalysis.waitingModelCorrection"
+              ),
+              "error"
+            );
         },
         onOutput(output) {
           if (output.kind !== "book-analysis-result") return;
           submitted = output.result;
-          log("结构化结果已生成", output.result.name, "success");
+          log(
+            localizedMessage("extras.shortBookAnalysis.structuredResultReady"),
+            output.result.name,
+            "success"
+          );
         }
       }
     );
@@ -148,18 +201,26 @@ export function createShortAnalysisRun(api: () => DeepWriteApi) {
         task = null;
         if (outcome.status === "stopped") {
           status.value = "stopped";
-          log("已停止，可重新分析");
+          log(localizedMessage("extras.revisionAnalysis.stoppedCanAnalyze"));
           return;
         }
         if (!liveOutput.value.trim() && outcome.content.trim())
           liveOutput.value = outcome.content.slice(-200000);
         if (!submitted) {
-          fail(new Error("模型未提交结构化结果，请重新分析。"));
+          fail(new Error(t("shortBookAnalysis.structuredResultMissing")));
           return;
         }
         result.value = submitted;
+        resultPreset.value = current.preset;
+        resultContext.value = current.context.books
+          .map((book) => book.title)
+          .join("、");
         status.value = "completed";
-        log("分析完成，结果可编辑并保存", undefined, "success");
+        log(
+          localizedMessage("extras.revisionAnalysis.resultReadyToEdit"),
+          undefined,
+          "success"
+        );
       },
       (cause: unknown) => {
         if (task !== running) return;
@@ -172,15 +233,14 @@ export function createShortAnalysisRun(api: () => DeepWriteApi) {
     books: ShortBookAnalysisSource[],
     selectedPreset: ShortBookAnalysisPreset,
     model: ModelConfig,
-    thinkingLevel: ThinkingLevel,
-    libraryId: string
+    thinkingLevel: ThinkingLevel
   ) {
-    if (isBusy.value) throw new Error("分析正在运行。");
+    if (isBusy.value) throw new Error(t("shortBookAnalysis.analysisRunning"));
     if (
       thinkingLevel !== "off" &&
       !model.thinkingLevelOptions.includes(thinkingLevel)
     )
-      throw new Error("请选择当前模型支持的思考等级。");
+      throw new Error(t("revisionAnalysis.supportedThinkingRequired"));
     const context = ShortBookAnalysisRuntimeContextSchema.parse({
       jobId: createId("short_analysis_job"),
       books
@@ -198,20 +258,20 @@ export function createShortAnalysisRun(api: () => DeepWriteApi) {
         context,
         preset: selectedPreset,
         model,
-        thinkingLevel,
-        libraryId
+        thinkingLevel
       })
     ) as Job;
     job = snapshot;
     preset.value = snapshot.preset;
-    targetLibraryId.value = libraryId;
     execute();
   }
   return {
     status,
     result,
     preset,
-    targetLibraryId,
+    resultPreset,
+    resultContext,
+    resultIsPrevious,
     error,
     liveOutput,
     activity,
@@ -229,14 +289,14 @@ export function createShortAnalysisRun(api: () => DeepWriteApi) {
     async stop() {
       if (!isBusy.value || !task) return;
       status.value = "stopping";
-      log("正在停止");
+      log(localizedMessage("extras.analysisUi.stopping"));
       try {
         await task.stop();
       } catch (cause: unknown) {
         status.value = "running";
-        error.value =
-          cause instanceof Error ? cause.message : "停止失败，请重试。";
-        log(error.value, undefined, "error");
+        const message = () => formatError(cause, t("agentRuntime.stopFailed"));
+        error.value = message;
+        log(message, undefined, "error");
       }
     },
     dispose() {

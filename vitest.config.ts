@@ -20,6 +20,8 @@ export default defineConfig({
     }
   ],
   test: {
+    globalSetup: ["./tools/setup-i18n-fixtures.ts"],
+    setupFiles: ["./tools/setup-renderer-i18n.ts"],
     include: [
       "packages/**/*.test.ts",
       "tools/**/*.test.mjs",

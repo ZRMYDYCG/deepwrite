@@ -1,3 +1,4 @@
+import { createScopedTranslator } from "../i18n";
 import {
   buildLongLibraryAttachmentsForProfile,
   filterLongReadableAttachmentsForProfile,
@@ -25,6 +26,10 @@ import type { WorkspaceDocument } from "../types/workspace";
 import { agentRunScopeForDocument } from "../utils/agentRunPreferences";
 import { type LibraryAttachmentBuildResult } from "../utils/libraryAttachments";
 import { buildLongWorldbuildingDirectorySnapshot } from "../utils/longWorldbuildingAgentContext";
+
+const t = createScopedTranslator(
+  "workspace.longWorkspacePresentationCoordinator"
+);
 
 type LongReadableAttachments = Pick<
   LibraryAttachmentBuildResult,
@@ -292,10 +297,10 @@ export function useLongWorkspacePresentationCoordinator(
 
   const longEditorLockedReason = computed(() => {
     if (options.long.refreshStatus.value?.pending) {
-      return "正在同步长篇工作区，编辑暂时锁定";
+      return t("syncingTheNovelWorkspaceEditingIsTemporarilyLocked");
     }
     if (options.long.sendPreflightPending.value) {
-      return "正在保存并准备发送，编辑暂时锁定";
+      return t("savingAndPreparingToSendEditingIsTemporarilyLocked");
     }
     const workspaceId = activeLongAgentRunScope.value;
     if (
@@ -305,9 +310,9 @@ export function useLongWorkspacePresentationCoordinator(
         options.edits.acceptingWorkspaceIds.value.has(workspaceId)
       )
     ) {
-      return "正在应用长篇提案，编辑暂时锁定";
+      return t("applyingANovelProposalEditingIsTemporarilyLocked");
     }
-    return "正在应用长篇修改，编辑暂时锁定";
+    return t("applyingNovelEditsEditingIsTemporarilyLocked");
   });
 
   const editorLocked = computed(() => {
@@ -346,12 +351,12 @@ export function useLongWorkspacePresentationCoordinator(
           activeDocument.workspaceId
         ))
     ) {
-      return "正在接受并保存智能体修改";
+      return t("acceptingAndSavingAgentEdits");
     }
     return agentRunScopeHasPendingEditReview(
       agentRunScopeForDocument(activeAgentDocument)
     )
-      ? "请先接受或拒绝待审阅变更"
+      ? t("acceptOrRejectThePendingChangesFirst")
       : undefined;
   });
 

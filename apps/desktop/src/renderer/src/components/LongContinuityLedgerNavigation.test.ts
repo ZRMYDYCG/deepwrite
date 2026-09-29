@@ -10,7 +10,7 @@ describe("LongContinuityLedgerNavigation", () => {
     expect(source).toContain(
       'class="long-editor-file-tabs long-continuity-ledger-tabs"'
     );
-    expect(source).toContain('aria-label="连续性账本文件列表"');
+    expect(source).toContain("continuityLedgerFiles");
     expect(source).toContain(
       'class="long-story-plot-pane long-entry-list-pane long-continuity-ledger-list"'
     );

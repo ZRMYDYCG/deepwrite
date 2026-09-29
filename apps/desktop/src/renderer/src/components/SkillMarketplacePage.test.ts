@@ -20,13 +20,15 @@ describe("SkillMarketplacePage", () => {
     expect(source).toContain("initialSession?: MarketplaceSession | null");
     expect(source).toContain("props.initialSession ?? null");
     expect(source).toContain('v-else-if="session === null"');
-    expect(source).toContain("正在恢复登录状态…");
+    expect(source).toContain("restoringSignIn");
     expect(source).toContain('v-else-if="!authenticated"');
     expect(authSource).toContain('authMode === "login"');
     expect(authSource).toContain("marketplace.register");
     expect(authSource).toContain("marketplace.login");
-    expect(source).toContain("连接未加密");
-    expect(source).toContain("用户名、密码和会话令牌在传输中可能被窃听");
+    expect(source).toContain("unencryptedConnection");
+    expect(source).toContain(
+      "theMarketplaceCurrentlyUsesHTTPUsernamesPasswordsAndSession"
+    );
   });
 
   it("removes Electron and marketplace error wrappers from visible feedback", () => {
@@ -40,7 +42,7 @@ describe("SkillMarketplacePage", () => {
     expect(source).toContain("libraryTypeOptions");
     expect(source).toContain("sortOptions");
     expect(source).toContain("applyLikeLocally");
-    expect(source).toContain("已恢复原状态");
+    expect(source).toContain("likeFailedThePreviousStateWasRestored");
     expect(source).toContain("<MarkdownContent");
     expect(source).not.toContain("v-html");
     expect(source).not.toContain("<select");
@@ -48,37 +50,32 @@ describe("SkillMarketplacePage", () => {
 
   it("refreshes the browse results from the action immediately before search", () => {
     const refreshButton = sourceTextIndexOf(source, '@click="loadBrowse()"');
-    const searchButton = sourceTextIndexOf(
-      source,
-      'type="submit" :disabled="loading">搜索</button>'
-    );
+    const searchButton = sourceTextIndexOf(source, 't("search")');
 
     expect(refreshButton).toBeGreaterThan(-1);
     expect(searchButton).toBeGreaterThan(refreshButton);
-    expect(source).toContain('{{ loading ? "刷新中…" : "刷新" }}');
+    expect(source).toContain("refreshing");
   });
 
   it("loads the marketplace in server-backed pages of 20 items", () => {
     expect(source).toContain("const PAGE_SIZE = 20");
     expect(source).toContain("pageSize: PAGE_SIZE");
     expect(source).toContain('@submit.prevent="loadBrowse(1)"');
-    expect(source).toContain('aria-label="技能广场分页"');
+    expect(source).toContain("marketplacePagination");
     expect(source).toContain("changeBrowsePage(browsePage + 1)");
-    expect(source).toContain(
-      "共 {{ browseTotal }} 条 · 每页 {{ PAGE_SIZE }} 条"
-    );
+    expect(source).toContain("totalPerPageMessage");
   });
 
   it("shows only the skill-library category beside each browse card content type", () => {
-    expect(source).toContain('style: "文风"');
+    expect(source).toContain("writingStyle");
     expectSourceToContain(source, "{{ KIND_LABELS[item.kind] }}");
     expect(source).not.toContain("{{ LIBRARY_TYPE_LABELS[item.libraryType] }}");
   });
 
   it("publishes, edits and deletes all three content types", () => {
-    expect(source).toContain("发布单技能");
-    expect(source).toContain("发布技能库");
-    expect(source).toContain("发布技能组");
+    expect(source).toContain("publishSkill");
+    expect(source).toContain("publishSkillLibrary");
+    expect(source).toContain("publishSkillGroup");
     expect(source).toContain("marketplace.publish");
     expect(source).toContain("marketplace.update");
     expect(source).toContain("marketplace.delete");
@@ -86,22 +83,27 @@ describe("SkillMarketplacePage", () => {
     expect(source).toContain(':maxlength="MARKETPLACE_CONTENT_MAX_CHARACTERS"');
     expect(source).not.toContain('maxlength="40000"');
     expect(source).toContain("danger-button");
-    expect(source).toContain("重新进入待审核状态");
+    expect(source).toContain("changesSubmittedTheContentIsPendingReviewAgain");
   });
 
   it("lets authors control plaza visibility and explains delayed deletion", () => {
     expect(source).toContain("marketplace.setEnabled");
     expect(source).toContain('role="switch"');
-    expect(source).toContain("只有启用且审核通过的内容才会显示在广场");
-    expectSourceToContain(source, "服务端保留 10 天后再永久清理");
-    expect(source).toContain('deleted: "已删除"');
+    expect(source).toContain(
+      "onlyEnabledApprovedContentAppearsInTheMarketplaceDeleted"
+    );
+    expectSourceToContain(
+      source,
+      "thisImmediatelyHidesTheContentFromTheMarketplaceAnd"
+    );
+    expect(source).toContain("deleted");
   });
 
   it("publishes skill groups directly from local catalog groups", () => {
     expect(source).toContain("catalogSnapshot?.skillGroups");
     expect(source).toContain("localSkillGroupOptions");
     expect(source).toContain("localLibrariesForGroup");
-    expect(source).toContain("本地技能分组");
+    expect(source).toContain("localSkillGroup");
     expect(source).toContain("libraries: publishGroupLibraries.value.map");
     expect(source).toContain("loadMarketplacePublishLibraryContent");
     expect(source).toContain("hydrateLocalPublishContents");
@@ -130,7 +132,7 @@ describe("SkillMarketplacePage", () => {
     expect(source).toContain("<PopupSelect");
     expect(source).toContain("{{ installPreview.orderNotice }}");
     expect(source).toContain("installTargetLibraryOptions");
-    expect(source).toContain("安装到技能库");
+    expect(source).toContain("installIntoSkillLibrary");
     expect(source).toContain("targetLibraryId: installTargetLibraryId.value");
   });
 
@@ -144,8 +146,8 @@ describe("SkillMarketplacePage", () => {
 
   it("shows library skill tabs and two-level category/skill tabs for group details", () => {
     expect(source).toContain('role="tablist"');
-    expect(source).toContain('aria-label="选择技能组分类"');
-    expect(source).toContain('aria-label="选择要查看的技能"');
+    expect(source).toContain("selectSkillGroupCategory");
+    expect(source).toContain("selectASkillToView");
     expect(source).toContain("detailSkillSections");
     expect(source).toContain("selectedDetailSectionId");
     expect(source).toContain("KIND_LABELS[section.kind]");

@@ -1,3 +1,4 @@
+import { createScopedTranslator } from "../../i18n";
 import { analysisResultEntry } from "../long-book-analysis/analysis-result-content";
 import { computed, ref, shallowRef, watch } from "vue";
 import {
@@ -11,6 +12,8 @@ import {
   type ThinkingLevel
 } from "@deepwrite/contracts/renderer";
 import { createShortAnalysisRun } from "./analysis-run";
+
+const t = createScopedTranslator("extras");
 export type ShortBookAnalysisController = ReturnType<
   typeof useShortBookAnalysis
 >;
@@ -19,7 +22,8 @@ export function useShortBookAnalysis(options: {
 }) {
   const api = () => {
     const current = options.api();
-    if (!current) throw new Error("当前环境不支持短篇拆书分析。");
+    if (!current)
+      throw new Error(t("shortBookAnalysis.shortAnalysisUnavailable"));
     return current;
   };
   const run = createShortAnalysisRun(api);
@@ -32,7 +36,6 @@ export function useShortBookAnalysis(options: {
   const selectedPresetId = ref("");
   const selectedModelId = ref("");
   const selectedThinkingLevel = ref<ThinkingLevel>("off");
-  const selectedLibraryId = ref("");
   const models = shallowRef<readonly ModelConfig[]>([]);
   let disposed = false;
   const selectedPreset = computed(
@@ -56,6 +59,25 @@ export function useShortBookAnalysis(options: {
       (selectedPreset.value?.selectionMode !== "single" ||
         selectedBooks.value.length === 1)
   );
+  const stopPresetWatch = watch(
+    selectedPreset,
+    (preset) => {
+      if (
+        preset?.selectionMode !== "single" ||
+        selectedIds.value.length === 1 ||
+        run.isBusy.value
+      )
+        return;
+      const id =
+        drafts.value.find((book) => book.id === activeId.value)?.id ??
+        selectedIds.value[0] ??
+        drafts.value[0]?.id;
+      if (!id) return;
+      run.clear();
+      selectedIds.value = [id];
+    },
+    { flush: "sync" }
+  );
   const stopModelWatch = watch(selectedModelId, () => {
     selectedThinkingLevel.value =
       models.value.find((m) => m.id === selectedModelId.value)
@@ -63,7 +85,7 @@ export function useShortBookAnalysis(options: {
   });
   function editable() {
     if (run.isBusy.value || loading.value)
-      throw new Error("正在处理，请稍后再修改。");
+      throw new Error(t("revisionAnalysis.busyEditLater"));
   }
   async function loadSources() {
     const catalog = await api().shortBookAnalysis.sources.list();
@@ -86,6 +108,8 @@ export function useShortBookAnalysis(options: {
         drafts.value.push(source);
     }
     activeId.value = sources[0]?.id ?? activeId.value;
+    if (selectedPreset.value?.selectionMode === "single" && sources[0])
+      selectedIds.value = [sources[0].id];
     await loadSources();
   }
   function removeDraft(id: string) {
@@ -109,7 +133,6 @@ export function useShortBookAnalysis(options: {
     selectedPresetId,
     selectedModelId,
     selectedThinkingLevel,
-    selectedLibraryId,
     selectedPreset,
     selectedBooks,
     selectionLimit,
@@ -141,8 +164,10 @@ export function useShortBookAnalysis(options: {
     },
     async addText(input: ShortBookAnalysisTextInput) {
       editable();
-      if (!input.title.trim()) throw new Error("请填写短篇书名。");
-      if (!input.text.trim()) throw new Error("请粘贴完整正文。");
+      if (!input.title.trim())
+        throw new Error(t("shortBookAnalysis.storyTitleRequired"));
+      if (!input.text.trim())
+        throw new Error(t("shortBookAnalysis.completeTextRequired"));
       loading.value = true;
       try {
         await addDrafts([await api().shortBookAnalysis.addText(input)]);
@@ -164,12 +189,14 @@ export function useShortBookAnalysis(options: {
       editable();
       if (!drafts.value.some((b) => b.id === id)) return;
       const selected = selectedIds.value.includes(id);
+      if (selectionLimit.value === 1) {
+        if (!selected || selectedIds.value.length !== 1) run.clear();
+        selectedIds.value = [id];
+        activeId.value = id;
+        return;
+      }
       if (!selected && selectedIds.value.length >= selectionLimit.value)
-        throw new Error(
-          selectionLimit.value === 1
-            ? "当前预设仅支持一本，请先取消原选择。"
-            : "每次最多选择 10 本短篇。"
-        );
+        throw new Error(t("shortBookAnalysis.maxTenStories"));
       run.clear();
       selectedIds.value = selected
         ? selectedIds.value.filter((value) => value !== id)
@@ -226,23 +253,23 @@ export function useShortBookAnalysis(options: {
       editable();
       const preset = selectedPreset.value;
       const model = models.value.find((m) => m.id === selectedModelId.value);
-      if (!preset || !model) throw new Error("请选择预设和模型。");
+      if (!preset || !model)
+        throw new Error(t("shortBookAnalysis.presetAndModelRequired"));
       run.start(
         selectedBooks.value,
         preset,
         model,
-        selectedThinkingLevel.value,
-        selectedLibraryId.value
+        selectedThinkingLevel.value
       );
     },
     async persistResult(input: {
       libraryId: string;
       baseProjectRevision?: number;
     }) {
-      const output = run.preset.value?.output;
+      const output = run.resultPreset.value?.output;
       const result = run.result.value;
-      if (!output || !result || run.status.value !== "completed")
-        throw new Error("没有已完成的分析结果。");
+      if (!output || !result)
+        throw new Error(t("shortBookAnalysis.noCompletedResult"));
       const base = {
         libraryId: input.libraryId,
         ...analysisResultEntry(result, output.domain),
@@ -266,6 +293,7 @@ export function useShortBookAnalysis(options: {
     dispose() {
       disposed = true;
       stopModelWatch();
+      stopPresetWatch();
       run.dispose();
     }
   };

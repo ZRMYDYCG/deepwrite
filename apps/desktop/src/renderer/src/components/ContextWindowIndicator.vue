@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import {
   computed,
   nextTick,
@@ -15,6 +16,8 @@ import {
   formatContextPercentage,
   formatContextTokens
 } from "../utils/contextWindowUsage";
+
+const t = createScopedTranslator("components.contextWindowIndicator");
 
 const props = defineProps<{
   messages: ChatMessage[];
@@ -60,22 +63,30 @@ const tokenRatioLabel = computed(() =>
 );
 const unavailableDetail = computed(() => {
   if (usedTokens.value !== undefined) {
-    return `已记录 ${formatContextTokens(usedTokens.value)} tokens`;
+    return t("valueTokensRecorded", {
+      arg0: formatContextTokens(usedTokens.value)
+    });
   }
   if (contextWindow.value !== undefined) {
-    return `最大上下文：${formatContextTokens(contextWindow.value)} tokens`;
+    return t("maximumContextValueTokens", {
+      arg0: formatContextTokens(contextWindow.value)
+    });
   }
   return undefined;
 });
 const statusLabel = computed(() => {
-  if (!props.model) return "尚未选择模型";
-  if (capacityStatus.value === "resolving") return "正在读取上下文上限…";
-  if (capacityStatus.value === "unavailable") return "上下文上限不可用";
-  if (!measurement.value) return "等待实际用量";
-  return `已使用 ${usedPercentageLabel.value}（剩余 ${remainingPercentageLabel.value}）`;
+  if (!props.model) return t("noModelSelected");
+  if (capacityStatus.value === "resolving") return t("readingContextLimit");
+  if (capacityStatus.value === "unavailable")
+    return t("contextLimitUnavailable");
+  if (!measurement.value) return t("awaitingActualUsage");
+  return t("usedValueValueRemaining", {
+    arg0: usedPercentageLabel.value ?? "—",
+    arg1: remainingPercentageLabel.value ?? "—"
+  });
 });
 const accessibleLabel = computed(() => {
-  const modelLabel = props.model?.label ?? "当前模型";
+  const modelLabel = props.model?.label ?? t("currentModel");
   const detail = tokenRatioLabel.value ?? unavailableDetail.value;
   return [modelLabel, statusLabel.value, detail].filter(Boolean).join("，");
 });
@@ -190,7 +201,7 @@ onBeforeUnmount(() => {
         role="tooltip"
         :style="tooltipPosition"
       >
-        <strong>{{ model?.label ?? "上下文窗口" }}</strong>
+        <strong>{{ model?.label ?? t("contextWindow") }}</strong>
         <span>{{ statusLabel }}</span>
         <small v-if="tokenRatioLabel">{{ tokenRatioLabel }}</small>
         <small v-else-if="unavailableDetail">{{ unavailableDetail }}</small>

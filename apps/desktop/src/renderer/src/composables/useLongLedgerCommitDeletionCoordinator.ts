@@ -1,3 +1,5 @@
+import { formatError } from "../i18n/errors";
+import { createScopedTranslator } from "../i18n";
 import {
   longLedgerCommitChapterIds,
   type LongWorkspaceIndexSnapshot
@@ -6,6 +8,10 @@ import type { Ref } from "vue";
 import type { LongLedgerCommitDeleteTarget } from "../stores/longWorkspaceStore";
 import type { LongWorkspaceRendererApi } from "../types/longWorkspace";
 import type { ResourceTreeNode } from "../types/workspace";
+
+const t = createScopedTranslator(
+  "workspace.longLedgerCommitDeletionCoordinator"
+);
 
 interface Notifications {
   error(message: string): void;
@@ -35,12 +41,14 @@ export function useLongLedgerCommitDeletionCoordinator(options: {
       options.activeBookId.value !== bookId ||
       !index
     ) {
-      options.notifications.warning("当前提交记录已不可用，请刷新后重试。");
+      options.notifications.warning(
+        t("thisCommitRecordIsUnavailableRefreshAndTryAgain")
+      );
       return;
     }
     const latest = index.ledger.commits.at(-1);
     if (!metadata.deletable || latest?.id !== metadata.id) {
-      options.notifications.warning("请先删除最后一条提交记录。");
+      options.notifications.warning(t("deleteTheLatestCommitRecordFirst"));
       return;
     }
     options.target.value = {
@@ -72,14 +80,16 @@ export function useLongLedgerCommitDeletionCoordinator(options: {
         return;
       }
       if (!(await options.refreshActiveWorkspace(target.bookId))) {
-        options.notifications.error("无法读取最新连续性账本，本次删除未执行。");
+        options.notifications.error(
+          t("theLatestContinuityLedgerCouldNotBeReadNothing")
+        );
         return;
       }
       const latest = options.workspaceIndex.value?.ledger.commits.at(-1);
       if (latest?.id !== target.commitId) {
         options.target.value = null;
         options.notifications.warning(
-          "提交记录顺序已经变化，请重新选择最后一条记录。"
+          t("theCommitRecordOrderChangedSelectTheLatestRecord")
         );
         return;
       }
@@ -92,26 +102,28 @@ export function useLongLedgerCommitDeletionCoordinator(options: {
         result.bookId !== target.bookId ||
         result.deletedCommitId !== target.commitId
       ) {
-        throw new Error("删除提交记录返回了不一致的结果。");
+        throw new Error(
+          t("deletingTheCommitRecordReturnedAnInconsistentResult")
+        );
       }
       options.target.value = null;
       const refreshed = await options.refreshActiveWorkspace(target.bookId);
       if (!refreshed) {
         options.notifications.warning(
-          "提交记录已删除，但界面未能同步最新状态；请重新打开长篇。"
+          t("commitRecordDeletedButTheLatestStateCouldNot")
         );
         return;
       }
       options.notifications.success(
         result.chapterCardIds.length === 1
-          ? "提交记录已删除，章节已回到待提交状态。"
-          : "提交记录已删除，" +
+          ? t("commitRecordDeletedTheChapterIsPendingCommitAgain")
+          : t("commitRecordDeleted") +
               result.chapterCardIds.length +
-              " 个章节已回到待提交状态。"
+              t("chaptersArePendingCommitAgain")
       );
     } catch (error: unknown) {
       options.notifications.error(
-        error instanceof Error ? error.message : "删除提交记录失败。"
+        formatError(error, t("failedToDeleteCommitRecord"))
       );
     } finally {
       if (currentOperationId === operationId) options.pending.value = false;

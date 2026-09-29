@@ -1,9 +1,18 @@
+import { createScopedTranslator } from "../../i18n";
 import type { PopupSelectOption } from "../../components/PopupSelect.vue";
 import type { ChatAssistantProjectOption } from "./useChatAssistantMode";
+
+const t = createScopedTranslator("extras.chatAssistant");
 export const projectTypeLabels = {
-  short: "短篇",
-  script: "剧本",
-  long: "长篇"
+  get short() {
+    return t("shortStory");
+  },
+  get script() {
+    return t("script");
+  },
+  get long() {
+    return t("novel");
+  }
 } as const;
 export function groupedProjectOptions(
   candidates: readonly ChatAssistantProjectOption[]

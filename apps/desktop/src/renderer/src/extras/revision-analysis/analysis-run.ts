@@ -1,3 +1,12 @@
+import { formatError } from "../../i18n/errors";
+import {
+  localizedMessage,
+  resolveLocalizedText,
+  type LocalizedText,
+  localizedTextRef,
+  localizedNullableTextRef
+} from "../analysis-ui/localized-text";
+import { createScopedTranslator } from "../../i18n";
 import { computed, ref } from "vue";
 import { createId } from "@deepwrite/shared";
 import {
@@ -15,6 +24,9 @@ import {
   startExtrasAgentTask,
   type ExtrasAgentTaskHandle
 } from "../agent-runtime/extrasAgentTask";
+import type { AnalysisProcessEntry } from "../analysis-ui/analysis-process";
+
+const t = createScopedTranslator("extras");
 
 interface Job {
   input: ReturnType<typeof RevisionAnalysisRuntimeContextSchema.parse>;
@@ -37,10 +49,13 @@ export function createRevisionAnalysisRun(api: () => DeepWriteApi) {
   >("idle");
   const completedInput = ref("");
   const result = ref<RevisionAnalysisResult | null>(null);
-  const error = ref<string | null>(null);
+  const resultIsPrevious = ref(false);
+  const error = localizedNullableTextRef();
   const liveOutput = ref("");
-  const activity = ref("等待开始");
-  const entries = ref<string[]>([]);
+  const activity = localizedTextRef(
+    localizedMessage("extras.analysisUi.waitingToStart")
+  );
+  const entries = ref<AnalysisProcessEntry[]>([]);
   const isBusy = computed(
     () => status.value === "running" || status.value === "stopping"
   );
@@ -50,24 +65,38 @@ export function createRevisionAnalysisRun(api: () => DeepWriteApi) {
   let job: Job | null = null;
   let task: ExtrasAgentTaskHandle | null = null;
   let disposed = false;
-  function log(message: string) {
+  function log(
+    message: LocalizedText,
+    tone: AnalysisProcessEntry["tone"] = "info"
+  ) {
     activity.value = message;
-    entries.value.push(message);
+    entries.value.push({
+      id: createId("revision_process"),
+      get title() {
+        return resolveLocalizedText(message);
+      },
+      createdAt: new Date().toISOString(),
+      tone
+    });
   }
   function clear() {
-    if (isBusy.value) throw new Error("分析运行中，不能修改输入。");
+    if (isBusy.value)
+      throw new Error(t("revisionAnalysis.inputsLockedWhileRunning"));
     job = null;
     result.value = null;
+    resultIsPrevious.value = false;
     status.value = "idle";
     error.value = null;
     entries.value = [];
     liveOutput.value = "";
-    activity.value = "等待开始";
+    activity.value = localizedMessage("extras.analysisUi.waitingToStart");
   }
   function fail(cause: unknown) {
     status.value = "error";
-    error.value = cause instanceof Error ? cause.message : "修改分析失败。";
-    log(error.value);
+    const message = () =>
+      formatError(cause, t("revisionAnalysis.revisionFailed"));
+    error.value = message;
+    log(message, "error");
   }
   function execute() {
     if (!job || disposed) return;
@@ -81,10 +110,15 @@ export function createRevisionAnalysisRun(api: () => DeepWriteApi) {
       current.model
     );
     status.value = "running";
+    resultIsPrevious.value = Boolean(result.value);
     error.value = null;
     liveOutput.value = "";
     entries.value = [];
-    log(`正在学习 ${current.input.changes.length} 组修改`);
+    log(
+      localizedMessage("extras.revisionAnalysis.learningChanges", {
+        count: current.input.changes.length
+      })
+    );
     let draft: RevisionAnalysisResult | undefined;
     const running = startExtrasAgentTask(
       api(),
@@ -98,14 +132,25 @@ export function createRevisionAnalysisRun(api: () => DeepWriteApi) {
         }
       },
       {
+        onRetryScheduled(delayMs) {
+          log(
+            localizedMessage("extras.revisionAnalysis.requestRetryDelay", {
+              seconds: Math.ceil(delayMs / 1000)
+            })
+          );
+        },
         onDelta(delta) {
           liveOutput.value = (liveOutput.value + delta).slice(-200000);
+          activity.value = localizedMessage(
+            "extras.revisionAnalysis.generatingRevisionAnalysis"
+          );
         },
         onThinking() {
-          activity.value = "模型正在思考";
+          if (activity.value !== t("revisionAnalysis.modelThinking"))
+            log(localizedMessage("extras.revisionAnalysis.modelThinking"));
         },
         onToolRequested() {
-          log("正在新建技能草稿");
+          log(localizedMessage("extras.revisionAnalysis.creatingSkillDraft"));
         },
         onOutput(output) {
           if (output.kind !== "revision-analysis-result") return;
@@ -123,11 +168,11 @@ export function createRevisionAnalysisRun(api: () => DeepWriteApi) {
         task = null;
         if (outcome.status === "stopped") {
           status.value = "stopped";
-          log("已停止，可重新分析");
+          log(localizedMessage("extras.revisionAnalysis.stoppedCanAnalyze"));
           return;
         }
         if (!draft) {
-          fail(new Error("模型未调用工具新建技能草稿，请重试上次任务。"));
+          fail(new Error(t("revisionAnalysis.skillDraftToolMissing")));
           return;
         }
         result.value = {
@@ -143,7 +188,11 @@ export function createRevisionAnalysisRun(api: () => DeepWriteApi) {
           current.profile.systemPrompt
         );
         status.value = "completed";
-        log("分析完成，结果可编辑并保存");
+        resultIsPrevious.value = false;
+        log(
+          localizedMessage("extras.revisionAnalysis.resultReadyToEdit"),
+          "success"
+        );
       },
       (cause: unknown) => {
         if (task !== running) return;
@@ -158,12 +207,13 @@ export function createRevisionAnalysisRun(api: () => DeepWriteApi) {
     model: ModelConfig,
     thinkingLevel: ThinkingLevel
   ) {
-    if (isBusy.value || disposed) throw new Error("分析正在运行或已释放。");
+    if (isBusy.value || disposed)
+      throw new Error(t("revisionAnalysis.analysisRunningOrDisposed"));
     if (
       thinkingLevel !== "off" &&
       !model.thinkingLevelOptions.includes(thinkingLevel)
     )
-      throw new Error("请选择当前模型支持的思考等级。");
+      throw new Error(t("revisionAnalysis.supportedThinkingRequired"));
     const context = RevisionAnalysisRuntimeContextSchema.parse({
       ...input,
       jobId: createId("revision_analysis_job")
@@ -181,6 +231,7 @@ export function createRevisionAnalysisRun(api: () => DeepWriteApi) {
     completedInput,
     status,
     result,
+    resultIsPrevious,
     error,
     liveOutput,
     activity,
@@ -198,14 +249,14 @@ export function createRevisionAnalysisRun(api: () => DeepWriteApi) {
     async stop() {
       if (!isBusy.value || !task) return;
       status.value = "stopping";
-      log("正在停止");
+      log(localizedMessage("extras.analysisUi.stopping"));
       try {
         await task.stop();
       } catch (cause: unknown) {
         status.value = "running";
-        error.value =
-          cause instanceof Error ? cause.message : "停止失败，请重试。";
-        log(error.value);
+        const message = () => formatError(cause, t("agentRuntime.stopFailed"));
+        error.value = message;
+        log(message);
       }
     },
     dispose() {

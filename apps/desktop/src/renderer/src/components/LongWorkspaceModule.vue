@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { builtinAgentLabel } from "../i18n/builtinLabels";
+import { createScopedTranslator } from "../i18n";
 import { computed, watch } from "vue";
 import type {
   AgentTeamRunMode,
@@ -42,6 +44,8 @@ import LongWorkspaceEditor from "./LongWorkspaceEditor.vue";
 import LongWorkspaceLoading from "./LongWorkspaceLoading.vue";
 import LongWorkspacePanePlaceholder from "./LongWorkspacePanePlaceholder.vue";
 
+const t = createScopedTranslator("components.longWorkspaceModule");
+
 const props = defineProps<{
   conversationController: AgentConversationController | null;
   book: LongBookSummary | null;
@@ -61,6 +65,7 @@ const props = defineProps<{
   leftCollapsed: boolean;
   paneLayout: WorkspacePaneLayout;
   defaultTextViewMode: TextViewMode;
+  autoSaveEnabled: boolean;
   rightPane: Readonly<{
     collapsed: boolean;
     minWidth: number;
@@ -302,13 +307,13 @@ function forwardPreviewMutation(
     <div
       v-show="paneLayout === 'agent-editor' || !rightPane.collapsed"
       class="long-agent-column"
-      aria-label="长篇创作空间"
+      :aria-label="t('novelWorkspace')"
     >
       <button
         v-if="leftCollapsed && !(conversationController && agentProfile)"
         class="icon-button long-workspace-expand-sidebar"
         type="button"
-        aria-label="展开左侧栏"
+        :aria-label="t('expandSidebar')"
         @click="emit('expandLeft')"
       >
         <AppIcon name="panel-left" :size="18" />
@@ -342,12 +347,11 @@ function forwardPreviewMutation(
         :context-title="selection?.title ?? book.title"
         :book-title="book.title"
         :stage-label="activeStageLabel"
-        :agent-label="agentProfile.label"
+        :agent-label="builtinAgentLabel('long', agentProfile.label)"
         :agent-id="agentProfile.id"
         agent-workspace-type="long"
         :library-domain="undefined"
         :library-skills="undefined"
-        :welcome-shortcuts="agentProfile.welcomeShortcuts"
         :available-skills="availableSkillReferences"
         :available-materials="availableMaterialReferences"
         :editor-references="editorReferences"
@@ -392,9 +396,9 @@ function forwardPreviewMutation(
         class="long-workspace-refresh-status is-error"
         aria-live="polite"
       >
-        <span>最新工作区索引尚未同步，长篇智能体已暂停发送。</span>
+        <span>{{ t("theLatestWorkspaceIndexHasNotSyncedSendingTo") }}</span>
         <button type="button" @click="emit('retryWorkspaceRefresh')">
-          重新同步
+          {{ t("syncAgain") }}
         </button>
       </section>
     </div>
@@ -410,6 +414,7 @@ function forwardPreviewMutation(
         :right-pane="paneLayout === 'agent-editor'"
         :right-pane-collapsed="rightPane.collapsed"
         :default-view-mode="defaultTextViewMode"
+        :auto-save-enabled="autoSaveEnabled"
         @insert-selection="insertEditorReference"
         @saved="emit('saved', $event)"
         @context-change="emit('contextChange', $event)"
@@ -444,7 +449,7 @@ function forwardPreviewMutation(
       v-if="!rightPane.collapsed"
       class="pane-resizer pane-resizer-right"
       role="separator"
-      aria-label="调整右侧栏宽度"
+      :aria-label="t('resizeRightPane')"
       aria-orientation="vertical"
       :aria-valuemin="rightPane.minWidth"
       :aria-valuemax="rightPane.maxWidth"

@@ -1,12 +1,20 @@
+import { createScopedTranslator } from "../i18n";
 import type { EditorEntrySearchSource } from "../types/editorEntrySearch";
 import type { WorkspaceDocument } from "../types/workspace";
 
+const t = createScopedTranslator("workspace.editorEntrySearch");
+
 function searchEntryTitle(document: WorkspaceDocument): string {
-  if (document.draftFileKind === "body") return `${document.title} · 正文`;
+  if (document.draftFileKind === "body")
+    return t("manuscript", {
+      title: document.title
+    });
   if (document.draftFileKind === "character-state") {
-    return `${document.title} · 人物状态`;
+    return t("characterState", {
+      title: document.title
+    });
   }
-  if (document.characterFileKind === "overview") return "人物概览";
+  if (document.characterFileKind === "overview") return t("characterOverview");
   return document.title;
 }
 

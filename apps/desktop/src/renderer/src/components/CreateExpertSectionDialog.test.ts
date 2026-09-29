@@ -3,16 +3,14 @@ import source from "./CreateExpertSectionDialog.vue?raw";
 
 describe("CreateExpertSectionDialog", () => {
   it("asks for a section name before creating an expert draft section", () => {
-    expect(source).toContain("新建{{ unitLabel }}");
-    expect(source).toContain("{{ unitLabel }}名称");
+    expect(source).toContain("newMessage");
+    expect(source).toContain("nameMessage");
     expect(source).toContain("title.value = suggestedTitle");
     expect(source).toContain("titleInput.value?.select()");
     expect(source).toContain("DraftSectionTitleSchema.safeParse(title.value)");
-    expect(source).toContain(
-      "uiMessage.warning(`请输入${unitLabel.value}名称。`)"
-    );
+    expect(source).toContain("enterAValueName");
     expect(source).toContain('emit("submit", parsed.data)');
-    expect(source).toContain("确认新建");
+    expect(source).toContain("create");
     expect(source).not.toContain("is-danger");
     expect(source).not.toContain("<select");
   });

@@ -1,3 +1,7 @@
+import {
+  localizedTextRef,
+  localizedNullableTextRef
+} from "../analysis-ui/localized-text";
 import { ref, shallowRef } from "vue";
 import type {
   DeepWriteApi,
@@ -15,6 +19,7 @@ import {
 } from "../agent-runtime/extrasAgent.test-support";
 import { LongBookAnalysisPipeline } from "./analysis-pipeline";
 import type { LongBookAnalysisPipelineState } from "./analysis-pipeline-types";
+import { useLongBookAnalysis } from "./useLongBookAnalysis";
 
 function fixture() {
   const fake = createExtrasAgentsFake();
@@ -49,13 +54,15 @@ function fixture() {
     phase: ref(null),
     completedUnits: ref(0),
     estimatedUnits: ref(0),
-    error: ref(null),
+    error: localizedNullableTextRef(),
     result: ref(null),
     processEntries: ref([]),
-    currentActivity: ref(""),
+    currentActivity: localizedTextRef(),
     liveOutput: ref("")
   };
   return {
+    api,
+    model,
     prompts,
     abort,
     state,
@@ -112,6 +119,32 @@ async function waitForPrompt(prompts: ExtrasAgentRunRequest[], count: number) {
 }
 
 describe("long-book analysis pipeline checkpoints", () => {
+  it("enables the page's continue action after an initially idle task stops", async () => {
+    const { api, model, prompts } = fixture();
+    const controller = useLongBookAnalysis({ api: () => api });
+    controller.setConfiguredModels([model]);
+    controller.source.value = source;
+    controller.presets.value = [preset];
+    try {
+      expect(controller.canRetry.value).toBe(false);
+      await controller.start({
+        presetId: preset.id,
+        startOrder: 1,
+        endOrder: 1
+      });
+      const first = await waitForPrompt(prompts, 1);
+      expect(controller.canRetry.value).toBe(false);
+      await controller.stop();
+      await vi.waitFor(() => expect(controller.status.value).toBe("stopped"));
+      expect(controller.canRetry.value).toBe(true);
+      await controller.retry();
+      const resumed = await waitForPrompt(prompts, 2);
+      expect(longInput(resumed).jobId).toBe(longInput(first).jobId);
+      expect(controller.canRetry.value).toBe(false);
+    } finally {
+      controller.dispose();
+    }
+  });
   it("keeps a failed batch checkpoint and retries through the final result", async () => {
     const { pipeline, prompts, state } = fixture();
     pipeline.start(source, preset, {
@@ -119,8 +152,7 @@ describe("long-book analysis pipeline checkpoints", () => {
       startOrder: 1,
       endOrder: 1,
       modelId: "model-1",
-      thinkingLevel: "high",
-      libraryId: "material-library-1"
+      thinkingLevel: "high"
     });
     const failed = await waitForPrompt(prompts, 1);
     expect(failed.thinkingLevel).toBe("high");
@@ -177,8 +209,7 @@ describe("long-book analysis pipeline checkpoints", () => {
       presetId: preset.id,
       startOrder: 1,
       endOrder: 1,
-      modelId: "model-1",
-      libraryId: "material-library-1"
+      modelId: "model-1"
     });
     const active = await waitForPrompt(prompts, 1);
     await pipeline.stop();
@@ -205,7 +236,6 @@ describe("long-book analysis pipeline checkpoints", () => {
       profileId: preset.id
     });
     expect(longInput(active)).not.toHaveProperty("presetId");
-    expect(pipeline.targetLibraryId).toBe("");
     expect(state.processEntries.value[0]?.detail).toContain("仅运行当前预设");
   });
 });

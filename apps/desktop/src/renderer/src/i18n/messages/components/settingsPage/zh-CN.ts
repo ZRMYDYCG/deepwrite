@@ -1,0 +1,27 @@
+export default {
+  writing: "创作",
+  workspaceFolder: "工作目录",
+  workspaceSettings: "创作空间配置",
+  skillLibrarySettings: "技能库配置",
+  materialLibrarySettings: "素材库配置",
+  modelsAndUsage: "模型与用量",
+  usage: "用量",
+  freeModels: "免费模型",
+  customModelSettings: "自定义模型配置",
+  legacyOfficialModels: "旧官方小站模型",
+  officialSiteModels: "新官方小站模型",
+  personal: "个人",
+  general: "常规",
+  storageUserDataHistoryDefaultLocationWorkspaceFolder:
+    "存储 用户数据 历史记录 默认位置 工作目录",
+  manuscriptText: "正文文本",
+  appearance: "外观",
+  voiceSettings: "语音配置",
+  contextSettings: "上下文配置",
+  backToApp: "返回应用",
+  searchSettings: "搜索设置...",
+  settingsCategories: "设置分类",
+  noMatchingSettings: "没有匹配的设置",
+  settingsAreNotConfigured: "」设置项待配置。",
+  settingsAreNotConfiguredMessage: "「{arg0}」设置项待配置。"
+};

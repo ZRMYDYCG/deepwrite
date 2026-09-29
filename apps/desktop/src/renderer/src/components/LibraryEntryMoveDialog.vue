@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import {
   computed,
   nextTick,
@@ -9,6 +10,8 @@ import {
 } from "vue";
 import type { MaterialStageId } from "@deepwrite/contracts";
 import PopupSelect from "./PopupSelect.vue";
+
+const t = createScopedTranslator("components.libraryEntryMoveDialog");
 
 const props = defineProps<{
   open: boolean;
@@ -25,7 +28,7 @@ const emit = defineEmits<{
 }>();
 
 const stageId = ref<MaterialStageId>(props.initialStageId);
-const heading = computed(() => `移动“${props.entryTitle}”`);
+const heading = computed(() => t("moveValue", { arg0: props.entryTitle }));
 
 function requestClose(): void {
   if (!props.submitting) emit("close");
@@ -66,13 +69,15 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
       >
         <header>
           <div>
-            <span class="dialog-eyebrow">素材库 · 调整分类</span>
+            <span class="dialog-eyebrow">{{
+              t("materialLibraryChangeCategory")
+            }}</span>
             <h2 id="library-entry-move-title">{{ heading }}</h2>
           </div>
           <button
             class="dialog-close"
             type="button"
-            aria-label="关闭"
+            :aria-label="t('close')"
             :disabled="submitting"
             @click="requestClose"
           >
@@ -84,16 +89,18 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
           @submit.prevent="submit"
         >
           <p class="dialog-description">
-            目标素材库“{{
-              targetLibraryTitle
-            }}”使用不同分类。请选择该素材在目标库中的内容阶段。
+            {{
+              t("theTargetMaterialLibraryUsesDifferentCategoriesMessage", {
+                arg0: targetLibraryTitle ?? ""
+              })
+            }}
           </p>
           <label class="book-resource-name-field catalog-resource-stage-field">
-            <span>内容阶段</span>
+            <span>{{ t("contentStage") }}</span>
             <PopupSelect
               v-model="stageId"
               :options="options"
-              accessible-label="移动后的内容阶段"
+              :accessible-label="t('contentStageAfterMove')"
               size="large"
               :disabled="submitting"
               :menu-min-width="220"
@@ -106,14 +113,14 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
               :disabled="submitting"
               @click="requestClose"
             >
-              取消
+              {{ t("cancel") }}
             </button>
             <button
               class="dialog-primary-button"
               type="submit"
               :disabled="submitting"
             >
-              {{ submitting ? "移动中…" : "确认移动" }}
+              {{ submitting ? t("moving") : t("move") }}
             </button>
           </div>
         </form>

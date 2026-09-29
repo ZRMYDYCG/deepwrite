@@ -1,9 +1,12 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import { computed } from "vue";
 import {
   groupLongManuscriptExportChapters,
   type LongManuscriptExportChapterOption
 } from "../utils/longManuscriptExportChapters";
+
+const t = createScopedTranslator("components.exportLongManuscriptChapterList");
 
 const props = defineProps<{
   chapters: readonly LongManuscriptExportChapterOption[];
@@ -78,21 +81,30 @@ function toggleChapter(chapterId: string): void {
 
 <template>
   <fieldset class="export-long-chapters">
-    <legend>选择正文章节</legend>
+    <legend>
+      {{ t("selectManuscriptChapters") }}
+    </legend>
     <div class="export-long-chapters-toolbar">
-      <span>{{ selectedIds.length }} / {{ chapters.length }} 章</span>
+      <span>{{
+        t("chaptersMessage", {
+          arg0: selectedIds.length ?? "",
+          arg1: chapters.length ?? ""
+        })
+      }}</span>
       <button
         class="export-long-chapters-toggle"
         type="button"
         :disabled="disabled || loading || chapters.length === 0"
         @click="toggleAll"
       >
-        {{ allSelected ? "取消全选" : "全选" }}
+        {{ allSelected ? t("deselectAll") : t("selectAll") }}
       </button>
     </div>
-    <p v-if="loading" class="export-long-chapters-status">正在读取章节列表…</p>
+    <p v-if="loading" class="export-long-chapters-status">
+      {{ t("loadingChapters") }}
+    </p>
     <p v-else-if="chapters.length === 0" class="export-long-chapters-status">
-      这本书还没有可导出的正文章节。
+      {{ t("thisBookHasNoManuscriptChaptersToExportYet") }}
     </p>
     <div v-else class="export-long-chapter-groups" role="group">
       <section
@@ -106,11 +118,15 @@ function toggleChapter(chapterId: string): void {
             :checked="volumeSelected(group.chapters)"
             :indeterminate="volumePartial(group.chapters)"
             :disabled="disabled || loading"
-            :aria-label="`选择${group.volumeTitle}全部章节`"
+            :aria-label="
+              t('selectAllChaptersInValue', { arg0: group.volumeTitle })
+            "
             @change="toggleVolume(group.chapters)"
           />
           <strong>{{ group.volumeTitle }}</strong>
-          <small>{{ group.chapters.length }} 章</small>
+          <small>{{
+            t("chaptersMessageDetail", { arg0: group.chapters.length ?? "" })
+          }}</small>
         </label>
         <label
           v-for="chapter in group.chapters"

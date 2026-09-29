@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { t } from "../i18n";
 import AppIcon from "./AppIcon.vue";
 import { usePopupSelect } from "../composables/usePopupSelect";
 import type { PopupSelectValue, PopupSelectOption } from "../types/popupSelect";
@@ -20,7 +21,7 @@ const props = withDefaults(
   }>(),
   {
     disabled: false,
-    placeholder: "请选择",
+    placeholder: "",
     variant: "field",
     size: "medium",
     align: "start",
@@ -92,7 +93,7 @@ defineExpose({ openMenu, closeMenu, trigger, open });
         :class="{ 'is-placeholder': !selectedOption }"
         :style="selectedOption?.style"
       >
-        {{ displayLabel }}
+        {{ displayLabel || t("components.popupSelect.select") }}
       </span>
       <AppIcon
         v-if="variant !== 'menu'"

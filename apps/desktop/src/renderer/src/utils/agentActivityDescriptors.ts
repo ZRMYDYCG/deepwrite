@@ -1,3 +1,5 @@
+import { builtinAgentLabel } from "../i18n/builtinLabels";
+import { createScopedTranslator } from "../i18n";
 import {
   resolveScriptWorkspaceAgentIdForStage,
   resolveShortWorkspaceAgentIdForStage,
@@ -19,6 +21,8 @@ import {
   LONG_WORKSPACE_ROOT_LABELS,
   longNavigationNodeId
 } from "./longWorkspaceResourceTree";
+
+const t = createScopedTranslator("workspace");
 
 export interface AgentActivityDescriptorSources {
   documents: readonly WorkspaceDocument[];
@@ -51,9 +55,12 @@ function shortAgentLabel(
     (document.workspaceType === "script"
       ? resolveScriptWorkspaceAgentIdForStage(document.stageId)
       : resolveShortWorkspaceAgentIdForStage(document.stageId));
-  return settings
+  const profile = settings
     .find(({ workspaceType }) => workspaceType === document.workspaceType)
-    ?.agents.find(({ id }) => id === agentId)?.label;
+    ?.agents.find(({ id }) => id === agentId);
+  return profile
+    ? builtinAgentLabel(document.workspaceType, profile.label)
+    : undefined;
 }
 
 function resolveDocumentDescriptor(
@@ -70,14 +77,17 @@ function resolveDocumentDescriptor(
       ? document.domain
       : undefined;
   const agentLabel = libraryDomain
-    ? sources.libraryAgents.agents.find(
-        ({ domain }) => domain === libraryDomain
-      )?.label
+    ? builtinAgentLabel(
+        libraryDomain,
+        sources.libraryAgents.agents.find(
+          ({ domain }) => domain === libraryDomain
+        )?.label
+      )
     : shortAgentLabel(document, sources.workspaceAgents);
   const owner = document.workspaceTitle ?? document.path[0] ?? document.title;
   return {
     conversationKey,
-    agentLabel: agentLabel ?? "智能体对话",
+    agentLabel: agentLabel ?? t("agentActivityDescriptors.agentConversation"),
     contextLabel:
       document.workspaceId || owner === document.title
         ? owner
@@ -204,10 +214,13 @@ function resolveLongDescriptor(
       : undefined;
   return {
     conversationKey,
-    agentLabel: agent?.label ?? "长篇智能体",
+    agentLabel: builtinAgentLabel("long", agent?.label),
     contextLabel: parsed.root
-      ? `${book?.title ?? "长篇作品"} · ${LONG_WORKSPACE_ROOT_LABELS[parsed.root]}`
-      : (book?.title ?? "长篇作品"),
+      ? t("catalogWorkspace.message", {
+          value: book?.title ?? t("agentActivityDescriptors.novelProject"),
+          value2: LONG_WORKSPACE_ROOT_LABELS[parsed.root]
+        })
+      : (book?.title ?? t("agentActivityDescriptors.novelProject")),
     targetResourceId:
       matchingNode?.id ??
       (parsed.root

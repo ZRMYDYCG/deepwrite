@@ -9,7 +9,7 @@ import {
 } from "../long-workspace";
 import { LongWorkspaceOperationBatchSchema } from "../long-workspace-operations";
 import { LongCommitChapterInputSchema } from "../long-ledger";
-import { AgentRuntimeRefSchema } from "./runtime";
+import { AgentRuntimeRefSchema } from "./agent-event-identity";
 
 const LongProposalBasePayloadSchema = z.object({
   sessionId: z.string().min(1),

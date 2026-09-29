@@ -1,6 +1,8 @@
+import { createScopedTranslator } from "../../i18n";
 import { computed, ref, shallowRef, watch } from "vue";
 import {
   RevisionAnalysisInputSchema,
+  REVISION_TEXT_LIMIT,
   type DeepWriteApi,
   type RevisionAnalysisProfile,
   type ModelConfig,
@@ -15,23 +17,23 @@ import {
   revisionAnalysisInputKey
 } from "./analysis-run";
 import { createRevisionSkillSave } from "./skill-save";
+
+const t = createScopedTranslator("extras.revisionAnalysis");
 export type RevisionAnalysisController = ReturnType<typeof useRevisionAnalysis>;
 export function useRevisionAnalysis(options: {
   api: () => DeepWriteApi | undefined;
 }) {
   const api = () => {
     const current = options.api();
-    if (!current) throw new Error("当前环境不支持修改分析。");
+    if (!current) throw new Error(t("revisionUnavailable"));
     return current;
   };
   const run = createRevisionAnalysisRun(api);
   const beforeText = ref(""),
     afterText = ref(""),
     overallReason = ref("");
-  const method = createPromptProfile(
-    api,
-    "revision-analysis",
-    "请填写分析方法。"
+  const method = createPromptProfile(api, "revision-analysis", () =>
+    t("methodRequired")
   );
   const systemPrompt = method.systemPrompt;
   const changes = ref<RevisionChange[]>([]);
@@ -61,20 +63,43 @@ export function useRevisionAnalysis(options: {
       Boolean(run.result.value) && inputKey.value !== run.completedInput.value
   );
   const skillSave = createRevisionSkillSave(api, run.result);
-  const disabled = computed(() => run.isBusy.value || loading.value);
+  const disabled = computed(
+    () => run.isBusy.value || loading.value || skillSave.saving.value
+  );
+  const isPreviousResult = computed(
+    () =>
+      Boolean(run.result.value) && (run.resultIsPrevious.value || isStale.value)
+  );
   const selectedModel = computed(() =>
     models.value.find((m) => m.id === selectedModelId.value)
   );
   const canStart = computed(
     () =>
       !disabled.value &&
-      comparisonCurrent.value &&
-      changes.value.length > 0 &&
-      Boolean(selectedModel.value) &&
-      Boolean(inputKey.value)
+      Boolean(beforeText.value.trim()) &&
+      Boolean(afterText.value.trim()) &&
+      beforeText.value.length <= REVISION_TEXT_LIMIT &&
+      afterText.value.length <= REVISION_TEXT_LIMIT &&
+      Boolean(selectedModel.value)
   );
   function editable() {
-    if (disabled.value || disposed) throw new Error("正在处理，请稍后再修改。");
+    if (disabled.value || disposed) throw new Error(t("busyEditLater"));
+  }
+  function compare() {
+    editable();
+    if (!beforeText.value.trim() || !afterText.value.trim())
+      throw new Error(t("bothTextsRequired"));
+    if (
+      beforeText.value.length > REVISION_TEXT_LIMIT ||
+      afterText.value.length > REVISION_TEXT_LIMIT
+    )
+      throw new Error(t("revisionLengthLimit"));
+    changes.value = compareRevisionParagraphs(
+      beforeText.value,
+      afterText.value,
+      changes.value
+    );
+    comparedText.value = textKey();
   }
   const stopModelWatch = watch(selectedModelId, () => {
     selectedThinkingLevel.value =
@@ -92,6 +117,7 @@ export function useRevisionAnalysis(options: {
     selectedThinkingLevel,
     comparisonCurrent,
     isStale,
+    isPreviousResult,
     loading,
     disabled,
     canStart,
@@ -130,24 +156,23 @@ export function useRevisionAnalysis(options: {
         loading.value = false;
       }
     },
-    compare() {
+    compare,
+    async persistSkill(library: Parameters<typeof skillSave.persistSkill>[0]) {
+      if (run.isBusy.value || loading.value)
+        throw new Error(t("waitBeforeSavingSkill"));
+      return skillSave.persistSkill(library);
+    },
+    retry() {
       editable();
-      if (!beforeText.value.trim() || !afterText.value.trim())
-        throw new Error("请填写修改前和修改后正文。");
-      if (beforeText.value.length > 100_000 || afterText.value.length > 100_000)
-        throw new Error("每侧正文最多 100,000 字符。");
-      changes.value = compareRevisionParagraphs(
-        beforeText.value,
-        afterText.value,
-        changes.value
-      );
-      comparedText.value = textKey();
+      run.retry();
     },
     async start() {
       editable();
+      if (!comparisonCurrent.value) compare();
+      if (!changes.value.length) throw new Error(t("noDifferencesToAnalyze"));
       const model = selectedModel.value;
       if (!canStart.value || !model)
-        throw new Error("请先比较当前正文差异并选择可用模型。");
+        throw new Error(t("textsAndModelRequired"));
       const parsed = RevisionAnalysisInputSchema.parse(input.value);
       let profile: RevisionAnalysisProfile;
       loading.value = true;

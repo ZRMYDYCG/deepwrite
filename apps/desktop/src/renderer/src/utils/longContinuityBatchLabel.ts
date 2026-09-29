@@ -1,7 +1,10 @@
+import { createScopedTranslator } from "../i18n";
 import type {
   LongBookSummary,
   LongLedgerCommitIndexEntry
 } from "@deepwrite/contracts";
+
+const t = createScopedTranslator("workspace");
 
 export function longContinuityBatchLabel(
   commit: LongLedgerCommitIndexEntry,
@@ -17,9 +20,14 @@ export function longContinuityBatchLabel(
     chapterCardIds.length === 1 ? lastTitle : `${firstTitle} — ${lastTitle}`;
   const badge =
     commit.mode === "import_checkpoint"
-      ? "导入检查点"
+      ? t("longWorkspaceContinuityTree.importedCheckpoint")
       : chapterCardIds.length === 1
-        ? `记录 ${commit.sequence}`
-        : `${chapterCardIds.length} 章 · 记录 ${commit.sequence}`;
+        ? t("longContinuityBatchLabel.record", {
+            sequence: commit.sequence
+          })
+        : t("longContinuityBatchLabel.chaptersRecord", {
+            length: chapterCardIds.length,
+            sequence: commit.sequence
+          });
   return { label, badge };
 }

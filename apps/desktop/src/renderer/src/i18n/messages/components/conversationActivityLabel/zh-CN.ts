@@ -1,0 +1,20 @@
+export default {
+  readFile: "读取文件",
+  listScope: "列出范围",
+  createFile: "创建文件",
+  editContent: "修改内容",
+  deleteObject: "删除对象",
+  loadSkill: "加载技能",
+  queryMaterials: "查询素材",
+  askUser: "询问用户",
+  commitContinuity: "提交连续性",
+  smartSearch: "智能搜索",
+  switchStage: "切换阶段",
+  assigningTask: "安排任务中",
+  searchContent: "搜索内容",
+  queryReferences: "查询资料",
+  runTool: "执行工具",
+  finished: "处理完成",
+  thinking: "思考中",
+  subagentRunning: "子智能体执行中"
+};

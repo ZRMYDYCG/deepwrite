@@ -1,3 +1,4 @@
+import { nativeText } from "../native-i18n";
 import { handleLongWorkspaceCommands } from "./long-workspace-commands";
 import {
   CommandEnvelopeSchema,
@@ -40,7 +41,7 @@ export async function handleLongCommands(
       let selectedPath = defaultPath;
       if (command.type === "long.openExisting") {
         const selection = await ctx.dialog.showOpenDialog({
-          title: "打开已有长篇项目",
+          title: nativeText("openLongProject"),
           defaultPath,
           properties: ["openDirectory"]
         });
@@ -97,9 +98,9 @@ export async function handleLongCommands(
   if (command.type === "long.chooseContinuationImportSource") {
     try {
       const selection = await ctx.dialog.showOpenDialog(ctx.getMainWindow(), {
-        title: "选择续写章节文件夹",
+        title: nativeText("chooseContinuation"),
         defaultPath: ctx.getDocumentsPath(),
-        buttonLabel: "扫描章节",
+        buttonLabel: nativeText("scanChapters"),
         properties: ["openDirectory"]
       });
       const sourcePath = selection.filePaths[0];
@@ -159,10 +160,12 @@ export async function handleLongCommands(
   if (command.type === "long.chooseLegacySyncSource") {
     try {
       const selection = await ctx.dialog.showOpenDialog(ctx.getMainWindow(), {
-        title: "选择旧版本长篇压缩包",
+        title: nativeText("chooseLegacyLong"),
         defaultPath: ctx.getDocumentsPath(),
-        buttonLabel: "上传并预览",
-        filters: [{ name: "旧版本长篇压缩包", extensions: ["zip"] }],
+        buttonLabel: nativeText("uploadPreview"),
+        filters: [
+          { name: nativeText("legacyLongArchive"), extensions: ["zip"] }
+        ],
         properties: ["openFile"]
       });
       const sourcePath = selection.filePaths[0];
@@ -323,12 +326,12 @@ export async function handleLongCommands(
         };
       }
       const selection = await ctx.dialog.showOpenDialog(ctx.getMainWindow(), {
-        title: "导入 DeepWrite 长篇可移植工程",
+        title: nativeText("importPortableLong"),
         defaultPath: ctx.getDocumentsPath(),
-        buttonLabel: "选择并导入",
+        buttonLabel: nativeText("selectImport"),
         filters: [
           {
-            name: "DeepWrite 长篇可移植工程",
+            name: nativeText("portableLongProject"),
             extensions: ["json"]
           }
         ],

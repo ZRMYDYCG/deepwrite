@@ -1,6 +1,9 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import { computed, onBeforeUnmount, onMounted } from "vue";
 import AppIcon from "./AppIcon.vue";
+
+const t = createScopedTranslator("components.libraryRemovalDialog");
 
 const props = withDefaults(
   defineProps<{
@@ -21,7 +24,7 @@ const emit = defineEmits<{
 }>();
 
 const resourceName = computed(() =>
-  props.domain === "material" ? "素材库" : "技能库"
+  props.domain === "material" ? t("materialLibrary") : t("skillLibrary")
 );
 
 function requestClose(): void {
@@ -49,13 +52,14 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
           <div>
             <span class="dialog-eyebrow">{{ label }}</span>
             <h2 id="library-removal-dialog-title">
-              {{ action === "delete" ? "删除" : "移除" }}{{ resourceName }}
+              {{ action === "delete" ? t("delete") : t("remove")
+              }}{{ resourceName }}
             </h2>
           </div>
           <button
             class="dialog-close"
             type="button"
-            aria-label="关闭"
+            :aria-label="t('close')"
             :disabled="submitting"
             @click="requestClose"
           >
@@ -67,22 +71,26 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
           <div class="book-remove-warning">
             <AppIcon name="trash" :size="20" />
             <div>
-              <strong
-                >确认{{ action === "delete" ? "删除" : "移除" }}“{{
-                  label
-                }}”？</strong
-              >
+              <strong>{{
+                t("summaryMessage", {
+                  arg0: (action === "delete" ? t("delete") : t("remove")) ?? "",
+                  arg1: label ?? ""
+                })
+              }}</strong>
               <p v-if="action === 'delete'">
-                会从当前{{
-                  resourceName
-                }}列表移除，并永久删除本地项目文件夹及其中所有文件。此操作无法撤销。
+                {{
+                  t("thisRemovesTheItemFromAndPermanentlyMessage", {
+                    arg0: resourceName ?? ""
+                  })
+                }}
               </p>
               <p v-else>
-                只会从当前{{
-                  resourceName
-                }}列表解除注册，不会删除本地文件夹；之后可通过“打开已存在{{
-                  resourceName
-                }}”恢复。
+                {{
+                  t("thisOnlyUnregistersTheItemFromItsMessage", {
+                    arg0: resourceName ?? "",
+                    arg1: resourceName ?? ""
+                  })
+                }}
               </p>
             </div>
           </div>
@@ -94,7 +102,7 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
               :disabled="submitting"
               @click="requestClose"
             >
-              取消
+              {{ t("cancel") }}
             </button>
             <button
               class="dialog-primary-button is-danger"
@@ -103,10 +111,10 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
             >
               {{
                 submitting
-                  ? "处理中…"
+                  ? t("processing")
                   : action === "delete"
-                    ? "确认删除"
-                    : "确认移除"
+                    ? t("deleteLabel")
+                    : t("confirmRemoval")
               }}
             </button>
           </div>

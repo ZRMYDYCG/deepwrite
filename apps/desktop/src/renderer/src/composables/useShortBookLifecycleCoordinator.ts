@@ -1,3 +1,5 @@
+import { formatError } from "../i18n/errors";
+import { createScopedTranslator } from "../i18n";
 import { createShortBookCreator } from "./short-book-creation";
 import type {
   Book,
@@ -18,6 +20,8 @@ import type {
 import type { ShortManuscriptExportTarget } from "../utils/shortManuscriptExport";
 import { executeShortManuscriptExport } from "./short-manuscript-export-transaction";
 import { disposeShortBookRemovalRuntime } from "./book-removal-runtime";
+
+const t = createScopedTranslator("workspace");
 
 type MaybePromise<Value> = Value | Promise<Value>;
 type PendingLane = "catalog" | "manuscript-export";
@@ -286,11 +290,13 @@ export function useShortBookLifecycleCoordinator(
   }
 
   function errorMessage(error: unknown, fallback: string): string {
-    return error instanceof Error ? error.message : fallback;
+    return formatError(error, fallback);
   }
 
   function workspaceTypeLabel(target: ShortBookLifecycleTarget): string {
-    return target.workspaceType === "script" ? "剧本" : "书籍";
+    return target.workspaceType === "script"
+      ? t("catalogWorkspace.screenplay")
+      : t("catalogProjectActions.book");
   }
 
   function targetResourceIds(target: ShortBookLifecycleTarget): Set<string> {
@@ -394,13 +400,19 @@ export function useShortBookLifecycleCoordinator(
       book.projectRevision === undefined
     ) {
       notifications.error(
-        `当前${workspaceTypeLabel(target)}缺少项目版本，无法安全${operationLabel}。`
+        t(
+          "shortBookLifecycleCoordinator.theCurrentHasNoVersionIdentifierCannotSafelyPerform",
+          { value: workspaceTypeLabel(target), operationLabel: operationLabel }
+        )
       );
       return null;
     }
     if (book.projectRevision !== target.projectRevision) {
       notifications.warning(
-        `${workspaceTypeLabel(target)}配置已在外部更新，请重新打开对话框后再${operationLabel}。`
+        t(
+          "shortBookLifecycleCoordinator.theConfigurationWasUpdatedElsewhereReopenTheDialogBefore",
+          { value: workspaceTypeLabel(target), operationLabel: operationLabel }
+        )
       );
       closeActiveTarget(target);
       return null;
@@ -493,11 +505,19 @@ export function useShortBookLifecycleCoordinator(
     const catalogBook = catalog.book(target.bookId);
     if (!catalogBook && !legacy.hasBook(target)) {
       closeActiveTarget(target);
-      notifications.warning("未找到要修改的书籍。");
+      notifications.warning(
+        t("shortBookLifecycleCoordinator.couldNotFindTheBookToEdit")
+      );
       return Promise.resolve();
     }
     if (catalogBook && !api) return Promise.resolve();
-    if (catalogBook && !requireVersionedCatalogTarget(target, "修改名称")) {
+    if (
+      catalogBook &&
+      !requireVersionedCatalogTarget(
+        target,
+        t("shortBookLifecycleCoordinator.rename")
+      )
+    ) {
       return Promise.resolve();
     }
     const lease = acquirePendingLease("catalog");
@@ -511,14 +531,23 @@ export function useShortBookLifecycleCoordinator(
           if (!leaseIsOwned(lease)) return;
           if (activeTargetIsCurrent(target, ["rename"])) {
             closeActiveTarget(target);
-            notifications.success(`已将“${target.label}”修改为“${label}”`);
+            notifications.success(
+              t("shortBookLifecycleCoordinator.renamedTo", {
+                label: target.label,
+                label2: label
+              })
+            );
           }
           return;
         }
         const authoritativeBook = catalog.book(target.bookId);
         if (authoritativeBook?.projectRevision === undefined) {
           if (leaseCanPublish(lease)) {
-            notifications.error("当前书籍缺少项目版本，无法安全修改名称。");
+            notifications.error(
+              t(
+                "shortBookLifecycleCoordinator.theCurrentBookHasNoVersionIdentifierItCannot"
+              )
+            );
           }
           return;
         }
@@ -535,11 +564,17 @@ export function useShortBookLifecycleCoordinator(
         if (!leaseCanPublish(lease) || !targetCurrent) return;
         if (!refreshed) {
           notifications.warning(
-            `已将“${target.label}”修改为“${updated.title}”，但作品列表刷新失败；稍后将自动重试。`
+            t(
+              "shortBookLifecycleCoordinator.renamedToButTheProjectListCouldNotBe",
+              { label: target.label, title: updated.title }
+            )
           );
         } else {
           notifications.success(
-            `已将“${target.label}”修改为“${updated.title}”`
+            t("shortBookLifecycleCoordinator.renamedTo2", {
+              label: target.label,
+              title: updated.title
+            })
           );
         }
       } catch (error: unknown) {
@@ -559,10 +594,17 @@ export function useShortBookLifecycleCoordinator(
           }
           closeActiveTarget(target);
           notifications.warning(
-            "书籍配置已在外部更新，已重新加载；请确认后再次修改"
+            t(
+              "shortBookLifecycleCoordinator.theBookConfigurationWasUpdatedElsewhereAndHasBeen"
+            )
           );
         } else {
-          notifications.error(errorMessage(error, "修改书名失败。"));
+          notifications.error(
+            errorMessage(
+              error,
+              t("shortBookLifecycleCoordinator.couldNotRenameTheBook")
+            )
+          );
         }
       }
     });
@@ -584,16 +626,29 @@ export function useShortBookLifecycleCoordinator(
     const catalogBook = catalog.book(target.bookId);
     if (!catalogBook && !legacy.hasBook(target)) {
       closeActiveTarget(target);
-      notifications.warning("未找到要更新绑定的书籍。");
+      notifications.warning(
+        t(
+          "shortBookLifecycleCoordinator.couldNotFindTheBookWhoseLibraryLinksShould"
+        )
+      );
       return Promise.resolve();
     }
     if (catalogBook && !api) return Promise.resolve();
-    if (catalogBook && !requireVersionedCatalogTarget(target, "更新绑定")) {
+    if (
+      catalogBook &&
+      !requireVersionedCatalogTarget(
+        target,
+        t("shortBookLifecycleCoordinator.updateLinks")
+      )
+    ) {
       return Promise.resolve();
     }
     const lease = acquirePendingLease("catalog");
     if (!lease) return Promise.resolve();
-    const bindingLabel = payload.domain === "skill" ? "技能库" : "素材库";
+    const bindingLabel =
+      payload.domain === "skill"
+        ? t("catalogWorkspace.skillLibrary")
+        : t("catalogWorkspace.materialLibrary");
     return runWithLease(lease, async () => {
       try {
         if (!(await prepareTargetMutation(target, lease, [expectedMode])))
@@ -604,7 +659,10 @@ export function useShortBookLifecycleCoordinator(
           if (activeTargetIsCurrent(target, [expectedMode])) {
             closeActiveTarget(target);
             notifications.success(
-              `已更新“${target.label}”的${bindingLabel}绑定`
+              t("shortBookLifecycleCoordinator.updatedTheLinkFor", {
+                label: target.label,
+                bindingLabel: bindingLabel
+              })
             );
           }
           return;
@@ -612,7 +670,11 @@ export function useShortBookLifecycleCoordinator(
         const authoritativeBook = catalog.book(target.bookId);
         if (authoritativeBook?.projectRevision === undefined) {
           if (leaseCanPublish(lease)) {
-            notifications.error("当前书籍缺少项目版本，无法安全更新绑定。");
+            notifications.error(
+              t(
+                "shortBookLifecycleCoordinator.theCurrentBookHasNoVersionIdentifierItsLibrary"
+              )
+            );
           }
           return;
         }
@@ -631,10 +693,18 @@ export function useShortBookLifecycleCoordinator(
         if (!leaseCanPublish(lease) || !targetCurrent) return;
         if (!refreshed) {
           notifications.warning(
-            `已更新“${target.label}”的${bindingLabel}绑定，但作品列表刷新失败；稍后将自动重试。`
+            t(
+              "shortBookLifecycleCoordinator.updatedTheLinkForButTheProjectListCould",
+              { label: target.label, bindingLabel: bindingLabel }
+            )
           );
         } else {
-          notifications.success(`已更新“${target.label}”的${bindingLabel}绑定`);
+          notifications.success(
+            t("shortBookLifecycleCoordinator.updatedTheLinkFor", {
+              label: target.label,
+              bindingLabel: bindingLabel
+            })
+          );
         }
       } catch (error: unknown) {
         if (
@@ -653,10 +723,17 @@ export function useShortBookLifecycleCoordinator(
           }
           closeActiveTarget(target);
           notifications.warning(
-            "书籍绑定已在外部更新，已重新加载；请确认后再次保存"
+            t(
+              "shortBookLifecycleCoordinator.theBookSLibraryLinksWereUpdatedElsewhereAnd"
+            )
           );
         } else {
-          notifications.error(errorMessage(error, "更新资料库绑定失败。"));
+          notifications.error(
+            errorMessage(
+              error,
+              t("shortBookLifecycleCoordinator.couldNotUpdateTheLibraryLinks")
+            )
+          );
         }
       }
     });
@@ -676,7 +753,11 @@ export function useShortBookLifecycleCoordinator(
     }
     if (durablyRemovedBookIds.has(bookId)) {
       closeActiveTarget(target);
-      notifications.info("该书籍已经从当前创作空间移除。");
+      notifications.info(
+        t(
+          "shortBookLifecycleCoordinator.thisBookHasAlreadyBeenRemovedFromTheCurrent"
+        )
+      );
       return Promise.resolve();
     }
     const api = catalog.api();
@@ -684,12 +765,18 @@ export function useShortBookLifecycleCoordinator(
     const legacyTarget =
       !catalogBook && !target.unavailable && legacy.hasBook(target);
     if (action === "delete" && (target.unavailable || legacyTarget)) {
-      notifications.error("该书籍没有可删除的本地项目文件夹。");
+      notifications.error(
+        t(
+          "shortBookLifecycleCoordinator.thisBookHasNoLocalProjectFolderToDelete"
+        )
+      );
       return Promise.resolve();
     }
     if (!catalogBook && !target.unavailable && !legacyTarget) {
       closeActiveTarget(target);
-      notifications.warning("未找到要处理的书籍。");
+      notifications.warning(
+        t("shortBookLifecycleCoordinator.couldNotFindTheRequestedBook")
+      );
       return Promise.resolve();
     }
     if (!legacyTarget && !api) return Promise.resolve();
@@ -737,7 +824,13 @@ export function useShortBookLifecycleCoordinator(
             ) {
               closeActiveTarget(target);
               notifications.warning(
-                `未找到要${action === "delete" ? "删除" : "移除"}的${workspaceTypeLabel(target)}。`
+                t("shortBookLifecycleCoordinator.couldNotFindTheTo", {
+                  value:
+                    action === "delete"
+                      ? t("longImpactConfirmation.delete")
+                      : t("shortBookLifecycleCoordinator.remove"),
+                  value2: workspaceTypeLabel(target)
+                })
               );
             }
             await refreshAfterDurableMutation();
@@ -767,18 +860,35 @@ export function useShortBookLifecycleCoordinator(
           notifications.error(
             errorMessage(
               cleanupError,
-              `${workspaceTypeLabel(target)}已移除，但本地运行状态清理失败。`
+              t(
+                "shortBookLifecycleCoordinator.theWasRemovedButItsLocalRuntimeStateCould",
+                { value: workspaceTypeLabel(target) }
+              )
             )
           );
         } else if (!refreshed) {
           notifications.warning(
-            `${action === "delete" ? "已删除" : "已移除"}“${target.label}”，但作品列表刷新失败；稍后将自动重试。`
+            t(
+              "shortBookLifecycleCoordinator.butTheProjectListCouldNotBeRefreshedAn",
+              {
+                value:
+                  action === "delete"
+                    ? t("shortBookLifecycleCoordinator.deleted")
+                    : t("shortBookLifecycleCoordinator.removed"),
+                label: target.label
+              }
+            )
           );
         } else {
           notifications.success(
             action === "delete"
-              ? `已删除“${target.label}”及其本地文件夹`
-              : `已移除“${target.label}”`
+              ? t(
+                  "catalogLibraryTransactionsCoordinator.deletedAndItsLocalFolder",
+                  { label: target.label }
+                )
+              : t("shortBookLifecycleCoordinator.removed2", {
+                  label: target.label
+                })
           );
         }
       } catch (error: unknown) {
@@ -792,7 +902,13 @@ export function useShortBookLifecycleCoordinator(
           notifications.error(
             errorMessage(
               error,
-              `${action === "delete" ? "删除" : "移除"}${workspaceTypeLabel(target)}失败。`
+              t("shortBookLifecycleCoordinator.couldNot", {
+                value:
+                  action === "delete"
+                    ? t("longImpactConfirmation.delete")
+                    : t("shortBookLifecycleCoordinator.remove"),
+                value2: workspaceTypeLabel(target)
+              })
             )
           );
         } else if (
@@ -802,7 +918,15 @@ export function useShortBookLifecycleCoordinator(
         ) {
           closeActiveTarget(target);
           notifications.warning(
-            `${action === "delete" ? "删除" : "移除"}操作已经完成，但本地状态刷新失败；稍后将自动重试。`
+            t(
+              "shortBookLifecycleCoordinator.theOperationCompletedButTheLocalStateCouldNot",
+              {
+                value:
+                  action === "delete"
+                    ? t("longImpactConfirmation.delete")
+                    : t("shortBookLifecycleCoordinator.remove")
+              }
+            )
           );
         }
       }
@@ -832,7 +956,9 @@ export function useShortBookLifecycleCoordinator(
         if (!book) {
           if (leaseCanPublish(lease) && exportTargetIsCurrent(target)) {
             closeExportTarget(target);
-            notifications.error("未找到要导出正文的书籍");
+            notifications.error(
+              t("shortBookLifecycleCoordinator.couldNotFindTheBookToExport")
+            );
           }
           return;
         }
@@ -850,7 +976,9 @@ export function useShortBookLifecycleCoordinator(
         const currentBook = catalog.book(target.bookId);
         if (!currentBook) {
           closeExportTarget(target);
-          notifications.error("未找到要导出正文的书籍");
+          notifications.error(
+            t("shortBookLifecycleCoordinator.couldNotFindTheBookToExport")
+          );
           return;
         }
         const result = await executeShortManuscriptExport({
@@ -870,18 +998,29 @@ export function useShortBookLifecycleCoordinator(
         }
         closeExportTarget(target);
         const scope =
-          currentBook.bookType === "script" ? "全部剧集" : "导语和全部小节";
+          currentBook.bookType === "script"
+            ? t("shortBookLifecycleCoordinator.allEpisodes")
+            : t("shortBookLifecycleCoordinator.theIntroductionAndAllSections");
         notifications.success(
           targetOutput === "clipboard"
-            ? `已复制“${currentBook.title}”的${scope}正文，可直接粘贴`
-            : `已将“${currentBook.title}”的${scope}导出为 ${MANUSCRIPT_EXPORT_FORMAT_LABELS[targetOutput]}`
+            ? t(
+                "shortBookLifecycleCoordinator.copiedTheManuscriptOfItIsReadyToPaste",
+                { title: currentBook.title, scope: scope }
+              )
+            : t("shortBookLifecycleCoordinator.exportedAs", {
+                title: currentBook.title,
+                scope: scope,
+                value: MANUSCRIPT_EXPORT_FORMAT_LABELS[targetOutput]
+              })
         );
       } catch (error: unknown) {
         if (leaseCanPublish(lease) && exportTargetIsCurrent(target)) {
           notifications.error(
             errorMessage(
               error,
-              targetOutput === "clipboard" ? "复制正文失败。" : "导出正文失败。"
+              targetOutput === "clipboard"
+                ? t("shortBookLifecycleCoordinator.couldNotCopyTheManuscript")
+                : t("shortBookLifecycleCoordinator.couldNotExportTheManuscript")
             )
           );
         }

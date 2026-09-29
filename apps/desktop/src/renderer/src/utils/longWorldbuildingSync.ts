@@ -1,3 +1,4 @@
+import { createScopedTranslator } from "../i18n";
 import {
   LongWorkspaceOperationBatchSchema,
   createEmptyLongMarkdownFileReference,
@@ -17,6 +18,8 @@ import {
 import { createId as createSharedId } from "@deepwrite/shared";
 import { isLongMigrationEvidenceCategoryId } from "../types/longWorkspace";
 import { longWorldbuildingFiles } from "./longWorldbuildingFiles";
+
+const t = createScopedTranslator("workspace.longWorldbuildingSync");
 
 export interface LongWorldbuildingSyncBookOption {
   id: string;
@@ -96,14 +99,16 @@ export async function readLongDocumentFullContent(
       page.file.id !== fileId ||
       page.offset !== offset
     ) {
-      throw new Error("世界观正文读取结果与请求不一致。");
+      throw new Error(
+        t("theWorldbuildingContentResponseDoesNotMatchTheRequest")
+      );
     }
     chunks.push(page.content);
     if (page.nextOffset === null) {
       return chunks.join("");
     }
     if (page.nextOffset <= offset) {
-      throw new Error("世界观正文分页游标无效。");
+      throw new Error(t("invalidPaginationCursorForWorldbuildingContent"));
     }
     offset = page.nextOffset;
   }
@@ -152,7 +157,7 @@ async function cloneCategoryForSync(
       mode: "create",
       updatedAt,
       content,
-      reason: "从其他长篇同步世界观正文"
+      reason: t("syncWorldbuildingContentFromAnotherNovel")
     });
   };
 
@@ -233,7 +238,7 @@ export async function buildLongWorldbuildingSyncBatch(
     input.source.worldbuilding
   );
   if (sourceCategories.length === 0) {
-    throw new Error("所选长篇没有可同步的世界观分类。");
+    throw new Error(t("theSelectedNovelHasNoWorldbuildingCategoriesToSync"));
   }
 
   const deletable = filterSyncableWorldbuildingCategories(

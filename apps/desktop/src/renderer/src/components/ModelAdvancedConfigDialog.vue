@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { formatError } from "../i18n/errors";
+import { createScopedTranslator } from "../i18n";
 import { nextTick, ref, watch } from "vue";
 import {
   DEFAULT_CUSTOM_MODEL_CONTEXT_WINDOW,
@@ -10,6 +12,8 @@ import {
 } from "@deepwrite/contracts/renderer";
 import { uiMessage } from "../ui-feedback";
 import { toModelInput, type DraftModel } from "./modelSettingsDraft";
+
+const t = createScopedTranslator("components.modelAdvancedConfigDialog");
 
 const props = defineProps<{
   model: DraftModel | null;
@@ -48,12 +52,6 @@ function hydrate(contextWindow: number, maxTokens: number): void {
   maxTokensText.value = String(maxTokens);
 }
 
-function commandErrorMessage(error: unknown, fallback: string): string {
-  if (!(error instanceof Error) || !error.message.trim()) return fallback;
-  const separator = error.message.indexOf(": ");
-  return separator >= 0 ? error.message.slice(separator + 2) : error.message;
-}
-
 async function fillFromRuntime(model: DraftModel): Promise<void> {
   const sequence = ++resolveSequence;
   resolving.value = true;
@@ -61,7 +59,7 @@ async function fillFromRuntime(model: DraftModel): Promise<void> {
   maxTokensText.value = "";
   if (!window.deepwrite) {
     resolving.value = false;
-    uiMessage.error("当前环境无法读取模型实际请求容量。");
+    uiMessage.error(t("thisEnvironmentCannotReadTheModelSActualRequest"));
     return;
   }
   try {
@@ -77,7 +75,9 @@ async function fillFromRuntime(model: DraftModel): Promise<void> {
     void nextTick(() => firstInput.value?.focus());
   } catch (error: unknown) {
     if (sequence !== resolveSequence) return;
-    uiMessage.error(commandErrorMessage(error, "读取模型实际请求容量失败。"));
+    uiMessage.error(
+      formatError(error, t("couldNotReadTheModelSActualRequestCapacity"))
+    );
   } finally {
     if (sequence === resolveSequence) resolving.value = false;
   }
@@ -124,7 +124,10 @@ function save(): void {
     contextWindow > MODEL_CONTEXT_WINDOW_MAX
   ) {
     uiMessage.warning(
-      `请填写 ${MODEL_CONTEXT_WINDOW_MIN} 到 ${MODEL_CONTEXT_WINDOW_MAX} 之间的上下文长度。`
+      t("enterAContextLengthBetweenValueAndValue", {
+        arg0: MODEL_CONTEXT_WINDOW_MIN,
+        arg1: MODEL_CONTEXT_WINDOW_MAX
+      })
     );
     return;
   }
@@ -134,12 +137,15 @@ function save(): void {
     maxTokens > MODEL_MAX_TOKENS_MAX
   ) {
     uiMessage.warning(
-      `请填写 ${MODEL_MAX_TOKENS_MIN} 到 ${MODEL_MAX_TOKENS_MAX} 之间的最高输出长度。`
+      t("enterAMaximumOutputLengthBetweenValueAndValue", {
+        arg0: MODEL_MAX_TOKENS_MIN,
+        arg1: MODEL_MAX_TOKENS_MAX
+      })
     );
     return;
   }
   if (maxTokens > contextWindow) {
-    uiMessage.warning("最高输出长度不能超过上下文长度。");
+    uiMessage.warning(t("maximumOutputLengthCannotExceedContextLength"));
     return;
   }
   emit("save", { contextWindow, maxTokens });
@@ -164,40 +170,46 @@ function save(): void {
       >
         <header>
           <div>
-            <span class="dialog-eyebrow">模型配置</span>
-            <h2 id="model-advanced-config-title">高级配置</h2>
+            <span class="dialog-eyebrow">{{ t("modelSettings") }}</span>
+            <h2 id="model-advanced-config-title">
+              {{ t("advancedSettings") }}
+            </h2>
           </div>
         </header>
         <p>
-          为「{{
-            model.label
-          }}」设置请求容量。默认值与当前实际请求一致，保存后按修改值传输。
+          {{
+            t("setRequestCapacityForDefaultsMatchTheMessage", {
+              arg0: model.label ?? ""
+            })
+          }}
         </p>
         <div class="model-advanced-config-fields">
           <label>
-            <span>上下文长度</span>
+            <span>{{ t("contextLength") }}</span>
             <input
               ref="firstInput"
               v-model="contextWindowText"
               type="text"
               inputmode="numeric"
               :disabled="resolving"
-              :placeholder="resolving ? '正在读取实际请求容量…' : ''"
-              aria-label="上下文长度"
+              :placeholder="resolving ? t('readingActualRequestCapacity') : ''"
+              :aria-label="t('contextLength')"
             />
-            <small>一次请求可容纳的总 token 数，含输入与输出。</small>
+            <small>{{
+              t("totalTokensPerRequestIncludingInputAndOutput")
+            }}</small>
           </label>
           <label>
-            <span>最高输出长度</span>
+            <span>{{ t("maximumOutputLength") }}</span>
             <input
               v-model="maxTokensText"
               type="text"
               inputmode="numeric"
               :disabled="resolving"
-              :placeholder="resolving ? '正在读取实际请求容量…' : ''"
-              aria-label="最高输出长度"
+              :placeholder="resolving ? t('readingActualRequestCapacity') : ''"
+              :aria-label="t('maximumOutputLength')"
             />
-            <small>单次回复允许生成的最大 token 数。</small>
+            <small>{{ t("maximumTokensGeneratedInASingleReply") }}</small>
           </label>
         </div>
         <footer class="dialog-actions">
@@ -207,7 +219,7 @@ function save(): void {
             :disabled="busy"
             @click="close"
           >
-            取消
+            {{ t("cancel") }}
           </button>
           <button
             class="dialog-primary-button"
@@ -215,7 +227,7 @@ function save(): void {
             :disabled="busy || resolving"
             @click="save"
           >
-            {{ busy ? "保存中…" : "保存" }}
+            {{ busy ? t("saving") : t("save") }}
           </button>
         </footer>
       </section>

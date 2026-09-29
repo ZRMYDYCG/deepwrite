@@ -1,3 +1,5 @@
+import { formatError } from "../../i18n/errors";
+import { createScopedTranslator } from "../../i18n";
 import { preparePromptContext } from "./request-context";
 import type { AgentConversationContext } from "./context";
 import type {
@@ -28,6 +30,8 @@ import {
 } from "./message-identity";
 import { id, rememberBounded } from "./shared";
 import { cloneChatTask, submitConversationTurn } from "./send-transport";
+
+const t = createScopedTranslator("workspace.sendMessage");
 
 type SendMessageContext = Pick<
   AgentConversationContext,
@@ -95,10 +99,13 @@ export async function sendMessage(
   const content =
     preparedRewrite?.content ??
     (ctx.draft.value.trim() ||
-      (requestAttachments.length ? "请阅读并分析我上传的附件。" : ""));
+      (requestAttachments.length
+        ? t("pleaseReadAndAnalyzeTheAttachmentsIUploaded")
+        : ""));
   if (!api) {
-    ctx.conversationError.value =
-      "浏览器预览没有桌面 Agent Runtime，请使用 pnpm dev 启动客户端。";
+    ctx.conversationError.value = t(
+      "theBrowserPreviewHasNoDesktopAgentRuntimeStart"
+    );
     return;
   }
   if (
@@ -127,8 +134,10 @@ export async function sendMessage(
           : ctx.messages.value
     );
   } catch (error) {
-    ctx.conversationError.value =
-      error instanceof Error ? error.message : "恢复历史失败。";
+    ctx.conversationError.value = formatError(
+      error,
+      t("couldNotRestoreHistory")
+    );
     return;
   }
   const sendEpoch = ctx.epoch;
@@ -294,7 +303,7 @@ export async function sendMessage(
       if (observedRunId) {
         ctx.failProtocol(
           observedRunId,
-          "智能体受理结果返回了错误的会话标识。",
+          t("theAgentAcceptanceResponseReturnedTheWrongSessionId"),
           accepted.runtime
         );
       }
@@ -303,14 +312,16 @@ export async function sendMessage(
       ctx.submitting.value = false;
       ctx.clearIdleTimer();
       discardPendingAssistantMessage(ctx, pendingAssistantId);
-      ctx.conversationError.value = "智能体受理结果返回了错误的会话标识。";
+      ctx.conversationError.value = t(
+        "theAgentAcceptanceResponseReturnedTheWrongSessionId"
+      );
       return;
     }
     const observedRunId = ctx.observedRunByAttempt.get(attemptId);
     if (observedRunId && observedRunId !== accepted.runId) {
       ctx.failProtocol(
         observedRunId,
-        "智能体受理结果与已到达事件的运行标识不一致。",
+        t("theAgentAcceptanceResponseHasADifferentRunId"),
         accepted.runtime
       );
       ctx.pendingAttemptId.value = null;
@@ -351,8 +362,10 @@ export async function sendMessage(
     if (ctx.unconfirmedUserMessageId === userMessage.id && !ctx.draft.value) {
       ctx.draft.value = content;
     }
-    const messageText =
-      error instanceof Error ? error.message : "智能体请求受理失败。";
+    const messageText = formatError(
+      error,
+      t("theAgentRequestCouldNotBeAccepted")
+    );
     const observedRunId = ctx.observedRunByAttempt.get(attemptId);
     if (observedRunId) {
       ctx.markRunError(

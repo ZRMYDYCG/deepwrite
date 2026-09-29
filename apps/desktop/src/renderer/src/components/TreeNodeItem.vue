@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import {
   computed,
   nextTick,
@@ -20,6 +21,8 @@ import type {
 } from "../types/workspace";
 import AppIcon from "./AppIcon.vue";
 import LongBookActionMenu from "./LongBookActionMenu.vue";
+
+const t = createScopedTranslator("components.treeNodeItem");
 
 defineOptions({ name: "TreeNodeItem" });
 
@@ -200,7 +203,7 @@ const dragPayload = ref<{
 } | null>(null);
 const isDropTarget = ref(false);
 const draftUnitLabel = computed(() =>
-  props.node.workspaceType === "script" ? "剧集" : "小节"
+  props.node.workspaceType === "script" ? t("episode") : t("section")
 );
 
 function containsSelectedDescendant(
@@ -542,7 +545,15 @@ onBeforeUnmount(() => {
       "
       :data-resource-id="node.id"
       :aria-expanded="node.children?.length ? open : undefined"
-      :aria-label="`${node.children?.length ? `${node.selectableBranch ? '选择并' : ''}${open ? '折叠' : '展开'}` : ''}${node.label}${node.categoryTag ? `，${node.categoryTag}` : ''}`"
+      :aria-label="
+        t('treeItemLabel', {
+          action: node.children?.length
+            ? `${node.selectableBranch ? t('selectAnd') : ''}${open ? t('collapse') : t('expand')}`
+            : '',
+          name: node.label,
+          category: node.categoryTag ? ` · ${node.categoryTag}` : ''
+        })
+      "
       :draggable="canDragLibraryEntry || creationBookDraggable"
       @click="activate"
       @dragstart="startLibraryEntryDrag"
@@ -585,21 +596,30 @@ onBeforeUnmount(() => {
         :disabled="isLongTreeCollection && longTreeActionsDisabled"
         :aria-label="
           isCharacterDirectory
-            ? '新建人物条目'
+            ? t('newCharacterEntry')
             : isLongTreeCollection
-              ? `在${node.label}新增条目`
+              ? t('addEntryToValue', {
+                  arg0: node.label
+                })
               : isLongDraftVolume
-                ? `在${node.label}新增小节`
-                : `在${node.label}末尾新建${draftUnitLabel}`
+                ? t('addSectionToValue', {
+                    arg0: node.label
+                  })
+                : t('addValueAtTheEndOfValue', {
+                    arg0: node.label,
+                    arg1: draftUnitLabel
+                  })
         "
         :title="
           isCharacterDirectory
-            ? '新建人物条目'
+            ? t('newCharacterEntry')
             : isLongTreeCollection
-              ? '新增条目'
+              ? t('addEntry')
               : isLongDraftVolume
-                ? '新增小节'
-                : `新建${draftUnitLabel}`
+                ? t('addSection')
+                : t('newValue', {
+                    arg0: draftUnitLabel
+                  })
         "
         @click.stop="
           isCharacterDirectory
@@ -626,7 +646,7 @@ onBeforeUnmount(() => {
         :class="{ 'is-active': actionMenuOpen }"
         type="button"
         :disabled="isLongTreeItem && longTreeActionsDisabled"
-        :aria-label="`${node.label}更多操作`"
+        :aria-label="t('moreActionsForValue', { arg0: node.label })"
         :aria-expanded="actionMenuOpen"
         aria-haspopup="menu"
         @click.stop="toggleActionMenu"
@@ -649,7 +669,7 @@ onBeforeUnmount(() => {
           @click.stop="togglePin"
         >
           <AppIcon name="pin" :size="16" />
-          <span>{{ pinned ? "取消置顶" : "置顶" }}</span>
+          <span>{{ pinned ? t("unpin") : t("pinned") }}</span>
         </button>
         <template v-if="isLongLedgerCommit">
           <button
@@ -661,16 +681,16 @@ onBeforeUnmount(() => {
             "
             :title="
               node.longLedgerCommit?.deletable
-                ? '删除最后一条提交记录'
-                : '请先删除最后一条提交记录'
+                ? t('deleteTheLastCommitRecord')
+                : t('deleteTheLastCommitRecordFirst')
             "
             @click.stop="deleteLongLedgerCommit"
           >
             <AppIcon name="trash" :size="16" />
             <span>{{
               node.longLedgerCommit?.deletable
-                ? "删除记录"
-                : "删除记录（请先删除最后一条）"
+                ? t("deleteRecord")
+                : t("deleteRecordDeleteTheLastOneFirst")
             }}</span>
           </button>
         </template>
@@ -682,7 +702,7 @@ onBeforeUnmount(() => {
             :disabled="longTreeActionsDisabled || longTreeItemMoveUpDisabled"
             @click.stop="longTreeItemAction('move-up')"
           >
-            <span>↑</span><span>上移</span>
+            <span>↑</span><span>{{ t("moveUp") }}</span>
           </button>
           <button
             class="tree-node-action-menu-item"
@@ -691,7 +711,7 @@ onBeforeUnmount(() => {
             :disabled="longTreeActionsDisabled || longTreeItemMoveDownDisabled"
             @click.stop="longTreeItemAction('move-down')"
           >
-            <span>↓</span><span>下移</span>
+            <span>↓</span><span>{{ t("moveDown") }}</span>
           </button>
           <button
             class="tree-node-action-menu-item is-danger"
@@ -701,7 +721,7 @@ onBeforeUnmount(() => {
             @click.stop="longTreeItemAction('delete')"
           >
             <AppIcon name="trash" :size="16" />
-            <span>删除</span>
+            <span>{{ t("delete") }}</span>
           </button>
         </template>
         <template v-else-if="isLongDraftSection">
@@ -712,7 +732,7 @@ onBeforeUnmount(() => {
             :disabled="longDraftSectionMoveUpDisabled"
             @click.stop="longDraftSectionAction('move-up')"
           >
-            <span>↑</span><span>上移</span>
+            <span>↑</span><span>{{ t("moveUp") }}</span>
           </button>
           <button
             class="tree-node-action-menu-item"
@@ -721,7 +741,7 @@ onBeforeUnmount(() => {
             :disabled="longDraftSectionMoveDownDisabled"
             @click.stop="longDraftSectionAction('move-down')"
           >
-            <span>↓</span><span>下移</span>
+            <span>↓</span><span>{{ t("moveDown") }}</span>
           </button>
           <button
             class="tree-node-action-menu-item is-danger"
@@ -730,7 +750,7 @@ onBeforeUnmount(() => {
             @click.stop="longDraftSectionAction('delete')"
           >
             <AppIcon name="trash" :size="16" />
-            <span>删除</span>
+            <span>{{ t("delete") }}</span>
           </button>
         </template>
         <template v-else-if="isExpertDraftSection">
@@ -741,7 +761,7 @@ onBeforeUnmount(() => {
             :disabled="expertSectionMoveUpDisabled"
             @click.stop="expertSectionAction('move-up')"
           >
-            <span>↑</span><span>上移</span>
+            <span>↑</span><span>{{ t("moveUp") }}</span>
           </button>
           <button
             class="tree-node-action-menu-item"
@@ -750,7 +770,7 @@ onBeforeUnmount(() => {
             :disabled="expertSectionMoveDownDisabled"
             @click.stop="expertSectionAction('move-down')"
           >
-            <span>↓</span><span>下移</span>
+            <span>↓</span><span>{{ t("moveDown") }}</span>
           </button>
           <button
             class="tree-node-action-menu-item is-danger"
@@ -759,7 +779,11 @@ onBeforeUnmount(() => {
             @click.stop="removeExpertSection"
           >
             <AppIcon name="trash" :size="16" />
-            <span>删除{{ draftUnitLabel }}</span>
+            <span>{{
+              t("deleteMessage", {
+                arg0: draftUnitLabel ?? ""
+              })
+            }}</span>
           </button>
         </template>
         <template v-else-if="isCharacterItem">
@@ -769,7 +793,7 @@ onBeforeUnmount(() => {
             role="menuitem"
             @click.stop="characterItemAction('rename')"
           >
-            <AppIcon name="edit" :size="16" /><span>修改名称</span>
+            <AppIcon name="edit" :size="16" /><span>{{ t("rename") }}</span>
           </button>
           <button
             class="tree-node-action-menu-item"
@@ -777,7 +801,7 @@ onBeforeUnmount(() => {
             role="menuitem"
             @click.stop="characterItemAction('move-up')"
           >
-            <span>↑</span><span>上移</span>
+            <span>↑</span><span>{{ t("moveUp") }}</span>
           </button>
           <button
             class="tree-node-action-menu-item"
@@ -785,7 +809,7 @@ onBeforeUnmount(() => {
             role="menuitem"
             @click.stop="characterItemAction('move-down')"
           >
-            <span>↓</span><span>下移</span>
+            <span>↓</span><span>{{ t("moveDown") }}</span>
           </button>
           <button
             class="tree-node-action-menu-item is-danger"
@@ -793,7 +817,9 @@ onBeforeUnmount(() => {
             role="menuitem"
             @click.stop="characterItemAction('delete')"
           >
-            <AppIcon name="trash" :size="16" /><span>删除人物条目</span>
+            <AppIcon name="trash" :size="16" /><span>{{
+              t("deleteCharacterEntry")
+            }}</span>
           </button>
         </template>
         <LongBookActionMenu
@@ -811,7 +837,7 @@ onBeforeUnmount(() => {
               @click.stop="openBookAction('manage-structure')"
             >
               <AppIcon name="settings" :size="16" />
-              <span>结构管理</span>
+              <span>{{ t("manageStructure") }}</span>
             </button>
             <button
               class="tree-node-action-menu-item"
@@ -820,7 +846,7 @@ onBeforeUnmount(() => {
               @click.stop="openBookAction('rename')"
             >
               <AppIcon name="edit" :size="16" />
-              <span>修改名称</span>
+              <span>{{ t("rename") }}</span>
             </button>
             <button
               class="tree-node-action-menu-item"
@@ -829,7 +855,7 @@ onBeforeUnmount(() => {
               @click.stop="openBookAction('duplicate')"
             >
               <AppIcon name="copy" :size="16" />
-              <span>复制</span>
+              <span>{{ t("duplicate") }}</span>
             </button>
             <button
               class="tree-node-action-menu-item"
@@ -838,7 +864,7 @@ onBeforeUnmount(() => {
               @click.stop="openBookAction('bind-skill')"
             >
               <AppIcon name="library" :size="16" />
-              <span>技能库绑定</span>
+              <span>{{ t("skillLibraryLinks") }}</span>
             </button>
             <button
               class="tree-node-action-menu-item"
@@ -847,7 +873,7 @@ onBeforeUnmount(() => {
               @click.stop="openBookAction('bind-material')"
             >
               <AppIcon name="archive" :size="16" />
-              <span>素材库绑定</span>
+              <span>{{ t("materialLibraryLinks") }}</span>
             </button>
             <button
               class="tree-node-action-menu-item"
@@ -856,7 +882,7 @@ onBeforeUnmount(() => {
               @click.stop="exportBook"
             >
               <AppIcon name="download" :size="16" />
-              <span>导出正文</span>
+              <span>{{ t("exportManuscript") }}</span>
             </button>
           </template>
           <div class="tree-node-action-menu-divider" role="separator" />
@@ -867,7 +893,7 @@ onBeforeUnmount(() => {
             @click.stop="openBookAction('remove')"
           >
             <AppIcon name="trash" :size="16" />
-            <span>移除</span>
+            <span>{{ t("remove") }}</span>
           </button>
           <button
             v-if="!node.unavailable"
@@ -877,7 +903,7 @@ onBeforeUnmount(() => {
             @click.stop="openBookAction('delete')"
           >
             <AppIcon name="trash" :size="16" />
-            <span>删除</span>
+            <span>{{ t("delete") }}</span>
           </button>
         </template>
         <template
@@ -890,7 +916,7 @@ onBeforeUnmount(() => {
             role="menuitem"
             @click.stop="activateResourceNodeAction('rename-library')"
           >
-            <AppIcon name="edit" :size="16" /><span>修改名称</span>
+            <AppIcon name="edit" :size="16" /><span>{{ t("rename") }}</span>
           </button>
           <button
             v-if="!node.unavailable"
@@ -900,7 +926,7 @@ onBeforeUnmount(() => {
             @click.stop="activateResourceNodeAction('duplicate-library')"
           >
             <AppIcon name="copy" :size="16" />
-            <span>复制</span>
+            <span>{{ t("duplicate") }}</span>
           </button>
           <button
             v-if="!node.readOnly && !node.unavailable"
@@ -910,7 +936,7 @@ onBeforeUnmount(() => {
             @click.stop="activateResourceNodeAction('create-entry')"
           >
             <AppIcon name="plus" :size="16" />
-            <span>新建条目</span>
+            <span>{{ t("newEntry") }}</span>
           </button>
           <button
             v-if="
@@ -922,7 +948,7 @@ onBeforeUnmount(() => {
             @click.stop="activateResourceNodeAction('import-external-skills')"
           >
             <AppIcon name="download" :size="16" />
-            <span>从其他 skills 加载</span>
+            <span>{{ t("loadFromOtherSkills") }}</span>
           </button>
           <button
             v-if="!node.readOnly && !node.unavailable && canPasteLibraryEntry"
@@ -932,7 +958,7 @@ onBeforeUnmount(() => {
             @click.stop="activateResourceNodeAction('paste-entry')"
           >
             <AppIcon name="copy" :size="16" />
-            <span>粘贴</span>
+            <span>{{ t("paste") }}</span>
           </button>
           <div
             v-if="pinnable"
@@ -946,7 +972,7 @@ onBeforeUnmount(() => {
             @click.stop="activateResourceNodeAction('unregister-library')"
           >
             <AppIcon name="trash" :size="16" />
-            <span>移除</span>
+            <span>{{ t("remove") }}</span>
           </button>
           <button
             v-if="!node.unavailable"
@@ -956,7 +982,7 @@ onBeforeUnmount(() => {
             @click.stop="activateResourceNodeAction('delete-library')"
           >
             <AppIcon name="trash" :size="16" />
-            <span>删除</span>
+            <span>{{ t("delete") }}</span>
           </button>
         </template>
         <template v-else-if="node.catalogNodeType === 'group' && libraryDomain">
@@ -967,7 +993,7 @@ onBeforeUnmount(() => {
             @click.stop="activateResourceNodeAction('edit-group-bindings')"
           >
             <AppIcon name="edit" :size="16" />
-            <span>编辑分组</span>
+            <span>{{ t("editGroup") }}</span>
           </button>
           <button
             v-if="!node.unavailable"
@@ -977,7 +1003,7 @@ onBeforeUnmount(() => {
             @click.stop="activateResourceNodeAction('duplicate-group')"
           >
             <AppIcon name="copy" :size="16" />
-            <span>复制</span>
+            <span>{{ t("duplicate") }}</span>
           </button>
           <button
             class="tree-node-action-menu-item is-danger"
@@ -986,7 +1012,7 @@ onBeforeUnmount(() => {
             @click.stop="activateResourceNodeAction('dissolve-group')"
           >
             <AppIcon name="trash" :size="16" />
-            <span>解散分组</span>
+            <span>{{ t("ungroup") }}</span>
           </button>
         </template>
         <template
@@ -1003,7 +1029,7 @@ onBeforeUnmount(() => {
             role="menuitem"
             @click.stop="activateResourceNodeAction('rename-entry')"
           >
-            <AppIcon name="edit" :size="16" /><span>修改名称</span>
+            <AppIcon name="edit" :size="16" /><span>{{ t("rename") }}</span>
           </button>
           <button
             class="tree-node-action-menu-item"
@@ -1012,7 +1038,7 @@ onBeforeUnmount(() => {
             @click.stop="activateResourceNodeAction('copy-entry')"
           >
             <AppIcon name="copy" :size="16" />
-            <span>复制</span>
+            <span>{{ t("copy") }}</span>
           </button>
           <button
             v-if="!node.readOnly"
@@ -1022,7 +1048,7 @@ onBeforeUnmount(() => {
             @click.stop="activateResourceNodeAction('remove-entry')"
           >
             <AppIcon name="trash" :size="16" />
-            <span>删除条目文件</span>
+            <span>{{ t("deleteEntryFile") }}</span>
           </button>
         </template>
       </div>

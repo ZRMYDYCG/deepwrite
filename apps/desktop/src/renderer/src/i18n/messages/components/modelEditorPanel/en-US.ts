@@ -1,0 +1,55 @@
+export default {
+  editModel: "Edit model",
+  addModel: "Add model",
+  cancel: "Cancel",
+  name: "Name",
+  forExampleDeepSeekWritingLeaveBlankToUseThe:
+    "For example: DeepSeek Writing. Leave blank to use the model ID.",
+  selectProvider: "Select provider",
+  newProvider: "New provider",
+  modelID: "Model ID",
+  selectModelID: "Select model ID",
+  selectModelsToSave: "Select models to save",
+  enterAnotherModelID: "Enter another model ID",
+  modelIDSuppliedByTheProvider: "Model ID supplied by the provider",
+  fetching: "Fetching…",
+  fetchAvailableModelsUsingTheAPIEndpointAndKey:
+    "Fetch available models using the API endpoint and key",
+  fetchingLabel: "Fetching",
+  fetchAvailableModels: "Fetch available models",
+  fetch: "Fetch",
+  aPIType: "API type",
+  selectAPIType: "Select API type",
+  aPIEndpoint: "API endpoint",
+  optionalForBuiltInModelsRequiredForCustomServices:
+    "Optional for built-in models; required for custom services",
+  toolSchema: "Tool schema",
+  selectToolSchemaCompatibilityMode: "Select tool schema compatibility mode",
+  savedSecurelyLeaveBlankToKeepUnchanged:
+    "Saved securely. Leave blank to keep unchanged.",
+  enterAPIKeyOptionalForLocalServices:
+    "Enter API key (optional for local services)",
+  modelMode: "Model mode",
+  selectModelMode: "Select model mode",
+  defaultReasoningLevel: "Default reasoning level",
+  selectDefaultReasoningLevel: "Select default reasoning level",
+  temperatureOptions: "Temperature options",
+  lowerTemperaturesProduceMoreStablePredictableOutputHigherTemperatures:
+    "Lower temperatures produce more stable, predictable output. Higher temperatures produce more varied, creative output. Range: 0–2.",
+  lowerTemperaturesAreMorePredictableHigherTemperaturesAreMore:
+    "Lower temperatures are more predictable; higher temperatures are more varied and creative. Range: 0–2.",
+  temperatureOptionValue: "Temperature option {arg0}",
+  reasoningLevelOptions: "Reasoning level options",
+  custom: "Custom",
+  forExampleUltra: "For example: ultra",
+  customReasoningLevelValueInEnglish: "Custom reasoning level value in English",
+  theExistingKeyWillBeKept: "The existing key will be kept.",
+  clearSavedKey: "Clear saved key",
+  testing: "Testing…",
+  testCurrentValues: "Test current values",
+  saving: "Saving…",
+  applyAndSaveConfigurations: "Apply and save configurations",
+  modelSettings: "Model settings",
+  couldNotFetchModels: "Could not fetch models",
+  gotIt: "Got it"
+};

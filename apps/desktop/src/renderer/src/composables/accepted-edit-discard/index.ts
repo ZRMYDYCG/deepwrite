@@ -1,3 +1,5 @@
+import { formatError } from "../../i18n/errors";
+import { createScopedTranslator } from "../../i18n";
 import type { AgentEditProposal } from "../../types/conversation";
 import {
   AcceptedEditDiscardConflictError,
@@ -14,6 +16,8 @@ import {
   discardAcceptedCatalogTextEdit,
   discardAcceptedShortStructureEdit
 } from "./short";
+
+const t = createScopedTranslator("workspace.index");
 
 function proposalUsesModificationTool(
   conversation: AgentConversationController,
@@ -51,7 +55,7 @@ function conflictDependentProposals(
     conversation.updateEditProposal(candidate.runId, candidate.id, {
       status: "conflict",
       proposedText: undefined,
-      statusMessage: "前一版修改已被舍弃，请基于当前文件重新生成本项修改。"
+      statusMessage: t("thePreviousEditWasDiscardedRegenerateThisEditUsing")
     });
   }
 }
@@ -76,14 +80,14 @@ export function createAcceptedEditDiscardCoordinator(
       return;
     }
     if (context.editor.acceptingWorkspaceIds.value.has(proposal.workspaceId)) {
-      context.notifications.info("同一作品正在保存其他修改，请稍候再舍弃");
+      context.notifications.info(t("otherEditsToThisProjectAreBeingSavedWait"));
       return;
     }
     updateDiscardState(
       conversation,
       proposal,
       "discarding",
-      "正在舍弃本次修改…"
+      t("discardingThisEdit")
     );
     context.editor.setWorkspaceAccepting(proposal.workspaceId, true);
     try {
@@ -94,16 +98,15 @@ export function createAcceptedEditDiscardCoordinator(
         conversation,
         proposal,
         "discarded",
-        "已舍弃本次修改，并恢复修改前的内容。"
+        t("editDiscardedThePreviousContentHasBeenRestored")
       );
       conflictDependentProposals(conversation, proposal);
-      context.notifications.success("已舍弃本次修改");
+      context.notifications.success(t("editDiscarded"));
     } catch (error: unknown) {
       const conflict =
         error instanceof AcceptedEditDiscardConflictError ||
         context.catalog.isConflict(error);
-      const message =
-        error instanceof Error ? error.message : "舍弃本次修改失败。";
+      const message = formatError(error, t("failedToDiscardThisEdit"));
       updateDiscardState(
         conversation,
         proposal,

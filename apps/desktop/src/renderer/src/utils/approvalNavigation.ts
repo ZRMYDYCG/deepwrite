@@ -1,3 +1,4 @@
+import { createScopedTranslator } from "../i18n";
 import type {
   LongWorkspaceIndexSnapshot,
   LongWorkspaceOperation,
@@ -19,6 +20,8 @@ import {
 } from "../types/longWorkspace";
 import { createLongRootSelection } from "./longWorkspaceResourceTree";
 import { longLedgerApprovalTarget } from "./longLedgerApprovalTarget";
+
+const t = createScopedTranslator("workspace.approvalNavigation");
 
 export type LongApprovalNavigationCandidate =
   | { kind: "file"; fileId: string }
@@ -660,7 +663,7 @@ function bookLineSelection(
       summary,
       "plot-design:book-line",
       "plot_design",
-      "全书故事线",
+      t("overallStoryline"),
       "book-line"
     )
   );
@@ -677,7 +680,7 @@ function foreshadowingSelection(
       summary,
       "plot-design:foreshadowing",
       "plot_design",
-      "伏笔总览",
+      t("foreshadowingOverview"),
       "book-line"
     )
   );

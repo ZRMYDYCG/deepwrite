@@ -1,3 +1,4 @@
+import { BUILTIN_AGENT_METADATA } from "./builtin-agent-metadata";
 import { z } from "zod";
 import {
   SCRIPT_MATERIAL_KINDS,
@@ -125,9 +126,7 @@ export const DEFAULT_SCRIPT_WORKSPACE_AGENT_PROFILES: readonly ScriptWorkspaceAg
   [
     {
       id: "script",
-      label: "剧本智能体",
-      description:
-        "统一负责人物、动态剧情阶段和剧本正文创作，并按当前阶段加载上下文。",
+      ...BUILTIN_AGENT_METADATA.script,
       systemPrompt: DEFAULT_SCRIPT_SYSTEM_PROMPT,
       welcomeShortcuts: [...DEFAULT_SCRIPT_AGENT_WELCOME_SHORTCUTS.script],
       readAccess: DEFAULT_SCRIPT_AGENT_READ_ACCESS.script

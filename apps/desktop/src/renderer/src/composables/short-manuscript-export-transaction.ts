@@ -1,3 +1,4 @@
+import { t } from "../i18n";
 import type {
   Book,
   DeepWriteApi,
@@ -42,7 +43,11 @@ export async function executeShortManuscriptExport(
     return { status: "copied" };
   }
   if (!transaction.api) {
-    throw new Error("正文导出服务不可用。");
+    throw new Error(
+      t(
+        "workspace.shortManuscriptExportTransaction.manuscriptExportIsUnavailable"
+      )
+    );
   }
   return transaction.api.exportShort(input);
 }

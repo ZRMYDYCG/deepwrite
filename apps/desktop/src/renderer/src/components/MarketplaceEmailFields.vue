@@ -1,8 +1,11 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import { MarketplaceEmailSchema } from "@deepwrite/contracts/renderer";
 import { uiMessage } from "../ui-feedback";
 import { marketplaceAccountError } from "../utils/marketplaceAccountError";
+
+const t = createScopedTranslator("components.marketplaceEmailFields");
 const props = defineProps<{
   purpose: "register" | "account";
   disabled: boolean;
@@ -43,7 +46,7 @@ async function send(): Promise<void> {
   if (!api || props.disabled || sending.value || remaining.value > 0) return;
   const parsed = MarketplaceEmailSchema.safeParse(email.value);
   if (!parsed.success) {
-    uiMessage.warning("请先填写有效邮箱。");
+    uiMessage.warning(t("enterAValidEmailFirst"));
     return;
   }
   sending.value = true;
@@ -56,11 +59,14 @@ async function send(): Promise<void> {
     if (!alive) return;
     now.value = Date.now();
     deadlines.value[parsed.data] = now.value + result.retryAfter * 1000;
-    uiMessage.success("验证码已发送，请查看邮箱及垃圾邮件。");
+    uiMessage.success(t("verificationCodeSentCheckYourInboxAndSpamFolder"));
   } catch (error: unknown) {
     if (alive)
       uiMessage.error(
-        marketplaceAccountError(error, "验证码发送失败，请稍后重试。")
+        marketplaceAccountError(
+          error,
+          t("couldNotSendVerificationCodeTryAgainLater")
+        )
       );
   } finally {
     if (alive) {
@@ -73,7 +79,7 @@ async function send(): Promise<void> {
 <template>
   <div class="email-fields">
     <label
-      ><span>邮箱</span
+      ><span>{{ t("email") }}</span
       ><input
         :value="email"
         type="email"
@@ -90,14 +96,16 @@ async function send(): Promise<void> {
     >
       {{
         sending
-          ? "发送中…"
+          ? t("sending")
           : remaining > 0
-            ? `${remaining} 秒后重发`
-            : "发送验证码"
+            ? t("resendInValueS", {
+                arg0: remaining
+              })
+            : t("sendCode")
       }}
     </button>
     <label
-      ><span>邮箱验证码</span
+      ><span>{{ t("emailVerificationCode") }}</span
       ><input
         v-model="code"
         inputmode="numeric"
@@ -107,7 +115,7 @@ async function send(): Promise<void> {
         :disabled="disabled || sending"
         required
     /></label>
-    <small>输入邮件中的 6 位验证码，5 分钟内有效。</small>
+    <small>{{ t("enterTheSixDigitEmailCodeItExpiresIn") }}</small>
   </div>
 </template>
 <style scoped src="./marketplace-account.css"></style>

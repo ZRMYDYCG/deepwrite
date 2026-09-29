@@ -22,6 +22,10 @@ export interface WorkspaceFeatureHostNotifications {
 
 export interface WorkspaceFeatureHostApi {
   marketplace: Pick<DeepWriteApi["marketplace"], "session">;
+  storageSettings?: Pick<
+    NonNullable<DeepWriteApi["storageSettings"]>,
+    "resetWorkspaceDirectory"
+  >;
   workspaceDirectory: Pick<
     DeepWriteApi["workspaceDirectory"],
     "choose" | "list"
@@ -96,6 +100,7 @@ export interface WorkspaceFeatureHostCoordinator {
   openZhuqueDetection(): Promise<void>;
   loadWorkspaceDirectory(): Promise<void>;
   chooseWorkspaceDirectory(): Promise<void>;
+  resetWorkspaceDirectory(): Promise<void>;
   closeSettings(): void;
   applyMarketplaceSession(session: MarketplaceSession): void;
   loadMarketplaceSession(): Promise<void>;

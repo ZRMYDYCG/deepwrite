@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { metadataEditFailureMessage } from "./metadataEditMessages";
+import { createScopedTranslator } from "../i18n";
 import { computed } from "vue";
 import {
   parseMaterialMarkdown,
@@ -7,6 +9,8 @@ import {
 } from "@deepwrite/contracts/renderer";
 import { uiMessage } from "../ui-feedback";
 import LibraryMetadataPopover from "./LibraryMetadataPopover.vue";
+
+const t = createScopedTranslator("components.materialMetadataEditor");
 
 const props = defineProps<{
   content: string;
@@ -24,23 +28,28 @@ const effective = computed(() =>
   })
 );
 const preview = computed(() => ({
-  title: "当前智能体目录",
+  title: t("currentAgentCatalog"),
   name: effective.value.name,
   nameSource:
-    effective.value.nameSource === "configured" ? "使用配置名称" : "使用原标题",
-  description: effective.value.description,
+    effective.value.nameSource === "configured"
+      ? t("useConfiguredName")
+      : t("useOriginalTitle"),
+  description:
+    effective.value.descriptionSource === "fallback"
+      ? t("noNotesReadSource")
+      : effective.value.description,
   descriptionSource:
     effective.value.descriptionSource === "configured"
-      ? "使用配置说明"
+      ? t("useConfiguredNotes")
       : effective.value.descriptionSource === "excerpt"
-        ? "使用正文摘录"
-        : "可按需读取原文"
+        ? t("useContentExcerpt")
+        : t("sourceTextAvailableOnDemand")
 }));
 function applyMetadata(values: { name: string; description: string }): boolean {
   if (props.readOnly) return false;
   const result = updateMaterialMarkdownMetadata(props.content, values);
   if (!result.updated) {
-    uiMessage.info(result.message);
+    uiMessage.info(metadataEditFailureMessage(result));
     return false;
   }
   emit("change", result.content);
@@ -53,12 +62,14 @@ function applyMetadata(values: { name: string; description: string }): boolean {
     :content="content"
     :entry-id="entryId"
     :read-only="readOnly"
-    label="素材说明"
-    hint="建议添加名称和使用说明，帮助智能体更准确地选择素材。不填写也可以正常使用。"
+    :label="t('materialNotes')"
+    :hint="t('aNameAndUsageNotesHelpTheAgentChoose')"
     :optional="true"
     :initial-name="parsed.name ?? title"
     :initial-description="parsed.description ?? ''"
-    placeholder="例如：适合悬疑故事，在人物关系设计和身份揭露时参考。"
+    :placeholder="
+      t('forExampleUsefulForMysteriesCharacterRelationshipsAndIdentity')
+    "
     :preview="preview"
     :apply-metadata="applyMetadata"
   />

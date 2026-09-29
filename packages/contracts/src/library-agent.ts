@@ -1,3 +1,4 @@
+import { BUILTIN_AGENT_METADATA } from "./builtin-agent-metadata";
 import {
   DEFAULT_MATERIAL_LIBRARY_AGENT_SKILLS,
   DEFAULT_SKILL_LIBRARY_AGENT_SKILLS,
@@ -116,9 +117,7 @@ export type LibraryAgentProfile = z.infer<typeof LibraryAgentProfileSchema>;
 export const DEFAULT_LIBRARY_AGENT_PROFILES: readonly LibraryAgentProfile[] = [
   {
     domain: "material",
-    label: "素材库管理智能体",
-    description:
-      "创建、修改、检索和整理当前素材库，维护条目名称、使用说明与库介绍。",
+    ...BUILTIN_AGENT_METADATA.material,
     systemPrompt: DEFAULT_MATERIAL_LIBRARY_AGENT_SYSTEM_PROMPT,
     readAccess: {
       skills: [...DEFAULT_LIBRARY_AGENT_READ_ACCESS.material.skills]
@@ -126,9 +125,7 @@ export const DEFAULT_LIBRARY_AGENT_PROFILES: readonly LibraryAgentProfile[] = [
   },
   {
     domain: "skill",
-    label: "技能库管理智能体",
-    description:
-      "创建、修改和管理可复用写作技能，维护方法步骤、使用说明与技能库索引。",
+    ...BUILTIN_AGENT_METADATA.skill,
     systemPrompt: DEFAULT_SKILL_LIBRARY_AGENT_SYSTEM_PROMPT,
     readAccess: {
       skills: [...DEFAULT_LIBRARY_AGENT_READ_ACCESS.skill.skills]

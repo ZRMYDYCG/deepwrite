@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import { computed } from "vue";
 import type {
   LongWorkspaceEntityChange,
@@ -9,6 +10,8 @@ import type {
 import type { LongWorkspaceProposalItem } from "../composables/useLongWorkspaceProposals";
 import { longCharacterFiles } from "../utils/longCharacterFiles";
 import { longWorldbuildingFiles } from "../utils/longWorldbuildingFiles";
+
+const t = createScopedTranslator("components.longProposalImpactDetails");
 
 const props = defineProps<{
   item: LongWorkspaceProposalItem;
@@ -73,66 +76,144 @@ function proposalFilePath(fileId: string): string {
 }
 
 const entityKindLabels: Record<string, string> = {
-  "worldbuilding-category": "世界观分类",
-  "worldbuilding-item": "世界观条目",
-  "character-type": "人物类型",
-  character: "人物",
-  volume: "卷",
-  arc: "剧情弧",
-  "chapter-card": "章卡",
-  "story-event": "故事事件",
-  "story-plot": "故事情节",
-  "event-connection": "事件连接",
-  "narrative-placement": "叙事落点",
-  "foreshadowing-thread": "伏笔线",
-  "foreshadowing-beat": "伏笔节拍"
+  get "worldbuilding-category"() {
+    return t("worldbuildingCategory");
+  },
+  get "worldbuilding-item"() {
+    return t("worldbuildingEntry");
+  },
+  get "character-type"() {
+    return t("characterType");
+  },
+  get character() {
+    return t("characters");
+  },
+  get volume() {
+    return t("volumes");
+  },
+  get arc() {
+    return t("plotArc");
+  },
+  get "chapter-card"() {
+    return t("chapterCard");
+  },
+  get "story-event"() {
+    return t("storyEvent");
+  },
+  get "story-plot"() {
+    return t("storyEventLabel");
+  },
+  get "event-connection"() {
+    return t("eventLink");
+  },
+  get "narrative-placement"() {
+    return t("narrativeBeat");
+  },
+  get "foreshadowing-thread"() {
+    return t("foreshadowingThread");
+  },
+  get "foreshadowing-beat"() {
+    return t("foreshadowingBeat");
+  }
 };
 
 function entityActionLabel(action: LongWorkspaceEntityChange["action"]) {
-  if (action === "create") return "新建实体";
-  if (action === "delete") return "删除实体";
-  return "更新实体";
+  if (action === "create") return t("createEntity");
+  if (action === "delete") return t("deleteEntity");
+  return t("updateEntity");
 }
 
 function snapshotText(value: unknown): string {
-  return value === null ? "（不存在）" : JSON.stringify(value, null, 2);
+  return value === null ? t("missing") : JSON.stringify(value, null, 2);
 }
 
 const relationshipKindLabels: Record<string, string> = {
-  "worldbuilding-category-item": "世界观分类与条目",
-  "character-type-member": "人物类型归属",
-  "arc-volume": "剧情点与分卷",
-  "chapter-volume": "章卡与分卷",
-  "chapter-primary-arc": "章卡与主剧情点",
-  "story-plot-arc": "故事情节与剧情点",
-  "story-event-arc": "故事事件与剧情点",
-  "story-event-character": "故事事件与人物",
-  "event-connection-source": "事件连接的起点",
-  "event-connection-target": "事件连接的终点",
-  "narrative-placement-event": "叙事落点与事件",
-  "narrative-placement-chapter": "叙事落点与章卡",
-  "narrative-placement-commit": "叙事落点与连续性记录",
-  "foreshadowing-truth-event": "伏笔线与真相事件",
-  "foreshadowing-thread-beat": "伏笔线与触点",
-  "foreshadowing-beat-volume": "伏笔触点与分卷",
-  "foreshadowing-beat-arc": "伏笔触点与剧情点",
-  "foreshadowing-beat-event": "伏笔触点与事件",
-  "foreshadowing-beat-placement": "伏笔触点与叙事落点",
-  "foreshadowing-beat-chapter": "伏笔触点与章卡",
-  "foreshadowing-beat-commit": "伏笔触点与连续性记录",
-  "character-files": "人物与文件",
-  "chapter-files": "章节与文件",
-  "ledger-commit": "连续性提交",
-  "ledger-state": "连续性账本状态",
-  "continuity-projection": "连续性投影"
+  get "worldbuilding-category-item"() {
+    return t("worldbuildingCategoriesAndEntries");
+  },
+  get "character-type-member"() {
+    return t("characterTypeAssignments");
+  },
+  get "arc-volume"() {
+    return t("plotPointsAndVolumes");
+  },
+  get "chapter-volume"() {
+    return t("chapterCardsAndVolumes");
+  },
+  get "chapter-primary-arc"() {
+    return t("chapterCardsAndPrimaryPlotPoints");
+  },
+  get "story-plot-arc"() {
+    return t("storyEventsAndPlotPoints");
+  },
+  get "story-event-arc"() {
+    return t("storyEventsAndPlotPointsLabel");
+  },
+  get "story-event-character"() {
+    return t("storyEventsAndCharacters");
+  },
+  get "event-connection-source"() {
+    return t("eventLinkSource");
+  },
+  get "event-connection-target"() {
+    return t("eventLinkDestination");
+  },
+  get "narrative-placement-event"() {
+    return t("narrativeBeatsAndEvents");
+  },
+  get "narrative-placement-chapter"() {
+    return t("narrativeBeatsAndChapterCards");
+  },
+  get "narrative-placement-commit"() {
+    return t("narrativeBeatsAndContinuityRecords");
+  },
+  get "foreshadowing-truth-event"() {
+    return t("foreshadowingThreadsAndTruthEvents");
+  },
+  get "foreshadowing-thread-beat"() {
+    return t("foreshadowingThreadsAndTouchpoints");
+  },
+  get "foreshadowing-beat-volume"() {
+    return t("foreshadowingTouchpointsAndVolumes");
+  },
+  get "foreshadowing-beat-arc"() {
+    return t("foreshadowingTouchpointsAndPlotPoints");
+  },
+  get "foreshadowing-beat-event"() {
+    return t("foreshadowingTouchpointsAndEvents");
+  },
+  get "foreshadowing-beat-placement"() {
+    return t("foreshadowingTouchpointsAndNarrativeBeats");
+  },
+  get "foreshadowing-beat-chapter"() {
+    return t("foreshadowingTouchpointsAndChapterCards");
+  },
+  get "foreshadowing-beat-commit"() {
+    return t("foreshadowingTouchpointsAndContinuityRecords");
+  },
+  get "character-files"() {
+    return t("charactersAndFiles");
+  },
+  get "chapter-files"() {
+    return t("chaptersAndFiles");
+  },
+  get "ledger-commit"() {
+    return t("continuityCommit");
+  },
+  get "ledger-state"() {
+    return t("continuityLedgerState");
+  },
+  get "continuity-projection"() {
+    return t("continuityProjection");
+  }
 };
 
 function relationshipActionLabel(
   action: LongWorkspaceRelationshipChange["action"]
 ) {
-  if (action === "create") return "建立关联";
-  if (action === "delete") return "解除关联";
-  return "更新关联";
+  if (action === "create") return t("createLink");
+  if (action === "delete") return t("removeLink");
+  return t("updateLink");
 }
 
 function ledgerRecordEditCount(edit: LongWorkspaceLedgerRecordEdit): number {
@@ -156,22 +237,27 @@ function ledgerRecordEditCount(edit: LongWorkspaceLedgerRecordEdit): number {
     <div class="proposal-impact">
       <span>
         <strong>{{ operationCount }}</strong>
-        结构操作
+        {{ t("structureOperations") }}
       </span>
       <span
-        ><strong>{{ structureImpactTotal() }}</strong> 实体受影响</span
+        ><strong>{{ structureImpactTotal() }}</strong>
+        {{ t("affectedEntities") }}</span
       >
       <span
-        ><strong>{{ preview.fileIntents.length }}</strong> 文件增删</span
+        ><strong>{{ preview.fileIntents.length }}</strong>
+        {{ t("fileAdditionsAndDeletions") }}</span
       >
       <span>
-        <strong>{{ preview.relationshipChanges.length }}</strong> 关联变更
+        <strong>{{ preview.relationshipChanges.length }}</strong>
+        {{ t("linkChanges") }}
       </span>
       <span>
-        <strong>{{ preview.ledgerRecordEdits.length }}</strong> 账本记录
+        <strong>{{ preview.ledgerRecordEdits.length }}</strong>
+        {{ t("ledgerRecords") }}
       </span>
       <span
-        ><strong>{{ preview.documentWrites.length }}</strong> 文档写入</span
+        ><strong>{{ preview.documentWrites.length }}</strong>
+        {{ t("documentWrites") }}</span
       >
     </div>
     <details
@@ -183,9 +269,15 @@ function ledgerRecordEditCount(edit: LongWorkspaceLedgerRecordEdit): number {
         preview.ledgerRecordEdits.length > 0
       "
     >
-      <summary>查看具体影响</summary>
+      <summary>
+        {{ t("viewDetailedImpact") }}
+      </summary>
       <div v-if="preview.entityChanges.length" class="detail-group entity-list">
-        <strong>实体完整前后快照（{{ preview.entityChanges.length }}）</strong>
+        <strong>{{
+          t("completeEntitySnapshotsMessage", {
+            arg0: preview.entityChanges.length ?? ""
+          })
+        }}</strong>
         <details
           v-for="change in preview.entityChanges"
           :key="`${change.action}:${change.kind}:${change.id}`"
@@ -198,11 +290,11 @@ function ledgerRecordEditCount(edit: LongWorkspaceLedgerRecordEdit): number {
           </summary>
           <div class="entity-diff">
             <section>
-              <strong>变更前</strong>
+              <strong>{{ t("before") }}</strong>
               <pre>{{ snapshotText(change.before) }}</pre>
             </section>
             <section>
-              <strong>变更后</strong>
+              <strong>{{ t("after") }}</strong>
               <pre>{{ snapshotText(change.after) }}</pre>
             </section>
           </div>
@@ -212,9 +304,11 @@ function ledgerRecordEditCount(edit: LongWorkspaceLedgerRecordEdit): number {
         v-if="preview.relationshipChanges.length"
         class="detail-group entity-list"
       >
-        <strong
-          >关联关系变化（{{ preview.relationshipChanges.length }}）</strong
-        >
+        <strong>{{
+          t("linkChangesMessage", {
+            arg0: preview.relationshipChanges.length ?? ""
+          })
+        }}</strong>
         <details
           v-for="change in preview.relationshipChanges"
           :key="`${change.action}:${change.kind}:${change.id}`"
@@ -227,11 +321,11 @@ function ledgerRecordEditCount(edit: LongWorkspaceLedgerRecordEdit): number {
           </summary>
           <div class="entity-diff">
             <section>
-              <strong>变更前</strong>
+              <strong>{{ t("before") }}</strong>
               <pre>{{ snapshotText(change.before) }}</pre>
             </section>
             <section>
-              <strong>变更后</strong>
+              <strong>{{ t("after") }}</strong>
               <pre>{{ snapshotText(change.after) }}</pre>
             </section>
           </div>
@@ -242,7 +336,11 @@ function ledgerRecordEditCount(edit: LongWorkspaceLedgerRecordEdit): number {
         class="detail-group ledger-list"
       >
         <strong>
-          连续性账本记录影响（{{ preview.ledgerRecordEdits.length }}）
+          {{
+            t("continuityLedgerRecordImpactMessage", {
+              arg0: preview.ledgerRecordEdits.length ?? ""
+            })
+          }}
         </strong>
         <details
           v-for="edit in preview.ledgerRecordEdits"
@@ -250,45 +348,64 @@ function ledgerRecordEditCount(edit: LongWorkspaceLedgerRecordEdit): number {
           class="entity-change is-danger"
         >
           <summary>
-            更新记录 {{ edit.commitId }} · {{ edit.recordFile.id }} ·
-            {{ ledgerRecordEditCount(edit) }} 项
+            {{
+              t("updateRecordItemsMessage", {
+                arg0: edit.commitId ?? "",
+                arg1: edit.recordFile.id ?? "",
+                arg2: ledgerRecordEditCount(edit) ?? ""
+              })
+            }}
           </summary>
           <div class="ledger-edit">
             <code>{{ edit.recordFile.path }}</code>
-            <span v-if="edit.removePlacementIds.length"
-              >解除叙事落点：{{ edit.removePlacementIds.join("、") }}</span
-            >
-            <span v-if="edit.removeForeshadowingBeatIds.length"
-              >解除伏笔触点：{{
-                edit.removeForeshadowingBeatIds.join("、")
-              }}</span
-            >
-            <span v-if="edit.reconcileForeshadowingThreadIds.length"
-              >重算伏笔线：{{
-                edit.reconcileForeshadowingThreadIds.join("、")
-              }}</span
-            >
-            <span v-if="edit.removeSubjectIds.length"
-              >清理主体引用：{{ edit.removeSubjectIds.join("、") }}</span
-            >
-            <span v-if="edit.removeKnowledgeAudienceIds.length"
-              >清理认知受众：{{
-                edit.removeKnowledgeAudienceIds.join("、")
-              }}</span
-            >
-            <span v-if="edit.removeFactIds.length"
-              >清理事实：{{ edit.removeFactIds.join("、") }}</span
-            >
-            <span v-if="edit.removeOpenLoopIds.length"
-              >清理未闭环项：{{ edit.removeOpenLoopIds.join("、") }}</span
-            >
-            <span v-if="edit.removeFactKeys.length"
-              >清理事实键 {{ edit.removeFactKeys.length }} 项</span
-            >
-            <span v-if="edit.removeKnowledgeKeys.length"
-              >清理认知键 {{ edit.removeKnowledgeKeys.length }} 项</span
-            >
-            <span v-if="edit.replaceHandoff">更新接续包</span>
+            <span v-if="edit.removePlacementIds.length">{{
+              t("unlinkNarrativeBeatsMessage", {
+                arg0: edit.removePlacementIds.join("、") ?? ""
+              })
+            }}</span>
+            <span v-if="edit.removeForeshadowingBeatIds.length">{{
+              t("unlinkForeshadowingTouchpointsMessage", {
+                arg0: edit.removeForeshadowingBeatIds.join("、") ?? ""
+              })
+            }}</span>
+            <span v-if="edit.reconcileForeshadowingThreadIds.length">{{
+              t("recalculateForeshadowingThreadsMessage", {
+                arg0: edit.reconcileForeshadowingThreadIds.join("、") ?? ""
+              })
+            }}</span>
+            <span v-if="edit.removeSubjectIds.length">{{
+              t("removeSubjectReferencesMessage", {
+                arg0: edit.removeSubjectIds.join("、") ?? ""
+              })
+            }}</span>
+            <span v-if="edit.removeKnowledgeAudienceIds.length">{{
+              t("removeKnowledgeAudiencesMessage", {
+                arg0: edit.removeKnowledgeAudienceIds.join("、") ?? ""
+              })
+            }}</span>
+            <span v-if="edit.removeFactIds.length">{{
+              t("removeFactsMessage", {
+                arg0: edit.removeFactIds.join("、") ?? ""
+              })
+            }}</span>
+            <span v-if="edit.removeOpenLoopIds.length">{{
+              t("removeOpenThreadsMessage", {
+                arg0: edit.removeOpenLoopIds.join("、") ?? ""
+              })
+            }}</span>
+            <span v-if="edit.removeFactKeys.length">{{
+              t("factKeysToRemoveMessage", {
+                arg0: edit.removeFactKeys.length ?? ""
+              })
+            }}</span>
+            <span v-if="edit.removeKnowledgeKeys.length">{{
+              t("knowledgeKeysToRemoveMessage", {
+                arg0: edit.removeKnowledgeKeys.length ?? ""
+              })
+            }}</span>
+            <span v-if="edit.replaceHandoff">{{
+              t("updateHandoffPackage")
+            }}</span>
           </div>
         </details>
       </div>
@@ -296,26 +413,28 @@ function ledgerRecordEditCount(edit: LongWorkspaceLedgerRecordEdit): number {
         v-if="preview.impact.deletedFileIds.length"
         class="detail-group is-danger"
       >
-        <strong
-          >删除文件引用（{{ preview.impact.deletedFileIds.length }}）</strong
-        >
+        <strong>{{
+          t("deleteFileReferencesMessage", {
+            arg0: preview.impact.deletedFileIds.length ?? ""
+          })
+        }}</strong>
         <code v-for="id in preview.impact.deletedFileIds" :key="id">{{
           id
         }}</code>
       </div>
       <div v-if="preview.fileIntents.length" class="detail-group">
-        <strong>文件操作</strong>
+        <strong>{{ t("fileOperations") }}</strong>
         <span
           v-for="intent in preview.fileIntents"
           :key="`${intent.action}:${intent.file.id}`"
           :class="{ 'is-danger': intent.action === 'delete' }"
         >
-          {{ intent.action === "delete" ? "删除引用" : "新建" }} ·
-          {{ intent.file.path }} · {{ intent.reason }}
+          {{ intent.action === "delete" ? t("deleteReference") : t("new") }}
+          · {{ intent.file.path }} · {{ intent.reason }}
         </span>
       </div>
       <div v-if="preview.documentWrites.length" class="detail-group write-list">
-        <strong>文档写入内容</strong>
+        <strong>{{ t("documentContentToWrite") }}</strong>
         <details
           v-for="write in preview.documentWrites"
           :key="write.proposalId"
@@ -328,7 +447,11 @@ function ledgerRecordEditCount(edit: LongWorkspaceLedgerRecordEdit): number {
           <textarea
             readonly
             spellcheck="false"
-            :aria-label="`${proposalFilePath(write.fileId)}拟写内容`"
+            :aria-label="
+              t('proposedValueContent', {
+                arg0: proposalFilePath(write.fileId)
+              })
+            "
             :value="write.content"
           />
         </details>

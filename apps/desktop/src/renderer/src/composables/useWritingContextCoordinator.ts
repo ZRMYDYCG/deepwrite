@@ -1,5 +1,8 @@
+import { createScopedTranslator } from "../i18n";
 import type { DeepWriteApi } from "@deepwrite/contracts/renderer";
 import { ref, watch, type Ref } from "vue";
+
+const t = createScopedTranslator("workspace.writingContextCoordinator");
 
 export interface WritingContextMutationCompletion {
   succeed(): void;
@@ -48,7 +51,7 @@ export function useWritingContextCoordinator(
       if (epoch === requestEpoch && options.bookId.value === bookId) {
         content.value = null;
         options.notifications.error(
-          errorMessage(error, "读取作品上下文失败。")
+          errorMessage(error, t("failedToReadProjectContext"))
         );
       }
     } finally {
@@ -81,10 +84,12 @@ export function useWritingContextCoordinator(
     try {
       await api.writeWritingContext({ bookId, content: nextContent });
       if (options.bookId.value === bookId) content.value = nextContent;
-      options.notifications.success("作品上下文已保存。");
+      options.notifications.success(t("projectContextSaved"));
       completion.succeed();
     } catch (error: unknown) {
-      options.notifications.error(errorMessage(error, "保存作品上下文失败。"));
+      options.notifications.error(
+        errorMessage(error, t("failedToSaveProjectContext"))
+      );
       completion.fail();
     } finally {
       pending.value = false;

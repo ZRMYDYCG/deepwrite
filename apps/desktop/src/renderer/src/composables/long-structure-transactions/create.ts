@@ -1,3 +1,5 @@
+import { formatError } from "../../i18n/errors";
+import { createScopedTranslator } from "../../i18n";
 import type { LongWorkspaceOperationBatch } from "@deepwrite/contracts";
 import { nextTick } from "vue";
 import {
@@ -9,6 +11,8 @@ import { longNavigationNodeId } from "../../utils/longWorkspaceResourceTree";
 import type { LongStructureLease } from "./lease";
 import type { LongStructureSync } from "./sync";
 import type { LongStructureMutationLease } from "./types";
+
+const t = createScopedTranslator("workspace");
 
 type MutationModule = typeof import("../../types/longStructureMutations");
 
@@ -72,7 +76,7 @@ export function createLongStructureCreate(
       return build(createLongStructureMutationBuilder, index);
     } catch (error: unknown) {
       if (isDisposed()) return null;
-      uiMessage.warning(error instanceof Error ? error.message : failMessage);
+      uiMessage.warning(formatError(error, failMessage));
       return null;
     }
   }
@@ -122,7 +126,9 @@ export function createLongStructureCreate(
     const index = activeLongWorkspaceIndex.value;
     const volume = index?.plot.volumes.find(({ id }) => id === volumeId);
     if (activeLongBookId.value !== bookId || !index || !volume) {
-      uiMessage.warning("该分卷已不存在，请刷新后重试。");
+      uiMessage.warning(
+        t("navigationDeleteBatch.thisVolumeNoLongerExistsRefreshAndTryAgain")
+      );
       return;
     }
     longChapterCardCreate.value = {
@@ -156,7 +162,7 @@ export function createLongStructureCreate(
     node: ResourceTreeNode
   ): Promise<void> {
     if (!node.longBookId || !node.longDraftVolumeId) {
-      uiMessage.warning("当前分卷尚未准备好新建小节。");
+      uiMessage.warning(t("create.theCurrentVolumeIsNotReadyToCreateA"));
       return;
     }
     await openLongChapterCardCreate({
@@ -182,15 +188,19 @@ export function createLongStructureCreate(
     const index = activeLongWorkspaceIndex.value;
     const category = index?.worldbuilding.find(({ id }) => id === categoryId);
     if (activeLongBookId.value !== bookId || !index || !category) {
-      uiMessage.warning("该世界观分类已不存在，请刷新后重试。");
+      uiMessage.warning(
+        t("create.thisWorldbuildingCategoryNoLongerExistsRefreshAndTry")
+      );
       return;
     }
     if (category.format !== "list") {
-      uiMessage.warning("只有列表型世界观分类可以新增条目。");
+      uiMessage.warning(
+        t("create.entriesCanOnlyBeAddedToListBasedWorldbuilding")
+      );
       return;
     }
     if (category.items.length >= 10_000) {
-      uiMessage.warning("单个世界观分类最多支持 10000 个条目。");
+      uiMessage.warning(t("create.aWorldbuildingCategorySupportsUpToEntries"));
       return;
     }
     longWorldbuildingItemCreate.value = {
@@ -207,7 +217,7 @@ export function createLongStructureCreate(
     const bookId = activeLongBookSummary.value?.id;
     const index = activeLongWorkspaceIndex.value;
     if (!group || !bookId || !index) {
-      uiMessage.warning("当前人物分组尚未就绪。");
+      uiMessage.warning(t("create.theCurrentCharacterGroupIsNotReady"));
       return;
     }
     const groupOption = index.characterTypes.find(({ id }) => id === group);
@@ -227,7 +237,7 @@ export function createLongStructureCreate(
       !selection?.key.startsWith("worldbuilding:") ||
       selection.key === "worldbuilding:reveals"
     ) {
-      uiMessage.warning("当前世界观分类尚未就绪。");
+      uiMessage.warning(t("create.theCurrentWorldbuildingCategoryIsNotReady"));
       return;
     }
     const categoryId = selection.key.slice("worldbuilding:".length);
@@ -259,7 +269,7 @@ export function createLongStructureCreate(
       !activeLongWorkspaceIndex.value ||
       !captureLongStructureMutationTarget(target.bookId)
     ) {
-      uiMessage.warning("当前长篇工作区尚未准备好新建分卷。");
+      uiMessage.warning(t("create.theCurrentLongFormWorkspaceIsNotReadyTo"));
       return;
     }
     longVolumeCreate.value = {
@@ -290,7 +300,9 @@ export function createLongStructureCreate(
         activeLongSelection.value?.key !== "plot-design:book-line"
       ) {
         longVolumeCreate.value = null;
-        uiMessage.warning("活动长篇已切换，本次新建分卷已取消。");
+        uiMessage.warning(
+          t("create.theActiveLongFormProjectChangedVolumeCreationWas")
+        );
       }
     });
   }
@@ -311,7 +323,9 @@ export function createLongStructureCreate(
     const index = activeLongWorkspaceIndex.value;
     const volume = index?.plot.volumes.find(({ id }) => id === volumeId);
     if (activeLongBookId.value !== bookId || !index || !volume) {
-      uiMessage.warning("该分卷已不存在，请刷新后重试。");
+      uiMessage.warning(
+        t("navigationDeleteBatch.thisVolumeNoLongerExistsRefreshAndTryAgain")
+      );
       return;
     }
     longPlotPointCreate.value = {
@@ -336,7 +350,7 @@ export function createLongStructureCreate(
     const bookId = activeLongBookId.value;
     const volumeId = activeLongSelection.value?.plotPointVolumeId;
     if (!bookId || !volumeId) {
-      uiMessage.warning("当前分卷尚未就绪。");
+      uiMessage.warning(t("create.theCurrentVolumeIsNotReady"));
       return;
     }
     await openLongPlotPointCreateForVolume(bookId, volumeId);
@@ -360,7 +374,7 @@ export function createLongStructureCreate(
   }): Promise<void> {
     const target = longVolumeCreate.value;
     if (!target) {
-      uiMessage.warning("当前长篇工作区尚未准备好新建分卷。");
+      uiMessage.warning(t("create.theCurrentLongFormWorkspaceIsNotReadyTo"));
       return;
     }
     await withMutation(
@@ -370,10 +384,12 @@ export function createLongStructureCreate(
         const index = lease.target.index;
         const batch = await buildMutationBatch(
           lease,
-          "无法创建分卷。",
+          t("create.couldNotCreateTheVolume"),
           (createLongStructureMutationBuilder, index) => {
             if (longVolumeCreate.value !== target) {
-              throw new Error("新建分卷目标已切换，本次操作已取消。");
+              throw new Error(
+                t("create.theTargetForTheNewVolumeChangedThisOperation")
+              );
             }
             return createLongStructureMutationBuilder(index).createVolume(
               input
@@ -385,7 +401,7 @@ export function createLongStructureCreate(
           (operation) => operation.type === "volume.create"
         );
         if (!created || created.type !== "volume.create") {
-          uiMessage.warning("无法确定新建分卷。");
+          uiMessage.warning(t("create.couldNotIdentifyTheNewlyCreatedVolume"));
           return;
         }
         const apply = trackApply();
@@ -397,7 +413,10 @@ export function createLongStructureCreate(
             saveEditor: false,
             ...(target.source === "draft"
               ? {
-                  successMessage: `已新建分卷“${input.title}”，剧情阶段已同步生成卷纲`
+                  successMessage: t(
+                    "create.createdVolumeAndGeneratedItsOutlineInThePlot",
+                    { title: input.title }
+                  )
                 }
               : {})
           },
@@ -446,7 +465,9 @@ export function createLongStructureCreate(
   }): Promise<void> {
     const target = longWorldbuildingItemCreate.value;
     if (!target) {
-      uiMessage.warning("当前世界观分类尚未准备好新建条目。");
+      uiMessage.warning(
+        t("create.theCurrentWorldbuildingCategoryIsNotReadyToCreate")
+      );
       return;
     }
     await withMutation(
@@ -456,10 +477,12 @@ export function createLongStructureCreate(
         const index = lease.target.index;
         const batch = await buildMutationBatch(
           lease,
-          "无法创建世界观条目。",
+          t("create.couldNotCreateTheWorldbuildingEntry"),
           (createLongStructureMutationBuilder, index) => {
             if (longWorldbuildingItemCreate.value !== target) {
-              throw new Error("新建世界观条目目标已切换，本次操作已取消。");
+              throw new Error(
+                t("create.theTargetForTheNewWorldbuildingEntryChangedThis")
+              );
             }
             return createLongStructureMutationBuilder(
               index
@@ -471,7 +494,9 @@ export function createLongStructureCreate(
           (operation) => operation.type === "worldbuildingItem.create"
         );
         if (!created || created.type !== "worldbuildingItem.create") {
-          uiMessage.warning("无法确定新建世界观条目。");
+          uiMessage.warning(
+            t("create.couldNotIdentifyTheNewlyCreatedWorldbuildingEntry")
+          );
           return;
         }
         const apply = trackApply();
@@ -481,7 +506,9 @@ export function createLongStructureCreate(
           apply.completion,
           {
             saveEditor: false,
-            successMessage: `已创建世界观条目“${input.title}”`
+            successMessage: t("create.createdWorldbuildingEntry", {
+              title: input.title
+            })
           },
           index
         );
@@ -506,7 +533,7 @@ export function createLongStructureCreate(
   }): Promise<void> {
     const target = longPlotPointCreate.value;
     if (!target) {
-      uiMessage.warning("当前分卷尚未准备好新建剧情点。");
+      uiMessage.warning(t("create.theCurrentVolumeIsNotReadyToCreateA2"));
       return;
     }
     await withMutation(
@@ -516,10 +543,12 @@ export function createLongStructureCreate(
         const index = lease.target.index;
         const batch = await buildMutationBatch(
           lease,
-          "无法创建剧情点。",
+          t("create.couldNotCreateThePlotPoint"),
           (createLongStructureMutationBuilder, index) => {
             if (longPlotPointCreate.value !== target) {
-              throw new Error("新建剧情点目标已切换，本次操作已取消。");
+              throw new Error(
+                t("create.theTargetForTheNewPlotPointChangedThis")
+              );
             }
             return createLongStructureMutationBuilder(index).createArc({
               volumeId: target.volumeId,
@@ -534,7 +563,9 @@ export function createLongStructureCreate(
           (operation) => operation.type === "arc.create"
         );
         if (!created || created.type !== "arc.create") {
-          uiMessage.warning("无法确定新建剧情点。");
+          uiMessage.warning(
+            t("create.couldNotIdentifyTheNewlyCreatedPlotPoint")
+          );
           return;
         }
         const apply = trackApply();
@@ -542,7 +573,12 @@ export function createLongStructureCreate(
           lease,
           batch,
           apply.completion,
-          { saveEditor: false, successMessage: `已创建剧情点“${input.title}”` },
+          {
+            saveEditor: false,
+            successMessage: t("create.createdPlotPoint", {
+              title: input.title
+            })
+          },
           index
         );
         if (apply.didApply() && longPlotPointCreate.value === target) {
@@ -569,8 +605,8 @@ export function createLongStructureCreate(
     if (!target) {
       uiMessage.warning(
         fromDraft
-          ? "当前分卷尚未准备好新建小节。"
-          : "当前分卷尚未准备好新建章卡。"
+          ? t("create.theCurrentVolumeIsNotReadyToCreateA")
+          : t("create.theCurrentVolumeIsNotReadyToCreateA3")
       );
       return;
     }
@@ -583,7 +619,9 @@ export function createLongStructureCreate(
           input.primaryArcId !== null &&
           !target.arcOptions.some(({ value }) => value === input.primaryArcId)
         ) {
-          uiMessage.warning("所选剧情点已不存在，请重新打开弹窗。");
+          uiMessage.warning(
+            t("create.theSelectedPlotPointNoLongerExistsReopenThe")
+          );
           return;
         }
         let batch: LongWorkspaceOperationBatch;
@@ -594,8 +632,8 @@ export function createLongStructureCreate(
           if (longChapterCardCreate.value !== target) {
             throw new Error(
               fromDraft
-                ? "新建小节目标已切换，本次操作已取消。"
-                : "新建章卡目标已切换，本次操作已取消。"
+                ? t("create.theTargetForTheNewSectionChangedThisOperation")
+                : t("create.theTargetForTheNewChapterCardChangedThis")
             );
           }
           batch = createLongStructureMutationBuilder(index).createChapter({
@@ -606,11 +644,12 @@ export function createLongStructureCreate(
         } catch (error: unknown) {
           if (isDisposed()) return;
           uiMessage.warning(
-            error instanceof Error
-              ? error.message
-              : fromDraft
-                ? "无法创建小节。"
-                : "无法创建章卡。"
+            formatError(
+              error,
+              fromDraft
+                ? t("create.couldNotCreateTheSection")
+                : t("create.couldNotCreateTheChapterCard")
+            )
           );
           return;
         }
@@ -619,7 +658,9 @@ export function createLongStructureCreate(
         );
         if (!created || created.type !== "chapter.create") {
           uiMessage.warning(
-            fromDraft ? "无法确定新建小节。" : "无法确定新建章卡。"
+            fromDraft
+              ? t("create.couldNotIdentifyTheNewlyCreatedSection")
+              : t("create.couldNotIdentifyTheNewlyCreatedChapterCard")
           );
           return;
         }
@@ -631,8 +672,10 @@ export function createLongStructureCreate(
           {
             saveEditor: false,
             successMessage: fromDraft
-              ? `已新建小节“${input.title}”，并同步创建章卡`
-              : `已创建章卡“${input.title}”`
+              ? t("create.createdSectionAndItsChapterCard", {
+                  title: input.title
+                })
+              : t("create.createdChapterCard", { title: input.title })
           },
           index
         );
@@ -687,7 +730,7 @@ export function createLongStructureCreate(
   }): Promise<void> {
     const target = longCharacterCreate.value;
     if (!target) {
-      uiMessage.warning("当前人物分组尚未就绪。");
+      uiMessage.warning(t("create.theCurrentCharacterGroupIsNotReady"));
       return;
     }
     await withMutation(
@@ -697,15 +740,17 @@ export function createLongStructureCreate(
         const summary = activeLongBookSummary.value;
         const index = lease.target.index;
         if (!summary || summary.id !== target.bookId) {
-          uiMessage.warning("当前人物分组尚未就绪。");
+          uiMessage.warning(t("create.theCurrentCharacterGroupIsNotReady"));
           return;
         }
         const batch = await buildMutationBatch(
           lease,
-          "无法创建人物。",
+          t("create.couldNotCreateTheCharacter"),
           (createLongStructureMutationBuilder, index) => {
             if (longCharacterCreate.value !== target) {
-              throw new Error("新建人物目标已切换，本次操作已取消。");
+              throw new Error(
+                t("create.theTargetForTheNewCharacterChangedThisOperation")
+              );
             }
             return createLongStructureMutationBuilder(index).createCharacter({
               name: input.name,
@@ -719,7 +764,9 @@ export function createLongStructureCreate(
           (operation) => operation.type === "character.create"
         );
         if (!created || created.type !== "character.create") {
-          uiMessage.warning("无法确定新建人物。");
+          uiMessage.warning(
+            t("create.couldNotIdentifyTheNewlyCreatedCharacter")
+          );
           return;
         }
         const apply = trackApply();

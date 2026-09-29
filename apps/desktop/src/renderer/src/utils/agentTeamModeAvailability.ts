@@ -1,7 +1,10 @@
+import { createScopedTranslator } from "../i18n";
 import type {
   AgentTeamCatalogSnapshot,
   AgentTeamWorkspaceType
 } from "@deepwrite/contracts";
+
+const t = createScopedTranslator("workspace.agentTeamModeAvailability");
 
 export interface AgentTeamModeAvailabilityInput {
   catalog: AgentTeamCatalogSnapshot | null;
@@ -59,16 +62,22 @@ export function resolveAgentTeamModeAvailability(
   input: AgentTeamModeAvailabilityInput
 ): AgentTeamModeAvailability {
   if (input.loading) {
-    return { available: false, description: "正在加载智能体团队配置…" };
+    return {
+      available: false,
+      description: t("loadingAgentTeamConfiguration")
+    };
   }
   if (input.loadError) {
     return {
       available: false,
-      description: "智能体团队配置加载失败，请到智能体团队页面重试。"
+      description: t("failedToLoadAgentTeamsRetryFromTheAgent")
     };
   }
   if (!input.loaded || !input.catalog) {
-    return { available: false, description: "智能体团队配置尚未加载。" };
+    return {
+      available: false,
+      description: t("agentTeamConfigurationHasNotLoadedYet")
+    };
   }
   if (
     enabledMemberCount(
@@ -79,12 +88,11 @@ export function resolveAgentTeamModeAvailability(
   ) {
     return {
       available: false,
-      description:
-        "当前智能体没有已启用且含可用成员的团队，请先到智能体团队设置中配置。"
+      description: t("thisAgentHasNoEnabledTeamWithAvailableMembers")
     };
   }
   return {
     available: true,
-    description: "允许当前主智能体调用已启用团队中的子智能体。"
+    description: t("allowThisMainAgentToCallSubagentsInEnabled")
   };
 }

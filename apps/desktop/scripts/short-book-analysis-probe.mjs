@@ -101,9 +101,13 @@ if (process.argv.includes("--electron")) {
       [fileURLToPath(import.meta.url), output, "--electron", url.href],
       { stdio: "inherit" }
     );
-    process.exitCode = Number(
-      await new Promise((resolve) => child.once("exit", resolve))
-    );
+    await new Promise((resolve, reject) => {
+      child.once("error", reject);
+      child.once("exit", (code, signal) => {
+        if (code === 0) resolve();
+        else reject(new Error(`Electron probe exited: ${signal ?? code}`));
+      });
+    });
   } finally {
     await server.close();
   }

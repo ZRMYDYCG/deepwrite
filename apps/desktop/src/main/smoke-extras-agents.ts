@@ -165,7 +165,13 @@ async function extrasAgentSmokeInRenderer() {
       }
     });
   } catch (error) {
-    modelRequired = String(error).includes("请选择可用模型");
+    modelRequired =
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      error.code === "extras_agent.run_failed" &&
+      "message" in error &&
+      String(error.message).includes("请选择可用模型");
   }
   ensure(modelRequired, "revision analysis ran without a model");
 

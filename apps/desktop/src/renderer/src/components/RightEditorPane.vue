@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import {
   computed,
   defineAsyncComponent,
@@ -57,6 +58,8 @@ import CatalogEditorFooterMeta from "./CatalogEditorFooterMeta.vue";
 import EditorDocumentMetadata from "./EditorDocumentMetadata.vue";
 import EditorSearchHighlight from "./EditorSearchHighlight.vue";
 import MarkdownContent from "./MarkdownContent.vue";
+
+const t = createScopedTranslator("components.rightEditorPane");
 
 const EditorFindReplacePanel = defineAsyncComponent(
   () => import("./EditorFindReplacePanel.vue")
@@ -317,22 +320,26 @@ const searchMatches = computed<EditorSearchMatch[]>(() => {
 });
 const searchResultLabel = computed(() => {
   if (!searchQuery.value) return "0/0";
-  if (!searchMatches.value.length) return "无结果";
+  if (!searchMatches.value.length) return t("noResults");
   const current =
     currentMatchIndex.value >= 0 ? currentMatchIndex.value + 1 : 0;
   return `${current}/${searchMatches.value.length}`;
 });
 const draftUnitLabel = computed(() =>
-  props.document.workspaceType === "script" ? "剧集" : "小节"
+  props.document.workspaceType === "script" ? t("episode") : t("section")
 );
 const resolvedSectionTabsLabel = computed(
-  () => props.sectionTabsLabel ?? `正文${draftUnitLabel.value}`
+  () =>
+    props.sectionTabsLabel ??
+    t("manuscriptValue", {
+      arg0: draftUnitLabel.value
+    })
 );
 const resolvedCreateSectionLabel = computed(
-  () => props.createSectionLabel ?? "在正文末尾新建小节"
+  () => props.createSectionLabel ?? t("addASectionAtTheEndOfTheManuscript")
 );
 const resolvedDeleteSectionLabel = computed(
-  () => props.deleteSectionLabel ?? "删除当前条目"
+  () => props.deleteSectionLabel ?? t("deleteCurrentEntry")
 );
 
 function markDirty(): void {
@@ -538,7 +545,7 @@ function save(): void {
     title.value
   );
   if (!resolvedTitle.trim()) {
-    uiMessage.warning("请输入文档标题后再保存");
+    uiMessage.warning(t("enterADocumentTitleBeforeSaving"));
     return;
   }
   preserveEditorViewportForSave();
@@ -646,12 +653,12 @@ async function selectSearchMatch(index: number): Promise<void> {
 
 function findMatch(direction: 1 | -1, quiet = false): void {
   if (!searchQuery.value) {
-    if (!quiet) uiMessage.info("请输入要查找的文字");
+    if (!quiet) uiMessage.info(t("enterTextToFind"));
     return;
   }
   if (!searchMatches.value.length) {
     currentMatchIndex.value = -1;
-    if (!quiet) uiMessage.info("未找到匹配文字");
+    if (!quiet) uiMessage.info(t("noMatchingText"));
     return;
   }
 
@@ -677,7 +684,9 @@ function replaceCurrentMatch(): void {
   const match = searchMatches.value[index];
   if (!match) {
     uiMessage.info(
-      searchQuery.value ? "未找到可替换的文字" : "请输入要替换的文字"
+      searchQuery.value
+        ? t("noTextAvailableToReplace")
+        : t("enterTextToReplace")
     );
     return;
   }
@@ -705,7 +714,9 @@ function replaceAllMatches(): void {
   const matches = searchMatches.value;
   if (!searchQuery.value || !matches.length) {
     uiMessage.info(
-      searchQuery.value ? "未找到可替换的文字" : "请输入要替换的文字"
+      searchQuery.value
+        ? t("noTextAvailableToReplace")
+        : t("enterTextToReplace")
     );
     return;
   }
@@ -720,7 +731,7 @@ function replaceAllMatches(): void {
   nextContent += content.value.slice(cursor);
 
   if (nextContent === content.value) {
-    uiMessage.info("查找文字与替换文字相同");
+    uiMessage.info(t("findAndReplacementTextAreIdentical"));
     return;
   }
   const nonWhitespaceDelta = recordProgrammaticChange(nextContent, {
@@ -729,7 +740,11 @@ function replaceAllMatches(): void {
   });
   updateContent(nextContent, nonWhitespaceDelta);
   searchAnchor.value = 0;
-  uiMessage.success(`已替换 ${matches.length} 处文字`);
+  uiMessage.success(
+    t("replacedValueOccurrences", {
+      arg0: matches.length
+    })
+  );
 }
 
 function handleWindowPointerDown(event: PointerEvent): void {
@@ -790,7 +805,7 @@ onBeforeUnmount(() => {
       'is-script-workspace': document.workspaceType === 'script'
     }"
     :data-workspace-type="document.workspaceType"
-    aria-label="文本内容"
+    :aria-label="t('textContent')"
   >
     <nav
       v-if="showSectionTabs"
@@ -845,7 +860,7 @@ onBeforeUnmount(() => {
         v-if="showDraftFileTabs"
         class="draft-file-tabs"
         role="tablist"
-        :aria-label="`${draftUnitLabel}文件`"
+        :aria-label="t('valueFile', { arg0: draftUnitLabel })"
       >
         <button
           type="button"
@@ -854,7 +869,7 @@ onBeforeUnmount(() => {
           :class="{ 'is-active': document.draftFileKind === 'body' }"
           @click="emit('selectDraftFile', 'body')"
         >
-          正文
+          {{ t("manuscript") }}
         </button>
         <button
           type="button"
@@ -863,11 +878,11 @@ onBeforeUnmount(() => {
           :class="{ 'is-active': document.draftFileKind === 'character-state' }"
           @click="emit('selectDraftFile', 'character-state')"
         >
-          人物状态
+          {{ t("characterState") }}
         </button>
       </div>
       <span v-if="showDraftFileTabs" class="toolbar-separator" />
-      <div class="view-tabs" role="tablist" aria-label="文本视图">
+      <div class="view-tabs" role="tablist" :aria-label="t('textView')">
         <button
           type="button"
           role="tab"
@@ -875,7 +890,7 @@ onBeforeUnmount(() => {
           :class="{ 'is-active': viewMode === 'edit' }"
           @click="selectViewMode('edit')"
         >
-          编辑
+          {{ t("edit") }}
         </button>
         <button
           type="button"
@@ -884,7 +899,7 @@ onBeforeUnmount(() => {
           :class="{ 'is-active': viewMode === 'preview' }"
           @click="selectViewMode('preview')"
         >
-          预览
+          {{ t("preview") }}
         </button>
       </div>
       <span class="toolbar-separator" />
@@ -892,7 +907,7 @@ onBeforeUnmount(() => {
         ref="editorToolsElement"
         class="editor-text-tools"
         role="group"
-        aria-label="文本操作"
+        :aria-label="t('textActions')"
       >
         <EditorTextTools
           :can-undo="canUndo"
@@ -957,7 +972,7 @@ onBeforeUnmount(() => {
         v-model="title"
         class="document-title-input"
         :readonly="isTitleReadOnly"
-        aria-label="文档标题"
+        :aria-label="t('documentTitle')"
         @input="markDirty"
       />
 
@@ -973,7 +988,7 @@ onBeforeUnmount(() => {
           :value="content"
           class="document-editor transient-scrollbar"
           :readonly="document.readOnly || locked"
-          aria-label="文本内容编辑器"
+          :aria-label="t('textEditor')"
           spellcheck="false"
           @beforeinput="handleEditorBeforeInput"
           @input="handleEditorInput"
@@ -994,13 +1009,15 @@ onBeforeUnmount(() => {
           :content="content"
           annotate-headings
         />
-        <p v-else class="document-preview-empty">暂无内容</p>
+        <p v-else class="document-preview-empty">
+          {{ t("noContentYet") }}
+        </p>
       </article>
     </div>
 
     <footer
       class="editor-footer"
-      :title="locked ? (lockedLabel ?? '智能体运行中 · 只读') : undefined"
+      :title="locked ? (lockedLabel ?? t('agentRunningReadOnly')) : undefined"
     >
       <CatalogEditorFooterMeta
         :document="document"
@@ -1025,7 +1042,13 @@ onBeforeUnmount(() => {
         @click="save"
       >
         <AppIcon name="save" :size="14" />
-        {{ manualSaving ? "保存中…" : autoSaveEnabled ? "立即保存" : "应用" }}
+        {{
+          manualSaving
+            ? t("saving")
+            : autoSaveEnabled
+              ? t("saveNow")
+              : t("apply")
+        }}
       </button>
     </footer>
   </aside>

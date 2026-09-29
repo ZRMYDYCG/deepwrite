@@ -1,9 +1,13 @@
+import { formatError } from "../i18n/errors";
+import { createScopedTranslator } from "../i18n";
 import { computed, onBeforeUnmount, ref, type Ref } from "vue";
 import type {
   EditorEntrySearchResult,
   EditorEntrySearchSource
 } from "../types/editorEntrySearch";
 import { uiMessage } from "../ui-feedback";
+
+const t = createScopedTranslator("workspace");
 
 const SEARCH_DELAY_MS = 180;
 const MAX_LOCAL_RESULTS = 30;
@@ -78,9 +82,9 @@ export function useEditorEntrySearch(options: {
   let requestEpoch = 0;
 
   const resultLabel = computed(() => {
-    if (pending.value) return "搜索中…";
+    if (pending.value) return t("editorEntrySearch.searching");
     if (!query.value.trim()) return "0/0";
-    if (!results.value.length) return "无结果";
+    if (!results.value.length) return t("longEditorFindReplace.noResults");
     return `${activeIndex.value + 1}/${results.value.length}`;
   });
 
@@ -105,7 +109,7 @@ export function useEditorEntrySearch(options: {
       if (epoch !== requestEpoch) return;
       resetResults();
       uiMessage.error(
-        error instanceof Error ? error.message : "搜索全部条目失败。"
+        formatError(error, t("editorEntrySearch.failedToSearchAllEntries"))
       );
     } finally {
       if (epoch === requestEpoch) pending.value = false;
@@ -138,7 +142,11 @@ export function useEditorEntrySearch(options: {
   async function selectResult(index = activeIndex.value): Promise<void> {
     const result = results.value[index];
     if (!result) {
-      uiMessage.info(query.value.trim() ? "未找到匹配条目" : "请输入搜索内容");
+      uiMessage.info(
+        query.value.trim()
+          ? t("editorEntrySearch.noMatchingEntriesFound")
+          : t("editorEntrySearch.enterASearchTerm")
+      );
       return;
     }
     activeIndex.value = index;

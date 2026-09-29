@@ -1,3 +1,5 @@
+import { formatError } from "../../i18n/errors";
+import { t } from "../../i18n";
 import type {
   LongBookSummary,
   LongWorkspaceIndexSnapshot
@@ -48,9 +50,12 @@ export function selectAfterLongDraftSectionDelete(input: {
         .catch((error: unknown) => {
           if (input.isDisposed()) return;
           input.reportError(
-            error instanceof Error
-              ? error.message
-              : "小节已删除，但无法打开下一小节。"
+            formatError(
+              error,
+              t(
+                "workspace.draftDeleteSelection.theSectionWasDeletedButTheNextSectionCould"
+              )
+            )
           );
         });
       return;

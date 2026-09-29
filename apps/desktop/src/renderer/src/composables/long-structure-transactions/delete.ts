@@ -1,3 +1,5 @@
+import { formatError } from "../../i18n/errors";
+import { createScopedTranslator } from "../../i18n";
 import type {
   LongWorkspaceImpactConfirmation,
   LongWorkspaceOperationBatch
@@ -14,6 +16,8 @@ import {
 } from "./navigation-delete-batch";
 import type { LongStructureSync } from "./sync";
 import { isActiveLongTreeItem, resolveLongTreeItemDetails } from "./tree";
+
+const t = createScopedTranslator("workspace");
 
 type MutationModule = typeof import("../../types/longStructureMutations");
 
@@ -66,7 +70,9 @@ export function createLongStructureDelete(
           if (longTreeItemDelete.value === pending) {
             longTreeItemDelete.value = null;
           }
-          uiMessage.warning("该条目已不存在，请刷新后重试。");
+          uiMessage.warning(
+            t("delete.thisEntryNoLongerExistsRefreshAndTryAgain")
+          );
           return;
         }
         const currentIndex = details.orderedIds.indexOf(target.id);
@@ -88,7 +94,8 @@ export function createLongStructureDelete(
             now: () => pending.operationUpdatedAt
           });
           if (target.kind === "worldbuilding-item") {
-            if (!target.parentId) throw new Error("缺少世界观分类 ID。");
+            if (!target.parentId)
+              throw new Error(t("delete.theWorldbuildingCategoryIdIsMissing"));
             batch = builder.deleteWorldbuildingItem(target.parentId, target.id);
           } else if (target.kind === "character") {
             batch = builder.deleteCharacter(target.id);
@@ -102,9 +109,10 @@ export function createLongStructureDelete(
         } catch (error: unknown) {
           if (isDisposed()) return;
           uiMessage.warning(
-            error instanceof Error
-              ? error.message
-              : `无法删除“${details.title}”。`
+            formatError(
+              error,
+              t("delete.couldNotDelete", { title: details.title })
+            )
           );
           return;
         }
@@ -124,7 +132,10 @@ export function createLongStructureDelete(
             }
           },
           {
-            successMessage: `已删除${details.label}“${details.title}”`,
+            successMessage: t("delete.deleted", {
+              label: details.label,
+              title: details.title
+            }),
             expectedImpact: pending.expectedImpact,
             onImpactChanged: (expectedImpact) => {
               const latestIndex = activeLongWorkspaceIndex.value;
@@ -189,7 +200,9 @@ export function createLongStructureDelete(
         try {
           assertCurrentLongStructureMutationTarget(lease.target, lease);
           if (!isTargetCurrent()) {
-            throw new Error("删除目标已切换，本次操作已取消。");
+            throw new Error(
+              t("delete.theDeletionTargetChangedThisOperationWasCanceled")
+            );
           }
           const previewedAt =
             input.operationUpdatedAt ??
@@ -202,14 +215,17 @@ export function createLongStructureDelete(
           );
           assertCurrentLongStructureMutationTarget(lease.target, lease);
           if (!isTargetCurrent()) {
-            throw new Error("删除目标已切换，本次操作已取消。");
+            throw new Error(
+              t("delete.theDeletionTargetChangedThisOperationWasCanceled")
+            );
           }
         } catch (error: unknown) {
           if (isDisposed()) return;
           uiMessage.warning(
-            error instanceof Error
-              ? error.message
-              : `无法删除“${input.title}”。`
+            formatError(
+              error,
+              t("delete.couldNotDelete", { title: input.title })
+            )
           );
           completion(false);
           return;
@@ -230,7 +246,10 @@ export function createLongStructureDelete(
             }
           },
           {
-            successMessage: `已删除${deletion.label}“${deletion.title}”`,
+            successMessage: t("delete.deleted", {
+              label: deletion.label,
+              title: deletion.title
+            }),
             expectedImpact: input.expectedImpact,
             onImpactChanged: (impact) => {
               changedImpact = impact;
@@ -308,7 +327,9 @@ export function createLongStructureDelete(
   ): Promise<void> {
     const expectedBookId = activeLongBookId.value;
     if (!expectedBookId) {
-      uiMessage.warning("当前长篇结构尚未就绪。");
+      uiMessage.warning(
+        t("longBookLifecycleCoordinator.theCurrentNovelStructureIsNotReady")
+      );
       completion(false);
       return;
     }
@@ -326,7 +347,9 @@ export function createLongStructureDelete(
     const expectedBookId = activeLongBookId.value;
     const index = activeLongWorkspaceIndex.value;
     if (!expectedBookId || !index) {
-      uiMessage.warning("当前长篇结构尚未就绪。");
+      uiMessage.warning(
+        t("longBookLifecycleCoordinator.theCurrentNovelStructureIsNotReady")
+      );
       completion();
       return;
     }
@@ -371,9 +394,12 @@ export function createLongStructureDelete(
       } catch (error: unknown) {
         if (isDisposed()) return;
         uiMessage.warning(
-          error instanceof Error
-            ? error.message
-            : `无法核对“${input.title}”的删除影响。`
+          formatError(
+            error,
+            t("delete.couldNotCheckTheImpactOfDeleting", {
+              title: input.title
+            })
+          )
         );
         completion();
       }

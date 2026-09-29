@@ -1,3 +1,4 @@
+import { t } from "../i18n";
 import type {
   LongBookSummary,
   LongWorkspaceIndexSnapshot
@@ -413,7 +414,11 @@ export function useApprovalNavigationCoordinator(
       const focused = await editor.focusTarget(resolved.focus);
       if (!requestIsCurrent(requestId)) return false;
       if (!focused) {
-        context.view.info("已跳转到所属条目，目标文件暂未就绪。");
+        context.view.info(
+          t(
+            "workspace.approvalNavigationCoordinator.openedTheParentEntryTheTargetFileIsNot"
+          )
+        );
       }
     }
     return requestIsCurrent(requestId);

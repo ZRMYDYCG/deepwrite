@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import {
   WorkspaceAgentTeamSettingsInputSchema,
   BUILT_IN_REASONING_LEVELS,
@@ -38,6 +39,8 @@ import {
   createCopiedSubagent,
   validateAgentTeamDraft
 } from "./agentTeamSettingsEditorHelpers";
+
+const t = createScopedTranslator("components.agentTeamSettingsPanel");
 
 const props = defineProps<{
   workspaceType?: "short" | "script" | "long";
@@ -171,7 +174,9 @@ function temperatureOptionsFor(
     : undefined;
   return (model?.temperatureOptions ?? [0.1, 0.7, 1]).map((value) => ({
     value,
-    label: `温度 ${value}`
+    label: t("temperatureValue", {
+      arg0: value
+    })
   }));
 }
 
@@ -250,7 +255,9 @@ function addSubagent(
   if (!team || formDisabled.value) return;
   if (team.subagents.length >= activeSubagentLimit.value) {
     uiMessage.warning(
-      `当前团队最多配置 ${activeSubagentLimit.value} 个子智能体`
+      t("thisTeamSupportsUpToValueSubagents", {
+        arg0: activeSubagentLimit.value
+      })
     );
     return;
   }
@@ -258,7 +265,7 @@ function addSubagent(
   const index = team.subagents.length + 1;
   team.subagents.push({
     id,
-    name: draft?.name?.trim() || `新子智能体 ${index}`,
+    name: draft?.name?.trim() || t("newSubagentValue", { arg0: index }),
     description: draft?.description?.trim() || "",
     systemPrompt: draft?.systemPrompt?.trim() || "",
     enabled: true,
@@ -274,7 +281,9 @@ function duplicateSubagent(index: number): void {
   if (!source) return;
   if (team.subagents.length >= activeSubagentLimit.value) {
     uiMessage.warning(
-      `当前团队最多配置 ${activeSubagentLimit.value} 个子智能体`
+      t("thisTeamSupportsUpToValueSubagents", {
+        arg0: activeSubagentLimit.value
+      })
     );
     return;
   }
@@ -285,7 +294,7 @@ function duplicateSubagent(index: number): void {
     SHORT_AGENT_SUBAGENT_NAME_MAX_LENGTH
   );
   team.subagents.splice(index + 1, 0, copied);
-  uiMessage.info("已复制到当前草稿；保存智能体团队后生效");
+  uiMessage.info(t("copiedToTheCurrentDraftSaveTheAgentTeam"));
 }
 
 function openLoadFromSkill(): void {
@@ -293,12 +302,14 @@ function openLoadFromSkill(): void {
   if (!activeTeam.value) return;
   if (activeTeam.value.subagents.length >= activeSubagentLimit.value) {
     uiMessage.warning(
-      `当前团队最多配置 ${activeSubagentLimit.value} 个子智能体`
+      t("thisTeamSupportsUpToValueSubagents", {
+        arg0: activeSubagentLimit.value
+      })
     );
     return;
   }
   if (!activeSkills.value.length) {
-    uiMessage.warning("技能库为空，请先在左侧技能库中添加条目");
+    uiMessage.warning(t("theSkillLibraryIsEmptyAddAnEntryIn"));
     return;
   }
   loadFromSkillOpen.value = true;
@@ -314,7 +325,7 @@ function confirmLoadFromSkill(draft: SubagentAuthoringDraft): void {
   addSubagent(draft);
   loadFromSkillOpen.value = false;
   emit("authoringReset");
-  uiMessage.success("已加入当前主智能体草稿；保存智能体团队后生效");
+  uiMessage.success(t("addedToThePrimaryAgentDraftSaveTheAgent"));
 }
 
 function setSubagentModelMode(
@@ -376,8 +387,8 @@ function setSubagentTemperature(
 }
 
 function subagentModelSummary(subagent: ShortAgentSubagentDefinition): string {
-  if (subagent.modelMode !== "custom") return "跟随主智能体";
-  if (!subagent.modelId) return "单独配置（未选模型）";
+  if (subagent.modelMode !== "custom") return t("usePrimaryAgentModel");
+  if (!subagent.modelId) return t("separateConfigurationNoModelSelected");
   const modelLabel =
     modelById.value.get(subagent.modelId)?.label ?? subagent.modelId;
   const thinking =
@@ -386,7 +397,10 @@ function subagentModelSummary(subagent: ShortAgentSubagentDefinition): string {
       : undefined;
   if (!thinking) return modelLabel;
   if (subagent.thinkingLevel === "off" && subagent.temperature !== undefined) {
-    return `${modelLabel} · 关闭 · 温度 ${subagent.temperature}`;
+    return t("valueOffTemperatureValue", {
+      arg0: modelLabel,
+      arg1: subagent.temperature
+    });
   }
   return `${modelLabel} · ${thinking}`;
 }
@@ -407,7 +421,7 @@ function removeSubagent(index: number): void {
     editingSubagentId.value = null;
   }
   if (removed) {
-    uiMessage.info("已从当前草稿移除；保存智能体团队后生效");
+    uiMessage.info(t("removedFromTheCurrentDraftSaveTheAgentTeam"));
   }
 }
 
@@ -467,9 +481,7 @@ function saveSettings(): void {
     teams
   });
   if (!parsed.success) {
-    uiMessage.warning(
-      parsed.error.issues[0]?.message ?? "智能体团队配置不完整"
-    );
+    uiMessage.warning(t("agentTeamConfigurationIsIncomplete"));
     return;
   }
   emit("save", parsed.data);

@@ -1,3 +1,5 @@
+import { formatError } from "../i18n/errors";
+import { createScopedTranslator, locale } from "../i18n";
 import {
   PROMPT_IMAGE_ATTACHMENT_MAX_BYTES,
   PROMPT_TEXT_ATTACHMENT_MAX_CONTENT_LENGTH,
@@ -8,6 +10,8 @@ import {
 } from "@deepwrite/contracts/renderer";
 import { createId } from "@deepwrite/shared";
 import { DOCX_MEDIA_TYPE, extractDocxText } from "./docxDocumentText";
+
+const t = createScopedTranslator("workspace.promptAttachments");
 
 export const PROMPT_ATTACHMENT_ACCEPT = [
   ".txt",
@@ -91,7 +95,11 @@ async function readImage(
   mediaType: PromptImageMediaType
 ): Promise<PromptAttachmentReadResult> {
   if (file.size > PROMPT_IMAGE_ATTACHMENT_MAX_BYTES) {
-    throw new Error(`图片“${file.name}”超过 10 MB，无法作为模型图片输入。`);
+    throw new Error(
+      t("imageExceedsMbAndCannotBeSentToThe", {
+        name: file.name
+      })
+    );
   }
   const data = bytesToBase64(new Uint8Array(await file.arrayBuffer()));
   return {
@@ -115,8 +123,10 @@ function extractedTextAttachment(
   if (!normalized) {
     throw new Error(
       mediaType === "application/pdf"
-        ? `PDF“${file.name}”没有可提取的文本；扫描版 PDF 请先完成 OCR。`
-        : `文件“${file.name}”没有可读取的文本内容。`
+        ? t("pdfHasNoExtractableTextRunOcrOnScanned", { name: file.name })
+        : t("fileContainsNoReadableText", {
+            name: file.name
+          })
     );
   }
   const content = normalized.slice(
@@ -138,7 +148,13 @@ function extractedTextAttachment(
     }),
     ...(truncated
       ? {
-          warning: `“${file.name}”文本较长，仅携带前 ${PROMPT_TEXT_ATTACHMENT_MAX_CONTENT_LENGTH.toLocaleString("zh-CN")} 个字符。`
+          warning: t("isTooLongOnlyTheFirstCharactersAreAttached", {
+            name: file.name,
+            toLocaleString:
+              PROMPT_TEXT_ATTACHMENT_MAX_CONTENT_LENGTH.toLocaleString(
+                locale.value
+              )
+          })
         }
       : {})
   };
@@ -146,14 +162,18 @@ function extractedTextAttachment(
 
 async function readPlainText(file: File): Promise<PromptAttachmentReadResult> {
   if (file.size > TEXT_FILE_MAX_BYTES) {
-    throw new Error(`文本文件“${file.name}”超过 5 MB，请缩小后再上传。`);
+    throw new Error(
+      t("textFileExceedsMbReduceItsSizeBeforeUploading", { name: file.name })
+    );
   }
   return extractedTextAttachment(file, textMediaType(file), await file.text());
 }
 
 async function readPdfText(file: File): Promise<PromptAttachmentReadResult> {
   if (file.size > PDF_FILE_MAX_BYTES) {
-    throw new Error(`PDF“${file.name}”超过 20 MB，请拆分或压缩后再上传。`);
+    throw new Error(
+      t("pdfExceedsMbSplitOrCompressItBeforeUploading", { name: file.name })
+    );
   }
   const [{ getDocument, GlobalWorkerOptions }, workerModule] =
     await Promise.all([
@@ -184,12 +204,20 @@ async function readPdfText(file: File): Promise<PromptAttachmentReadResult> {
     }
     return extractedTextAttachment(file, "application/pdf", pages.join("\n\n"));
   } catch (error: unknown) {
-    const message =
-      error instanceof Error ? error.message : "未知 PDF 解析错误";
+    const message = formatError(error, t("unknownPdfParsingError"));
     if (/password/i.test(message)) {
-      throw new Error(`PDF“${file.name}”受密码保护，暂时无法读取。`);
+      throw new Error(
+        t("pdfIsPasswordProtectedAndCannotBeRead", {
+          name: file.name
+        })
+      );
     }
-    throw new Error(`读取 PDF“${file.name}”失败：${message}`);
+    throw new Error(
+      t("failedToReadPdf", {
+        name: file.name,
+        message: message
+      })
+    );
   } finally {
     await loadingTask.destroy();
   }
@@ -197,7 +225,9 @@ async function readPdfText(file: File): Promise<PromptAttachmentReadResult> {
 
 async function readDocxText(file: File): Promise<PromptAttachmentReadResult> {
   if (file.size > DOCX_FILE_MAX_BYTES) {
-    throw new Error(`Word“${file.name}”超过 25 MB，请拆分或压缩后再上传。`);
+    throw new Error(
+      t("wordDocumentExceedsMbSplitOrCompressItBefore", { name: file.name })
+    );
   }
   try {
     return extractedTextAttachment(
@@ -206,9 +236,13 @@ async function readDocxText(file: File): Promise<PromptAttachmentReadResult> {
       await extractDocxText(await file.arrayBuffer())
     );
   } catch (error: unknown) {
-    const message =
-      error instanceof Error ? error.message : "未知 Word 解析错误";
-    throw new Error(`读取 Word“${file.name}”失败：${message}`);
+    const message = formatError(error, t("unknownWordParsingError"));
+    throw new Error(
+      t("failedToReadWordDocument", {
+        name: file.name,
+        message: message
+      })
+    );
   }
 }
 
@@ -230,6 +264,8 @@ export async function readPromptAttachment(
     return readPlainText(file);
   }
   throw new Error(
-    `不支持“${file.name}”的文件类型；请选择 TXT、MD、PDF、Word（.docx）或常见图片。`
+    t("theFileTypeOfIsNotSupportedChooseTxt", {
+      name: file.name
+    })
   );
 }

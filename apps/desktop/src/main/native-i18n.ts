@@ -1,0 +1,68 @@
+import type { AppLanguage } from "@deepwrite/contracts";
+import { resolveAppLocale, type AppLocale } from "../localization/locale";
+import zh from "./native-messages/zh-CN";
+import en from "./native-messages/en-US";
+
+const messages: Record<AppLocale, Record<keyof typeof zh, string>> = {
+  "zh-CN": zh,
+  "en-US": en
+};
+let currentLocale: AppLocale = "zh-CN";
+
+export function setNativeLanguage(
+  language: AppLanguage,
+  systemLocale: string
+): void {
+  currentLocale = resolveAppLocale(language, systemLocale);
+}
+
+export function nativeText(key: keyof typeof zh): string {
+  return messages[currentLocale][key];
+}
+
+const dynamicMessages = {
+  "zh-CN": {
+    startupDetails: (
+      phase: string,
+      code: string,
+      configuration: boolean,
+      path: string
+    ) =>
+      `${phase}时发生错误（${code}）。\n\n${configuration ? "请检查用户配置目录的访问权限和磁盘空间，再尝试启动。\n\n" : ""}请将下方本地诊断记录提供给开发者协助排查。\n\n记录位置（目录可写时生成）：\n${path}`,
+    downloadTeam: (name: string) => `下载智能体团队“${name}”`,
+    legacyLibraryTitle: (domain: "material" | "skill") =>
+      `导入旧版${domain === "material" ? "素材" : "技能"}库压缩包`,
+    legacyLibraryArchive: (domain: "material" | "skill") =>
+      `旧版${domain === "material" ? "素材" : "技能"}库压缩包`,
+    migrationDetails: (
+      source: string,
+      target: string,
+      restoreDefault: boolean
+    ) =>
+      `当前位置：${source}\n目标位置：${target}\n\n将迁移历史记录、模型与加密密钥、智能体配置、偏好、用量、自定义字体及应用内保存的数据。已有外部作品保持原位。\n\n原目录会保留；迁移失败时继续使用原目录。${restoreDefault ? "目标默认目录中的旧数据会先保留为同级备份，不会被覆盖。" : ""}`
+  },
+  "en-US": {
+    startupDetails: (
+      phase: string,
+      code: string,
+      configuration: boolean,
+      path: string
+    ) =>
+      `Startup failed during: ${phase} (${code}).\n\n${configuration ? "Check configuration folder permissions and available disk space, then try again.\n\n" : ""}Share the local diagnostic log below with the developer for troubleshooting.\n\nLog location (created if the folder is writable):\n${path}`,
+    downloadTeam: (name: string) => `Download Agent Team “${name}”`,
+    legacyLibraryTitle: (domain: "material" | "skill") =>
+      `Import Legacy ${domain === "material" ? "Material" : "Skill"} Library Archive`,
+    legacyLibraryArchive: (domain: "material" | "skill") =>
+      `Legacy ${domain === "material" ? "Material" : "Skill"} Library Archive`,
+    migrationDetails: (
+      source: string,
+      target: string,
+      restoreDefault: boolean
+    ) =>
+      `Current location: ${source}\nDestination: ${target}\n\nThis moves history, models and encrypted keys, agent settings, preferences, usage, custom fonts, and data saved within the app. Existing external projects stay in place.\n\nThe original folder is preserved and will remain in use if migration fails.${restoreDefault ? " Existing data at the default destination will be preserved in a sibling backup folder." : ""}`
+  }
+};
+
+export function nativeMessages(): (typeof dynamicMessages)["zh-CN"] {
+  return dynamicMessages[currentLocale];
+}

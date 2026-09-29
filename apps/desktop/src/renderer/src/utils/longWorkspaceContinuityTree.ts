@@ -1,3 +1,4 @@
+import { createScopedTranslator } from "../i18n";
 import type {
   LongBookSummary,
   LongWorkspaceIndexSnapshot
@@ -9,6 +10,8 @@ import {
 } from "../types/longWorkspace";
 import { createLongWorkspaceTreeNode } from "./longWorkspaceTreeNode";
 import { longContinuityBatchLabel } from "./longContinuityBatchLabel";
+
+const t = createScopedTranslator("workspace");
 
 export function projectLongWorkspaceContinuityTree(
   book: LongBookSummary,
@@ -75,7 +78,7 @@ export function projectLongWorkspaceContinuityTree(
         continuityChapterNode(selection, {
           icon: "check",
           label: chapter?.title ?? selection.title,
-          badge: "待提交"
+          badge: t("longWorkspaceDraftTree.pendingCommit")
         })
       );
     }
@@ -102,7 +105,7 @@ export function projectLongWorkspaceContinuityTree(
             label: display.label,
             badge:
               commit.mode === "import_checkpoint"
-                ? "导入检查点"
+                ? t("longWorkspaceContinuityTree.importedCheckpoint")
                 : display.badge,
             longLedgerCommit: {
               id: commit.id,
@@ -118,13 +121,21 @@ export function projectLongWorkspaceContinuityTree(
       {
         key: "continuity-group:pending",
         root: "continuity_ledger",
-        title: "待处理章节",
-        breadcrumbs: [book.title, "连续性账本", "待处理章节"],
+        title: t("longWorkspaceContinuityTree.pendingChapters"),
+        breadcrumbs: [
+          book.title,
+          t("longWorkspaceResourceTree.continuityLedger"),
+          t("longWorkspaceContinuityTree.pendingChapters")
+        ],
         files: [],
         preferredRole: "body",
         description: pendingRecordChapterIds.length
-          ? "选择任意已有正文的章节，按需补充连续性记录。"
-          : "当前没有等待补记连续性的章节。"
+          ? t(
+              "longWorkspaceContinuityTree.selectAChapterWithExistingProseToAddContinuity"
+            )
+          : t(
+              "longWorkspaceContinuityTree.noChaptersAreAwaitingContinuityRecords"
+            )
       },
       {
         icon: "check",
@@ -136,11 +147,17 @@ export function projectLongWorkspaceContinuityTree(
       {
         key: "continuity-group:records",
         root: "continuity_ledger",
-        title: "章节记录",
-        breadcrumbs: [book.title, "连续性账本", "章节记录"],
+        title: t("longWorkspaceContinuityTree.chapterRecords"),
+        breadcrumbs: [
+          book.title,
+          t("longWorkspaceResourceTree.continuityLedger"),
+          t("longWorkspaceContinuityTree.chapterRecords")
+        ],
         files: [],
         preferredRole: "body",
-        description: "按章节查看已经留存的连续性 Markdown 文件。"
+        description: t(
+          "longWorkspaceContinuityTree.viewSavedContinuityMarkdownFilesByChapter"
+        )
       },
       {
         icon: "file",

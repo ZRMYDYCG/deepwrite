@@ -1,3 +1,4 @@
+import { nativeMessages, nativeText } from "../native-i18n";
 import {
   CatalogLibrarySchema,
   CatalogLibraryGroupSchema,
@@ -66,12 +67,14 @@ export async function handleCatalogProjectCommands(
         const selection = await ctx.dialog.showOpenDialog({
           title:
             command.type === "catalog.importLegacyLibrary"
-              ? `导入旧版${domain === "material" ? "素材" : "技能"}库压缩包`
+              ? nativeMessages().legacyLibraryTitle(
+                  domain === "material" ? "material" : "skill"
+                )
               : domain === "book"
-                ? "打开已有书籍"
+                ? nativeText("openBook")
                 : domain === "material"
-                  ? "打开已有素材库"
-                  : "打开已有技能库",
+                  ? nativeText("openMaterials")
+                  : nativeText("openSkills"),
           defaultPath,
           ...(command.type === "catalog.importLegacyLibrary"
             ? {
@@ -81,7 +84,9 @@ export async function handleCatalogProjectCommands(
                     : (["openFile"] as const),
                 filters: [
                   {
-                    name: `旧版${domain === "material" ? "素材" : "技能"}库压缩包`,
+                    name: nativeMessages().legacyLibraryArchive(
+                      domain === "material" ? "material" : "skill"
+                    ),
                     extensions: ["zip"]
                   }
                 ]

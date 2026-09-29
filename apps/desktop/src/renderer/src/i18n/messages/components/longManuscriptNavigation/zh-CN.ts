@@ -1,0 +1,13 @@
+export default {
+  addChapterCard: "新增章卡",
+  deleteCurrentChapterCard: "删除当前章卡",
+  deleteThisChapterCardAndItsManuscriptAndContinuity:
+    "删除当前章卡及对应正文和连续性记录",
+  selectAChapterCardFirst: "请先选择一张章卡",
+  chapterCards: "章卡列表",
+  chapterCard: "章卡",
+  moreActionsForValue: "{arg0}更多操作",
+  moveUp: "上移",
+  moveDown: "下移",
+  delete: "删除"
+};

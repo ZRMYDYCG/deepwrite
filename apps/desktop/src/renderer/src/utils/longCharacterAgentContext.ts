@@ -1,3 +1,4 @@
+import { createScopedTranslator } from "../i18n";
 import {
   LONG_CHARACTER_CORE_FOCUS_MAX_CHARACTERS,
   LONG_CHARACTER_FOCUS_MAX_CHARACTERS,
@@ -13,6 +14,8 @@ import type {
   LongWorkspaceFileRole,
   LongWorkspaceSelection
 } from "../types/longWorkspace";
+
+const t = createScopedTranslator("workspace");
 
 type ReadLongDocument = (
   input: LongReadDocumentInput
@@ -30,10 +33,30 @@ const CHARACTER_DOCUMENTS: Partial<
     }
   >
 > = {
-  "core-profile": { kind: "core_profile", title: "核心档案" },
-  relationships: { kind: "relationships", title: "人物关系" },
-  "current-state": { kind: "current_state", title: "当前状态" },
-  history: { kind: "history", title: "历史轨迹" }
+  "core-profile": {
+    kind: "core_profile",
+    get title() {
+      return t("longCharacterAgentContext.coreProfile");
+    }
+  },
+  relationships: {
+    kind: "relationships",
+    get title() {
+      return t("longCharacterAgentContext.relationships");
+    }
+  },
+  "current-state": {
+    kind: "current_state",
+    get title() {
+      return t("longCharacterAgentContext.currentState");
+    }
+  },
+  history: {
+    kind: "history",
+    get title() {
+      return t("longCharacterAgentContext.history");
+    }
+  }
 };
 
 function snapshotText(
@@ -60,7 +83,11 @@ async function readFocusText(
     maxCharacters: maximum
   });
   if (page.bookId !== bookId || page.file.id !== fileId || page.offset !== 0) {
-    throw new Error("长篇人物阶段读取结果与当前选择不一致。");
+    throw new Error(
+      t(
+        "longCharacterAgentContext.theCharacterStageResponseDoesNotMatchTheCurrent"
+      )
+    );
   }
   return snapshotText(page, maximum);
 }
@@ -93,7 +120,7 @@ export async function buildLongCharacterFocusSnapshot(input: {
     return {
       currentDocument: {
         kind: "overview",
-        title: "概览",
+        title: t("catalogWorkspace.overview"),
         text: await readFocusText(
           readDocument,
           bookId,

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import { computed, ref, watch } from "vue";
 import type {
   BookResourceDialogMode,
@@ -25,6 +26,8 @@ import {
 import AppIcon from "./AppIcon.vue";
 import TreeNodeItem from "./TreeNodeItem.vue";
 import TreeSection from "./TreeSection.vue";
+
+const t = createScopedTranslator("components.sidebarResourceList");
 
 const props = defineProps<{
   sections: ResourceTreeSection[];
@@ -125,10 +128,12 @@ function toggleResourcePin(node: ResourceTreeNode): void {
       JSON.stringify(pinnedResourceIds.value)
     );
   } catch {
-    uiMessage.warning("置顶状态暂时无法保存，但本次操作仍然有效");
+    uiMessage.warning(t("pinStatusCouldNotBeSavedButThisChange"));
   }
   uiMessage.success(
-    pinned ? `已取消置顶“${node.label}”` : `已置顶“${node.label}”`
+    pinned
+      ? t("unpinnedValue", { arg0: node.label })
+      : t("pinnedValue", { arg0: node.label })
   );
 }
 
@@ -171,11 +176,11 @@ watch(
     >
       <div class="pinned-resource-heading">
         <AppIcon name="pin" :size="15" />
-        <span>置顶</span>
+        <span>{{ t("pinned") }}</span>
       </div>
       <ul
         class="resource-tree pinned-resource-tree"
-        aria-label="置顶的书籍、技能库和素材库"
+        :aria-label="t('pinnedBooksSkillLibrariesAndMaterialLibraries')"
       >
         <TreeNodeItem
           v-for="node in pinnedResourceNodes"

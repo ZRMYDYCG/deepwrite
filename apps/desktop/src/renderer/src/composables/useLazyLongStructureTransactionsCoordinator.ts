@@ -1,3 +1,5 @@
+import { formatError } from "../i18n/errors";
+import { createScopedTranslator } from "../i18n";
 import { computed } from "vue";
 import type { Ref } from "vue";
 import type { LongWorldbuildingSyncBookOption } from "../utils/longWorldbuildingSync";
@@ -5,6 +7,10 @@ import type {
   LongStructureTransactionsCoordinator,
   LongStructureTransactionsCoordinatorOptions
 } from "./useLongStructureTransactionsCoordinator";
+
+const t = createScopedTranslator(
+  "workspace.lazyLongStructureTransactionsCoordinator"
+);
 
 export interface LongStructureTransactionsCoordinatorModule {
   useLongStructureTransactionsCoordinator(
@@ -23,8 +29,8 @@ type Coordinator = LongStructureTransactionsCoordinator;
 type Guard = () => boolean;
 type Skipped = (message: string) => void;
 
-const CANCELED_MESSAGE = "长篇结构操作已取消。";
-const LOAD_FAILURE_MESSAGE = "加载长篇结构协调器失败。";
+const CANCELED_MESSAGE = t("theLongFormStructureOperationWasCanceled");
+const LOAD_FAILURE_MESSAGE = t("couldNotLoadTheLongFormStructureCoordinator");
 const MIGRATION_EVIDENCE_CATEGORY_PREFIX = "world_migration-evidence-";
 
 /**
@@ -82,15 +88,13 @@ export function useLazyLongStructureTransactionsCoordinator(
   function reportLoadFailure(error: unknown): void {
     if (disposed || loadFailureReported) return;
     loadFailureReported = true;
-    context.notifications.error(
-      error instanceof Error ? error.message : LOAD_FAILURE_MESSAGE
-    );
+    context.notifications.error(formatError(error, LOAD_FAILURE_MESSAGE));
   }
 
   function reportVoidFailure(error: unknown): void {
     if (disposed) return;
     context.notifications.error(
-      error instanceof Error ? error.message : "长篇结构操作失败。"
+      formatError(error, t("theLongFormStructureOperationFailed"))
     );
   }
 

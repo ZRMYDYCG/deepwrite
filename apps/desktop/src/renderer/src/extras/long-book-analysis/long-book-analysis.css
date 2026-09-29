@@ -1,74 +1,3 @@
-.long-book-analysis-page {
-  --analysis-gap: 14px;
-  container-name: analysis-page;
-  container-type: inline-size;
-  height: 100%;
-  overflow: auto;
-  box-sizing: border-box;
-  padding: 30px clamp(18px, 4%, 64px) clamp(120px, 18vh, 200px);
-  background: var(--surface-main);
-  color: var(--text-primary);
-}
-
-.long-book-analysis-page .analysis-page-header,
-.long-book-analysis-page .analysis-card-heading {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.long-book-analysis-page .analysis-page-header {
-  align-items: center;
-  max-width: 1080px;
-  margin: 0 auto 24px;
-}
-
-.long-book-analysis-page .analysis-page-intro {
-  min-width: 0;
-  max-width: 100%;
-  flex: 1 1 auto;
-}
-
-.long-book-analysis-page .analysis-page-header h1,
-.long-book-analysis-page .analysis-card-heading h2,
-.long-book-analysis-page .analysis-eyebrow {
-  margin: 0;
-}
-
-.long-book-analysis-page .analysis-page-header p,
-.long-book-analysis-page .analysis-card-heading > span {
-  color: var(--text-secondary);
-}
-
-.long-book-analysis-page .analysis-page-header h1 {
-  margin: 5px 0 7px;
-  font-size: clamp(28px, 3vw, 36px);
-  font-weight: 680;
-  letter-spacing: -0.035em;
-}
-
-.long-book-analysis-page
-  .analysis-page-header
-  .analysis-page-intro
-  > p:last-child {
-  max-width: 650px;
-  margin: 0;
-  overflow: hidden;
-  color: var(--text-secondary);
-  font-size: 0.928571rem;
-  line-height: 1.55;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.long-book-analysis-page .analysis-page-actions,
-.long-book-analysis-page .analysis-run-actions {
-  display: flex;
-  flex-wrap: nowrap;
-  gap: 8px;
-}
-
 .long-book-analysis-page .analysis-page-controls {
   display: flex;
   min-width: 0;
@@ -92,111 +21,14 @@
   background: var(--surface-raised);
 }
 
-.long-book-analysis-page button,
-.long-book-analysis-page input,
-.long-book-analysis-page textarea {
-  font: inherit;
-}
-
-.long-book-analysis-page button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  border: 1px solid var(--theme-line-soft);
-  border-radius: 9px;
-  min-height: 34px;
-  padding: 7px 11px;
-  background: var(--surface-muted);
-  color: var(--text-primary);
-  cursor: pointer;
-  transition:
-    border-color 120ms ease,
-    background-color 120ms ease,
-    color 120ms ease;
-}
-
-.long-book-analysis-page button:hover:not(:disabled) {
-  border-color: var(--theme-line);
-  background: var(--surface-hover);
-}
-
-.long-book-analysis-page button:focus-visible,
-.long-book-analysis-page input:focus-visible {
-  border-color: var(--accent);
-  outline: 0;
-  box-shadow: 0 0 0 3px var(--accent-soft);
-}
-
-.long-book-analysis-page button:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
-}
-
-.long-book-analysis-page .analysis-primary-button {
-  border-color: var(--text-primary);
-  background: var(--text-primary);
-  color: var(--surface-main);
-}
-
-.long-book-analysis-page .analysis-primary-button:hover:not(:disabled) {
-  border-color: var(--text-primary);
-  background: color-mix(in srgb, var(--text-primary) 88%, var(--surface-main));
-}
-
 .long-book-analysis-page .analysis-page-actions button {
   border-color: transparent;
   background: transparent;
   white-space: nowrap;
 }
 
-.long-book-analysis-page .analysis-page-actions .analysis-icon-button {
-  width: 34px;
-  padding: 0;
-  color: var(--text-secondary);
-}
-
 .long-book-analysis-page .analysis-danger-button {
   color: var(--danger, #c64b4b);
-}
-
-.long-book-analysis-page .analysis-content {
-  display: grid;
-  gap: var(--analysis-gap);
-  max-width: 1080px;
-  margin: 0 auto;
-}
-
-.long-book-analysis-page .analysis-result-anchor {
-  scroll-margin-top: 18px;
-}
-
-.long-book-analysis-page .analysis-card {
-  box-sizing: border-box;
-  border: 1px solid var(--theme-line-soft);
-  border-radius: 15px;
-  padding: 18px;
-  background: var(--surface-raised);
-  box-shadow: 0 1px 2px
-    color-mix(in srgb, var(--theme-foreground) 4%, transparent);
-}
-
-.long-book-analysis-page .analysis-card-heading {
-  margin-bottom: 14px;
-}
-
-.long-book-analysis-page .analysis-card-heading h2 {
-  margin-top: 3px;
-  font-size: 1.142857rem;
-  font-weight: 650;
-}
-
-.long-book-analysis-page .analysis-eyebrow {
-  color: var(--accent);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
 .long-book-analysis-page .analysis-empty-source {
@@ -204,8 +36,8 @@
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 16px;
-  min-height: 144px;
-  padding: 24px 26px;
+  min-height: 104px;
+  padding: 18px;
   border-style: dashed;
   background: color-mix(
     in srgb,
@@ -266,64 +98,6 @@
   white-space: nowrap;
 }
 
-.long-book-analysis-page .analysis-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 5px 9px;
-  border-radius: 999px;
-  background: var(--surface-muted);
-  color: var(--text-secondary);
-  font-size: 0.821429rem;
-  white-space: nowrap;
-}
-
-.long-book-analysis-page .analysis-status i {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--text-tertiary);
-}
-
-.long-book-analysis-page .analysis-status.is-running i,
-.long-book-analysis-page .analysis-status.is-stopping i {
-  background: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-soft);
-}
-
-.long-book-analysis-page .analysis-status.is-completed i {
-  background: var(--success, #2f8f5b);
-}
-
-.long-book-analysis-page .analysis-status.is-error i {
-  background: var(--danger, #c64b4b);
-}
-
-.long-book-analysis-page .setup-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.long-book-analysis-page .setup-field {
-  display: grid;
-  min-width: 0;
-  gap: 7px;
-}
-
-.long-book-analysis-page .setup-field-label {
-  color: var(--text-secondary);
-  font-size: 0.785714rem;
-  font-weight: 580;
-}
-
-.long-book-analysis-page .setup-field-label small {
-  margin-left: 5px;
-  color: var(--text-tertiary);
-  font-size: 0.714286rem;
-  font-weight: 450;
-}
-
 .long-book-analysis-page .chapter-range-inputs {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
@@ -340,7 +114,7 @@
   box-sizing: border-box;
   width: 100%;
   min-width: 0;
-  height: 34px;
+  min-height: 34px;
   border: 1px solid var(--theme-line);
   border-radius: 8px;
   padding: 0 10px;
@@ -379,20 +153,6 @@
   gap: 10px;
 }
 
-.long-book-analysis-page .preset-target-field {
-  display: grid;
-  flex: 0 1 380px;
-  grid-template-columns: auto minmax(190px, 1fr);
-  align-items: center;
-  gap: 8px;
-  min-width: 280px;
-}
-
-.long-book-analysis-page .preset-target-field > span {
-  font-size: 0.785714rem;
-  font-weight: 580;
-}
-
 .long-book-analysis-page .preset-summary strong {
   flex: 0 0 auto;
   font-size: 0.928571rem;
@@ -412,40 +172,6 @@
   color: var(--text-secondary);
 }
 
-.long-book-analysis-page .analysis-run-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  margin-top: 16px;
-  padding-top: 15px;
-  border-top: 1px solid var(--theme-line-soft);
-}
-
-.long-book-analysis-page .analysis-run-progress {
-  display: flex;
-  min-width: 0;
-  align-items: baseline;
-  gap: 10px;
-}
-
-.long-book-analysis-page .analysis-run-progress strong {
-  flex: 0 0 auto;
-  font-size: 0.928571rem;
-}
-
-.long-book-analysis-page .analysis-run-progress span {
-  overflow: hidden;
-  color: var(--text-secondary);
-  font-size: 0.857143rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.long-book-analysis-page .analysis-run-actions .analysis-primary-button {
-  min-width: 96px;
-}
-
 .long-book-analysis-page .analysis-diagnostics {
   margin: 0 0 12px;
   padding: 10px 12px;
@@ -460,11 +186,6 @@
 }
 
 @container analysis-page (max-width: 1040px) {
-  .long-book-analysis-page .analysis-page-header {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
   .long-book-analysis-page .analysis-page-controls {
     width: 100%;
   }
@@ -473,15 +194,9 @@
     flex: 1 1 auto;
   }
 
-  .long-book-analysis-page .preset-summary,
-  .long-book-analysis-page .analysis-run-bar {
+  .long-book-analysis-page .preset-summary {
     align-items: stretch;
     flex-direction: column;
-  }
-
-  .long-book-analysis-page .preset-target-field {
-    width: 100%;
-    flex: 0 0 auto;
   }
 
   .long-book-analysis-page .analysis-run-actions {
@@ -505,9 +220,7 @@
     box-sizing: border-box;
   }
 
-  .long-book-analysis-page
-    .analysis-page-actions
-    button:not(.analysis-icon-button) {
+  .long-book-analysis-page .analysis-page-actions button {
     flex: 1 1 auto;
   }
 
@@ -535,13 +248,6 @@
     align-items: flex-start;
     flex-direction: column;
     gap: 4px;
-  }
-
-  .long-book-analysis-page .preset-target-field {
-    width: 100%;
-    flex: 0 0 auto;
-    grid-template-columns: 1fr;
-    min-width: 0;
   }
 
   .long-book-analysis-page .preset-summary span,

@@ -1,7 +1,10 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import type { LongCharacterId } from "@deepwrite/contracts";
 import { handleHorizontalOverflowWheel } from "../utils/horizontalOverflow";
 import AppIcon from "./AppIcon.vue";
+
+const t = createScopedTranslator("components.longCharacterNavigation");
 
 export interface LongCharacterNavigationItem {
   id: LongCharacterId;
@@ -58,8 +61,8 @@ const emit = defineEmits<{
     <button
       class="long-worldbuilding-add"
       type="button"
-      aria-label="新增人物"
-      title="新增人物"
+      :aria-label="t('addCharacter')"
+      :title="t('addCharacter')"
       :disabled="locked"
       @click="emit('createCharacter')"
     >
@@ -68,8 +71,8 @@ const emit = defineEmits<{
     <button
       class="long-worldbuilding-remove"
       type="button"
-      aria-label="删除当前人物"
-      title="删除当前人物"
+      :aria-label="t('deleteCurrentCharacter')"
+      :title="t('deleteCurrentCharacter')"
       :disabled="locked || !canDelete"
       @click="emit('deleteCharacter')"
     >
@@ -80,7 +83,7 @@ const emit = defineEmits<{
   <aside
     v-else
     class="long-story-plot-pane long-entry-list-pane"
-    :aria-label="`${label}列表`"
+    :aria-label="t('valueList', { arg0: label })"
   >
     <header>
       <div>
@@ -90,8 +93,8 @@ const emit = defineEmits<{
       <div class="long-entry-list-actions">
         <button
           type="button"
-          aria-label="新增人物"
-          title="新增人物"
+          :aria-label="t('addCharacter')"
+          :title="t('addCharacter')"
           :disabled="locked"
           @click="emit('createCharacter')"
         >
@@ -99,8 +102,8 @@ const emit = defineEmits<{
         </button>
         <button
           type="button"
-          aria-label="删除当前人物"
-          title="删除当前人物"
+          :aria-label="t('deleteCurrentCharacter')"
+          :title="t('deleteCurrentCharacter')"
           :disabled="locked || !canDelete"
           @click="emit('deleteCharacter')"
         >

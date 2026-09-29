@@ -1,3 +1,5 @@
+import { formatError } from "../i18n/errors";
+import { createScopedTranslator } from "../i18n";
 import { hasBusyBookConversation } from "../utils/bookConversationKey";
 import type {
   Book,
@@ -18,6 +20,8 @@ import type {
 } from "../types/workspace";
 import { agentRunScopeForDocument } from "../utils/agentRunPreferences";
 import { suggestedDraftSectionTitle } from "../utils/draftFileTitles";
+
+const t = createScopedTranslator("workspace");
 
 type DraftFileKind = "body" | "character-state";
 
@@ -280,14 +284,22 @@ export function useShortWorkspaceStructureCoordinator(
       conversations.hasWriteBarrier(scope) ||
       state.acceptingWorkspaceIds.value.has(bookId)
     ) {
-      notifications.warning("请先等待当前智能体结束，并接受或拒绝待审阅变更。");
+      notifications.warning(
+        t(
+          "shortWorkspaceStructureCoordinator.waitForTheCurrentAgentToFinishThenAccept"
+        )
+      );
       return false;
     }
     if (
       saves.conflict.value &&
       scopedDocuments.some(({ id }) => id === saves.conflict.value?.documentId)
     ) {
-      notifications.warning("请先处理该作品尚未解决的保存冲突。");
+      notifications.warning(
+        t(
+          "shortWorkspaceStructureCoordinator.resolveThisProjectSOutstandingSaveConflictsFirst"
+        )
+      );
       return false;
     }
 
@@ -302,7 +314,11 @@ export function useShortWorkspaceStructureCoordinator(
       );
       if (disposed) return false;
       if (!saved) {
-        notifications.warning("存在无法安全保存的草稿，结构未变更。");
+        notifications.warning(
+          t(
+            "shortWorkspaceStructureCoordinator.someDraftsCouldNotBeSavedSafelyTheStructure"
+          )
+        );
         return false;
       }
     }
@@ -327,19 +343,32 @@ export function useShortWorkspaceStructureCoordinator(
           await resources.revealCatalogBook(duplicated.projectId);
           if (canPublish(context)) {
             notifications.success(
-              `已复制“${book.label}”为“${duplicated.title}”`
+              t("catalogLibraryTransactionsCoordinator.copiedAs", {
+                label: book.label,
+                title: duplicated.title
+              })
             );
           }
         }
       } catch (error: unknown) {
         if (canPublish(context)) {
           notifications.error(
-            error instanceof Error ? error.message : "复制创作空间失败。"
+            formatError(
+              error,
+              t(
+                "shortWorkspaceStructureCoordinator.couldNotDuplicateTheWritingWorkspace"
+              )
+            )
           );
         }
       }
     });
-    if (!operation) notifications.info("当前作品正在更新，请稍候。");
+    if (!operation)
+      notifications.info(
+        t(
+          "shortWorkspaceStructureCoordinator.theCurrentProjectIsBeingUpdatedPleaseWait"
+        )
+      );
     await operation;
   }
 
@@ -356,7 +385,11 @@ export function useShortWorkspaceStructureCoordinator(
         authoritativeBook.projectRevision === undefined
       ) {
         if (canPublish(context)) {
-          notifications.error("当前作品缺少项目版本，无法安全管理结构。");
+          notifications.error(
+            t(
+              "shortWorkspaceStructureCoordinator.theCurrentProjectHasNoVersionIdentifierItsStructure"
+            )
+          );
         }
         return;
       }
@@ -370,7 +403,11 @@ export function useShortWorkspaceStructureCoordinator(
       opened = true;
     });
     if (!operation) {
-      notifications.info("当前作品正在更新，请稍候。");
+      notifications.info(
+        t(
+          "shortWorkspaceStructureCoordinator.theCurrentProjectIsBeingUpdatedPleaseWait"
+        )
+      );
       return false;
     }
     await operation;
@@ -405,7 +442,11 @@ export function useShortWorkspaceStructureCoordinator(
       ) {
         if (canPublish(context)) {
           completion.fail();
-          notifications.error("当前作品缺少项目版本，无法安全变更人物结构。");
+          notifications.error(
+            t(
+              "shortWorkspaceStructureCoordinator.theCurrentProjectHasNoVersionIdentifierItsCharacter"
+            )
+          );
         }
         return;
       }
@@ -422,15 +463,25 @@ export function useShortWorkspaceStructureCoordinator(
         notifications.success(
           mutation.type === "setFormat"
             ? mutation.format === "list"
-              ? "人物结构已转换为条目样式"
-              : "人物结构已转换为文本样式"
+              ? t(
+                  "shortWorkspaceStructureCoordinator.characterStructureConvertedToEntries"
+                )
+              : t(
+                  "shortWorkspaceStructureCoordinator.characterStructureConvertedToText"
+                )
             : mutation.type === "createItem"
-              ? "人物条目已创建"
+              ? t("shortWorkspaceStructureCoordinator.characterEntryCreated")
               : mutation.type === "updateItem"
-                ? "人物条目名称已更新"
+                ? t(
+                    "shortWorkspaceStructureCoordinator.characterEntryNameUpdated"
+                  )
                 : mutation.type === "moveItem"
-                  ? "人物条目顺序已更新"
-                  : "人物条目已删除"
+                  ? t(
+                      "shortWorkspaceStructureCoordinator.characterEntriesReordered"
+                    )
+                  : t(
+                      "shortWorkspaceStructureCoordinator.characterEntryDeleted"
+                    )
         );
       } catch (error: unknown) {
         if (catalog.isConflict(error)) await catalog.refresh();
@@ -438,11 +489,18 @@ export function useShortWorkspaceStructureCoordinator(
         completion.fail();
         if (catalog.isConflict(error)) {
           notifications.warning(
-            "作品已在其他位置更新，已重新加载；请确认后重试。"
+            t(
+              "shortWorkspaceStructureCoordinator.theProjectWasUpdatedElsewhereAndHasBeenReloaded"
+            )
           );
         } else {
           notifications.error(
-            error instanceof Error ? error.message : "人物结构变更失败。"
+            formatError(
+              error,
+              t(
+                "shortWorkspaceStructureCoordinator.couldNotChangeTheCharacterStructure"
+              )
+            )
           );
         }
       }
@@ -458,11 +516,19 @@ export function useShortWorkspaceStructureCoordinator(
   function requestCreateCharacterItem(node: ResourceTreeNode): void {
     const bookId = characterBookIdForNode(node);
     if (!bookId) {
-      notifications.warning("无法确定人物条目所属作品。");
+      notifications.warning(
+        t(
+          "shortWorkspaceStructureCoordinator.couldNotIdentifyTheProjectContainingThisCharacterEntry"
+        )
+      );
       return;
     }
     if (state.mutationPending.value || disposed) {
-      notifications.info("当前作品正在更新，请稍候。");
+      notifications.info(
+        t(
+          "shortWorkspaceStructureCoordinator.theCurrentProjectIsBeingUpdatedPleaseWait"
+        )
+      );
       return;
     }
     characterItemDialog.value = { mode: "create", bookId, title: "" };
@@ -495,7 +561,11 @@ export function useShortWorkspaceStructureCoordinator(
         (tab) => tab.id === documentId
       )
     ) {
-      notifications.warning("该人物条目已不存在，列表已刷新");
+      notifications.warning(
+        t(
+          "shortWorkspaceStructureCoordinator.thisCharacterEntryNoLongerExistsTheListHas"
+        )
+      );
       return;
     }
     const requestEpoch = ++characterSelectionEpoch;
@@ -529,7 +599,11 @@ export function useShortWorkspaceStructureCoordinator(
           )
         : undefined);
     if (!directory) {
-      notifications.warning("无法确定人物目录，暂时不能新建人物条目。");
+      notifications.warning(
+        t(
+          "shortWorkspaceStructureCoordinator.theCharacterDirectoryCouldNotBeIdentifiedACharacter"
+        )
+      );
       return;
     }
     requestCreateCharacterItem(directory);
@@ -542,11 +616,17 @@ export function useShortWorkspaceStructureCoordinator(
       !document.characterItemId ||
       !document.workspaceId
     ) {
-      notifications.warning("请先选择一个人物条目。");
+      notifications.warning(
+        t("shortWorkspaceStructureCoordinator.selectACharacterEntryFirst")
+      );
       return;
     }
     if (state.mutationPending.value || disposed) {
-      notifications.info("当前作品正在更新，请稍候。");
+      notifications.info(
+        t(
+          "shortWorkspaceStructureCoordinator.theCurrentProjectIsBeingUpdatedPleaseWait"
+        )
+      );
       return;
     }
     characterItemDialog.value = {
@@ -564,7 +644,11 @@ export function useShortWorkspaceStructureCoordinator(
     const bookId = characterBookIdForNode(node);
     const itemId = node.characterItemId;
     if (!bookId || !itemId) {
-      notifications.warning("无法确定人物条目。");
+      notifications.warning(
+        t(
+          "shortWorkspaceStructureCoordinator.couldNotIdentifyTheCharacterEntry"
+        )
+      );
       return;
     }
     if (action === "move-up" || action === "move-down") {
@@ -580,7 +664,11 @@ export function useShortWorkspaceStructureCoordinator(
       return;
     }
     if (state.mutationPending.value || disposed) {
-      notifications.info("当前作品正在更新，请稍候。");
+      notifications.info(
+        t(
+          "shortWorkspaceStructureCoordinator.theCurrentProjectIsBeingUpdatedPleaseWait"
+        )
+      );
       return;
     }
     characterItemDialog.value = {
@@ -640,7 +728,11 @@ export function useShortWorkspaceStructureCoordinator(
       ) {
         if (canPublish(context)) {
           completion.fail();
-          notifications.error("当前作品缺少项目版本，无法安全变更剧情结构。");
+          notifications.error(
+            t(
+              "shortWorkspaceStructureCoordinator.theCurrentProjectHasNoVersionIdentifierItsPlot"
+            )
+          );
         }
         return;
       }
@@ -693,16 +785,28 @@ export function useShortWorkspaceStructureCoordinator(
         completion.succeed();
         notifications.success(
           mutation.type === "create"
-            ? "剧情结构已创建，并同步到全部短篇与剧本"
+            ? t(
+                "shortWorkspaceStructureCoordinator.plotStructureCreatedAndSyncedToAllShortStories"
+              )
             : mutation.type === "update"
-              ? "剧情结构已全局更新"
+              ? t(
+                  "shortWorkspaceStructureCoordinator.plotStructureUpdatedAcrossAllProjects"
+                )
               : mutation.type === "move"
-                ? "剧情结构顺序已更新"
+                ? t(
+                    "shortWorkspaceStructureCoordinator.plotStructuresReordered"
+                  )
                 : mutation.type === "setEnabled"
                   ? mutation.enabled
-                    ? "已启用该剧情结构"
-                    : "已关闭该剧情结构"
-                  : "剧情结构已从全部作品中删除"
+                    ? t(
+                        "shortWorkspaceStructureCoordinator.plotStructureEnabled"
+                      )
+                    : t(
+                        "shortWorkspaceStructureCoordinator.plotStructureDisabled"
+                      )
+                  : t(
+                      "shortWorkspaceStructureCoordinator.plotStructureDeletedFromAllProjects"
+                    )
         );
       } catch (error: unknown) {
         if (catalog.isConflict(error)) await catalog.refresh();
@@ -710,11 +814,18 @@ export function useShortWorkspaceStructureCoordinator(
         completion.fail();
         if (catalog.isConflict(error)) {
           notifications.warning(
-            "作品已在其他位置更新，已重新加载；请确认后重试。"
+            t(
+              "shortWorkspaceStructureCoordinator.theProjectWasUpdatedElsewhereAndHasBeenReloaded"
+            )
           );
         } else {
           notifications.error(
-            error instanceof Error ? error.message : "剧情结构变更失败。"
+            formatError(
+              error,
+              t(
+                "shortWorkspaceStructureCoordinator.couldNotChangeThePlotStructure"
+              )
+            )
           );
         }
       }
@@ -734,7 +845,10 @@ export function useShortWorkspaceStructureCoordinator(
     ) {
       return;
     }
-    const unitLabel = source.workspaceType === "script" ? "剧集" : "小节";
+    const unitLabel =
+      source.workspaceType === "script"
+        ? t("workspaceResourceCoordinator.episode")
+        : t("workspaceResourceCoordinator.section");
     if (
       draftNode.stageCategoryId !== "draft" ||
       expertDraftMutationBlocked(source) ||
@@ -743,11 +857,21 @@ export function useShortWorkspaceStructureCoordinator(
       !options.api() ||
       disposed
     ) {
-      notifications.info(`当前正文暂时不能新建${unitLabel}，请稍候`);
+      notifications.info(
+        t(
+          "shortWorkspaceStructureCoordinator.aNewCannotBeAddedToTheManuscriptYet",
+          { unitLabel: unitLabel }
+        )
+      );
       return;
     }
     if (directory.sections.length >= 100) {
-      notifications.warning(`正文最多支持 100 个${unitLabel}`);
+      notifications.warning(
+        t(
+          "shortWorkspaceStructureCoordinator.aManuscriptSupportsUpToItemsOfType",
+          { unitLabel: unitLabel }
+        )
+      );
       return;
     }
     pendingExpertSectionCreation.value = {
@@ -778,7 +902,9 @@ export function useShortWorkspaceStructureCoordinator(
       if (pendingExpertSectionCreation.value === target) {
         pendingExpertSectionCreation.value = null;
       }
-      notifications.warning("该正文已经不存在");
+      notifications.warning(
+        t("shortWorkspaceStructureCoordinator.thisManuscriptNoLongerExists")
+      );
       return;
     }
     const bookId = initialDirectory.workspaceId;
@@ -795,13 +921,18 @@ export function useShortWorkspaceStructureCoordinator(
       const source = draftNode
         ? resources.documentForResourceId(draftNode.id)
         : undefined;
-      const unitLabel = target.workspaceType === "script" ? "剧集" : "小节";
+      const unitLabel =
+        target.workspaceType === "script"
+          ? t("workspaceResourceCoordinator.episode")
+          : t("workspaceResourceCoordinator.section");
       if (!directory || !draftNode || !source) {
         if (canPublish(context)) {
           if (pendingExpertSectionCreation.value === target) {
             pendingExpertSectionCreation.value = null;
           }
-          notifications.warning("该正文已经不存在");
+          notifications.warning(
+            t("shortWorkspaceStructureCoordinator.thisManuscriptNoLongerExists")
+          );
         }
         return;
       }
@@ -811,13 +942,23 @@ export function useShortWorkspaceStructureCoordinator(
         source.readOnly
       ) {
         if (canPublish(context)) {
-          notifications.info(`当前正文暂时不能新建${unitLabel}，请稍候`);
+          notifications.info(
+            t(
+              "shortWorkspaceStructureCoordinator.aNewCannotBeAddedToTheManuscriptYet",
+              { unitLabel: unitLabel }
+            )
+          );
         }
         return;
       }
       if (directory.sections.length >= 100) {
         if (canPublish(context)) {
-          notifications.warning(`正文最多支持 100 个${unitLabel}`);
+          notifications.warning(
+            t(
+              "shortWorkspaceStructureCoordinator.aManuscriptSupportsUpToItemsOfType",
+              { unitLabel: unitLabel }
+            )
+          );
         }
         return;
       }
@@ -827,7 +968,11 @@ export function useShortWorkspaceStructureCoordinator(
         authoritativeBook.projectRevision === undefined
       ) {
         if (canPublish(context)) {
-          notifications.error("当前作品缺少项目版本，无法安全新建正文结构。");
+          notifications.error(
+            t(
+              "shortWorkspaceStructureCoordinator.theCurrentProjectHasNoVersionIdentifierManuscriptStructure"
+            )
+          );
         }
         return;
       }
@@ -856,24 +1001,40 @@ export function useShortWorkspaceStructureCoordinator(
         if (pendingExpertSectionCreation.value === target) {
           pendingExpertSectionCreation.value = null;
         }
-        notifications.success(`已新建“${added.title}”并保存到正文文件夹`);
+        notifications.success(
+          t(
+            "shortWorkspaceStructureCoordinator.createdAndSavedItInTheManuscriptFolder",
+            { title: added.title }
+          )
+        );
       } catch (error: unknown) {
         if (catalog.isConflict(error)) await catalog.refresh();
         if (!canPublish(context)) return;
         if (catalog.isConflict(error)) {
           notifications.warning(
-            "作品已在其他位置更新，已重新加载；请确认后重试。"
+            t(
+              "shortWorkspaceStructureCoordinator.theProjectWasUpdatedElsewhereAndHasBeenReloaded"
+            )
           );
         } else {
           notifications.error(
-            error instanceof Error
-              ? error.message
-              : `新建正文${unitLabel}失败。`
+            formatError(
+              error,
+              t(
+                "shortWorkspaceStructureCoordinator.couldNotCreateTheManuscript",
+                { unitLabel: unitLabel }
+              )
+            )
           );
         }
       }
     });
-    if (!operation) notifications.info("当前作品正在更新，请稍候。");
+    if (!operation)
+      notifications.info(
+        t(
+          "shortWorkspaceStructureCoordinator.theCurrentProjectIsBeingUpdatedPleaseWait"
+        )
+      );
     await operation;
   }
 
@@ -884,7 +1045,11 @@ export function useShortWorkspaceStructureCoordinator(
     if (!directory || directory.workspaceType !== "short") return;
     const draftNode = resources.resourceNode(directory.id);
     if (!draftNode) {
-      notifications.info("当前正文暂时不能新建小节，请稍候");
+      notifications.info(
+        t(
+          "shortWorkspaceStructureCoordinator.aNewSectionCannotBeAddedToTheManuscript"
+        )
+      );
       return;
     }
     await addExpertSection(draftNode);
@@ -916,15 +1081,25 @@ export function useShortWorkspaceStructureCoordinator(
         : undefined;
       if (!directory || !section || !source) {
         if (canPublish(context)) {
-          notifications.warning("该正文小节已经不存在，列表已刷新");
+          notifications.warning(
+            t(
+              "shortWorkspaceStructureCoordinator.thisManuscriptSectionNoLongerExistsTheListHas"
+            )
+          );
         }
         return;
       }
-      const unitLabel = directory.workspaceType === "script" ? "剧集" : "小节";
+      const unitLabel =
+        directory.workspaceType === "script"
+          ? t("workspaceResourceCoordinator.episode")
+          : t("workspaceResourceCoordinator.section");
       if (expertDraftMutationBlocked(source)) {
         if (canPublish(context)) {
           notifications.info(
-            `当前${unitLabel}正在处理或保存，请稍候再调整顺序`
+            t(
+              "shortWorkspaceStructureCoordinator.theCurrentIsBeingProcessedOrSavedWaitBefore",
+              { unitLabel: unitLabel }
+            )
           );
         }
         return;
@@ -942,7 +1117,11 @@ export function useShortWorkspaceStructureCoordinator(
         authoritativeBook.projectRevision === undefined
       ) {
         if (canPublish(context)) {
-          notifications.error("当前作品缺少项目版本，无法安全调整正文结构。");
+          notifications.error(
+            t(
+              "shortWorkspaceStructureCoordinator.theCurrentProjectHasNoVersionIdentifierItsManuscript"
+            )
+          );
         }
         return;
       }
@@ -964,25 +1143,41 @@ export function useShortWorkspaceStructureCoordinator(
           [directory.id]: section.id
         };
         notifications.success(
-          `已${direction === "up" ? "上移" : "下移"}“${section.title}”`
+          t("shortWorkspaceStructureCoordinator.message", {
+            value:
+              direction === "up"
+                ? t("proposalCoordinator.moveUp")
+                : t("proposalCoordinator.moveDown"),
+            title: section.title
+          })
         );
       } catch (error: unknown) {
         if (catalog.isConflict(error)) await catalog.refresh();
         if (!canPublish(context)) return;
         if (catalog.isConflict(error)) {
           notifications.warning(
-            "作品已在其他位置更新，已重新加载；请确认后重试。"
+            t(
+              "shortWorkspaceStructureCoordinator.theProjectWasUpdatedElsewhereAndHasBeenReloaded"
+            )
           );
         } else {
           notifications.error(
-            error instanceof Error
-              ? error.message
-              : `调整${unitLabel}顺序失败。`
+            formatError(
+              error,
+              t("shortWorkspaceStructureCoordinator.couldNotReorderThe", {
+                unitLabel: unitLabel
+              })
+            )
           );
         }
       }
     });
-    if (!operation) notifications.info("当前作品正在更新，请稍候。");
+    if (!operation)
+      notifications.info(
+        t(
+          "shortWorkspaceStructureCoordinator.theCurrentProjectIsBeingUpdatedPleaseWait"
+        )
+      );
     await operation;
   }
 
@@ -993,7 +1188,9 @@ export function useShortWorkspaceStructureCoordinator(
     if (!directory || directory.workspaceType !== "short") return;
     const sectionId = resources.activeExpertSectionId.value;
     if (!sectionId) {
-      notifications.warning("请先选择一个小节");
+      notifications.warning(
+        t("shortWorkspaceStructureCoordinator.selectASectionFirst")
+      );
       return;
     }
     const draftNode = resources.resourceNode(directory.id);
@@ -1001,7 +1198,11 @@ export function useShortWorkspaceStructureCoordinator(
       (child) => child.expertSectionId === sectionId
     );
     if (!sectionNode) {
-      notifications.warning("该小节已经不存在，列表已刷新");
+      notifications.warning(
+        t(
+          "shortWorkspaceStructureCoordinator.thisSectionNoLongerExistsTheListHasBeen"
+        )
+      );
       return;
     }
     requestRemoveExpertSection(sectionNode);
@@ -1015,18 +1216,35 @@ export function useShortWorkspaceStructureCoordinator(
     );
     if (!directory || !section) {
       notifications.warning(
-        `该${directory?.workspaceType === "script" ? "剧集" : "小节"}已经不存在`
+        t("shortWorkspaceStructureCoordinator.thisNoLongerExists", {
+          value:
+            directory?.workspaceType === "script"
+              ? t("workspaceResourceCoordinator.episode")
+              : t("workspaceResourceCoordinator.section")
+        })
       );
       return;
     }
     if (directory.sections.length <= 1) {
       notifications.warning(
-        `正文至少需要保留一个${directory.workspaceType === "script" ? "剧集" : "小节"}`
+        t(
+          "shortWorkspaceStructureCoordinator.theManuscriptMustRetainAtLeastOne",
+          {
+            value:
+              directory.workspaceType === "script"
+                ? t("workspaceResourceCoordinator.episode")
+                : t("workspaceResourceCoordinator.section")
+          }
+        )
       );
       return;
     }
     if (state.mutationPending.value || disposed) {
-      notifications.info("当前作品正在更新，请稍候。");
+      notifications.info(
+        t(
+          "shortWorkspaceStructureCoordinator.theCurrentProjectIsBeingUpdatedPleaseWait"
+        )
+      );
       return;
     }
     const body = resources.draftFileDocument(directory, section.id, "body");
@@ -1079,14 +1297,26 @@ export function useShortWorkspaceStructureCoordinator(
             if (pendingExpertSectionDeletion.value === target) {
               pendingExpertSectionDeletion.value = null;
             }
-            notifications.warning("该正文已经不存在");
+            notifications.warning(
+              t(
+                "shortWorkspaceStructureCoordinator.thisManuscriptNoLongerExists"
+              )
+            );
           }
           return;
         }
         if (directory.sections.length <= 1) {
           if (canPublish(context)) {
             notifications.warning(
-              `正文至少需要保留一个${directory.workspaceType === "script" ? "剧集" : "小节"}`
+              t(
+                "shortWorkspaceStructureCoordinator.theManuscriptMustRetainAtLeastOne",
+                {
+                  value:
+                    directory.workspaceType === "script"
+                      ? t("workspaceResourceCoordinator.episode")
+                      : t("workspaceResourceCoordinator.section")
+                }
+              )
             );
           }
           return;
@@ -1094,7 +1324,15 @@ export function useShortWorkspaceStructureCoordinator(
         if (expertDraftMutationBlocked(source)) {
           if (canPublish(context)) {
             notifications.info(
-              `当前${target.workspaceType === "script" ? "剧集" : "小节"}正在处理或保存，请稍候再删除`
+              t(
+                "shortWorkspaceStructureCoordinator.theCurrentIsBeingProcessedOrSavedWaitBefore2",
+                {
+                  value:
+                    target.workspaceType === "script"
+                      ? t("workspaceResourceCoordinator.episode")
+                      : t("workspaceResourceCoordinator.section")
+                }
+              )
             );
           }
           return;
@@ -1113,7 +1351,11 @@ export function useShortWorkspaceStructureCoordinator(
           authoritativeBook.projectRevision === undefined
         ) {
           if (canPublish(context)) {
-            notifications.error("当前作品缺少项目版本，无法安全删除正文结构。");
+            notifications.error(
+              t(
+                "shortWorkspaceStructureCoordinator.theCurrentProjectHasNoVersionIdentifierItsManuscript2"
+              )
+            );
           }
           return;
         }
@@ -1126,7 +1368,12 @@ export function useShortWorkspaceStructureCoordinator(
           });
           if (!deleted.deleted) {
             throw new Error(
-              `该${target.workspaceType === "script" ? "剧集" : "正文小节"}已经不存在。`
+              t("shortWorkspaceStructureCoordinator.thisNoLongerExists2", {
+                value:
+                  target.workspaceType === "script"
+                    ? t("workspaceResourceCoordinator.episode")
+                    : t("shortWorkspaceStructureCoordinator.manuscriptSection")
+              })
             );
           }
 
@@ -1160,26 +1407,44 @@ export function useShortWorkspaceStructureCoordinator(
             pendingExpertSectionDeletion.value = null;
           }
           notifications.success(
-            `已删除“${target.sectionTitle}”及对应人物状态文件`
+            t(
+              "shortWorkspaceStructureCoordinator.deletedAndItsCharacterStateFiles",
+              { sectionTitle: target.sectionTitle }
+            )
           );
         } catch (error: unknown) {
           if (catalog.isConflict(error)) await catalog.refresh();
           if (!canPublish(context)) return;
           if (catalog.isConflict(error)) {
             notifications.warning(
-              "作品已在其他位置更新，已重新加载；请确认后重试。"
+              t(
+                "shortWorkspaceStructureCoordinator.theProjectWasUpdatedElsewhereAndHasBeenReloaded"
+              )
             );
           } else {
             notifications.error(
-              error instanceof Error
-                ? error.message
-                : `删除${target.workspaceType === "script" ? "剧集" : "正文小节"}失败。`
+              formatError(
+                error,
+                t("shortWorkspaceStructureCoordinator.couldNotDeleteThe", {
+                  value:
+                    target.workspaceType === "script"
+                      ? t("workspaceResourceCoordinator.episode")
+                      : t(
+                          "shortWorkspaceStructureCoordinator.manuscriptSection"
+                        )
+                })
+              )
             );
           }
         }
       }
     );
-    if (!operation) notifications.info("当前作品正在更新，请稍候。");
+    if (!operation)
+      notifications.info(
+        t(
+          "shortWorkspaceStructureCoordinator.theCurrentProjectIsBeingUpdatedPleaseWait"
+        )
+      );
     await operation;
   }
 

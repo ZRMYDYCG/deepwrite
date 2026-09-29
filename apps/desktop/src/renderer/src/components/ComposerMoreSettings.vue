@@ -1,7 +1,10 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import { nextTick, onBeforeUnmount, onMounted, ref } from "vue";
 import { createId } from "@deepwrite/shared";
 import AppIcon from "./AppIcon.vue";
+
+const t = createScopedTranslator("components.composerMoreSettings");
 
 const root = ref<HTMLElement | null>(null);
 const trigger = ref<HTMLButtonElement | null>(null);
@@ -69,15 +72,19 @@ onBeforeUnmount(() => {
       ref="trigger"
       class="composer-more-trigger"
       type="button"
-      aria-label="更多聊天设置"
+      :aria-label="t('moreChatSettings')"
       :aria-expanded="open"
       :aria-controls="panelId"
       @click="open = !open"
     >
       <AppIcon name="more" :size="16" />
-      <span>更多</span>
+      <span>{{ t("more") }}</span>
     </button>
-    <div :id="panelId" class="composer-settings-panel" aria-label="聊天设置">
+    <div
+      :id="panelId"
+      class="composer-settings-panel"
+      :aria-label="t('chatSettings')"
+    >
       <slot />
     </div>
   </div>

@@ -1,19 +1,20 @@
 <section class="agent-team-settings" aria-labelledby="agent-team-title">
   <header class="panel-header">
     <div>
-      <span class="panel-kicker">学习仿写 · 智能体团队</span>
-      <h2 id="agent-team-title">智能体团队</h2>
+      <span class="panel-kicker">{{ t('learnAndImitateAgentTeams') }}</span>
+      <h2 id="agent-team-title">{{ t('agentTeams') }}</h2>
       <p>
         {{ activeWorkspaceType === "long" ?
-        "提前为每个主智能体配置可调用的专项子智能体。" :
-        `为统一${activeWorkspaceType === "script" ? "剧本" :
-        "短篇"}智能体配置可调用的专项子智能体。` }}
+        t('configureSpecialistSubagentsForEachPrimaryAgentInAdvance') :
+        t('configureSpecialistSubagentsForTheUnifiedValueAgent', { arg0:
+        activeWorkspaceType === "script" ? t('screenplay') : t('shortStory') })
+        }}
       </p>
       <p class="inheritance-note">
-        子智能体默认跟随所属主智能体的模型；也可单独配置模型。它继承主智能体的工具与审批策略，但继承的工具不包含技能加载；不继承主智能体提示词、会话或技能库，且不能继续创建子智能体、不能绕过用户审批。每次调用以自己的系统提示词为主，运行时只额外附带可用工具清单和交接回主智能体的长度约束——它是直接用工具改文档，还是只把结论交回主智能体，完全由你写的系统提示词决定。
+        {{ t('subagentsUseThePrimaryAgentSModelByDefault') }}
       </p>
       <p v-if="!runtimeAvailable" class="runtime-note">
-        当前环境仅支持查看；保存设置需要使用 DeepWrite 桌面端。
+        {{ t('thisEnvironmentSupportsViewingOnlyUseTheDeepWriteDesktop') }}
       </p>
     </div>
   </header>
@@ -22,7 +23,7 @@
     v-if="!workspaceType"
     class="workspace-tabs"
     role="tablist"
-    aria-label="创作类型"
+    :aria-label="t('writingType')"
   >
     <button
       class="workspace-tab"
@@ -32,7 +33,7 @@
       :aria-selected="activeWorkspaceType === 'short'"
       @click="activeWorkspaceType = 'short'"
     >
-      短篇
+      {{ t('shortStory') }}
     </button>
     <button
       class="workspace-tab"
@@ -42,7 +43,7 @@
       :aria-selected="activeWorkspaceType === 'script'"
       @click="activeWorkspaceType = 'script'"
     >
-      <span>剧本</span>
+      <span>{{ t('screenplay') }}</span>
     </button>
     <button
       class="workspace-tab"
@@ -52,7 +53,7 @@
       :aria-selected="activeWorkspaceType === 'long'"
       @click="activeWorkspaceType = 'long'"
     >
-      <span>长篇</span>
+      <span>{{ t('novel') }}</span>
     </button>
   </div>
 
@@ -77,14 +78,14 @@
     @authoring-reset="emit('authoringReset')"
   />
   <div v-else-if="loading" class="panel-state" aria-live="polite">
-    正在加载智能体团队设置…
+    {{ t('loadingAgentTeamSettings') }}
   </div>
   <div
     v-else-if="loadError && !activeSettings"
     class="panel-state panel-load-error"
     role="alert"
   >
-    <strong>智能体团队设置未加载</strong>
+    <strong>{{ t('agentTeamSettingsHaveNotLoaded') }}</strong>
     <p>{{ loadError }}</p>
     <button
       type="button"
@@ -92,11 +93,11 @@
       :disabled="loading"
       @click="emit('retry')"
     >
-      重新加载
+      {{ t('reload') }}
     </button>
   </div>
   <div v-else-if="!activeSettings || !activeTeam" class="panel-state">
-    暂无可用的智能体团队设置。
+    {{ t('noAgentTeamSettingsAvailable') }}
   </div>
 
   <div
@@ -107,7 +108,7 @@
     <nav
       v-if="visibleParentAgents.length > 1"
       class="parent-agent-tabs"
-      :aria-label="`${activeWorkspaceType === 'script' ? '剧本' : '短篇'}主智能体`"
+      :aria-label="t('valuePrimaryAgent', { arg0: activeWorkspaceType === 'script' ? t('screenplay') : t('shortStory') })"
     >
       <button
         v-for="agent in visibleParentAgents"
@@ -129,7 +130,7 @@
     <div class="team-editor">
       <header class="team-heading">
         <div>
-          <span>主智能体</span>
+          <span>{{ t('primaryAgent') }}</span>
           <h3>{{ activeParentDisplayLabel }}</h3>
           <p>{{ activeParentMeta.description }}</p>
         </div>
@@ -144,7 +145,7 @@
             @click="openLoadFromSkill"
           >
             <AppIcon name="wand" :size="15" />
-            从技能库加载
+            {{ t('loadFromSkillLibrary') }}
           </button>
           <button
             type="button"
@@ -156,14 +157,14 @@
             @click="addSubagent()"
           >
             <AppIcon name="plus" :size="15" />
-            新增子智能体
+            {{ t('addSubagent') }}
           </button>
         </div>
       </header>
 
       <div v-if="!activeTeam.subagents.length" class="empty-team">
-        <strong>还没有子智能体</strong>
-        <p>新增后，主智能体会根据能力说明决定何时委派任务。</p>
+        <strong>{{ t('noSubagentsYet') }}</strong>
+        <p>{{ t('afterYouAddSubagentsThePrimaryAgentUsesTheir') }}</p>
       </div>
 
       <div v-else class="subagent-list">
@@ -176,9 +177,9 @@
           <header class="subagent-summary">
             <div class="subagent-copy">
               <div class="subagent-title-row">
-                <strong>{{ subagent.name || "未命名子智能体" }}</strong>
+                <strong>{{ subagent.name || t('untitledSubagent') }}</strong>
                 <span :class="{ 'is-disabled': !subagent.enabled }">
-                  {{ subagent.enabled ? "已启用" : "已停用" }}
+                  {{ subagent.enabled ? t('enabled') : t('disabled') }}
                 </span>
                 <span class="model-badge"
                   >{{ subagentModelSummary(subagent) }}</span
@@ -186,18 +187,18 @@
               </div>
               <p>
                 {{ subagent.description ||
-                "补充能力说明，让主智能体知道何时调用它。" }}
+                t('describeItsCapabilitiesSoThePrimaryAgentKnowsWhen') }}
               </p>
             </div>
             <label
               class="enable-toggle"
-              :title="subagent.enabled ? '停用' : '启用'"
+              :title="subagent.enabled ? t('disable') : t('enable')"
             >
               <input
                 type="checkbox"
                 :checked="subagent.enabled"
                 :disabled="formDisabled"
-                :aria-label="`${subagent.name || '子智能体'}启用状态`"
+                :aria-label="t('valueEnabledStatus', { arg0: subagent.name || t('subagent') })"
                 @change="toggleSubagent(subagent, $event)"
               />
             </label>
@@ -205,7 +206,7 @@
               type="button"
               class="icon-button"
               :disabled="formDisabled"
-              :aria-label="`编辑${subagent.name}`"
+              :aria-label="t('editValue', { arg0: subagent.name })"
               @click="editSubagent(subagent.id)"
             >
               <AppIcon name="edit" :size="15" />
@@ -217,8 +218,8 @@
                 formDisabled ||
                 activeTeam.subagents.length >= activeSubagentLimit
               "
-              :aria-label="`复制${subagent.name}`"
-              title="复制"
+              :aria-label="t('duplicateValue', { arg0: subagent.name })"
+              :title="t('duplicate')"
               @click="duplicateSubagent(index)"
             >
               <AppIcon name="copy" :size="15" />
@@ -227,7 +228,7 @@
               type="button"
               class="icon-button is-danger"
               :disabled="formDisabled"
-              :aria-label="`删除${subagent.name}`"
+              :aria-label="t('deleteValue', { arg0: subagent.name })"
               @click="removeSubagent(index)"
             >
               <AppIcon name="trash" :size="15" />
@@ -236,11 +237,11 @@
 
           <div v-if="editingSubagentId === subagent.id" class="subagent-form">
             <div class="form-field">
-              <span>模型配置</span>
+              <span>{{ t('modelSettings') }}</span>
               <div
                 class="model-mode-options"
                 role="radiogroup"
-                aria-label="子智能体模型配置"
+                :aria-label="t('subagentModelSettings')"
               >
                 <label
                   :class="{ 'is-selected': subagent.modelMode !== 'custom' }"
@@ -253,7 +254,7 @@
                     :disabled="formDisabled"
                     @change="setSubagentModelMode(subagent, 'inherit')"
                   />
-                  跟随主智能体
+                  {{ t('usePrimaryAgentModel') }}
                 </label>
                 <label
                   :class="{ 'is-selected': subagent.modelMode === 'custom' }"
@@ -266,7 +267,7 @@
                     :disabled="formDisabled"
                     @change="setSubagentModelMode(subagent, 'custom')"
                   />
-                  单独配置模型
+                  {{ t('configureModelSeparately') }}
                 </label>
               </div>
               <div
@@ -277,8 +278,8 @@
                   class="model-select"
                   :model-value="subagent.modelId ?? ''"
                   :options="modelOptions"
-                  accessible-label="选择子智能体模型"
-                  placeholder="请选择模型"
+                  :accessible-label="t('selectSubagentModel')"
+                  :placeholder="t('selectAModel')"
                   size="large"
                   :disabled="formDisabled || modelOptions.length === 0"
                   :menu-min-width="260"
@@ -295,8 +296,8 @@
                   class="model-select"
                   :model-value="subagent.thinkingLevel ?? ''"
                   :options="thinkingOptionsFor(subagent)"
-                  accessible-label="选择思考等级"
-                  placeholder="请选择思考等级"
+                  :accessible-label="t('selectReasoningLevel')"
+                  :placeholder="t('selectAReasoningLevel')"
                   size="large"
                   :disabled="formDisabled || !subagent.modelId"
                   :menu-min-width="200"
@@ -317,8 +318,8 @@
                   class="model-select"
                   :model-value="subagent.temperature ?? ''"
                   :options="temperatureOptionsFor(subagent)"
-                  accessible-label="选择温度"
-                  placeholder="请选择温度"
+                  :accessible-label="t('selectTemperature')"
+                  :placeholder="t('selectATemperature')"
                   size="large"
                   :disabled="formDisabled || !subagent.modelId"
                   :menu-min-width="180"
@@ -332,39 +333,39 @@
                   /></template>
                 </PopupSelect>
                 <p v-if="modelOptions.length === 0" class="model-empty-hint">
-                  暂无可用模型，请先在「模型配置」中添加。
+                  {{ t('noModelsAvailableAddOneInModelSettingsFirst') }}
                 </p>
               </div>
             </div>
             <label class="form-field">
-              <span>名称</span>
+              <span>{{ t('name') }}</span>
               <input
                 v-model="subagent.name"
                 type="text"
                 :maxlength="SHORT_AGENT_SUBAGENT_NAME_MAX_LENGTH"
                 :disabled="formDisabled"
-                placeholder="例如：连续性审阅"
+                :placeholder="t('forExampleContinuityReview')"
               />
             </label>
             <label class="form-field">
-              <span>能力说明</span>
+              <span>{{ t('capabilities') }}</span>
               <textarea
                 v-model="subagent.description"
                 class="description-input"
                 :maxlength="SHORT_AGENT_SUBAGENT_DESCRIPTION_MAX_LENGTH"
                 :disabled="formDisabled"
-                placeholder="说明擅长处理什么任务，供主智能体选择调用。"
+                :placeholder="t('describeTheTasksItHandlesSoThePrimaryAgent')"
               />
             </label>
             <label class="form-field">
-              <span>系统提示词</span>
+              <span>{{ t('systemPrompt') }}</span>
               <textarea
                 v-model="subagent.systemPrompt"
                 class="prompt-input"
                 :maxlength="SHORT_AGENT_SUBAGENT_SYSTEM_PROMPT_MAX_LENGTH"
                 :disabled="formDisabled"
                 spellcheck="false"
-                placeholder="定义子智能体的职责、工作方法和交接要求。"
+                :placeholder="t('defineTheSubagentSRoleMethodsAndHandoffRequirements')"
               />
             </label>
             <div class="form-meta">
@@ -374,7 +375,7 @@
                 :disabled="formDisabled"
                 @click="finishEditing"
               >
-                完成编辑
+                {{ t('doneEditing') }}
               </button>
             </div>
           </div>
@@ -383,8 +384,9 @@
 
       <footer class="panel-actions">
         <span
-          >当前主智能体 {{ activeTeam.subagents.length }}/{{ activeSubagentLimit
-          }}</span
+          >{{ t('primaryAgentSubagentsMessage', { arg0:
+          (activeTeam.subagents.length) ?? "", arg1: (activeSubagentLimit) ?? ""
+          }) }}</span
         >
         <button
           type="button"
@@ -393,7 +395,7 @@
           @click="saveSettings"
         >
           <AppIcon name="save" :size="15" />
-          {{ saving ? "保存中…" : "保存智能体团队" }}
+          {{ saving ? t('saving') : t('saveAgentTeam') }}
         </button>
       </footer>
     </div>

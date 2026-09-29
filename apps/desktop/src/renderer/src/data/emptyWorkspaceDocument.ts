@@ -1,12 +1,23 @@
+import { createScopedTranslator } from "../i18n";
 import type { WorkspaceDocument } from "../types/workspace";
+
+const t = createScopedTranslator("workspace");
 
 export const EMPTY_WORKSPACE_DOCUMENT: WorkspaceDocument = {
   id: "deepwrite-empty-workspace",
   domain: "creation",
-  title: "尚未打开书籍",
-  eyebrow: "创作空间",
-  path: ["尚未打开书籍"],
-  content: "请从左侧点击“新建书籍”，或打开一个已存在的 DeepWrite 书籍文件夹。",
+  get title() {
+    return t("emptyWorkspaceDocument.noBookOpen");
+  },
+  get eyebrow() {
+    return t("emptyWorkspaceDocument.workspace");
+  },
+  get path() {
+    return [t("emptyWorkspaceDocument.noBookOpen")];
+  },
+  get content() {
+    return t("builtins.emptyWorkspace");
+  },
   readOnly: true,
   format: "设定"
 };

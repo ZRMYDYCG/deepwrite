@@ -1,3 +1,4 @@
+import { t } from "../../i18n";
 import { useChatAssistantRoleplays } from "./useChatAssistantRoleplays";
 import type {
   CatalogIndexSnapshot,
@@ -110,7 +111,7 @@ export function useChatAssistantMode(options: ChatAssistantModeOptions) {
       return (
         live ?? {
           key,
-          label: `已失效项目（${name}）`,
+          label: t("extras.chatAssistant.unavailableProject", { name: name }),
           project,
           available: false
         }

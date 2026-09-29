@@ -1,14 +1,17 @@
+import { createScopedTranslator } from "../i18n";
 import type { AgentEditProposal } from "../types/conversation";
+
+const t = createScopedTranslator("components.approvalDiscardPresentation");
 
 type DiscardState = AgentEditProposal["discardState"];
 
 export function approvalDiscardStatusLabel(
   state: DiscardState
 ): string | undefined {
-  if (state?.status === "discarding") return "正在舍弃";
-  if (state?.status === "discarded") return "已舍弃";
-  if (state?.status === "conflict") return "舍弃冲突";
-  if (state?.status === "error") return "舍弃失败";
+  if (state?.status === "discarding") return t("discarding");
+  if (state?.status === "discarded") return t("discarded");
+  if (state?.status === "conflict") return t("discardConflict");
+  if (state?.status === "error") return t("discardFailed");
   return undefined;
 }
 

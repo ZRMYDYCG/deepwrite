@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { builtinFontLabel } from "./catalogLabels";
+import { createScopedTranslator } from "../i18n";
 import { computed, ref } from "vue";
 import {
   listAppearanceEditorFontFamilyOptions,
@@ -18,6 +20,8 @@ import PopupSelect, {
   type PopupSelectValue
 } from "./PopupSelect.vue";
 
+const t = createScopedTranslator("components.appearanceFontSettings");
+
 const appearance = useAppearance();
 const localFonts = useAppearanceFonts();
 const pendingDelete = ref<AppearanceCustomFont | null>(null);
@@ -31,13 +35,17 @@ let editorFontSelectionIntent = 0;
 const builtinUiOptions: PopupSelectOption[] =
   listAppearanceUiFontFamilyOptions().map((option) => ({
     value: option.value,
-    label: option.label,
+    get label() {
+      return builtinFontLabel(option.value, option.label);
+    },
     style: { fontFamily: option.stack }
   }));
 const builtinEditorOptions: PopupSelectOption[] =
   listAppearanceEditorFontFamilyOptions().map((option) => ({
     value: option.value,
-    label: option.label,
+    get label() {
+      return builtinFontLabel(option.value, option.label);
+    },
     style: { fontFamily: option.stack }
   }));
 
@@ -45,10 +53,14 @@ const customOptions = computed<PopupSelectOption[]>(() =>
   localFonts.fonts.value.map((font) => ({
     value: font.id,
     label: font.displayName,
-    description: `本地字体 · ${font.format.toUpperCase()}`,
+    description: t("localFontValue", {
+      arg0: font.format.toUpperCase()
+    }),
     style: customFontOptionStyle(font.id),
     actionIcon: "trash",
-    actionLabel: `删除字体 ${font.displayName}`
+    actionLabel: t("deleteFontValue", {
+      arg0: font.displayName
+    })
   }))
 );
 const uiFontOptions = computed(() => [
@@ -80,7 +92,7 @@ async function selectUiFontFamily(value: PopupSelectValue): Promise<void> {
     await appearance.setUiFontFamily(String(value));
   } catch {
     if (intent === uiFontSelectionIntent) {
-      uiMessage.error("无法加载这个界面字体，已保留原来的选择");
+      uiMessage.error(t("couldNotLoadThisInterfaceFontYourPreviousSelection"));
     }
   } finally {
     if (intent === uiFontSelectionIntent) uiFontPending.value = false;
@@ -94,7 +106,7 @@ async function selectEditorFontFamily(value: PopupSelectValue): Promise<void> {
     await appearance.setEditorFontFamily(String(value));
   } catch {
     if (intent === editorFontSelectionIntent) {
-      uiMessage.error("无法加载这个正文字体，已保留原来的选择");
+      uiMessage.error(t("couldNotLoadThisManuscriptFontYourPreviousSelection"));
     }
   } finally {
     if (intent === editorFontSelectionIntent) editorFontPending.value = false;
@@ -112,10 +124,18 @@ async function installFonts(): Promise<void> {
     if (outcome.result.status === "canceled") return;
 
     if (outcome.loadedIds.length > 0) {
-      uiMessage.success(`已导入 ${outcome.loadedIds.length} 个本地字体`);
+      uiMessage.success(
+        t("importedValueLocalFonts", {
+          arg0: outcome.loadedIds.length
+        })
+      );
     }
     if (outcome.result.duplicateIds.length > 0) {
-      uiMessage.info(`已跳过 ${outcome.result.duplicateIds.length} 个重复字体`);
+      uiMessage.info(
+        t("skippedValueDuplicateFonts", {
+          arg0: outcome.result.duplicateIds.length
+        })
+      );
     }
     const failureCount =
       outcome.result.rejected.length + outcome.loadFailures.length;
@@ -123,20 +143,28 @@ async function installFonts(): Promise<void> {
       const firstFailure = outcome.result.rejected[0];
       const detail = firstFailure
         ? appearanceFontFailureLabel(firstFailure)
-        : `${outcome.loadFailures[0]?.displayName ?? "字体"}：加载失败`;
-      uiMessage.warning(`${failureCount} 个字体未能导入。${detail}`, {
-        duration: 5_000
-      });
+        : t("valueFailedToLoad", {
+            arg0: outcome.loadFailures[0]?.displayName ?? t("fonts")
+          });
+      uiMessage.warning(
+        t("couldNotImportValueFontsValue", {
+          arg0: failureCount,
+          arg1: detail
+        }),
+        {
+          duration: 5_000
+        }
+      );
     }
     if (
       outcome.loadedIds.length === 0 &&
       outcome.result.duplicateIds.length === 0 &&
       failureCount === 0
     ) {
-      uiMessage.info("没有选择字体文件");
+      uiMessage.info(t("noFontFilesSelected"));
     }
   } catch {
-    uiMessage.error("无法导入字体，请稍后重试");
+    uiMessage.error(t("couldNotImportFontsTryAgainLater"));
   }
 }
 
@@ -147,29 +175,36 @@ async function confirmDelete(): Promise<void> {
     const result = await localFonts.remove(font.id);
     await appearance.applyDesktopSettings(result.appearance.settings);
     pendingDelete.value = null;
-    if (result.removed) uiMessage.success(`已删除字体“${font.displayName}”`);
-    else uiMessage.info("这个字体已经不存在");
+    if (result.removed)
+      uiMessage.success(
+        t("deletedFontValue", {
+          arg0: font.displayName
+        })
+      );
+    else uiMessage.info(t("thisFontNoLongerExists"));
   } catch {
-    uiMessage.error("无法删除字体，请稍后重试");
+    uiMessage.error(t("couldNotDeleteTheFontTryAgainLater"));
   }
 }
 </script>
 
 <template>
   <section class="appearance-font-settings" aria-labelledby="font-heading">
-    <h2 id="font-heading">字体</h2>
+    <h2 id="font-heading">
+      {{ t("fonts") }}
+    </h2>
     <div class="font-settings-card">
       <div class="font-setting-row">
         <span class="font-setting-copy">
-          <strong>界面字体</strong>
-          <small>侧栏、设置和对话等界面文字</small>
+          <strong>{{ t("interfaceFont") }}</strong>
+          <small>{{ t("textInTheSidebarSettingsAndConversations") }}</small>
         </span>
         <PopupSelect
           class="font-select-control"
           :model-value="uiFontModelValue"
           :options="uiFontOptions"
-          accessible-label="选择界面字体"
-          :placeholder="uiFontPending ? '正在加载字体…' : '请选择'"
+          :accessible-label="t('selectInterfaceFont')"
+          :placeholder="uiFontPending ? t('loadingFonts') : t('select')"
           align="end"
           :menu-min-width="240"
           :disabled="!localFonts.ready.value || localFonts.installing.value"
@@ -179,15 +214,17 @@ async function confirmDelete(): Promise<void> {
       </div>
       <div class="font-setting-row">
         <span class="font-setting-copy">
-          <strong>正文字体</strong>
-          <small>短篇和长篇文稿标题、正文与预览</small>
+          <strong>{{ t("manuscriptFont") }}</strong>
+          <small>{{
+            t("titlesManuscriptTextAndPreviewsForShortStoriesAnd")
+          }}</small>
         </span>
         <PopupSelect
           class="font-select-control"
           :model-value="editorFontModelValue"
           :options="editorFontOptions"
-          accessible-label="选择正文字体"
-          :placeholder="editorFontPending ? '正在加载字体…' : '请选择'"
+          :accessible-label="t('selectManuscriptFont')"
+          :placeholder="editorFontPending ? t('loadingFonts') : t('select')"
           align="end"
           :menu-min-width="240"
           :disabled="!localFonts.ready.value || localFonts.installing.value"
@@ -197,8 +234,8 @@ async function confirmDelete(): Promise<void> {
       </div>
       <div class="font-setting-row">
         <span class="font-setting-copy">
-          <strong>本地字体</strong>
-          <small>上传 TTF 或 OTF 文件，字体会保存到 DeepWrite 本机目录</small>
+          <strong>{{ t("localFonts") }}</strong>
+          <small>{{ t("uploadTTFOrOTFFilesToSaveFontsIn") }}</small>
         </span>
         <button
           class="font-upload-button"
@@ -206,7 +243,7 @@ async function confirmDelete(): Promise<void> {
           :disabled="!localFonts.ready.value || localFonts.installing.value"
           @click="installFonts"
         >
-          {{ localFonts.installing.value ? "正在导入…" : "上传字体" }}
+          {{ localFonts.installing.value ? t("importing") : t("uploadFont") }}
         </button>
       </div>
     </div>

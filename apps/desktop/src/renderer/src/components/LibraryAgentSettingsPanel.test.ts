@@ -6,15 +6,15 @@ describe("LibraryAgentSettingsPanel", () => {
     expect(source).toContain("domain: LibraryAgentDomain");
     expect(source).toContain("skill: {");
     expect(source).toContain("material: {");
-    expect(source).toContain("技能库管理智能体");
-    expect(source).toContain("素材库管理智能体");
+    expect(source).toContain("skillLibraryAgent");
+    expect(source).toContain("materialLibraryAgent");
   });
 
   it("provides tabbed configuration for system prompt and available skills", () => {
     expect(source).toContain('id: "system-prompt"');
     expect(source).toContain('id: "available-skills"');
-    expect(source).toContain("系统提示词");
-    expect(source).toContain("可用技能");
+    expect(source).toContain("systemPrompt");
+    expect(source).toContain("availableSkills");
     expect(source).toContain("settings-nav");
     expect(source).not.toContain("agent-header");
     expect(source).not.toContain("工具能力");
@@ -22,9 +22,9 @@ describe("LibraryAgentSettingsPanel", () => {
 
   it("edits configured skills with name, description, and content", () => {
     expect(source).toContain("readAccess.skills");
-    expect(source).toContain("技能名称");
-    expect(source).toContain("技能描述");
-    expect(source).toContain("技能内容");
+    expect(source).toContain("skillName");
+    expect(source).toContain("skillDescription");
+    expect(source).toContain("skillContent");
     expect(source).toContain("addSkill");
     expect(source).not.toContain("SKILL_OPTIONS");
     expect(source).not.toContain("handleSkillKindChange");
@@ -33,7 +33,7 @@ describe("LibraryAgentSettingsPanel", () => {
   it("emits a complete settings save and a domain-scoped reset", () => {
     expect(source).toContain('emit("save", { agents })');
     expect(source).toContain('emit("reset", props.domain)');
-    expect(source).toContain("恢复默认设置");
+    expect(source).toContain("restoreDefaults");
   });
 
   it("uses floating validation feedback without inserting transient messages", () => {

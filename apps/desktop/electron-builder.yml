@@ -31,6 +31,8 @@ mac:
   identity: "-"
   hardenedRuntime: false
   notarize: false
+  extendInfo:
+    NSMicrophoneUsageDescription: DeepWrite 使用麦克风录制语音，并通过您配置的语音服务转换为文字。
 
 win:
   target: nsis

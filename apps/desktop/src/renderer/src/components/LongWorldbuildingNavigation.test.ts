@@ -13,8 +13,8 @@ describe("LongWorldbuildingNavigation", () => {
     expect(source).toContain(
       'class="long-story-plot-pane long-entry-list-pane"'
     );
-    expect(source).toContain('aria-label="世界观条目"');
-    expect(source).toContain('aria-label="世界观条目列表"');
+    expect(source).toContain("worldbuildingEntry");
+    expect(source).toContain("worldbuildingEntries");
   });
 
   it("exposes navigation and mutation intent without owning persistence", () => {

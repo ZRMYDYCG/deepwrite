@@ -1,3 +1,4 @@
+import { createScopedTranslator } from "../i18n";
 import { computed, reactive, ref, watch } from "vue";
 import type {
   LinkedMaterialIdsByKind,
@@ -11,6 +12,8 @@ import type {
   BookResourceDialogMode,
   ResourceTreeNode
 } from "../types/workspace";
+
+const t = createScopedTranslator("workspace");
 
 interface BookResourceBindingProps {
   mode: BookResourceDialogMode | null;
@@ -26,21 +29,93 @@ const MATERIAL_KINDS: ReadonlyArray<{
   label: string;
   description: string;
 }> = [
-  { id: "character", label: "人设素材库", description: "人物与关系设定" },
-  { id: "gimmick", label: "梗素材库", description: "核心创意与钩子" },
-  { id: "plot", label: "剧情素材库", description: "剧情、导语与细化" },
-  { id: "draft", label: "正文素材库", description: "正文片段与表达参考" },
-  { id: "other", label: "其他素材库", description: "未归入以上分类的素材" }
+  {
+    id: "character",
+    get label() {
+      return t("catalogWorkspace.characterMaterialLibrary");
+    },
+    get description() {
+      return t("bookLibraryKinds.charactersAndRelationships");
+    }
+  },
+  {
+    id: "gimmick",
+    get label() {
+      return t("catalogWorkspace.storyIdeaLibrary");
+    },
+    get description() {
+      return t("bookLibraryKinds.coreIdeasAndHooks");
+    }
+  },
+  {
+    id: "plot",
+    get label() {
+      return t("catalogWorkspace.plotMaterialLibrary");
+    },
+    get description() {
+      return t("bookLibraryKinds.plotOpeningAndRefinement");
+    }
+  },
+  {
+    id: "draft",
+    get label() {
+      return t("catalogWorkspace.proseMaterialLibrary");
+    },
+    get description() {
+      return t("bookLibraryKinds.proseExcerptsAndWritingReferences");
+    }
+  },
+  {
+    id: "other",
+    get label() {
+      return t("catalogWorkspace.otherMaterialLibrary");
+    },
+    get description() {
+      return t("bookLibraryKinds.materialsOutsideTheCategoriesAbove");
+    }
+  }
 ];
 const SKILL_KINDS: ReadonlyArray<{
   id: SkillKind;
   label: string;
   description: string;
 }> = [
-  { id: "general", label: "通用技能库", description: "多个阶段均可使用" },
-  { id: "plot", label: "剧情设计技能库", description: "人物、剧情与大纲方法" },
-  { id: "style", label: "文风写作技能库", description: "正文与分节写作方法" },
-  { id: "other", label: "其他技能库", description: "自定义写作方法" }
+  {
+    id: "general",
+    get label() {
+      return t("catalogWorkspace.generalSkillLibrary");
+    },
+    get description() {
+      return t("bookLibraryKinds.availableAcrossMultipleStages");
+    }
+  },
+  {
+    id: "plot",
+    get label() {
+      return t("catalogWorkspace.plotDesignSkillLibrary");
+    },
+    get description() {
+      return t("bookLibraryKinds.characterPlotAndOutlineMethods");
+    }
+  },
+  {
+    id: "style",
+    get label() {
+      return t("catalogWorkspace.writingStyleSkillLibrary");
+    },
+    get description() {
+      return t("bookLibraryKinds.manuscriptAndSectionWritingMethods");
+    }
+  },
+  {
+    id: "other",
+    get label() {
+      return t("catalogWorkspace.otherSkillLibrary");
+    },
+    get description() {
+      return t("bookLibraryKinds.customWritingMethods");
+    }
+  }
 ];
 
 export function useBookResourceBindings(props: BookResourceBindingProps) {
@@ -75,13 +150,13 @@ export function useBookResourceBindings(props: BookResourceBindingProps) {
     kind: (typeof MATERIAL_KINDS)[number]
   ): string {
     return props.book?.workspaceType === "script" && kind.id === "plot"
-      ? "剧情设计与细化"
+      ? t("bookLibrarySelection.plotDesignAndRefinement")
       : kind.description;
   }
 
   function skillKindDescription(kind: (typeof SKILL_KINDS)[number]): string {
     return props.book?.workspaceType === "script" && kind.id === "style"
-      ? "正文与分集写作方法"
+      ? t("bookLibrarySelection.manuscriptAndEpisodeWritingMethods")
       : kind.description;
   }
 
@@ -160,7 +235,13 @@ export function useBookResourceBindings(props: BookResourceBindingProps) {
     )
   );
   const groupOptions = computed(() => [
-    { value: "", label: bindingDomain.value === "skill" ? "不绑定" : "不关联" },
+    {
+      value: "",
+      label:
+        bindingDomain.value === "skill"
+          ? t("bookLibrarySelection.notLinked")
+          : t("bookLibrarySelection.noAssociation")
+    },
     ...availableGroups.value.map((group) => ({
       value: group.id,
       label: group.title
@@ -171,7 +252,7 @@ export function useBookResourceBindings(props: BookResourceBindingProps) {
     kind: MaterialKind
   ): Array<{ value: string; label: string }> {
     return [
-      { value: "", label: "不关联" },
+      { value: "", label: t("bookLibrarySelection.noAssociation") },
       ...materialCandidates(kind).map((library) => ({
         value: library.id,
         label: library.badge
@@ -185,7 +266,7 @@ export function useBookResourceBindings(props: BookResourceBindingProps) {
     kind: SkillKind
   ): Array<{ value: string; label: string }> {
     return [
-      { value: "", label: "不绑定" },
+      { value: "", label: t("bookLibrarySelection.notLinked") },
       ...skillCandidates(kind).map((library) => ({
         value: library.id,
         label: library.badge

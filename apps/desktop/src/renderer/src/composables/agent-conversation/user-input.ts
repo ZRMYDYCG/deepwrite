@@ -1,9 +1,13 @@
+import { formatError } from "../../i18n/errors";
+import { createScopedTranslator } from "../../i18n";
 import { ref, type Ref } from "vue";
 import type {
   AgentUserInputAnswer,
   AgentUserInputRequestedPayload,
   DeepWriteApi
 } from "@deepwrite/contracts";
+
+const t = createScopedTranslator("workspace.userInput");
 
 export interface AgentUserInputController {
   request: Ref<AgentUserInputRequestedPayload | null>;
@@ -63,7 +67,7 @@ export function createAgentUserInputController(options: {
         accepted.runId !== pending.runId ||
         accepted.requestId !== pending.requestId
       ) {
-        throw new Error("用户回答结果与当前请求不一致。");
+        throw new Error(t("theUserResponseResultDoesNotMatchTheCurrent"));
       }
       if (inFlight === pending) {
         inFlight = null;
@@ -76,9 +80,7 @@ export function createAgentUserInputController(options: {
         inFlight = null;
         request.value = pending;
         submitting.value = false;
-        options.onError(
-          error instanceof Error ? error.message : "提交用户回答失败。"
-        );
+        options.onError(formatError(error, t("couldNotSubmitTheUserResponse")));
       }
       return false;
     }

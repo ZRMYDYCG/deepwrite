@@ -1,3 +1,6 @@
+import { createScopedTranslator } from "../i18n";
+
+const t = createScopedTranslator("workspace.conversationStore");
 export const HISTORY_PREFIX = "conversation-history:";
 export const MODEL_SELECTION_PERSISTENCE_KEY =
   "conversation-preferences:model-selection:v1";
@@ -18,6 +21,7 @@ export type ConversationLegacyStorage = Pick<
 
 export interface ConversationPersistenceAdapterOptions {
   storage?: ConversationLegacyStorage;
+  beforeClose?(): Promise<void>;
 }
 
 function stableKeyHash(value: string): string {
@@ -36,7 +40,7 @@ function stableKeyHash(value: string): string {
  */
 export function conversationHistoryPersistenceKey(key: string): string {
   const normalized = key.trim();
-  if (!normalized) throw new Error("会话 key 不能为空。");
+  if (!normalized) throw new Error(t("conversationKeyCannotBeEmpty"));
   const encoded = encodeURIComponent(normalized);
   const direct = `${HISTORY_PREFIX}${encoded}`;
   if (direct.length <= MAX_PERSISTENCE_KEY_LENGTH) return direct;
@@ -51,7 +55,7 @@ export function conversationHistoryPersistenceKey(key: string): string {
 
 export function legacyConversationHistoryStorageKey(key: string): string {
   const normalized = key.trim();
-  if (!normalized) throw new Error("会话 key 不能为空。");
+  if (!normalized) throw new Error(t("conversationKeyCannotBeEmpty"));
   return `${LEGACY_CONVERSATION_HISTORY_STORAGE_PREFIX}${encodeURIComponent(normalized)}`;
 }
 

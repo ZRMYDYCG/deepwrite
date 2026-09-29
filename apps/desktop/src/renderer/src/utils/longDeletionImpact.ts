@@ -1,4 +1,7 @@
+import { createScopedTranslator } from "../i18n";
 import type { LongWorkspaceIndexSnapshot } from "@deepwrite/contracts";
+
+const t = createScopedTranslator("workspace.longDeletionImpact");
 
 export type LongDeletionTargetKind =
   "character" | "volume" | "plotPoint" | "chapterCard";
@@ -36,12 +39,16 @@ export function longDeletionImpactLines(
       chapter.characterContinuity.some(({ characterId }) => characterId === id)
     ).length;
     return [
-      "删除该人物的核心档案与人物关系文件",
+      t("deleteThisCharacterSCoreProfileAndRelationshipFiles"),
       eventReferences
-        ? `从 ${eventReferences} 个故事事件中解除人物引用，故事事件保留`
+        ? t("unlinkCharacterReferencesFromStoryEventsKeepTheEvents", {
+            eventReferences: eventReferences
+          })
         : "",
       continuityReferences
-        ? `删除 ${continuityReferences} 章中的人物连续性映射及其文件，章节保留`
+        ? t("deleteCharacterContinuityMappingsAndFilesFromChaptersKeep", {
+            continuityReferences: continuityReferences
+          })
         : ""
     ].filter(Boolean);
   }
@@ -86,21 +93,45 @@ export function longDeletionImpactLines(
       )
     ).length;
     return [
-      arcIds.size ? `删除 ${arcIds.size} 个从属剧情点` : "",
-      chapterIds.size ? `删除 ${chapterIds.size} 张从属章卡` : "",
-      storyPlotIds.length
-        ? `删除 ${storyPlotIds.length} 个从属故事线及正文`
-        : "",
-      placementIds.size ? `删除 ${placementIds.size} 个从属叙事落点` : "",
-      uniqueCount(beatIds)
-        ? `解除 ${uniqueCount(beatIds)} 个伏笔触点的分卷、剧情点、章卡或落点关联，伏笔线与触点保留`
+      arcIds.size
+        ? t("deleteChildPlotPoints", {
+            size: arcIds.size
+          })
         : "",
       chapterIds.size
-        ? `删除 ${chapterFileCount(index, chapterIds)} 个章卡、正文与连续性文件`
+        ? t("deleteChildChapterCards", {
+            size: chapterIds.size
+          })
         : "",
-      ledgerRecords ? `更新 ${ledgerRecords} 条连续性记录并解除相关决策` : "",
+      storyPlotIds.length
+        ? t("deleteChildStorylinesAndTheirContent", {
+            length: storyPlotIds.length
+          })
+        : "",
+      placementIds.size
+        ? t("deleteChildNarrativeAnchors", {
+            size: placementIds.size
+          })
+        : "",
+      uniqueCount(beatIds)
+        ? t("unlinkVolumePlotPointChapterCardOrAnchorReferences", {
+            value: uniqueCount(beatIds)
+          })
+        : "",
+      chapterIds.size
+        ? t("deleteChapterCardManuscriptAndContinuityFiles", {
+            value: chapterFileCount(index, chapterIds)
+          })
+        : "",
+      ledgerRecords
+        ? t("updateContinuityRecordsAndUnlinkRelatedDecisions", {
+            ledgerRecords: ledgerRecords
+          })
+        : "",
       eventReferences
-        ? `从 ${eventReferences} 个故事事件中解除剧情点引用，故事事件保留`
+        ? t("unlinkPlotPointReferencesFromStoryEventsKeepThe", {
+            eventReferences: eventReferences
+          })
         : ""
     ].filter(Boolean);
   }
@@ -119,13 +150,23 @@ export function longDeletionImpactLines(
       beats.filter(({ arcId }) => arcId === id)
     ).length;
     return [
-      storyPlots ? `删除 ${storyPlots} 个从属故事线及正文` : "",
-      beats ? `解除 ${beats} 个伏笔触点的剧情点关联，伏笔线与触点保留` : "",
+      storyPlots
+        ? t("deleteChildStorylinesAndTheirContent2", { storyPlots: storyPlots })
+        : "",
+      beats
+        ? t("unlinkPlotPointReferencesFromForeshadowingBeatsKeepThreads", {
+            beats: beats
+          })
+        : "",
       eventReferences
-        ? `从 ${eventReferences} 个故事事件中解除剧情点引用，故事事件保留`
+        ? t("unlinkPlotPointReferencesFromStoryEventsKeepThe", {
+            eventReferences: eventReferences
+          })
         : "",
       chapterReferences
-        ? `解除 ${chapterReferences} 张章卡的主剧情点引用，章卡与正文保留`
+        ? t("unlinkMainPlotPointReferencesFromChapterCardsKeep", {
+            chapterReferences: chapterReferences
+          })
         : ""
     ].filter(Boolean);
   }
@@ -146,11 +187,27 @@ export function longDeletionImpactLines(
     ({ chapterCardId }) => chapterCardId === id
   ).length;
   return [
-    `删除 ${chapterFileCount(index, chapterIds)} 个章卡、正文与连续性文件`,
-    placements.length ? `删除 ${placements.length} 个从属叙事落点` : "",
-    beats ? `解除 ${beats} 个伏笔触点的章卡或落点关联，伏笔线与触点保留` : "",
-    ledgerRecords ? `更新 ${ledgerRecords} 条连续性记录并解除相关决策` : "",
-    placements.length ? "叙事落点关联的故事事件不会删除" : ""
+    t("deleteChapterCardManuscriptAndContinuityFiles", {
+      value: chapterFileCount(index, chapterIds)
+    }),
+    placements.length
+      ? t("deleteChildNarrativeAnchors2", {
+          length: placements.length
+        })
+      : "",
+    beats
+      ? t("unlinkChapterCardOrAnchorReferencesFromForeshadowingBeats", {
+          beats: beats
+        })
+      : "",
+    ledgerRecords
+      ? t("updateContinuityRecordsAndUnlinkRelatedDecisions", {
+          ledgerRecords: ledgerRecords
+        })
+      : "",
+    placements.length
+      ? t("storyEventsLinkedToNarrativeAnchorsWillBePreserved")
+      : ""
   ].filter(Boolean);
 }
 
@@ -161,6 +218,8 @@ export function longDeletionDescription(
 ): string {
   const impacts = longDeletionImpactLines(index, kind, id);
   return impacts.length
-    ? `删除目标后将同时处理以下关联：${impacts.join("；")}。`
-    : "该条目没有其他关联，确认后将直接删除。";
+    ? t("deletingThisItemAlsoAffectsTheseRelatedRecords", {
+        join: impacts.join("；")
+      })
+    : t("thisItemHasNoRelatedRecordsAndWillBe");
 }

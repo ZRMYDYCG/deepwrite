@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import type {
   CreativePlotStage,
   LongAgentSettings,
@@ -13,6 +14,8 @@ import BookTemplateSettings from "./BookTemplateSettings.vue";
 import LongAgentSettingsPanel from "./LongAgentSettingsPanel.vue";
 import ScriptAgentSettingsPanel from "./ScriptAgentSettingsPanel.vue";
 import UnifiedShortAgentSettingsPanel from "./UnifiedShortAgentSettingsPanel.vue";
+
+const t = createScopedTranslator("components.shortAgentSettingsPanel");
 
 const props = defineProps<{
   settings: readonly WorkspaceAgentSettings[];
@@ -51,15 +54,19 @@ const scriptSettings = computed(
     aria-labelledby="agent-settings-title"
   >
     <header>
-      <span>创作空间</span>
-      <h2 id="agent-settings-title">智能体设置</h2>
-      <p>配置主智能体提示词、欢迎快捷按钮，以及素材库和技能库读取范围。</p>
+      <span>{{ t("workspace") }}</span>
+      <h2 id="agent-settings-title">
+        {{ t("agentSettings") }}
+      </h2>
+      <p>
+        {{ t("configureThePrimaryAgentSPromptWelcomeShortcutsAnd") }}
+      </p>
       <p v-if="!runtimeAvailable" class="runtime-note">
-        当前环境仅支持查看；保存和恢复默认设置需要使用 DeepWrite 桌面端。
+        {{ t("thisEnvironmentSupportsViewingOnlyUseTheDeepWriteDesktop") }}
       </p>
     </header>
 
-    <div class="workspace-tabs" role="tablist" aria-label="创作类型">
+    <div class="workspace-tabs" role="tablist" :aria-label="t('writingType')">
       <button
         v-for="type in ['short', 'script', 'long'] as const"
         :key="type"
@@ -69,7 +76,13 @@ const scriptSettings = computed(
         :aria-selected="activeType === type"
         @click="activeType = type"
       >
-        {{ type === "short" ? "短篇" : type === "script" ? "剧本" : "长篇" }}
+        {{
+          type === "short"
+            ? t("shortStory")
+            : type === "script"
+              ? t("screenplay")
+              : t("novel")
+        }}
       </button>
     </div>
 

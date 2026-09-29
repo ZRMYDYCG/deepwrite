@@ -3,11 +3,11 @@ import source from "./CreateLongPlotPointDialog.vue?raw";
 
 describe("CreateLongPlotPointDialog", () => {
   it("opens a focused plot-point form in a themed overlay", () => {
-    expect(source).toContain("新建剧情点");
-    expect(source).toContain("剧情点名称");
-    expect(source).toContain("概要");
+    expect(source).toContain("newPlotPoint");
+    expect(source).toContain("plotPointName");
+    expect(source).toContain("summary");
     expect(source).not.toContain(">故事情节<");
-    expect(source).toContain('uiMessage.warning("请输入剧情点名称。")');
+    expect(source).toContain("enterAPlotPointName");
     expect(source).toContain('<Teleport to="body">');
     expect(source).not.toContain("LongStructureManager");
   });

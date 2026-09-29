@@ -1,10 +1,13 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import { defineAsyncComponent, inject, ref, shallowRef } from "vue";
 import {
   COMPOSER_CONTEXT_NAVIGATION,
   type ComposerContextNavigation
 } from "../composables/composerContextNavigationContext";
 import AppIcon from "./AppIcon.vue";
+
+const t = createScopedTranslator("components.composerContextBar");
 const ComposerContextMenu = defineAsyncComponent(
   () => import("./ComposerContextMenu.vue")
 );
@@ -42,7 +45,12 @@ async function select(id: string): Promise<void> {
   <div
     class="composer-context-bar"
     role="group"
-    :aria-label="`当前绑定：书籍 ${bookTitle}，阶段 ${stageLabel}`"
+    :aria-label="
+      t('currentlyLinkedBookValueStageValue', {
+        arg0: bookTitle,
+        arg1: stageLabel
+      })
+    "
   >
     <button
       v-for="kind in ['book', 'stage'] as const"
@@ -50,8 +58,17 @@ async function select(id: string): Promise<void> {
       class="composer-context-item"
       :class="`composer-${kind}-context`"
       type="button"
-      :title="kind === 'book' ? '选择书籍或资料库' : '选择当前书籍的阶段'"
-      :aria-label="`${kind === 'book' ? '选择书籍或资料库' : '选择阶段'}，当前：${kind === 'book' ? bookTitle : stageLabel}`"
+      :title="
+        kind === 'book'
+          ? t('chooseABookOrLibrary')
+          : t('chooseAStageInTheCurrentBook')
+      "
+      :aria-label="
+        t('valueCurrentValue', {
+          arg0: kind === 'book' ? t('chooseABookOrLibrary') : t('selectStage'),
+          arg1: kind === 'book' ? bookTitle : stageLabel
+        })
+      "
       aria-haspopup="dialog"
       :aria-busy="loading"
       :aria-expanded="open === kind"

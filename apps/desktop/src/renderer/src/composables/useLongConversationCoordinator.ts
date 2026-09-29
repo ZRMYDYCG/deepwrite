@@ -1,3 +1,5 @@
+import { formatError } from "../i18n/errors";
+import { createScopedTranslator } from "../i18n";
 import {
   longSkillReferences,
   longMaterialReferences
@@ -33,6 +35,8 @@ import type {
 import type { WorkspaceDocument } from "../types/workspace";
 import type { LibraryAttachmentBuildResult } from "../utils/libraryAttachments";
 import { createConversationHistoryRewriteDispatcher } from "./agent-conversation/history-rewrite-dispatcher";
+
+const t = createScopedTranslator("workspace.longConversationCoordinator");
 
 type LongReadableAttachments = Pick<
   LibraryAttachmentBuildResult,
@@ -389,7 +393,7 @@ export function useLongConversationCoordinator(
     if (sendTargetIsCurrent(target)) return true;
     if (!disposed) {
       options.notifications.info(
-        "长篇上下文、会话、模型设置或输入内容已切换，本次发送已取消。"
+        t("theNovelContextConversationModelSettingsOrInputChanged")
       );
     }
     return false;
@@ -397,7 +401,9 @@ export function useLongConversationCoordinator(
 
   function preflightBlocks(action: string): boolean {
     if (!activeSend && !options.state.sendPreflightPending.value) return false;
-    options.notifications.info(`正在保存并准备发送，请稍后再${action}。`);
+    options.notifications.info(
+      t("savingAndPreparingToSendWaitBeforeYou", { action: action })
+    );
     return true;
   }
 
@@ -409,13 +415,15 @@ export function useLongConversationCoordinator(
   }
 
   function newConversation(): void {
-    if (disposed || preflightBlocks("新建对话")) {
+    if (disposed || preflightBlocks(t("newConversation"))) {
       return;
     }
     const conversation = activeConversation.value;
     if (!conversation) return;
     if (conversation.isBusy.value) {
-      options.notifications.warning("请先停止当前长篇回复，再新建对话。");
+      options.notifications.warning(
+        t("stopTheCurrentNovelResponseBeforeStartingANew")
+      );
       return;
     }
     invalidateSendTarget();
@@ -425,14 +433,14 @@ export function useLongConversationCoordinator(
 
   const selectConversation = createConversationHistorySelection({
     prepare() {
-      if (disposed || preflightBlocks("切换对话")) return false;
+      if (disposed || preflightBlocks(t("switchConversation"))) return false;
       invalidateSendTarget();
       return true;
     },
     current: () => activeConversation.value,
     warning: (message) => options.notifications.warning(message),
-    busyMessage: "请先停止当前回复，再切换历史对话。",
-    unavailableMessage: "这条长篇历史对话已不可用。"
+    busyMessage: t("stopTheCurrentResponseBeforeSwitchingConversations"),
+    unavailableMessage: t("thisNovelConversationIsNoLongerAvailable")
   });
 
   function useSuggestion(value: string): void {
@@ -457,17 +465,21 @@ export function useLongConversationCoordinator(
     const promptAttachments = request;
     if (disposed) return Promise.resolve();
     if (activeSend || options.state.sendPreflightPending.value) {
-      options.notifications.info("正在准备上一条长篇消息，请稍候。");
+      options.notifications.info(
+        t("thePreviousNovelMessageIsStillBeingPreparedPlease")
+      );
       return Promise.resolve();
     }
     const target = captureSendTarget();
     if (!target) {
-      options.notifications.warning("长篇工作区上下文尚未就绪，请稍后重试。");
+      options.notifications.warning(
+        t("theNovelWorkspaceContextIsNotReadyPleaseTry")
+      );
       return Promise.resolve();
     }
     if (rewriteRequest && !target.conversation.canRewriteHistory.value) {
       options.notifications.info(
-        "请先等待当前回复、审批和长篇修改保存全部完成。"
+        t("waitForTheCurrentResponseApprovalsAndNovelEdits")
       );
       return Promise.resolve();
     }
@@ -483,7 +495,7 @@ export function useLongConversationCoordinator(
         if (!settingsLoaded) {
           options.notifications.warning(
             options.state.agentLoadError.value ??
-              "长篇智能体设置尚未加载，请重试。"
+              t("novelAgentSettingsHaveNotLoadedPleaseTryAgain")
           );
           return;
         }
@@ -508,7 +520,9 @@ export function useLongConversationCoordinator(
             target.chapterCardId ||
           (baseRuntimeContext.activeFileId ?? null) !== target.fileId
         ) {
-          options.notifications.info("长篇上下文已切换，本次发送已取消。");
+          options.notifications.info(
+            t("theNovelContextChangedSendingWasCanceled")
+          );
           return;
         }
 
@@ -516,7 +530,9 @@ export function useLongConversationCoordinator(
         if (target.activeRoot === "worldbuilding" && target.fileId) {
           const api = options.workspace.api();
           if (!api) {
-            options.notifications.warning("当前环境未连接长篇工作区。");
+            options.notifications.warning(
+              t("theNovelWorkspaceIsNotConnectedInThisEnvironment")
+            );
             return;
           }
           try {
@@ -538,8 +554,10 @@ export function useLongConversationCoordinator(
             if (!sendTargetIsCurrent(target)) return;
             options.notifications.warning(
               error instanceof Error
-                ? `当前世界观阶段读取失败：${error.message}`
-                : "当前世界观阶段读取失败，请重试。"
+                ? t("failedToReadTheCurrentWorldbuildingStage", {
+                    message: error.message
+                  })
+                : t("failedToReadTheCurrentWorldbuildingStagePleaseTry")
             );
             return;
           }
@@ -548,7 +566,9 @@ export function useLongConversationCoordinator(
         if (target.activeRoot === "character_design" && target.fileId) {
           const api = options.workspace.api();
           if (!api) {
-            options.notifications.warning("当前环境未连接长篇工作区。");
+            options.notifications.warning(
+              t("theNovelWorkspaceIsNotConnectedInThisEnvironment")
+            );
             return;
           }
           try {
@@ -571,8 +591,10 @@ export function useLongConversationCoordinator(
             if (!sendTargetIsCurrent(target)) return;
             options.notifications.warning(
               error instanceof Error
-                ? `当前人物阶段读取失败：${error.message}`
-                : "当前人物阶段读取失败，请重试。"
+                ? t("failedToReadTheCurrentCharacterStage", {
+                    message: error.message
+                  })
+                : t("failedToReadTheCurrentCharacterStagePleaseTry")
             );
             return;
           }
@@ -605,15 +627,15 @@ export function useLongConversationCoordinator(
             }
             if (agentsMd.truncated) {
               options.notifications.warning(
-                "长篇上下文过长，本轮只注入了截断后的 AGENTS.md。"
+                t("theNovelContextIsTooLongOnlyATruncated")
               );
             }
           } catch (error: unknown) {
             if (!confirmSendTarget(target)) return;
             options.notifications.warning(
               error instanceof Error
-                ? `长篇上下文未注入：${error.message}`
-                : "长篇上下文未注入，本轮仍会发送。"
+                ? t("novelContextWasNotIncluded", { message: error.message })
+                : t("novelContextWasNotIncludedTheMessageWillStill")
             );
           }
         }
@@ -621,7 +643,9 @@ export function useLongConversationCoordinator(
         const summary = options.state.activeBookSummary.value;
         const profile = options.state.activeAgentProfile.value;
         if (!summary || summary.id !== target.bookId || !profile) {
-          options.notifications.info("长篇资源上下文已切换，本次发送已取消。");
+          options.notifications.info(
+            t("theNovelResourceContextChangedSendingWasCanceled")
+          );
           return;
         }
         const documentsLoaded = await options.catalog.ensureDocumentsLoaded(
@@ -652,7 +676,10 @@ export function useLongConversationCoordinator(
           options.notifications.warning(
             attachmentResult.diagnostics.length === 1
               ? first.message
-              : `${first.message}（另有 ${attachmentResult.diagnostics.length - 1} 项长篇资源提示）`
+              : t("additionalNovelResourceNotices", {
+                  message: first.message,
+                  value: attachmentResult.diagnostics.length - 1
+                })
           );
         }
         if (!confirmSendTarget(target)) return;
@@ -676,9 +703,7 @@ export function useLongConversationCoordinator(
       } catch (error: unknown) {
         if (!sendTargetIsCurrent(target, { includeDraft: false })) return;
         options.notifications.error(
-          error instanceof Error
-            ? error.message
-            : "发送长篇消息失败，请稍后重试。"
+          formatError(error, t("failedToSendTheNovelMessagePleaseTryAgain"))
         );
       }
     })().finally(() => {
@@ -701,7 +726,7 @@ export function useLongConversationCoordinator(
   }
 
   function modelPreferenceBlocked(): boolean {
-    return preflightBlocks("修改模型设置");
+    return preflightBlocks(t("changeModelSettings"));
   }
 
   function selectModel(modelId: string): void {

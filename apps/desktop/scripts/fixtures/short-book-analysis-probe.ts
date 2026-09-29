@@ -1,6 +1,14 @@
+import "./analysis-probe-i18n";
 import { createApp, h, nextTick, ref } from "vue";
 import ShortBookAnalysisPage from "../../src/renderer/src/extras/short-book-analysis/ShortBookAnalysisPage.vue";
 import { useShortBookAnalysis } from "../../src/renderer/src/extras/short-book-analysis/useShortBookAnalysis";
+import {
+  probeCatalog,
+  savedProbeEntries,
+  verifyHeaderModelSettings,
+  verifyEmptyResultDestination,
+  verifyManualResultSave
+} from "./short-book-analysis-options-probe";
 import {
   applyAppearanceThemeToDocument,
   defaultAppearanceTheme
@@ -49,6 +57,14 @@ const models = [
     maxTokens: 16000
   }
 ] as ModelConfig[];
+models.push({
+  ...models[0]!,
+  id: "reasoning-model",
+  label: "验证推理模型",
+  reasoning: true,
+  defaultThinkingLevel: "low",
+  thinkingLevelOptions: ["low", "high"]
+});
 const sources = Array.from({ length: 11 }, (_, i) => ({
   id: `book-${i}`,
   title: `${i + 1} · 雨夜来信与归途`,
@@ -62,6 +78,12 @@ const presetSettings = {
   profiles: presets
 };
 const api = {
+  catalog: {
+    createLibraryEntry: async (input: unknown) => {
+      savedProbeEntries.push(input);
+      return {};
+    }
+  },
   extrasAgents: {
     run: async (input: ExtrasAgentRunRequest) => {
       request = input;
@@ -109,7 +131,7 @@ createApp({
       ? h(ShortBookAnalysisPage, {
           controller: c,
           models,
-          catalogSnapshot: null
+          catalogSnapshot: probeCatalog
         })
       : h("p", "其他页面")
 }).mount("#app");
@@ -138,6 +160,7 @@ function emit(type: string, payload: Record<string, unknown> = {}) {
 }
 async function run() {
   await frame();
+  await verifyHeaderModelSettings(frame);
   c.drafts.value = [];
   await frame();
   check(
@@ -255,6 +278,7 @@ async function run() {
   }
   c.drafts.value = [...sources];
   c.activeId.value = "book-0";
+  c.selectedIds.value = [];
   for (let i = 0; i < 10; i++) c.toggleBook(`book-${i}`);
   await frame();
   check(
@@ -266,15 +290,24 @@ async function run() {
   c.selectedPresetId.value = "single";
   await frame();
   check(
-    button("执行“人物”预设").disabled && c.selectedIds.value.length === 10,
-    "Single mode retains selection and blocks run"
+    !button("开始分析").disabled && c.selectedIds.value.length === 1,
+    "Single mode selects the current book for quick start"
+  );
+  c.toggleBook("book-1");
+  check(
+    c.selectedIds.value.length === 1 && c.selectedIds.value[0] === "book-1",
+    "Single selection replaces the previous book"
   );
   c.selectedPresetId.value = "plot";
+  c.selectedIds.value = [];
+  for (let i = 0; i < 10; i++) c.toggleBook(`book-${i}`);
   await frame();
-  button("执行“剧情结构”预设").click();
+  button("开始分析").click();
   await frame();
   check(
     request?.task.agentId === "short-book-analysis" &&
+      request.modelId === "reasoning-model" &&
+      request.thinkingLevel === "high" &&
       request.task.profileId === "plot" &&
       request.task.input.books.length === 10,
     "Ten complete texts submitted"
@@ -306,12 +339,12 @@ async function run() {
   );
   check(
     !document
-      .querySelector(".analysis-status-popover")
+      .querySelector(".analysis-process-drawer")
       ?.textContent?.includes("Private test reasoning"),
     "Internal reasoning is not exposed"
   );
   document
-    .querySelector<HTMLButtonElement>('[aria-label="关闭运行详情"]')!
+    .querySelector<HTMLButtonElement>('[aria-label="关闭执行过程"]')!
     .click();
   await frame();
   check(
@@ -341,12 +374,25 @@ async function run() {
   visible.value = true;
   await frame();
   check(
-    document.querySelector('[aria-label="Markdown 结果正文"]'),
+    document.querySelector(".analysis-result-reading"),
     "Background result survives page change"
   );
-  document
-    .querySelector<HTMLButtonElement>('[aria-label="管理拆书预设"]')!
-    .click();
+  await verifyManualResultSave(frame);
+  button("重新分析").click();
+  await frame();
+  emit("extras_agent.output_updated", {
+    agentId: "short-book-analysis",
+    jobId: request!.task.input.jobId,
+    output: { kind: "book-analysis-result", result: c.result.value }
+  });
+  emit("agent.message_completed");
+  await frame();
+  verifyEmptyResultDestination();
+  check(
+    savedProbeEntries.length === 1,
+    "A new result never reuses the earlier save destination"
+  );
+  document.querySelector<HTMLButtonElement>('[aria-label="预设管理"]')!.click();
   await frame();
   if (!document.querySelector('[aria-label="可选择书本数量"]')) {
     document
@@ -405,7 +451,7 @@ async function show(
   await frame();
   if (modal)
     document
-      .querySelector<HTMLButtonElement>('[aria-label="管理拆书预设"]')!
+      .querySelector<HTMLButtonElement>('[aria-label="预设管理"]')!
       .click();
   else
     document.querySelector<HTMLButtonElement>('[aria-label="关闭"]')?.click();

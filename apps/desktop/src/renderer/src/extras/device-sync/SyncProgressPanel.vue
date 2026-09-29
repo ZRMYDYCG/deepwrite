@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { t } from "../../i18n";
 import type { syncProgressPresentation } from "./progressPresentation";
 defineProps<{
   progress: ReturnType<typeof syncProgressPresentation>;
@@ -44,7 +45,7 @@ defineEmits<{ cancel: [] }>();
         :aria-hidden="!pending"
         @click="$emit('cancel')"
       >
-        取消
+        {{ t("extras.cloudBackup.cancel") }}
       </button>
     </div>
   </div>

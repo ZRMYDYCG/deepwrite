@@ -1,7 +1,11 @@
+import { formatError } from "../i18n/errors";
+import { createScopedTranslator } from "../i18n";
 import { computed, ref, shallowRef, watch } from "vue";
 import { useConversationStore } from "../stores/conversationStore";
 import { uiMessage } from "../ui-feedback";
 import type { ConversationHistoryItem } from "../types/conversation";
+
+const t = createScopedTranslator("workspace.conversationHistoryManagement");
 
 export interface ConversationHistoryManagementPort {
   historyManagementAvailable: boolean;
@@ -41,9 +45,10 @@ export function createConversationHistoryManagement(options: {
       if (intent === loadIntent)
         options.notify(
           "error",
-          error instanceof Error
-            ? error.message
-            : "暂时无法读取已删除对话，请重试。"
+          formatError(
+            error,
+            t("deletedConversationsCouldNotBeLoadedPleaseTryAgain")
+          )
         );
     } finally {
       if (intent === loadIntent) loading.value = false;
@@ -62,19 +67,27 @@ export function createConversationHistoryManagement(options: {
         ? owner.deleteConversation(item.sessionId)
         : owner.restoreConversation(item.sessionId));
       if (!saved) {
-        options.notify("info", "请先完成或停止当前回复，再管理对话。");
+        options.notify(
+          "info",
+          t("finishOrStopTheCurrentResponseBeforeManagingConversations")
+        );
         return false;
       }
       if (owner === options.owner()) await refreshDeleted();
       options.notify(
         "success",
-        deleted ? "对话已移入已删除，可随时恢复。" : "对话已恢复。"
+        deleted
+          ? t("conversationMovedToDeletedYouCanRestoreItAt")
+          : t("conversationRestored")
       );
       return true;
     } catch (error) {
       options.notify(
         "error",
-        error instanceof Error ? error.message : "对话管理操作未完成，请重试。"
+        formatError(
+          error,
+          t("theConversationOperationDidNotCompletePleaseTryAgain")
+        )
       );
       return false;
     } finally {

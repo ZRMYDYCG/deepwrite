@@ -1,3 +1,4 @@
+import { syncIssueMessage } from "../../../localization/sync-display-text";
 import {
   hasRemoteSyncChange,
   sameSyncContent,
@@ -38,7 +39,7 @@ export function directionConflict(
     title: local?.title ?? candidates[0]?.revision.title ?? key,
     token: "",
     reason: "conflict",
-    message: "本机和远端都有修改，请先合并两端修改；本次未覆盖任一端。",
+    ...syncIssueMessage("directionConflict"),
     paths: [],
     local,
     versions: []

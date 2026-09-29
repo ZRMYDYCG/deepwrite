@@ -1,4 +1,8 @@
+import { ErrorPayloadSchema, type ErrorPayload } from "./error-payload";
+export { ErrorPayloadSchema, type ErrorPayload } from "./error-payload";
 import { BookTemplateCommandSchemas } from "./book-templates";
+import { VoiceCommandSchemas } from "./voice";
+import { StorageSettingsCommandSchemas } from "./storage-settings";
 import { ConversationExportCommandEnvelopeSchemas } from "./conversation-export";
 import { SiteOfficialModelCommandSchemas } from "./site-official-models";
 import { DeviceSyncWorkspaceCommandEnvelopeSchema } from "./device-sync-commands";
@@ -216,6 +220,8 @@ export const SystemHealthCommandEnvelopeSchema = EnvelopeBaseSchema.extend({
 });
 
 export const CommandEnvelopeSchema = z.discriminatedUnion("type", [
+  ...StorageSettingsCommandSchemas,
+  ...VoiceCommandSchemas,
   ...BookTemplateCommandSchemas,
   DeviceSyncWorkspaceCommandEnvelopeSchema,
   CatalogQueryMaterialsCommandEnvelopeSchema,
@@ -323,13 +329,6 @@ export const CommandEnvelopeSchema = z.discriminatedUnion("type", [
 ]);
 export type CommandEnvelope = z.infer<typeof CommandEnvelopeSchema>;
 export type CommandType = CommandEnvelope["type"];
-
-export const ErrorPayloadSchema = z.object({
-  code: z.string().min(1),
-  message: z.string().min(1),
-  details: z.record(z.string(), z.unknown()).optional()
-});
-export type ErrorPayload = z.infer<typeof ErrorPayloadSchema>;
 
 export const CommandResultSchema = z.discriminatedUnion("status", [
   z.object({

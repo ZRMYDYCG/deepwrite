@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const appDir = resolve(scriptDir, "..");
+const i18nOnly = process.argv.includes("--i18n-only");
 const workspaceRoot = resolve(appDir, "../..");
 const electronDist = resolve(workspaceRoot, "node_modules/electron/dist");
 const electronBinary =
@@ -40,14 +41,25 @@ await prepareSmokeWorkspace(smokeUserData);
 const command = !hasDisplay && hasXvfb ? "xvfb-run" : electronBinary;
 const args =
   !hasDisplay && hasXvfb
-    ? ["-a", electronBinary, ".", `--user-data-dir=${smokeUserData}`]
-    : [".", `--user-data-dir=${smokeUserData}`];
+    ? [
+        "-a",
+        electronBinary,
+        ".",
+        `--user-data-dir=${smokeUserData}`,
+        "--use-fake-device-for-media-stream"
+      ]
+    : [
+        ".",
+        `--user-data-dir=${smokeUserData}`,
+        "--use-fake-device-for-media-stream"
+      ];
 
 const child = spawn(command, args, {
   cwd: appDir,
   env: {
     ...process.env,
     DEEPWRITE_SMOKE: "1",
+    DEEPWRITE_SMOKE_SUITE: i18nOnly ? "i18n" : "all",
     ELECTRON_DISABLE_SECURITY_WARNINGS: "true"
   },
   stdio: ["ignore", "pipe", "pipe"]
@@ -79,6 +91,14 @@ child.on("close", async (code) => {
   }
 
   const summary = JSON.parse(marker.slice("DEEPWRITE_SMOKE_OK ".length));
+  const localizationPassed =
+    summary.localization?.status === "ok" &&
+    summary.localization?.settings >= 14 &&
+    summary.localization?.features >= 9 &&
+    summary.localization?.switchedBothWays === true &&
+    summary.localization?.restoredAfterReload === true &&
+    summary.localization?.userContentUnchanged === true &&
+    summary.localization?.layout === true;
   if (
     summary.health?.status !== "ok" ||
     summary.health?.workers?.length !== 3
@@ -89,6 +109,16 @@ child.on("close", async (code) => {
     process.exit(1);
   }
 
+  if (i18nOnly) {
+    if (!localizationPassed) {
+      console.error("Electron language smoke returned an invalid summary.");
+      process.exit(1);
+    }
+    console.log(
+      "Electron language smoke passed: English settings and feature navigation, two-way switching, reload persistence and unchanged saved manuscripts."
+    );
+    return;
+  }
   if (
     summary.bookTemplates?.status !== "ok" ||
     summary.bookTemplates?.created !== 4 ||
@@ -108,6 +138,16 @@ child.on("close", async (code) => {
     summary.contextCompaction?.chat !== true ||
     summary.contextCompaction?.persisted !== true ||
     summary.contextCompaction?.coldRestore !== true ||
+    summary.voice?.status !== "ok" ||
+    summary.voice?.profiles !== 4 ||
+    summary.voice?.isolatedUsage !== true ||
+    summary.voice?.cancelled !== true ||
+    summary.voice?.secretsHidden !== true ||
+    summary.voiceUi?.status !== "ok" ||
+    summary.voiceUi?.settingsTest !== true ||
+    summary.voiceUi?.chatDraft !== true ||
+    summary.voiceUi?.cancelled !== true ||
+    !localizationPassed ||
     summary.agent?.status !== "ok" ||
     summary.agent?.runtime?.mode !== "local-faux" ||
     summary.agent?.deltaCount < 2 ||
@@ -128,6 +168,6 @@ child.on("close", async (code) => {
   }
 
   console.log(
-    "Electron smoke passed: healthy utilities, Pi/Faux completion, and Renderer-to-SQLite chunked persistence with preserved metadata and proposals; template CRUD and short/script creation through real IPC; extras agents with unified profiles and outputs; extras chat turns, roles and Main-side project checks; writing/chat compaction with persisted checkpoints and cold restoration."
+    "Electron smoke passed: healthy utilities, Pi/Faux completion, and Renderer-to-SQLite persistence; template CRUD; extras agents and chat; writing/chat compaction; MiMo/Ali voice profiles, real UI recording with a fake microphone, transcription, cancellation, secret protection and isolated usage; live language switching, English navigation, reload persistence and unchanged manuscripts."
   );
 });

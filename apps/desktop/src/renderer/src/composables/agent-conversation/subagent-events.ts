@@ -1,5 +1,8 @@
+import { createScopedTranslator } from "../../i18n";
 import type { AgentConversationContext } from "./context";
 import type { SubagentEventEnvelope } from "./types";
+
+const t = createScopedTranslator("workspace");
 
 type SubagentEventsContext = Pick<
   AgentConversationContext,
@@ -37,8 +40,11 @@ export function handleSubagentEvent(
     run.completedAt = message.processingCompletedAt ?? event.timestamp;
     run.errorMessage =
       message.status === "stopped"
-        ? "父智能体运行已停止，子任务同步停止。"
-        : (message.errorMessage ?? "父智能体运行异常结束，子任务同步停止。");
+        ? t("runLifecycle.theParentAgentStoppedSubtasksWereAlsoStopped")
+        : (message.errorMessage ??
+          t(
+            "subagentEvents.theParentAgentEndedUnexpectedlySubtasksWereAlsoStopped"
+          ));
   }
   if (event.type === "subagent.started") {
     return;
@@ -117,7 +123,9 @@ export function handleSubagentEvent(
                 completedAt: run.completedAt ?? event.timestamp,
                 ...(terminalStatus === "error"
                   ? {
-                      resultSummary: run.errorMessage ?? "子任务已经结束。",
+                      resultSummary:
+                        run.errorMessage ??
+                        t("subagentEvents.theSubtaskHasAlreadyEnded"),
                       isError: true
                     }
                   : {})
@@ -195,7 +203,9 @@ export function handleSubagentEvent(
     toolCall.status = run.status === "completed" ? "completed" : "error";
     toolCall.completedAt = event.timestamp;
     if (run.status !== "completed") {
-      toolCall.resultSummary ??= "子任务结束前未返回工具结果。";
+      toolCall.resultSummary ??= t(
+        "subagentEvents.theSubtaskEndedWithoutReturningAToolResult"
+      );
       toolCall.isError = true;
     }
   }

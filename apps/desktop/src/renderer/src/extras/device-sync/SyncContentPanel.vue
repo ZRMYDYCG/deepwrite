@@ -1,6 +1,9 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../../i18n";
 import { computed } from "vue";
 import type { SyncKind, SyncStatus } from "@deepwrite/contracts/renderer";
+
+const t = createScopedTranslator("extras");
 
 const props = defineProps<{
   items: SyncStatus["items"];
@@ -8,9 +11,24 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ toggle: [key: string, included: boolean] }>();
 const categories: { title: string; kinds: SyncKind[] }[] = [
-  { title: "创作空间", kinds: ["book", "long-book"] },
-  { title: "技能库", kinds: ["skill-library", "skill-group"] },
-  { title: "素材库", kinds: ["material-library", "material-group"] }
+  {
+    get title() {
+      return t("cloudBackup.workspace");
+    },
+    kinds: ["book", "long-book"]
+  },
+  {
+    get title() {
+      return t("cloudBackup.skillLibrary");
+    },
+    kinds: ["skill-library", "skill-group"]
+  },
+  {
+    get title() {
+      return t("cloudBackup.materialLibrary");
+    },
+    kinds: ["material-library", "material-group"]
+  }
 ];
 const groups = computed(() =>
   categories.map((category) => {
@@ -32,10 +50,8 @@ function changeIncluded(key: string, event: Event) {
 
 <template>
   <section class="sync-card sync-content-panel">
-    <h2>同步内容</h2>
-    <p>
-      按创作空间、技能库和素材库管理。关闭只暂停本机同步，不删除任何内容。作品绑定的技能库和素材库也需要加入。
-    </p>
+    <h2>{{ t("deviceSync.syncContents") }}</h2>
+    <p>{{ t("deviceSync.scopeDescription") }}</p>
     <section
       v-for="group in groups"
       :key="group.title"
@@ -44,33 +60,38 @@ function changeIncluded(key: string, event: Event) {
     >
       <header class="sync-content-heading">
         <h3>{{ group.title }}</h3>
-        <span>已启用 {{ group.included }} / {{ group.items.length }} 项</span>
+        <span>{{
+          t("deviceSync.enabledCount", {
+            enabled: group.included,
+            total: group.items.length
+          })
+        }}</span>
       </header>
       <label v-for="item in group.items" :key="item.key" class="sync-list-row">
         <span>
           {{ item.title }}
           <small>{{
             !item.included
-              ? "已暂停同步"
+              ? t("deviceSync.syncPaused")
               : item.dirty && item.remoteDirty
-                ? "两端都有修改"
+                ? t("deviceSync.bothChanged")
                 : item.dirty
-                  ? "待上传到远端"
+                  ? t("deviceSync.awaitingUpload")
                   : item.remoteDirty
-                    ? "待下载到本机"
-                    : "已同步"
+                    ? t("deviceSync.awaitingDownload")
+                    : t("deviceSync.synced")
           }}</small>
         </span>
         <input
           type="checkbox"
           :checked="item.included"
           :disabled="pending"
-          :aria-label="`同步 ${item.title}`"
+          :aria-label="t('deviceSync.syncItem', { title: item.title })"
           @change="changeIncluded(item.key, $event)"
         />
       </label>
       <p v-if="!group.items.length" class="sync-content-empty">
-        暂无可同步的{{ group.title }}内容
+        {{ t("deviceSync.noSyncableContent", { category: group.title }) }}
       </p>
     </section>
   </section>

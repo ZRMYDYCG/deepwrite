@@ -82,6 +82,63 @@ function memoryApi(initial: Record<string, unknown> = {}) {
 }
 
 describe("conversation persistence adapter", () => {
+  it("acknowledges close only after conversations and workspace writes both complete", async () => {
+    let close!: () => Promise<void>;
+    let finish!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    const order: string[] = [];
+    const adapter = createConversationPersistenceAdapter(
+      {
+        ...memoryApi(),
+        onBeforeClose(handler) {
+          close = handler;
+          return () => undefined;
+        }
+      },
+      {
+        beforeClose: async () => {
+          order.push("workspace");
+          await pending;
+        }
+      }
+    );
+    adapter!.onBeforeClose!(async () => {
+      order.push("conversations");
+    });
+    let acknowledged = false;
+    const closing = close().then(() => {
+      acknowledged = true;
+    });
+    await Promise.resolve();
+    expect(order).toEqual(["conversations", "workspace"]);
+    expect(acknowledged).toBe(false);
+    finish();
+    await closing;
+    expect(acknowledged).toBe(true);
+  });
+
+  it("rejects the existing close handshake when a workspace flush fails", async () => {
+    let close!: () => Promise<void>;
+    const adapter = createConversationPersistenceAdapter(
+      {
+        ...memoryApi(),
+        onBeforeClose(handler) {
+          close = handler;
+          return () => undefined;
+        }
+      },
+      {
+        beforeClose: async () => {
+          throw new Error("草稿未保存");
+        }
+      }
+    );
+    adapter!.onBeforeClose!(async () => undefined);
+    await expect(close()).rejects.toThrow("草稿未保存");
+  });
+
   it("creates readable contract-safe keys for ordinary conversations", () => {
     expect(conversationHistoryPersistenceKey("long:book 1:setting")).toBe(
       "conversation-history:long%3Abook%201%3Asetting"

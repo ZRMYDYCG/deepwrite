@@ -1,3 +1,4 @@
+import { t } from "../i18n";
 import type { ConversationPersistenceApi } from "@deepwrite/contracts";
 import {
   mergeAgentConversationPersistenceSnapshots,
@@ -31,7 +32,11 @@ export function createBookConversationPreparation(
       value !== undefined &&
       !isCompletePersistenceSnapshot(value)
     ) {
-      throw new Error("历史记录暂时无法完整读取，原始记录已保留。");
+      throw new Error(
+        t(
+          "workspace.bookConversationPreparation.historyCouldNotBeFullyReadTheOriginalRecords"
+        )
+      );
     }
   }
 

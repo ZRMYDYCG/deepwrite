@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import { watch } from "vue";
 import type {
   LinkedMaterialIdsByKind,
@@ -10,6 +11,8 @@ import {
   useBookLibrarySelection,
   type BookLibrarySelectionProps
 } from "../composables/useBookLibrarySelection";
+
+const t = createScopedTranslator("components.bookLibraryBindings");
 const props = defineProps<
   BookLibrarySelectionProps & { loading?: boolean; submitting?: boolean }
 >();
@@ -62,15 +65,19 @@ watch(
         ><AppIcon name="library" :size="17"
       /></span>
       <div>
-        <h3 id="create-short-skill-heading">绑定技能库</h3>
-        <p>已绑定技能可在所有阶段按需加载。</p>
+        <h3 id="create-short-skill-heading">
+          {{ t("linkSkillLibraries") }}
+        </h3>
+        <p>
+          {{ t("linkedSkillsCanBeLoadedAsNeededAtAny") }}
+        </p>
       </div>
     </div>
 
     <div
       class="create-short-binding-modes"
       role="radiogroup"
-      aria-label="技能库绑定方式"
+      :aria-label="t('skillLibraryLinking')"
     >
       <label :class="{ 'is-selected': skillBindingMode === 'single' }">
         <input
@@ -79,11 +86,11 @@ watch(
           value="single"
           :disabled="submitting"
         />
-        按分类选择
+        {{ t("chooseByCategory") }}
       </label>
       <label
         :class="{ 'is-selected': skillBindingMode === 'group' }"
-        :title="availableSkillGroups.length ? '' : '暂无可用技能分组'"
+        :title="availableSkillGroups.length ? '' : t('noSkillGroupsAvailable')"
       >
         <input
           v-model="skillBindingMode"
@@ -91,7 +98,7 @@ watch(
           value="group"
           :disabled="submitting || availableSkillGroups.length === 0"
         />
-        选择分组
+        {{ t("selectGroup") }}
       </label>
     </div>
 
@@ -118,11 +125,11 @@ watch(
     </div>
     <div v-else class="create-short-group-picker">
       <label class="create-short-book-field">
-        <span>技能分组</span>
+        <span>{{ t("skillGroup") }}</span>
         <PopupSelect
           :model-value="selectedSkillGroupId"
           :options="skillGroupOptions"
-          accessible-label="技能分组"
+          :accessible-label="t('skillGroup')"
           size="large"
           :disabled="loading || submitting"
           :menu-min-width="260"
@@ -135,13 +142,13 @@ watch(
           <strong>
             {{
               skillById.get(selectedSkillGroup.members[kind.id] ?? "")?.title ??
-              "未配置"
+              t("notConfigured")
             }}
           </strong>
         </span>
       </div>
       <p v-else class="create-short-stable-hint">
-        选择分组后，会一次绑定其中已配置的各类技能库。
+        {{ t("selectingAGroupLinksAllConfiguredSkillLibrariesIn") }}
       </p>
     </div>
   </section>
@@ -155,15 +162,19 @@ watch(
         ><AppIcon name="archive" :size="17"
       /></span>
       <div>
-        <h3 id="create-short-material-heading">关联素材库</h3>
-        <p>按用途选择素材库；未选择的分类可在创作空间中稍后补充。</p>
+        <h3 id="create-short-material-heading">
+          {{ t("linkMaterialLibraries") }}
+        </h3>
+        <p>
+          {{ t("chooseMaterialLibrariesByPurposeYouCanAddMissing") }}
+        </p>
       </div>
     </div>
 
     <div
       class="create-short-binding-modes"
       role="radiogroup"
-      aria-label="素材库关联方式"
+      :aria-label="t('materialLibraryLinking')"
     >
       <label :class="{ 'is-selected': materialBindingMode === 'single' }">
         <input
@@ -172,11 +183,13 @@ watch(
           value="single"
           :disabled="submitting"
         />
-        按分类选择
+        {{ t("chooseByCategory") }}
       </label>
       <label
         :class="{ 'is-selected': materialBindingMode === 'group' }"
-        :title="availableMaterialGroups.length ? '' : '暂无可用素材分组'"
+        :title="
+          availableMaterialGroups.length ? '' : t('noMaterialGroupsAvailable')
+        "
       >
         <input
           v-model="materialBindingMode"
@@ -184,7 +197,7 @@ watch(
           value="group"
           :disabled="submitting || availableMaterialGroups.length === 0"
         />
-        选择分组
+        {{ t("selectGroup") }}
       </label>
     </div>
 
@@ -211,11 +224,11 @@ watch(
     </div>
     <div v-else class="create-short-group-picker">
       <label class="create-short-book-field">
-        <span>素材分组</span>
+        <span>{{ t("materialGroup") }}</span>
         <PopupSelect
           :model-value="selectedMaterialGroupId"
           :options="materialGroupOptions"
-          accessible-label="素材分组"
+          :accessible-label="t('materialGroup')"
           size="large"
           :disabled="loading || submitting"
           :menu-min-width="260"
@@ -228,13 +241,13 @@ watch(
           <strong>
             {{
               materialById.get(selectedMaterialGroup.members[kind.id] ?? "")
-                ?.title ?? "未配置"
+                ?.title ?? t("notConfigured")
             }}
           </strong>
         </span>
       </div>
       <p v-else class="create-short-stable-hint">
-        选择分组后，会一次关联其中已配置的各类素材库。
+        {{ t("selectingAGroupLinksAllConfiguredMaterialLibrariesIn") }}
       </p>
     </div>
   </section>

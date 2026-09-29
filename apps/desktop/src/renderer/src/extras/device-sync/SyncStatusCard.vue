@@ -1,11 +1,15 @@
 <script setup lang="ts">
+import { createScopedTranslator, locale } from "../../i18n";
 import { computed } from "vue";
+import { Translation as I18nT } from "vue-i18n";
 import type { SyncRequest, SyncStatus } from "@deepwrite/contracts/renderer";
 import { syncPresentation } from "./presentation";
 import SyncAdoptionButtons from "./SyncAdoptionButtons.vue";
 import SyncProgressPanel from "./SyncProgressPanel.vue";
 import { syncProgressPresentation } from "./progressPresentation";
 import "./sync-status-card.css";
+
+const t = createScopedTranslator("extras.deviceSync");
 const props = defineProps<{ status: SyncStatus; pending: boolean }>();
 const emit = defineEmits<{ request: [input: SyncRequest] }>();
 const view = computed(() => syncPresentation(props.status));
@@ -19,19 +23,41 @@ const first = computed(() =>
 <template>
   <section class="sync-card sync-status-card">
     <div class="sync-status-heading">
-      <h2>同步状态</h2>
+      <h2>{{ t("syncStatus") }}</h2>
       <span class="sync-status-badge">{{ progress.badge }}</span>
     </div>
     <div class="sync-status-summary">
-      <span
-        >待上传 <strong>{{ view.uploads.length }}</strong> 项</span
+      <I18nT
+        keypath="extras.deviceSync.uploadSummary"
+        scope="global"
+        tag="span"
+        :plural="view.uploads.length"
       >
-      <span
-        >待下载 <strong>{{ view.downloads.length }}</strong> 项</span
+        <template #count
+          ><strong>{{ view.uploads.length }}</strong></template
+        >
+      </I18nT>
+      <I18nT
+        keypath="extras.deviceSync.downloadSummary"
+        scope="global"
+        tag="span"
+        :plural="view.downloads.length"
       >
-      <span v-if="view.both.length"
-        >两端修改 <strong>{{ view.both.length }}</strong> 项</span
+        <template #count
+          ><strong>{{ view.downloads.length }}</strong></template
+        >
+      </I18nT>
+      <I18nT
+        v-if="view.both.length"
+        keypath="extras.deviceSync.bothChangedSummary"
+        scope="global"
+        tag="span"
+        :plural="view.both.length"
       >
+        <template #count
+          ><strong>{{ view.both.length }}</strong></template
+        >
+      </I18nT>
     </div>
     <div class="sync-actions">
       <button
@@ -40,7 +66,7 @@ const first = computed(() =>
         :disabled="pending"
         @click="emit('request', { operation: 'sync', confirmFirst: first })"
       >
-        {{ first ? "确认并开始首次同步" : "预览首次同步" }}
+        {{ first ? t("confirmFirstSync") : t("previewFirstSync") }}
       </button>
       <template v-else>
         <button
@@ -48,14 +74,14 @@ const first = computed(() =>
           :disabled="pending || !view.uploads.length"
           @click="emit('request', { operation: 'sync', direction: 'upload' })"
         >
-          上传本机修改
+          {{ t("uploadLocalChanges") }}
         </button>
         <button
           class="sync-button secondary"
           :disabled="pending || !view.downloads.length"
           @click="emit('request', { operation: 'sync', direction: 'download' })"
         >
-          下载远端更新
+          {{ t("downloadRemoteUpdates") }}
         </button>
         <SyncAdoptionButtons
           v-if="view.adoptionKeys.length"
@@ -75,11 +101,11 @@ const first = computed(() =>
         :disabled="pending"
         @click="emit('request', { operation: 'check' })"
       >
-        检查远端更新
+        {{ t("checkRemoteUpdates") }}
       </button>
     </div>
     <p v-if="view.adoptionKeys.length">
-      采用所选端的完整版本处理未完成项。替换前的本机版本可在“历史与恢复”中找回。
+      {{ t("resolveIncompleteHelp") }}
     </p>
     <SyncProgressPanel
       :progress="progress"
@@ -87,23 +113,29 @@ const first = computed(() =>
       @cancel="emit('request', { operation: 'cancel' })"
     />
     <details class="sync-status-records">
-      <summary>同步记录与设备接收情况</summary>
+      <summary>{{ t("syncRecords") }}</summary>
       <p>
         {{
           status.lastSuccessAt
-            ? `上次操作成功：${new Date(status.lastSuccessAt).toLocaleString()}`
+            ? t("lastSuccess", {
+                date: new Date(status.lastSuccessAt).toLocaleString(locale)
+              })
             : status.firstSyncConfirmed
-              ? "尚无全部成功记录，未完成项可单独处理"
-              : "尚未完成首次同步"
+              ? t("noFullSuccess")
+              : t("firstSyncIncomplete")
         }}
       </p>
       <p v-if="status.firstSyncConfirmed">{{ view.receipt }}</p>
       <p>
         {{
-          status.lastCheckedAt
-            ? `远端检查：${new Date(status.lastCheckedAt).toLocaleString()}`
-            : "尚未检查远端"
-        }}。仅核对已上传的数据，另一端未上传的编辑不可见。
+          t("uploadedChangesVisibility", {
+            status: status.lastCheckedAt
+              ? t("remoteCheckedAt", {
+                  date: new Date(status.lastCheckedAt).toLocaleString(locale)
+                })
+              : t("remoteNotChecked")
+          })
+        }}
       </p>
     </details>
   </section>

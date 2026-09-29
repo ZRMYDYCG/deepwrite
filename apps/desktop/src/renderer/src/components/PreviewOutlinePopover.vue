@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import {
   computed,
   nextTick,
@@ -14,6 +15,8 @@ import {
   type MarkdownHeading
 } from "../utils/markdownOutline";
 import AppIcon from "./AppIcon.vue";
+
+const t = createScopedTranslator("components.previewOutlinePopover");
 
 const props = withDefaults(
   defineProps<{
@@ -206,13 +209,13 @@ onBeforeUnmount(() => {
       aria-haspopup="dialog"
       :aria-controls="open ? cardId : undefined"
       :aria-expanded="open"
-      aria-label="打开文档目录"
-      title="目录"
+      :aria-label="t('openDocumentOutline')"
+      :title="t('outline')"
       @click="toggleCard"
       @keydown="handleTriggerKeydown"
     >
       <AppIcon name="list" :size="13" />
-      <span>目录</span>
+      <span>{{ t("outline") }}</span>
     </button>
 
     <Teleport to="body">
@@ -224,20 +227,24 @@ onBeforeUnmount(() => {
           class="preview-outline-card"
           :style="cardStyle"
           role="dialog"
-          aria-label="文档目录"
+          :aria-label="t('documentOutline')"
           @keydown="handleCardKeydown"
         >
           <header class="preview-outline-heading">
             <div>
-              <strong>文档目录</strong>
-              <span>{{ headings.length }} 个标题</span>
+              <strong>{{ t("documentOutline") }}</strong>
+              <span>{{
+                t("headingsMessage", {
+                  arg0: headings.length ?? ""
+                })
+              }}</span>
             </div>
             <AppIcon name="list" :size="16" />
           </header>
           <nav
             v-if="headings.length"
             class="preview-outline-list"
-            aria-label="正文标题"
+            :aria-label="t('manuscriptHeadings')"
           >
             <button
               v-for="(heading, index) in headings"
@@ -255,7 +262,7 @@ onBeforeUnmount(() => {
           </nav>
           <div v-else class="preview-outline-empty">
             <AppIcon name="list" :size="18" />
-            <span>正文中暂无 Markdown 标题</span>
+            <span>{{ t("noMarkdownHeadingsInThisManuscript") }}</span>
           </div>
         </section>
       </Transition>

@@ -1,3 +1,4 @@
+import { createScopedTranslator } from "../i18n";
 import { computed, reactive, readonly } from "vue";
 import {
   AppearanceCustomFontIdSchema,
@@ -15,6 +16,8 @@ import {
   AppearanceFontRuntime,
   createBrowserAppearanceFontRuntime
 } from "./appearanceFontRuntime";
+
+const t = createScopedTranslator("workspace.appearanceFonts");
 
 interface AppearanceFontsState {
   fonts: AppearanceCustomFont[];
@@ -116,7 +119,7 @@ async function cleanupFailedInstall(id: AppearanceCustomFontId): Promise<void> {
 
 export async function installAppearanceFonts(): Promise<AppearanceFontInstallOutcome> {
   const api = window.deepwrite?.appearance.fonts;
-  if (!api) throw new Error("当前环境不支持导入字体");
+  if (!api) throw new Error(t("fontImportIsNotAvailableInThisEnvironment"));
   state.installing = true;
   try {
     const result = await api.install();
@@ -150,7 +153,7 @@ export async function installAppearanceFonts(): Promise<AppearanceFontInstallOut
         const font = installedById.get(id);
         loadFailures.push({
           id,
-          displayName: font?.displayName ?? "未命名字体"
+          displayName: font?.displayName ?? t("unnamedFont")
         });
         if (!state.unavailableIds.includes(id)) {
           state.unavailableIds.push(id);
@@ -175,7 +178,7 @@ export async function removeAppearanceFont(
 ): Promise<AppearanceFontRemoveResult> {
   const id = AppearanceCustomFontIdSchema.parse(rawId);
   const api = window.deepwrite?.appearance.fonts;
-  if (!api) throw new Error("当前环境不支持删除字体");
+  if (!api) throw new Error(t("fontDeletionIsNotAvailableInThisEnvironment"));
   if (!state.removingIds.includes(id)) state.removingIds.push(id);
   try {
     const result = await api.remove(id);
@@ -196,12 +199,24 @@ export function appearanceFontFailureLabel(
   failure: AppearanceFontInstallFailure
 ): string {
   const labels: Record<AppearanceFontInstallFailure["code"], string> = {
-    not_regular_file: "不是普通文件",
-    unsupported_format: "仅支持 TTF 或 OTF",
-    invalid_font: "字体文件无效",
-    file_too_large: "文件过大",
-    catalog_limit: "已达字体存储上限",
-    read_failed: "无法读取文件"
+    get not_regular_file() {
+      return t("notARegularFile");
+    },
+    get unsupported_format() {
+      return t("onlyTtfAndOtfAreSupported");
+    },
+    get invalid_font() {
+      return t("invalidFontFile");
+    },
+    get file_too_large() {
+      return t("fileTooLarge");
+    },
+    get catalog_limit() {
+      return t("fontStorageLimitReached");
+    },
+    get read_failed() {
+      return t("cannotReadFile");
+    }
   };
   return `${failure.displayName}：${labels[failure.code]}`;
 }

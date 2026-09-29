@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { expectSourceToContain } from "../../../../test-utils/sourceText";
+import messages from "../../i18n/messages/extras/zh-CN";
 import source from "./CloudBackupPage.vue?raw";
 import previewDialogSource from "./CloudBackupPreviewDialog.vue?raw";
 import appSource from "../../WorkspaceShell.vue?raw";
@@ -14,15 +14,12 @@ const featureHostSource = `${featureHostCoordinatorSource}\n${featureHostModuleS
 
 describe("CloudBackupPage", () => {
   it("lives under more features and never asks the user to log in", () => {
-    expect(source).toContain("云端备份");
-    expect(source).toContain("无需登录");
-    expect(source).toContain("本机备份密钥");
+    expect(source).toContain("cloudBackup.cloudBackup");
+    expect(messages.cloudBackup.cloudBackupDescription).toContain("无需登录");
+    expect(source).toContain("cloudBackup.localBackupKey");
     expect(source).not.toContain("password");
     expect(source).not.toContain("authMode");
-    expectSourceToContain(
-      sidebarSource,
-      '{ id: "cloud-backup", label: "云端备份"'
-    );
+    expect(sidebarSource).toContain('id: "cloud-backup"');
     expect(sidebarSource).toContain('emit("openCloudBackup")');
     expect(appSource).toContain(
       '@open-cloud-backup="featureHost.openCloudBackup"'
@@ -38,12 +35,12 @@ describe("CloudBackupPage", () => {
   });
 
   it("requires a confirmation dialog before backup or restore writes data", () => {
-    expect(previewDialogSource).toContain("确认同步内容");
-    expect(previewDialogSource).toContain("文件列表概览");
-    expect(previewDialogSource).toContain("文件总数");
+    expect(previewDialogSource).toContain("confirmContents");
+    expect(previewDialogSource).toContain("fileOverview");
+    expect(previewDialogSource).toContain("totalFiles");
     expect(source).toContain("confirmPreview");
     expect(previewDialogSource).toContain("danger-button");
-    expect(source).toContain("100 MB");
+    expect(messages.cloudBackup.uploadDescription).toContain("100 MB");
   });
 
   it("keeps status in the shared settings store and coalesces first-entry loading", () => {

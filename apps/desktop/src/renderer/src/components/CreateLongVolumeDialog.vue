@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import {
   computed,
   nextTick,
@@ -9,6 +10,8 @@ import {
 } from "vue";
 import { uiMessage } from "../ui-feedback";
 import AppIcon from "./AppIcon.vue";
+
+const t = createScopedTranslator("components.createLongVolumeDialog");
 
 const props = defineProps<{
   open: boolean;
@@ -36,7 +39,7 @@ function close(): void {
 function submit(): void {
   const normalizedTitle = title.value.trim();
   if (!normalizedTitle) {
-    uiMessage.warning("请输入分卷名称。");
+    uiMessage.warning(t("enterAVolumeName"));
     titleInput.value?.focus({ preventScroll: true });
     return;
   }
@@ -129,13 +132,17 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
         <form @submit.prevent="submit">
           <header>
             <div>
-              <span>{{ fromDraft ? "正文" : "剧情设计 · 全书故事线" }}</span>
-              <h2 id="create-long-volume-title">新建分卷</h2>
+              <span>{{
+                fromDraft ? t("manuscript") : t("plotDesignOverallStoryline")
+              }}</span>
+              <h2 id="create-long-volume-title">
+                {{ t("newVolume") }}
+              </h2>
             </div>
             <button
               class="close-button"
               type="button"
-              aria-label="关闭新建分卷弹窗"
+              :aria-label="t('closeNewVolumeDialog')"
               :disabled="pending"
               @click="close"
             >
@@ -145,37 +152,42 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
 
           <fieldset :disabled="pending">
             <label>
-              <span>分卷名称</span>
+              <span>{{ t("volumeName") }}</span>
               <input
                 ref="titleInput"
                 v-model="title"
                 maxlength="256"
                 autocomplete="off"
-                placeholder="例如：第一卷"
+                :placeholder="t('forExampleVolume1')"
                 required
               />
             </label>
             <label>
-              <span>卷纲</span>
+              <span>{{ t("volumeOutline") }}</span>
               <textarea
                 v-model="summary"
                 rows="8"
                 maxlength="200000"
-                placeholder="可选；创建后也可以在对应分卷 Tab 中继续编辑"
+                :placeholder="t('optionalYouCanAlsoEditItInTheVolume')"
               />
             </label>
             <p v-if="fromDraft">
-              确认后，剧情阶段会同步生成对应卷纲。可在「剧情设计 →
-              全书故事线」中继续完善。
+              {{ t("aMatchingVolumeOutlineWillBeCreatedInThe") }}
             </p>
           </fieldset>
 
           <footer>
             <button type="button" :disabled="pending" @click="close">
-              取消
+              {{ t("cancel") }}
             </button>
             <button class="primary-button" type="submit" :disabled="pending">
-              {{ pending ? "创建中…" : fromDraft ? "确认新建" : "创建分卷" }}
+              {{
+                pending
+                  ? t("creating")
+                  : fromDraft
+                    ? t("create")
+                    : t("createVolume")
+              }}
             </button>
           </footer>
         </form>

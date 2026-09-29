@@ -1,3 +1,4 @@
+import { createScopedTranslator } from "../i18n";
 import { createId } from "@deepwrite/shared";
 import {
   cloneDraftModel,
@@ -5,6 +6,8 @@ import {
 } from "../components/modelSettingsDraft";
 import type { ModelEditorSavePayload } from "../composables/useModelEditor";
 import { resolveSavedModelLabel } from "./customModelLabel";
+
+const t = createScopedTranslator("workspace.batchModelSettings");
 
 function withResolvedLabel(model: DraftModel, selectedCount = 1): DraftModel {
   return {
@@ -31,13 +34,13 @@ export function applyBatchModelSettings(
           candidate.id === model.id && candidateIndex !== index
       )
     ) {
-      throw new Error("模型配置 ID 不能重复。");
+      throw new Error(t("modelConfigurationIdsMustBeUnique"));
     }
     if (index >= 0) models[index] = model;
     else models.push(model);
     return models;
   }
-  if (!selected.length) throw new Error("请至少选择一个要保存的模型。");
+  if (!selected.length) throw new Error(t("selectAtLeastOneModelToSave"));
   const source = payload.model;
   const original = existing.find((model) => model.id === payload.originalId);
   const uniqueSelected = [

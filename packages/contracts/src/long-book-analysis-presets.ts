@@ -1,8 +1,7 @@
 import { z } from "zod";
 import {
   LONG_BOOK_ANALYSIS_MAX_PROMPT_CHARACTERS,
-  LongBookAnalysisIdSchema,
-  LongBookAnalysisLibraryIdSchema
+  LongBookAnalysisIdSchema
 } from "./long-book-analysis-limits";
 import {
   MaterialKindSchema,
@@ -14,14 +13,12 @@ export const LongBookAnalysisOutputSchema = z.discriminatedUnion("domain", [
   z.object({
     domain: z.literal("material"),
     kind: MaterialKindSchema,
-    stageId: MaterialStageIdSchema,
-    libraryId: LongBookAnalysisLibraryIdSchema.optional()
+    stageId: MaterialStageIdSchema
   }),
   z.object({
     domain: z.literal("skill"),
     kind: SkillKindSchema,
-    stageId: SkillStageIdSchema,
-    libraryId: LongBookAnalysisLibraryIdSchema.optional()
+    stageId: SkillStageIdSchema
   })
 ]);
 export type LongBookAnalysisOutput = z.infer<

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import { computed, defineAsyncComponent, nextTick, onMounted, ref } from "vue";
 import type { WindowFrameAction } from "@deepwrite/contracts";
 import PopupSelect from "./PopupSelect.vue";
@@ -8,6 +9,8 @@ import type {
   WindowFrameMenu
 } from "../composables/windowFrameMenus";
 import { uiMessage } from "../ui-feedback";
+
+const t = createScopedTranslator("components.windowMenuBar");
 const WindowHelpDialog = defineAsyncComponent(
   () => import("./WindowHelpDialog.vue")
 );
@@ -25,23 +28,37 @@ const menus = computed<WindowFrameMenu[]>(() =>
     ...menu,
     options: [
       ...menu.options,
-      ...(menu.label === "文件"
+      ...(menu.id === "file"
         ? [
-            { value: "window:close", label: "关闭窗口", description: "Alt+F4" },
-            { value: "window:quit", label: "退出 DeepWrite" }
+            {
+              value: "window:close",
+              label: t("closeWindow"),
+              description: "Alt+F4"
+            },
+            {
+              value: "window:quit",
+              label: t("quitDeepWrite")
+            }
           ]
         : []),
-      ...(menu.label === "视图"
+      ...(menu.id === "view"
         ? [
             {
               value: "window:fullscreen",
-              label: props.fullscreen ? "退出全屏" : "进入全屏",
+              label: props.fullscreen
+                ? t("exitFullscreen")
+                : t("enterFullscreen"),
               description: "F11"
             }
           ]
         : []),
-      ...(menu.label === "帮助"
-        ? [{ value: "window:help", label: "使用帮助与关于" }]
+      ...(menu.id === "help"
+        ? [
+            {
+              value: "window:help",
+              label: t("helpAndAbout")
+            }
+          ]
         : [])
     ]
   }))
@@ -56,7 +73,7 @@ async function run(menu: WindowFrameMenu, value: string | number) {
       help.value = true;
     } else await menu.run(String(value));
   } catch {
-    uiMessage.error("操作失败，请重试。");
+    uiMessage.error(t("actionFailedTryAgain"));
   }
 }
 async function activate(index: number, open = true) {
@@ -76,16 +93,16 @@ onMounted(() => {
 defineExpose({ activate });
 </script>
 <template>
-  <nav role="menubar" aria-label="应用菜单" class="window-menus">
+  <nav role="menubar" :aria-label="t('applicationMenu')" class="window-menus">
     <PopupSelect
       v-for="(menu, index) in menus"
-      :key="menu.label"
+      :key="menu.id"
       ref="selectors"
       variant="menu"
       size="small"
       model-value=""
       :placeholder="menu.label"
-      :accessible-label="`${menu.label}菜单`"
+      :accessible-label="t('valueMenu', { arg0: menu.label })"
       :options="menu.options"
       :menu-min-width="220"
       :menu-z-index="1100"

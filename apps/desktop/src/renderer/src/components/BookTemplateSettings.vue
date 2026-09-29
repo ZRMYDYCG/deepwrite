@@ -1,8 +1,12 @@
 <script setup lang="ts">
+import { genreLabel } from "./catalogLabels";
+import { createScopedTranslator } from "../i18n";
 import { computed, ref } from "vue";
 import type { BookTemplate, SaveBookTemplateInput } from "@deepwrite/contracts";
 import BookTemplateEditor from "./BookTemplateEditor.vue";
 import { useBookTemplates } from "../composables/useBookTemplates";
+
+const t = createScopedTranslator("components.bookTemplateSettings");
 const props = defineProps<{
   workspaceType: "short" | "script";
   defaultStageIds: readonly string[];
@@ -26,33 +30,42 @@ async function deleteTemplate() {
 }
 </script>
 <template>
-  <section class="book-template-settings" aria-label="新建模板配置">
+  <section
+    class="book-template-settings"
+    :aria-label="t('newTemplateSettings')"
+  >
     <div class="template-settings-heading">
-      <h3>新建模板</h3>
+      <h3>{{ t("newTemplate") }}</h3>
       <button
         class="dialog-primary-button"
         :disabled="disabled || loading || saving || !catalog"
         @click="editing = null"
       >
-        新建模板配置
+        {{ t("newTemplateSettings") }}
       </button>
     </div>
-    <p>保存题材、人物样式、剧情阶段和关联资料库，供「按模板新建」使用。</p>
-    <p v-if="loading">正在加载模板…</p>
+    <p>
+      {{ t("saveGenreCharacterStylePlotStagesAndLibraryLinks") }}
+    </p>
+    <p v-if="loading">
+      {{ t("loadingTemplates") }}
+    </p>
     <button v-else-if="failed" class="dialog-secondary-button" @click="load">
-      重新加载
+      {{ t("reload") }}
     </button>
-    <p v-else-if="!items.length">尚未配置模板。</p>
+    <p v-else-if="!items.length">
+      {{ t("noTemplatesConfiguredYet") }}
+    </p>
     <ul v-else class="book-template-list">
       <li v-for="item in items" :key="item.id">
         <div>
           <strong>{{ item.configuration.name }}</strong
           ><small
-            >{{ item.configuration.genre }} ·
+            >{{ genreLabel(item.configuration.genre) }} ·
             {{
               item.configuration.characterFormat === "text"
-                ? "文本样式"
-                : "条目样式"
+                ? t("textStyle")
+                : t("entryStyle")
             }}</small
           >
         </div>
@@ -61,13 +74,13 @@ async function deleteTemplate() {
           :disabled="disabled || saving"
           @click="editing = item"
         >
-          编辑</button
+          {{ t("edit") }}</button
         ><button
           class="dialog-secondary-button"
           :disabled="disabled || saving"
           @click="deleting = item"
         >
-          删除
+          {{ t("delete") }}
         </button>
       </li>
     </ul>
@@ -93,12 +106,18 @@ async function deleteTemplate() {
           aria-modal="true"
           aria-labelledby="delete-template-title"
         >
-          <header><h2 id="delete-template-title">删除模板</h2></header>
+          <header>
+            <h2 id="delete-template-title">
+              {{ t("deleteTemplate") }}
+            </h2>
+          </header>
           <div class="dialog-content book-template-form">
             <p>
-              确认删除模板「{{
-                deleting.configuration.name
-              }}」？已创建作品不受影响。
+              {{
+                t("deleteTemplateExistingWorksWillNotBeMessage", {
+                  arg0: deleting.configuration.name ?? ""
+                })
+              }}
             </p>
             <div class="dialog-actions">
               <button
@@ -106,13 +125,13 @@ async function deleteTemplate() {
                 :disabled="saving"
                 @click="deleting = null"
               >
-                取消</button
+                {{ t("cancel") }}</button
               ><button
                 class="template-danger-button"
                 :disabled="saving"
                 @click="deleteTemplate"
               >
-                {{ saving ? "删除中…" : "删除模板" }}
+                {{ saving ? t("deleting") : t("deleteTemplate") }}
               </button>
             </div>
           </div>

@@ -1,3 +1,5 @@
+import { formatError } from "../../i18n/errors";
+import { createScopedTranslator } from "../../i18n";
 import {
   MaterialStageIdSchema,
   SkillStageIdSchema,
@@ -16,6 +18,8 @@ import type {
   LibraryEditorMutationEvent,
   ProposalLaneContext
 } from "./types";
+
+const t = createScopedTranslator("workspace");
 
 export function createLibraryLane(ctx: ProposalLaneContext) {
   const {
@@ -85,7 +89,9 @@ export function createLibraryLane(ctx: ProposalLaneContext) {
       target.operation !== "create" ||
       typeof proposal.proposedText !== "string"
     ) {
-      const message = "待审阅的新条目缺少完整内容，请重新生成。";
+      const message = t(
+        "proposalCoordinator.thePendingNewEntryIsMissingCompleteContentGenerate"
+      );
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: "error",
         statusMessage: message
@@ -95,7 +101,7 @@ export function createLibraryLane(ctx: ProposalLaneContext) {
     }
     const currentApi = api();
     if (!currentApi) {
-      const message = "桌面文件服务当前不可用。";
+      const message = t("short.theDesktopFileServiceIsUnavailable");
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: "error",
         statusMessage: message
@@ -110,7 +116,9 @@ export function createLibraryLane(ctx: ProposalLaneContext) {
         "isBuiltin" in library &&
         library.isBuiltin);
     if (readOnly) {
-      const message = "目标资料库已不可用或只读，无法创建条目。";
+      const message = t(
+        "proposalCoordinator.theDestinationLibraryIsUnavailableOrReadOnlyThe"
+      );
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: "conflict",
         statusMessage: message
@@ -121,7 +129,9 @@ export function createLibraryLane(ctx: ProposalLaneContext) {
     if (
       !currentLibraryProjectRevisionMatches(proposal, library.projectRevision)
     ) {
-      const message = "资料库目录已发生变化，未创建条目，请重新生成。";
+      const message = t(
+        "proposalCoordinator.theLibraryDirectoryChangedNoEntryWasCreatedGenerate"
+      );
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: "conflict",
         statusMessage: message
@@ -130,15 +140,19 @@ export function createLibraryLane(ctx: ProposalLaneContext) {
       return;
     }
     if (acceptingAgentEditWorkspaceIds.value.has(proposal.workspaceId)) {
-      uiMessage.info("同一资料库正在保存其他修改，请稍候再接受");
+      uiMessage.info(
+        t("proposalCoordinator.otherEditsToThisLibraryAreBeingSavedWait")
+      );
       return;
     }
 
     conversation.updateEditProposal(request.runId, request.proposalId, {
       status: "accepting",
       statusMessage: automatic
-        ? "正在自动批准并创建资料库条目…"
-        : "正在校验资料库版本并创建条目…"
+        ? t(
+            "proposalCoordinator.automaticallyApprovingAndCreatingTheLibraryEntry"
+          )
+        : t("proposalCoordinator.checkingTheLibraryVersionAndCreatingTheEntry")
     });
     setAgentEditWorkspaceAccepting(proposal.workspaceId, true);
     try {
@@ -188,22 +202,31 @@ export function createLibraryLane(ctx: ProposalLaneContext) {
           entryId: created.id
         },
         statusMessage: automatic
-          ? "已自动批准并创建资料库条目。"
-          : "已创建并保存到本地 Markdown。"
+          ? t("proposalCoordinator.libraryEntryAutomaticallyApprovedAndCreated")
+          : t("proposalCoordinator.createdAndSavedToLocalMarkdown")
       });
       if (createdDocument) {
         selectedResourceId.value = createdDocument.id;
         rightCollapsed.value = false;
       }
       uiMessage.success(
-        automatic ? "已自动批准并创建资料库条目" : "已创建资料库条目"
+        automatic
+          ? t(
+              "proposalCoordinator.libraryEntryAutomaticallyApprovedAndCreated2"
+            )
+          : t("proposalCoordinator.libraryEntryCreated")
       );
     } catch (error: unknown) {
       const message = isCatalogConflict(error)
-        ? "资料库已在外部更新，未创建条目；请重新生成。"
-        : error instanceof Error
-          ? error.message
-          : "创建资料库条目失败。";
+        ? t(
+            "proposalCoordinator.theLibraryWasUpdatedExternallyNoEntryWasCreated"
+          )
+        : formatError(
+            error,
+            t(
+              "catalogLibraryTransactionsCoordinator.failedToCreateLibraryEntry"
+            )
+          );
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: isCatalogConflict(error) ? "conflict" : "error",
         statusMessage: message
@@ -264,7 +287,9 @@ export function createLibraryLane(ctx: ProposalLaneContext) {
       libraryReadOnly ||
       (event.payload.operation !== "create" && (!target || target.readOnly))
     ) {
-      const message = "目标资料库或条目不可写，本次智能体变更未进入审阅。";
+      const message = t(
+        "libraryLane.theTargetLibraryOrEntryIsNotWritableThese"
+      );
       sourceConversation.markToolConflict(
         event.payload.runId,
         event.payload.toolCallId,
@@ -301,8 +326,9 @@ export function createLibraryLane(ctx: ProposalLaneContext) {
       event.payload.baseRevision !== expectedBaseRevision ||
       (existing !== undefined && currentRevision !== existing.baseRevision)
     ) {
-      const message =
-        "资料库内容版本已变化，本次智能体变更未进入审阅，也没有覆盖你的最新编辑。";
+      const message = t(
+        "libraryLane.theLibraryContentVersionChangedTheseAgentChangesWere"
+      );
       if (existing) {
         sourceConversation.updateEditProposal(event.payload.runId, proposalId, {
           status: "conflict",
@@ -347,7 +373,11 @@ export function createLibraryLane(ctx: ProposalLaneContext) {
       hunks: diff.hunks,
       ...(diff.truncated ? { truncated: true } : {}),
       ...(noChanges
-        ? { statusMessage: "资料库内容没有实际变化，无需保存。" }
+        ? {
+            statusMessage: t(
+              "libraryLane.theLibraryContentHasNotChangedNoSaveIs"
+            )
+          }
         : {}),
       createdAt: existing?.createdAt ?? event.timestamp,
       updatedAt: event.timestamp,

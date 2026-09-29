@@ -11,6 +11,7 @@ import {
   WorkspaceDirectorySettingsSchema,
   type WorkspaceDirectorySettings
 } from "@deepwrite/contracts";
+import { assertOutsideInstallationDirectory } from "./installation-directory-guard";
 
 interface DiskWorkspaceDirectorySettings {
   version: 1;
@@ -24,7 +25,10 @@ export class WorkspaceDirectoryStore {
   readonly settingsPath: string;
   private writeChain: Promise<void> = Promise.resolve();
 
-  constructor(userDataPath: string) {
+  constructor(
+    userDataPath: string,
+    private readonly installDirectory?: string
+  ) {
     this.settingsPath = join(
       userDataPath,
       "config",
@@ -85,6 +89,13 @@ export class WorkspaceDirectoryStore {
         throw new Error("工作目录必须是本地真实文件夹，不能是文件或符号链接。");
       }
       const canonicalPath = await realpath(absolutePath);
+      if (this.installDirectory) {
+        await assertOutsideInstallationDirectory(
+          canonicalPath,
+          this.installDirectory,
+          "工作目录"
+        );
+      }
       const disk: DiskWorkspaceDirectorySettings = {
         version: 1,
         path: canonicalPath

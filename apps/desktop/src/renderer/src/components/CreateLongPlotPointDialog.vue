@@ -1,7 +1,10 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { uiMessage } from "../ui-feedback";
 import AppIcon from "./AppIcon.vue";
+
+const t = createScopedTranslator("components.createLongPlotPointDialog");
 
 const props = defineProps<{
   open: boolean;
@@ -27,7 +30,7 @@ function close(): void {
 function submit(): void {
   const normalizedTitle = title.value.trim();
   if (!normalizedTitle) {
-    uiMessage.warning("请输入剧情点名称。");
+    uiMessage.warning(t("enterAPlotPointName"));
     titleInput.value?.focus({ preventScroll: true });
     return;
   }
@@ -120,13 +123,19 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
         <form @submit.prevent="submit">
           <header>
             <div>
-              <span>剧情设计 · {{ volumeTitle }}</span>
-              <h2 id="create-long-plot-point-title">新建剧情点</h2>
+              <span>{{
+                t("plotDesignMessage", {
+                  arg0: volumeTitle ?? ""
+                })
+              }}</span>
+              <h2 id="create-long-plot-point-title">
+                {{ t("newPlotPoint") }}
+              </h2>
             </div>
             <button
               class="close-button"
               type="button"
-              aria-label="关闭新建剧情点弹窗"
+              :aria-label="t('closeNewPlotPointDialog')"
               :disabled="pending"
               @click="close"
             >
@@ -136,33 +145,35 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
 
           <fieldset :disabled="pending">
             <label>
-              <span>剧情点名称</span>
+              <span>{{ t("plotPointName") }}</span>
               <input
                 ref="titleInput"
                 v-model="title"
                 maxlength="256"
                 autocomplete="off"
-                placeholder="例如：主角收到神秘来信"
+                :placeholder="
+                  t('forExampleTheProtagonistReceivesAMysteriousLetter')
+                "
                 required
               />
             </label>
             <label>
-              <span>概要</span>
+              <span>{{ t("summary") }}</span>
               <textarea
                 v-model="summary"
                 rows="4"
                 maxlength="200000"
-                placeholder="可选；概括这个剧情点的核心目标和结果"
+                :placeholder="t('optionalSummarizeThisPlotPointSCoreGoalAnd')"
               />
             </label>
           </fieldset>
 
           <footer>
             <button type="button" :disabled="pending" @click="close">
-              取消
+              {{ t("cancel") }}
             </button>
             <button class="primary-button" type="submit" :disabled="pending">
-              {{ pending ? "创建中…" : "创建剧情点" }}
+              {{ pending ? t("creating") : t("createPlotPoint") }}
             </button>
           </footer>
         </form>

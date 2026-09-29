@@ -1,3 +1,5 @@
+import { formatError } from "../i18n/errors";
+import { createScopedTranslator } from "../i18n";
 import {
   type LongArcId,
   type LongBookSummary,
@@ -23,6 +25,8 @@ import {
   type LongWorkspaceRefreshStatus
 } from "../stores/longWorkspaceStore";
 import { useLongWorkspaceRefreshCoordinator } from "./useLongWorkspaceRefreshCoordinator";
+
+const t = createScopedTranslator("workspace");
 
 export interface LongWorkspaceSessionNotifications {
   error(message: string): void;
@@ -164,15 +168,29 @@ export function useLongWorkspaceSessionCoordinator<TimerHandle>(
         }
         const first = unseen[0]!;
         notifications.warning(
-          `长篇项目暂时无法读取：${first.message}${
-            unseen.length > 1 ? `（另有 ${unseen.length - 1} 个项目）` : ""
-          }`
+          t(
+            "longWorkspaceSessionCoordinator.theLongFormProjectCouldNotBeRead",
+            {
+              message: first.message,
+              value:
+                unseen.length > 1
+                  ? t(
+                      "catalogWorkspaceProjectionCoordinator.additionalProjects",
+                      { value: unseen.length - 1 }
+                    )
+                  : ""
+            }
+          )
         );
       }
     } catch (error: unknown) {
       if (disposed) return;
-      const message =
-        error instanceof Error ? error.message : "加载长篇创作空间失败。";
+      const message = formatError(
+        error,
+        t(
+          "longWorkspaceSessionCoordinator.couldNotLoadTheLongFormWritingWorkspace"
+        )
+      );
       if (notify) {
         notifications.error(message);
       } else if (catalogRetryAttempts < 2 && catalogRetryTimer === undefined) {
@@ -190,16 +208,23 @@ export function useLongWorkspaceSessionCoordinator<TimerHandle>(
     const currentEditor = editor.value;
     if (!currentEditor) return true;
     if (!isLongWorkspaceEditorPort(currentEditor)) {
-      notifications.error("长篇编辑器尚未准备好，已取消当前操作，请重试。");
+      notifications.error(
+        t(
+          "longWorkspaceSessionCoordinator.theLongFormEditorIsNotReadyThisOperation"
+        )
+      );
       return false;
     }
     try {
       return await currentEditor.saveAllChanges();
     } catch (error: unknown) {
       notifications.error(
-        error instanceof Error
-          ? error.message
-          : "保存长篇修改失败，已取消切换。"
+        formatError(
+          error,
+          t(
+            "longWorkspaceSessionCoordinator.couldNotSaveLongFormChangesNavigationWasCanceled"
+          )
+        )
       );
       return false;
     }
@@ -220,7 +245,11 @@ export function useLongWorkspaceSessionCoordinator<TimerHandle>(
     if (disposed) return;
     const api = context.api();
     if (!api) {
-      notifications.warning("浏览器预览不能打开长篇项目，请使用桌面客户端。");
+      notifications.warning(
+        t(
+          "longWorkspaceSessionCoordinator.longFormProjectsCannotBeOpenedInTheBrowser"
+        )
+      );
       return;
     }
     if (!(await saveActiveEditorBeforeLeaving(bookId)) || disposed) return;
@@ -244,7 +273,10 @@ export function useLongWorkspaceSessionCoordinator<TimerHandle>(
     } catch (error: unknown) {
       if (disposed) return;
       notifications.error(
-        error instanceof Error ? error.message : "打开长篇项目失败。"
+        formatError(
+          error,
+          t("longWorkspaceSessionCoordinator.couldNotOpenTheLongFormProject")
+        )
       );
     }
   }

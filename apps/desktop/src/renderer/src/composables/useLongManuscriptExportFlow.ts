@@ -1,3 +1,4 @@
+import { createScopedTranslator } from "../i18n";
 import type { Ref } from "vue";
 import type { LongWorkspaceRendererApi } from "../types/longWorkspace";
 import {
@@ -11,6 +12,8 @@ import type {
   LongBookLifecycleState,
   PendingLane
 } from "./longBookLifecycleTypes";
+
+const t = createScopedTranslator("workspace.longManuscriptExportFlow");
 
 export interface LongManuscriptExportLease {
   readonly lane: PendingLane;
@@ -152,7 +155,10 @@ export function createLongManuscriptExportFlow(
         if (context.targetIsCurrent(state.exportTarget, target, requestId)) {
           clearExportSelection(state);
           uiMessage.success(
-            `已导出“${target.title}”，共生成 ${result.fileCount} 个 TXT 文件`
+            t("exportedAsTxtFiles", {
+              title: target.title,
+              fileCount: result.fileCount
+            })
           );
         }
       } catch (error: unknown) {
@@ -160,7 +166,9 @@ export function createLongManuscriptExportFlow(
           context.leaseIsCurrent(exportLease) &&
           context.dialogRequestIsCurrent(requestId)
         ) {
-          uiMessage.error(context.errorMessage(error, "导出长篇失败。"));
+          uiMessage.error(
+            context.errorMessage(error, t("couldNotExportTheLongFormProject"))
+          );
         }
       }
     });

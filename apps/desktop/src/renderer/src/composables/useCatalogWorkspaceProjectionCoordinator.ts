@@ -1,3 +1,5 @@
+import { formatError } from "../i18n/errors";
+import { createScopedTranslator } from "../i18n";
 import type {
   Book,
   CatalogIndexSnapshot,
@@ -18,6 +20,10 @@ import type { EditorDraftState, WorkspaceDocument } from "../types/workspace";
 import { reconcileCatalogRecoveryDrafts } from "../utils/catalogDraftRecoveryReconciliation";
 import { hasDirtyLegacyDraftRecoveries } from "../utils/legacyDraftRecoveryDetection";
 import type { LegacyDraftRecoveryMigrationResult } from "../utils/legacyDraftRecovery";
+
+const t = createScopedTranslator(
+  "workspace.catalogWorkspaceProjectionCoordinator"
+);
 
 type CatalogProjectionApi = Pick<DeepWriteApi["catalog"], "index" | "snapshot">;
 
@@ -182,9 +188,14 @@ export function useCatalogWorkspaceProjectionCoordinator(
     const first = unseen[0];
     if (!first) return;
     options.notifications.warning(
-      `项目“${first.projectId}”暂时无法读取：${first.message}${
-        unseen.length > 1 ? `（另有 ${unseen.length - 1} 个项目）` : ""
-      }`
+      t("projectCannotCurrentlyBeRead", {
+        projectId: first.projectId,
+        message: first.message,
+        value:
+          unseen.length > 1
+            ? t("additionalProjects", { value: unseen.length - 1 })
+            : ""
+      })
     );
   }
 
@@ -201,9 +212,12 @@ export function useCatalogWorkspaceProjectionCoordinator(
     if (newlyUnmapped.length === 0) return;
     newlyUnmapped.forEach((key) => warnedUnmappedLegacyRecoveryKeys.add(key));
     options.notifications.warning(
-      `旧版恢复稿与当前正文的磁盘版本或剧集/小节结构不一致，原恢复稿已保留，请核对当前正文目录${
-        newlyUnmapped.length > 1 ? `（共 ${newlyUnmapped.length} 份）` : ""
-      }`
+      t("theLegacyRecoveryDraftDoesNotMatchTheCurrent", {
+        value:
+          newlyUnmapped.length > 1
+            ? t("inTotal", { length: newlyUnmapped.length })
+            : ""
+      })
     );
   }
 
@@ -364,7 +378,7 @@ export function useCatalogWorkspaceProjectionCoordinator(
             requestTrailingRefresh();
             reportLegacyRecoveryFailure(
               snapshot,
-              "旧版恢复稿迁移期间目录版本发生变化，原恢复稿已保留并将重新加载。"
+              t("theDirectoryVersionChangedWhileMigratingLegacyRecoveryDrafts")
             );
           } else {
             const migrator = await loadLegacyRecoveryMigrator();
@@ -385,8 +399,10 @@ export function useCatalogWorkspaceProjectionCoordinator(
           reportLegacyRecoveryFailure(
             snapshot,
             error instanceof Error
-              ? `旧版恢复稿暂时无法迁移：${error.message}`
-              : "旧版恢复稿暂时无法迁移，原恢复稿已保留。"
+              ? t("legacyRecoveryDraftsCannotCurrentlyBeMigrated", {
+                  message: error.message
+                })
+              : t("legacyRecoveryDraftsCannotCurrentlyBeMigratedTheOriginal")
           );
         }
       } else {
@@ -403,7 +419,7 @@ export function useCatalogWorkspaceProjectionCoordinator(
         return false;
       }
       options.notifications.error(
-        error instanceof Error ? error.message : "加载素材库和技能库失败。"
+        formatError(error, t("failedToLoadMaterialAndSkillLibraries"))
       );
       return false;
     }
@@ -465,9 +481,12 @@ export function useCatalogWorkspaceProjectionCoordinator(
 
   function notifyRecoveredDrafts(): void {
     if (disposed || recoveredDraftCount <= 0) return;
-    options.notifications.info(`已恢复 ${recoveredDraftCount} 份未保存草稿`, {
-      duration: 1_500
-    });
+    options.notifications.info(
+      t("restoredUnsavedDrafts", { recoveredDraftCount: recoveredDraftCount }),
+      {
+        duration: 1_500
+      }
+    );
   }
 
   function dispose(): void {

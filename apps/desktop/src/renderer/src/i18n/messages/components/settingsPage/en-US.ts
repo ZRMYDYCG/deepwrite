@@ -1,0 +1,27 @@
+export default {
+  writing: "Writing",
+  workspaceFolder: "Workspace folder",
+  workspaceSettings: "Workspace settings",
+  skillLibrarySettings: "Skill library settings",
+  materialLibrarySettings: "Material library settings",
+  modelsAndUsage: "Models and usage",
+  usage: "Usage",
+  freeModels: "Free models",
+  customModelSettings: "Custom model settings",
+  legacyOfficialModels: "Legacy official models",
+  officialSiteModels: "Official site models",
+  personal: "Personal",
+  general: "General",
+  storageUserDataHistoryDefaultLocationWorkspaceFolder:
+    "Storage user data history default location workspace folder",
+  manuscriptText: "Manuscript text",
+  appearance: "Appearance",
+  voiceSettings: "Voice settings",
+  contextSettings: "Context settings",
+  backToApp: "Back to app",
+  searchSettings: "Search settings…",
+  settingsCategories: "Settings categories",
+  noMatchingSettings: "No matching settings",
+  settingsAreNotConfigured: "” settings are not configured.",
+  settingsAreNotConfiguredMessage: "“{arg0}” settings are not configured."
+};

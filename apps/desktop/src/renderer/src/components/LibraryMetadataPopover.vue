@@ -1,5 +1,8 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
+
+const t = createScopedTranslator("components.libraryMetadataPopover");
 const props = defineProps<{
   content: string;
   entryId: string;
@@ -115,27 +118,39 @@ onBeforeUnmount(() => {
         <strong>{{ label }}</strong
         ><button
           type="button"
-          :aria-label="`关闭${label}`"
+          :aria-label="t('closeValue', { arg0: label })"
           @click="close(true)"
         >
-          关闭
+          {{ t("close") }}
         </button>
       </header>
       <p>{{ hint }}</p>
       <form @submit.prevent="apply">
         <label
-          >名称（{{ optional ? "可选" : "必填" }}）<input
+          >{{
+            t("nameMessage", {
+              arg0: (optional ? t("optional") : t("required")) ?? ""
+            })
+          }}<input
             ref="nameInput"
             v-model="name"
-            :aria-label="`${label}名称`"
+            :aria-label="t('valueName', { arg0: label })"
             :aria-required="!optional"
             :readonly="readOnly"
         /></label>
         <label
-          >使用说明（{{ optional ? "可选" : "必填" }}）<textarea
+          >{{
+            t("usageNotesMessage", {
+              arg0: (optional ? t("optional") : t("required")) ?? ""
+            })
+          }}<textarea
             v-model="description"
             rows="3"
-            :aria-label="`${label}使用说明`"
+            :aria-label="
+              t('valueUsageNotes', {
+                arg0: label
+              })
+            "
             :aria-required="!optional"
             :placeholder="placeholder"
             :readonly="readOnly"
@@ -149,13 +164,14 @@ onBeforeUnmount(() => {
           <span>{{ preview.descriptionSource }}</span>
         </div>
         <footer>
-          <button type="button" @click="close(true)">取消</button
+          <button type="button" @click="close(true)">
+            {{ t("cancel") }}</button
           ><button
             class="library-metadata-submit"
             type="submit"
             :disabled="readOnly"
           >
-            添加名称与说明
+            {{ t("addNameAndNotes") }}
           </button>
         </footer>
       </form>

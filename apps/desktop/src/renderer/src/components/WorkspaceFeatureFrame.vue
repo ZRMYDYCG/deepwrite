@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { t } from "../i18n";
 import AppIcon from "./AppIcon.vue";
 
 defineProps<{
@@ -19,7 +20,7 @@ const emit = defineEmits<{
       class="icon-button"
       :class="expandButtonClass"
       type="button"
-      aria-label="展开左侧栏"
+      :aria-label="t('components.workspaceFeatureFrame.expandSidebar')"
       @click="emit('expandLeft')"
     >
       <AppIcon name="panel-left" :size="18" />

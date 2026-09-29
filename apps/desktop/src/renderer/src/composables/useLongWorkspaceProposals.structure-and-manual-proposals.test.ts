@@ -74,9 +74,10 @@ describe("long workspace proposal approval: structure and manual proposals", () 
     test.previewOperations
       .mockResolvedValueOnce(previewResult(emptyConfirmation))
       .mockResolvedValueOnce(previewResult(changedConfirmation));
-    test.applyOperations.mockRejectedValueOnce(
-      new Error("long.operation.impact_mismatch: 删除影响已变化")
-    );
+    test.applyOperations.mockRejectedValueOnce({
+      code: "long.operation.impact_mismatch",
+      message: "删除影响已变化"
+    });
 
     await test.controller.handleEvent(mutationEvent());
     await test.controller.approve("longbook_test", "event_mutation");
@@ -119,9 +120,10 @@ describe("long workspace proposal approval: structure and manual proposals", () 
 
   it("marks deterministic preview validation failures as non-retryable", async () => {
     const test = harness();
-    test.previewOperations.mockRejectedValueOnce(
-      new Error("long.operation.invalid_reference: invalid target")
-    );
+    test.previewOperations.mockRejectedValueOnce({
+      code: "long.operation.invalid_reference",
+      message: "invalid target"
+    });
 
     await test.controller.handleEvent(mutationEvent());
 

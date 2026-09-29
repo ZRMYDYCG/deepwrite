@@ -1,3 +1,4 @@
+import { createScopedTranslator } from "../i18n";
 import {
   SUBAGENT_AUTHORING_SKILL_BODY_MAX_LENGTH,
   SubagentAuthoringDraftSchema,
@@ -7,6 +8,8 @@ import {
 } from "@deepwrite/contracts";
 import { createId } from "@deepwrite/shared";
 import { computed, ref, type Ref } from "vue";
+
+const t = createScopedTranslator("workspace.subagentAuthoring");
 
 type SessionApi = {
   prompt: (payload: {
@@ -132,16 +135,16 @@ export function useSubagentAuthoring(
   ): Promise<boolean> {
     const api = options.api();
     if (!api) {
-      error.value = "当前环境无法调用智能体。";
+      error.value = t("agentsAreNotAvailableInThisEnvironment");
       status.value = "error";
       return false;
     }
     if (isBusy.value) {
-      error.value = "生成进行中，请先停止或等待完成。";
+      error.value = t("generationIsInProgressStopItOrWaitFor");
       return false;
     }
     if (!modelId.trim()) {
-      error.value = "请先在模型配置中添加可用模型。";
+      error.value = t("addAnAvailableModelInModelSettingsFirst");
       status.value = "error";
       return false;
     }
@@ -149,7 +152,7 @@ export function useSubagentAuthoring(
     sessionId.value = makeId("subagent_authoring_session");
     draft.value = null;
     error.value = null;
-    statusText.value = "正在读取已选技能正文…";
+    statusText.value = t("readingSelectedSkillContent");
     status.value = "starting";
     activeRunId.value = null;
     observedRunId.value = null;
@@ -162,17 +165,25 @@ export function useSubagentAuthoring(
         statusText.value = null;
         return false;
       }
-      statusText.value = "正在根据技能生成子智能体草稿…";
+      statusText.value = t("generatingASubagentDraftFromTheSelectedSkills");
       const modeLabel =
-        runtimeContext.outputMode === "write" ? "直接写入文档" : "只交回结论";
+        runtimeContext.outputMode === "write"
+          ? t("writeDirectlyToDocuments")
+          : t("returnFindingsOnly");
       const skillTitles = runtimeContext.skills
         .map((skill) => `${skill.libraryTitle} · ${skill.title}`)
         .join("、");
       const message = [
-        `请根据已选定的技能，为「${runtimeContext.parentAgentLabel}」生成一个子智能体草稿。`,
-        `产出方式（用户已确认）：${modeLabel}。`,
-        `选定技能：${skillTitles}。`,
-        "请先读取技能正文，再调用 write_subagent_draft 提交名称、能力说明和系统提示词。"
+        t("generateASubagentDraftForUsingTheSelectedSkills", {
+          parentAgentLabel: runtimeContext.parentAgentLabel
+        }),
+        t("outputModeConfirmedByTheUser", {
+          modeLabel: modeLabel
+        }),
+        t("selectedSkills", {
+          skillTitles: skillTitles
+        }),
+        t("readTheSkillContentFirstThenCallWriteSubagent")
       ].join("\n");
       const accepted = await api.session.prompt({
         sessionId: sessionId.value,
@@ -189,7 +200,7 @@ export function useSubagentAuthoring(
       return true;
     } catch (cause: unknown) {
       status.value = "error";
-      error.value = errorMessage(cause, "生成子智能体草稿失败。");
+      error.value = errorMessage(cause, t("failedToGenerateTheSubagentDraft"));
       statusText.value = null;
       return false;
     }
@@ -200,14 +211,14 @@ export function useSubagentAuthoring(
     if (!api || !activeRunId.value || !isBusy.value) return;
     stopRequested = true;
     status.value = "stopping";
-    statusText.value = "正在停止…";
+    statusText.value = t("stopping");
     try {
       await api.session.abort({
         sessionId: sessionId.value,
         runId: activeRunId.value
       });
     } catch (cause: unknown) {
-      error.value = errorMessage(cause, "停止生成失败。");
+      error.value = errorMessage(cause, t("failedToStopGeneration"));
       status.value = "error";
       statusText.value = null;
     }
@@ -232,7 +243,11 @@ export function useSubagentAuthoring(
     if (event.type === "agent.retry_scheduled") {
       const retryNumber = Math.max(1, event.payload.nextAttempt - 1);
       const maxRetries = Math.max(1, event.payload.maxAttempts - 1);
-      statusText.value = `网络波动，${Math.ceil(event.payload.delayMs / 1_000)}s 后重试（第 ${retryNumber}/${maxRetries} 次）`;
+      statusText.value = t("networkInterruptionRetryingInS", {
+        ceil: Math.ceil(event.payload.delayMs / 1_000),
+        retryNumber: retryNumber,
+        maxRetries: maxRetries
+      });
       return;
     }
 
@@ -240,7 +255,10 @@ export function useSubagentAuthoring(
       if (event.payload.attempt > 1) {
         const retryNumber = event.payload.attempt - 1;
         const maxRetries = Math.max(1, event.payload.maxAttempts - 1);
-        statusText.value = `正在重试（第 ${retryNumber}/${maxRetries} 次）`;
+        statusText.value = t("retrying", {
+          retryNumber: retryNumber,
+          maxRetries: maxRetries
+        });
       }
       return;
     }
@@ -251,23 +269,27 @@ export function useSubagentAuthoring(
       );
       if (parsed.success) {
         draft.value = parsed.data;
-        statusText.value = "草稿已更新，可确认加入团队或继续等待生成完成。";
+        statusText.value = t("draftUpdatedConfirmToAddItToTheTeam");
       }
       return;
     }
 
     if (event.type === "tool.call_requested") {
-      statusText.value = `正在调用 ${event.payload.toolName}…`;
+      statusText.value = t("calling", {
+        toolName: event.payload.toolName
+      });
       return;
     }
 
     if (event.type === "agent.message_completed") {
       status.value = draft.value ? "completed" : "error";
       if (!draft.value) {
-        error.value = "生成已结束，但未收到子智能体草稿。请重试。";
+        error.value = t(
+          "generationFinishedWithoutASubagentDraftPleaseTryAgain"
+        );
         statusText.value = null;
       } else {
-        statusText.value = "草稿已就绪，确认后加入当前主智能体团队。";
+        statusText.value = t("draftReadyConfirmToAddItToTheCurrent");
       }
       activeRunId.value = null;
       return;
@@ -275,7 +297,8 @@ export function useSubagentAuthoring(
 
     if (event.type === "agent.error") {
       status.value = "error";
-      error.value = event.payload.message || "生成子智能体草稿失败。";
+      error.value =
+        event.payload.message || t("failedToGenerateTheSubagentDraft");
       statusText.value = null;
       activeRunId.value = null;
     }

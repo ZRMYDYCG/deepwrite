@@ -1,8 +1,11 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import { computed, nextTick, onMounted, ref, useId } from "vue";
 import type { ComposerContextOption } from "../composables/composerContextNavigationContext";
 import { useComposerContextPopover } from "../composables/useComposerContextPopover";
 import AppIcon from "./AppIcon.vue";
+
+const t = createScopedTranslator("components.composerContextMenu");
 const props = defineProps<{
   anchor: HTMLElement;
   kind: "book" | "stage";
@@ -24,10 +27,10 @@ const filtered = computed(() => {
 });
 const title = computed(() =>
   props.kind === "book"
-    ? "选择书籍或资料库"
+    ? t("chooseABookOrLibrary")
     : props.library
-      ? "选择资料库内容"
-      : "选择书籍阶段"
+      ? t("chooseLibraryContent")
+      : t("chooseBookStage")
 );
 const { style, close, tab } = useComposerContextPopover(
   () => props.anchor,
@@ -89,7 +92,7 @@ onMounted(async () => {
         <button
           class="context-picker-close"
           type="button"
-          aria-label="关闭选择浮层"
+          :aria-label="t('closeSelectionPanel')"
           @click="close"
         >
           <AppIcon name="close" :size="15" />
@@ -103,10 +106,14 @@ onMounted(async () => {
             v-model="query"
             type="search"
             :placeholder="
-              kind === 'book' ? '搜索书籍或资料库' : '搜索名称或分类'
+              kind === 'book'
+                ? t('searchBooksOrLibraries')
+                : t('searchNamesOrCategories')
             "
             :aria-label="
-              kind === 'book' ? '搜索书籍或资料库' : '搜索阶段或内容'
+              kind === 'book'
+                ? t('searchBooksOrLibraries')
+                : t('searchStagesOrContent')
             "
           />
         </label>
@@ -129,7 +136,7 @@ onMounted(async () => {
               ><small
                 v-if="option.detail || option.disabled"
                 :title="option.detail"
-                >{{ option.disabled ? "暂不可用" : option.detail }}</small
+                >{{ option.disabled ? t("unavailable") : option.detail }}</small
               ></span
             >
             <span v-if="option.current" class="context-current"
@@ -139,14 +146,14 @@ onMounted(async () => {
           </button>
           <div v-if="!filtered.length" class="context-picker-empty">
             <AppIcon name="search" :size="26" /><strong>{{
-              query.trim() ? "没有找到匹配项" : "暂无可选内容"
+              query.trim() ? t("noMatchesFound") : t("noContentAvailable")
             }}</strong
             ><span>{{
               query.trim()
-                ? "试试其他关键词"
+                ? t("tryDifferentKeywords")
                 : kind === "book"
-                  ? "可在左侧栏创建或打开作品"
-                  : "可在左侧栏添加内容"
+                  ? t("createOrOpenAWorkInTheSidebar")
+                  : t("addContentInTheSidebar")
             }}</span>
           </div>
         </div>

@@ -1,3 +1,4 @@
+import { expectSourceToContain } from "../../test-utils/sourceText";
 import { describe, expect, it } from "vitest";
 import appSource from "./WorkspaceShell.vue?raw";
 import editorSource from "./components/LongWorkspaceEditor.vue?raw";
@@ -55,8 +56,9 @@ describe("accepted approval navigation wiring", () => {
     expect(coordinatorSource).toContain("if (!target.sectionId)");
     expect(coordinatorSource).toContain("await context.catalog.refresh()");
     expect(coordinatorSource).toContain("requestIsCurrent(requestId)");
-    expect(appSource).toContain(
-      'uiMessage.warning("目标文件或所属条目已不存在，无法跳转。")'
+    expectSourceToContain(
+      appSource,
+      'uiMessage.warning(t("theTargetFileOrItsParentEntryNoLonger"))'
     );
   });
 

@@ -1,3 +1,4 @@
+import { t } from "../i18n";
 import type { DeepWriteApi } from "@deepwrite/contracts";
 
 export function createModelApiTestFixture(): DeepWriteApi["models"] {
@@ -89,7 +90,7 @@ export function createModelApiTestFixture(): DeepWriteApi["models"] {
       return {
         modelId: model.id,
         ok: true,
-        message: "连接成功",
+        message: t("workspace.modelApiTestFixture.connectionSuccessful"),
         testedAt: new Date().toISOString(),
         contextWindow: 272_000,
         maxTokens: 128_000

@@ -1,3 +1,5 @@
+import { formatError } from "../i18n/errors";
+import { t } from "../i18n";
 import {
   getCurrentInstance,
   provide,
@@ -216,9 +218,12 @@ export function useLazyShortBookLifecycleCoordinator(
     if (disposed || loadFailureReported) return;
     loadFailureReported = true;
     options.notifications.error(
-      error instanceof Error
-        ? error.message
-        : "加载短篇书籍生命周期协调器失败。"
+      formatError(
+        error,
+        t(
+          "workspace.lazyShortBookLifecycleCoordinator.failedToLoadTheShortStoryLifecycleCoordinator"
+        )
+      )
     );
   }
 

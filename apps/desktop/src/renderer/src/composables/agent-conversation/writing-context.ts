@@ -1,4 +1,7 @@
+import { createScopedTranslator } from "../../i18n";
 import type { DeepWriteApi, WorkspaceType } from "@deepwrite/contracts";
+
+const t = createScopedTranslator("workspace");
 
 export async function loadWritingContextForPrompt(
   catalog: DeepWriteApi["catalog"],
@@ -6,18 +9,30 @@ export async function loadWritingContextForPrompt(
   workspaceType: WorkspaceType,
   warn?: (message: string) => void
 ): Promise<string | undefined> {
-  const label = workspaceType === "script" ? "剧本" : "短篇";
+  const label =
+    workspaceType === "script"
+      ? t("catalogWorkspace.screenplay")
+      : t("catalogWorkspace.shortStory");
   try {
     const result = await catalog.readWritingContext({ bookId });
     if (result.truncated) {
-      warn?.(`${label}上下文过长，本轮只注入了截断后的 AGENTS.md。`);
+      warn?.(
+        t("writingContext.theContextIsTooLongOnlyATruncatedAgents", {
+          label: label
+        })
+      );
     }
     return result.content;
   } catch (error: unknown) {
     warn?.(
       error instanceof Error
-        ? `${label}上下文未注入：${error.message}`
-        : `${label}上下文未注入，本轮仍会发送。`
+        ? t("writingContext.theContextWasNotIncluded", {
+            label: label,
+            message: error.message
+          })
+        : t("writingContext.theContextWasNotIncludedThisTurnWillStill", {
+            label: label
+          })
     );
     return undefined;
   }

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import { computed } from "vue";
 import type { AgentSubagentRun, ChatMessage } from "../types/conversation";
 import {
@@ -16,6 +17,8 @@ import ConversationRunClock from "./ConversationRunClock.vue";
 import ConversationWorkGroup from "./ConversationWorkGroup.vue";
 import StreamedContent from "./StreamedContent.vue";
 
+const t = createScopedTranslator("components.subagentRunList");
+
 const props = defineProps<{
   message: ChatMessage;
   runs?: AgentSubagentRun[];
@@ -28,7 +31,7 @@ const runs = computed(() => props.runs ?? props.message.subagentRuns ?? []);
   <section
     v-if="runs.length"
     class="subagent-run-list"
-    aria-label="子智能体执行记录"
+    :aria-label="t('subagentRuns')"
   >
     <ConversationDetails
       v-for="run in runs"
@@ -56,7 +59,7 @@ const runs = computed(() => props.runs ?? props.message.subagentRuns ?? []);
           </span>
           <span class="subagent-run-task">{{ run.task }}</span>
         </span>
-        <span class="subagent-run-meta" aria-label="子任务运行摘要">
+        <span class="subagent-run-meta" :aria-label="t('subtaskSummary')">
           <ConversationRunClock
             v-slot="{ now }"
             :active="run.status === 'running'"
@@ -68,8 +71,15 @@ const runs = computed(() => props.runs ?? props.message.subagentRuns ?? []);
           <span v-if="subagentRetryProgress(run)">{{
             subagentRetryProgress(run)
           }}</span>
-          <span>{{ run.toolCalls.length }} 个工具</span>
-          <span v-if="subagentUsageLabel(run)" aria-label="子智能体 token 用量">
+          <span>{{
+            t("toolsMessage", {
+              arg0: run.toolCalls.length ?? ""
+            })
+          }}</span>
+          <span
+            v-if="subagentUsageLabel(run)"
+            :aria-label="t('subagentTokenUsage')"
+          >
             {{ subagentUsageLabel(run) }}
           </span>
           <span v-if="subagentReviewHint(message, run)" class="is-review">
@@ -81,7 +91,7 @@ const runs = computed(() => props.runs ?? props.message.subagentRuns ?? []);
 
       <div class="subagent-run-detail">
         <section class="subagent-run-handoff subagent-run-assigned-task">
-          <strong>主智能体下发的任务</strong>
+          <strong>{{ t("taskAssignedByPrimaryAgent") }}</strong>
           <p>{{ run.task }}</p>
         </section>
         <ConversationRunClock
@@ -98,7 +108,7 @@ const runs = computed(() => props.runs ?? props.message.subagentRuns ?? []);
         <div
           v-if="subagentProcessingDisplayItems(run).length"
           class="subagent-processing-list"
-          aria-label="子智能体执行过程"
+          :aria-label="t('subagentExecution')"
         >
           <template
             v-for="item in subagentProcessingDisplayItems(run)"
@@ -123,7 +133,7 @@ const runs = computed(() => props.runs ?? props.message.subagentRuns ?? []);
           </template>
         </div>
         <div v-else-if="run.status === 'running'" class="subagent-run-waiting">
-          正在启动独立上下文并接收执行事件…
+          {{ t("startingIndependentContextAndReceivingEvents") }}
         </div>
 
         <section
@@ -132,7 +142,9 @@ const runs = computed(() => props.runs ?? props.message.subagentRuns ?? []);
           :class="{ 'is-error': run.status === 'error' }"
         >
           <strong>{{
-            run.status === "completed" ? "交接摘要" : "结束说明"
+            run.status === "completed"
+              ? t("handoffSummary")
+              : t("completionNotes")
           }}</strong>
           <StreamedContent
             v-if="run.summary"

@@ -1,8 +1,11 @@
+import { createScopedTranslator } from "../../i18n";
 import type { AgentConversationContext } from "./context";
 import type { AgentRuntimeRef } from "@deepwrite/contracts";
 import type { AgentSubagentRun, ChatMessage } from "../../types/conversation";
 import type { SubagentEventPayload } from "./types";
 import { isRecord } from "./shared";
+
+const t = createScopedTranslator("workspace.subagentIdentity");
 
 type SubagentIdentityContext = Pick<
   AgentConversationContext,
@@ -47,7 +50,7 @@ export function ensurePendingSubagentRunForTool(
   const task =
     typeof record.task === "string" && record.task.trim()
       ? record.task.trim()
-      : "正在接收子任务…";
+      : t("receivingSubtask");
   (message.subagentRuns ??= []).push({
     parentToolCallId: toolCallId,
     subagentRunId: `pending:${toolCallId}`,
@@ -82,7 +85,7 @@ export function ensureSubagentRun(
       subagentRunId: payload.subagentRunId,
       subagentId: payload.subagentId,
       name: payload.name,
-      task: task ?? "正在接收子任务…",
+      task: task ?? t("receivingSubtask"),
       status: "running",
       runtime: { ...payload.runtime },
       toolCalls: [],

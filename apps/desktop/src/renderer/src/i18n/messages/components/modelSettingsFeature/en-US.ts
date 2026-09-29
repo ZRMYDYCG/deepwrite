@@ -1,0 +1,36 @@
+export default {
+  customModelSettings: "Custom model settings",
+  modelAnnouncements: "Model announcements",
+  configureOfficialModels: "Configure official models",
+  readingModelSettings: "Reading model settings…",
+  providers: " providers",
+  models: " models",
+  addModel: "Add model",
+  noCustomModelsConfigured: "No custom models configured",
+  noLiveModelsConfigured: "No live models configured",
+  afterAddingACustomModelTestItsConnectionManage:
+    "After adding a custom model, test its connection, manage its key, and set it as the global default here.",
+  thisConversationStillUsesDeepWriteFauxAddAModel:
+    "This conversation still uses DeepWrite Faux. Add a model and set it as default to use a live provider for new requests.",
+  legacyOfficialModels: "Legacy official models",
+  officialSiteModels: "Official site models",
+  deepWriteFreeModels: "DeepWrite free models",
+  reasoningValue: "Reasoning: {arg0}",
+  temperatureValue: "Temperature: {arg0}",
+  keyConfigured: "Key configured",
+  managedAccess: "Managed access",
+  noKeyConfigured: "No key configured",
+  saving: "Saving…",
+  default: "Default",
+  setAsDefault: "Set as default",
+  edit: "Edit",
+  testTheCurrentUnsavedSettings: "Test the current unsaved settings",
+  testing: "Testing…",
+  testConnection: "Test connection",
+  configureContextLengthAndMaximumOutputLength:
+    "Configure context length and maximum output length",
+  advancedSettings: "Advanced settings",
+  delete: "Delete",
+  providersMessage: "Providers: {arg0}",
+  modelsMessage: "Models: {arg0}"
+};

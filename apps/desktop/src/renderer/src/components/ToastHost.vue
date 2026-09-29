@@ -1,11 +1,22 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import { dismissUiMessage, uiMessageItems } from "../ui-feedback";
 
+const t = createScopedTranslator("components.toastHost");
+
 const kindLabel = {
-  success: "成功",
-  error: "错误",
-  warning: "提醒",
-  info: "提示"
+  get success() {
+    return t("success");
+  },
+  get error() {
+    return t("error");
+  },
+  get warning() {
+    return t("warning");
+  },
+  get info() {
+    return t("info");
+  }
 } as const;
 </script>
 

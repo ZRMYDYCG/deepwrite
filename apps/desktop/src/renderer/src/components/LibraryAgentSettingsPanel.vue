@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import {
   LIBRARY_AGENT_MAX_SKILLS,
   type LibraryAgentDomain,
@@ -9,6 +10,8 @@ import {
 import { computed, ref, watch } from "vue";
 import { uiMessage } from "../ui-feedback";
 import AppIcon from "./AppIcon.vue";
+
+const t = createScopedTranslator("components.libraryAgentSettingsPanel");
 
 type SettingsTabId = "system-prompt" | "available-skills";
 type EditableAgent = LibraryAgentSettingsInput["agents"][number];
@@ -28,18 +31,32 @@ const emit = defineEmits<{
 
 const DOMAIN_COPY = {
   skill: {
-    eyebrow: "技能库",
-    title: "技能库管理智能体",
-    description:
-      "配置技能库管理智能体的系统提示词，以及可按需加载的方法技能（名称、描述与正文）。",
-    saveLabel: "保存技能库配置"
+    get eyebrow() {
+      return t("skillLibrary");
+    },
+    get title() {
+      return t("skillLibraryAgent");
+    },
+    get description() {
+      return t("configureTheSkillLibraryAgentSSystemPromptAnd");
+    },
+    get saveLabel() {
+      return t("saveSkillLibrarySettings");
+    }
   },
   material: {
-    eyebrow: "素材库",
-    title: "素材库管理智能体",
-    description:
-      "配置素材库管理智能体的系统提示词，以及可按需加载的方法技能（名称、描述与正文）。",
-    saveLabel: "保存素材库配置"
+    get eyebrow() {
+      return t("materialLibrary");
+    },
+    get title() {
+      return t("materialLibraryAgent");
+    },
+    get description() {
+      return t("configureTheMaterialLibraryAgentSSystemPromptAnd");
+    },
+    get saveLabel() {
+      return t("saveMaterialLibrarySettings");
+    }
   }
 } as const satisfies Record<
   LibraryAgentDomain,
@@ -54,13 +71,21 @@ const DOMAIN_COPY = {
 const SETTINGS_TABS = [
   {
     id: "system-prompt",
-    label: "系统提示词",
-    description: "职责与工作流程"
+    get label() {
+      return t("systemPrompt");
+    },
+    get description() {
+      return t("roleAndWorkflow");
+    }
   },
   {
     id: "available-skills",
-    label: "可用技能",
-    description: "按需加载的方法"
+    get label() {
+      return t("availableSkills");
+    },
+    get description() {
+      return t("methodsLoadedOnDemand");
+    }
   }
 ] as const satisfies readonly {
   id: SettingsTabId;
@@ -160,14 +185,18 @@ function addSkill(): void {
   const draft = activeDraft.value;
   if (!draft || formDisabled.value) return;
   if (draft.readAccess.skills.length >= LIBRARY_AGENT_MAX_SKILLS) {
-    uiMessage.warning(`最多只能配置 ${LIBRARY_AGENT_MAX_SKILLS} 条技能`);
+    uiMessage.warning(
+      t("configureUpToValueSkills", {
+        arg0: LIBRARY_AGENT_MAX_SKILLS
+      })
+    );
     return;
   }
   const skill: LibraryAgentSkill = {
     id: createSkillId("skill"),
-    name: "新技能",
+    name: t("newSkill"),
     description: "",
-    content: "请填写技能正文。"
+    content: t("enterSkillContent")
   };
   draft.readAccess.skills.push(skill);
   activeSkillId.value = skill.id;
@@ -177,7 +206,7 @@ function removeActiveSkill(): void {
   const draft = activeDraft.value;
   if (!draft || formDisabled.value || !activeSkillDraft.value) return;
   if (draft.readAccess.skills.length <= 1) {
-    uiMessage.warning("至少需要保留一条可用技能");
+    uiMessage.warning(t("keepAtLeastOneAvailableSkill"));
     return;
   }
   const index = draft.readAccess.skills.findIndex(
@@ -194,9 +223,15 @@ function validateSkills(skills: readonly LibraryAgentSkill[]): string | null {
   for (const skill of skills) {
     const name = skill.name.trim();
     const content = skill.content.trim();
-    if (!name) return "每条技能的名称不能为空";
-    if (!content) return `技能「${name || "未命名"}」的正文不能为空`;
-    if (names.has(name)) return `技能名称「${name}」重复`;
+    if (!name) return t("everySkillNeedsAName");
+    if (!content)
+      return t("skillValueNeedsContent", {
+        arg0: name || t("untitled")
+      });
+    if (names.has(name))
+      return t("duplicateSkillNameValue", {
+        arg0: name
+      });
     names.add(name);
   }
   return null;
@@ -205,7 +240,11 @@ function validateSkills(skills: readonly LibraryAgentSkill[]): string | null {
 function saveSettings(): void {
   if (formDisabled.value || !props.settings || !activeDraft.value) return;
   if (!activeDraft.value.systemPrompt.trim()) {
-    uiMessage.warning(`${domainCopy.value.title}的系统提示词不能为空`);
+    uiMessage.warning(
+      t("valueNeedsASystemPrompt", {
+        arg0: domainCopy.value.title
+      })
+    );
     return;
   }
   const skillError = validateSkills(activeDraft.value.readAccess.skills);
@@ -264,26 +303,39 @@ function resetSettings(): void {
         <h2 :id="`${domain}-library-agent-title`">{{ domainCopy.title }}</h2>
         <p>{{ domainCopy.description }}</p>
         <p v-if="!runtimeAvailable" class="runtime-note">
-          当前环境仅支持查看；保存和恢复默认设置需要使用 DeepWrite 桌面端。
+          {{ t("thisEnvironmentSupportsViewingOnlyUseTheDeepWriteDesktop") }}
         </p>
       </div>
       <span
         v-if="hasUnsavedChanges && settings && activeDraft"
         class="prompt-state"
       >
-        未保存
+        {{ t("unsaved") }}
       </span>
     </header>
 
     <div v-if="loading" class="panel-state" aria-live="polite">
-      正在加载{{ domainCopy.eyebrow }}配置…
+      {{
+        t("loadingSettingsMessage", {
+          arg0: domainCopy.eyebrow ?? ""
+        })
+      }}
     </div>
     <div v-else-if="!settings || !activeDraft" class="panel-state">
-      暂无可用的{{ domainCopy.eyebrow }}智能体配置。
+      {{
+        t("noAgentSettingsAvailableMessage", { arg0: domainCopy.eyebrow ?? "" })
+      }}
     </div>
 
     <div v-else class="settings-layout">
-      <nav class="settings-nav" :aria-label="`${domainCopy.eyebrow}配置分类`">
+      <nav
+        class="settings-nav"
+        :aria-label="
+          t('valueSettingsCategory', {
+            arg0: domainCopy.eyebrow
+          })
+        "
+      >
         <button
           v-for="tab in SETTINGS_TABS"
           :key="tab.id"
@@ -305,17 +357,29 @@ function resetSettings(): void {
         >
           <div class="section-heading">
             <div>
-              <h4>系统提示词</h4>
-              <p>当前库、活动条目和只读状态等动态信息会在运行时自动补充。</p>
+              <h4>
+                {{ t("systemPrompt") }}
+              </h4>
+              <p>
+                {{ t("theCurrentLibraryActiveEntryReadOnlyStatusAnd") }}
+              </p>
             </div>
-            <span>{{ activeDraft.systemPrompt.length }} 字符</span>
+            <span>{{
+              t("charactersMessage", {
+                arg0: activeDraft.systemPrompt.length ?? ""
+              })
+            }}</span>
           </div>
           <textarea
             :value="activeDraft.systemPrompt"
             :disabled="formDisabled"
             spellcheck="false"
-            :aria-label="`${domainCopy.title}系统提示词`"
-            placeholder="输入资料库管理智能体的系统提示词…"
+            :aria-label="
+              t('valueSystemPrompt', {
+                arg0: domainCopy.title
+              })
+            "
+            :placeholder="t('enterTheLibraryAgentSSystemPrompt')"
             @input="updateSystemPrompt"
           />
         </section>
@@ -323,14 +387,17 @@ function resetSettings(): void {
         <section
           v-else
           class="settings-card skills-card"
-          aria-label="可用技能配置"
+          :aria-label="t('availableSkillSettings')"
         >
           <div class="section-heading">
             <div>
-              <h4>可用技能</h4>
+              <h4>
+                {{ t("availableSkills") }}
+              </h4>
               <p>
-                逐条配置方法技能。智能体通过 load_skill
-                按名称加载正文，机制与创作空间一致；这些技能与左侧资源树中的技能库分类无关。
+                {{
+                  t("configureMethodSkillsIndividuallyTheAgentLoadsContentBy")
+                }}
               </p>
             </div>
             <button
@@ -340,15 +407,15 @@ function resetSettings(): void {
               @click="addSkill"
             >
               <AppIcon name="plus" :size="14" />
-              添加技能
+              {{ t("addSkill") }}
             </button>
           </div>
 
           <div v-if="!activeSkillDraft" class="skills-empty">
-            暂无可用技能，请添加至少一条。
+            {{ t("noSkillsAvailableAddAtLeastOne") }}
           </div>
           <div v-else class="skills-layout">
-            <nav class="skill-nav" aria-label="技能列表">
+            <nav class="skill-nav" :aria-label="t('skillList')">
               <button
                 v-for="skill in activeDraft.readAccess.skills"
                 :key="skill.id"
@@ -358,39 +425,41 @@ function resetSettings(): void {
                 :aria-current="skill.id === activeSkillId ? 'page' : undefined"
                 @click="selectSkill(skill.id)"
               >
-                <strong>{{ skill.name.trim() || "未命名技能" }}</strong>
-                <small>{{ skill.description.trim() || "暂无描述" }}</small>
+                <strong>{{ skill.name.trim() || t("untitledSkill") }}</strong>
+                <small>{{
+                  skill.description.trim() || t("noDescription")
+                }}</small>
               </button>
             </nav>
 
             <div class="skill-editor">
               <label class="field">
-                <span>技能名称</span>
+                <span>{{ t("skillName") }}</span>
                 <input
                   :value="activeSkillDraft.name"
                   :disabled="formDisabled"
                   maxlength="120"
-                  placeholder="例如：创建一个技能"
+                  :placeholder="t('forExampleCreateASkill')"
                   @input="updateSkillField('name', $event)"
                 />
               </label>
               <label class="field">
-                <span>技能描述</span>
+                <span>{{ t("skillDescription") }}</span>
                 <input
                   :value="activeSkillDraft.description"
                   :disabled="formDisabled"
                   maxlength="500"
-                  placeholder="简要说明这条方法的用途"
+                  :placeholder="t('brieflyDescribeWhatThisMethodDoes')"
                   @input="updateSkillField('description', $event)"
                 />
               </label>
               <label class="field field-content">
-                <span>技能内容</span>
+                <span>{{ t("skillContent") }}</span>
                 <textarea
                   :value="activeSkillDraft.content"
                   :disabled="formDisabled"
                   spellcheck="false"
-                  placeholder="写入 load_skill 加载后的方法正文…"
+                  :placeholder="t('enterTheMethodContentLoadedByLoadSkill')"
                   @input="updateSkillField('content', $event)"
                 />
               </label>
@@ -403,7 +472,7 @@ function resetSettings(): void {
                   "
                   @click="removeActiveSkill"
                 >
-                  删除当前技能
+                  {{ t("deleteCurrentSkill") }}
                 </button>
               </div>
             </div>
@@ -418,7 +487,7 @@ function resetSettings(): void {
             @click="resetSettings"
           >
             <AppIcon name="history" :size="15" />
-            恢复默认设置
+            {{ t("restoreDefaults") }}
           </button>
           <button
             type="button"
@@ -427,7 +496,7 @@ function resetSettings(): void {
             @click="saveSettings"
           >
             <AppIcon name="save" :size="15" />
-            {{ saving ? "保存中…" : domainCopy.saveLabel }}
+            {{ saving ? t("saving") : domainCopy.saveLabel }}
           </button>
         </footer>
       </div>

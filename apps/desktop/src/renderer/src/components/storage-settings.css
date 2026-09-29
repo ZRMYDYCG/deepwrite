@@ -1,0 +1,117 @@
+.storage-heading,
+.storage-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.storage-heading {
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.storage-heading .settings-group-title,
+.storage-description h3 {
+  margin: 0;
+}
+
+.storage-card {
+  min-width: 0;
+  padding: 18px;
+  gap: 16px;
+}
+
+.storage-description h3 {
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 590;
+}
+
+.storage-description p,
+.storage-note {
+  margin: 7px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.892857rem;
+  line-height: 1.6;
+}
+
+.storage-note {
+  margin: 0;
+}
+
+.storage-paths {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  margin: 0;
+  padding: 14px;
+  border: 1px solid var(--theme-line-soft);
+  border-radius: 8px;
+  background: var(--surface-main);
+}
+
+.storage-paths dt {
+  margin-bottom: 5px;
+  color: var(--text-secondary);
+  font-size: 0.857143rem;
+}
+
+.storage-paths dd {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.928571rem;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  user-select: text;
+}
+
+.storage-button,
+.storage-refresh {
+  padding: 8px 12px;
+  border: 1px solid var(--theme-line);
+  border-radius: 8px;
+  background: var(--surface-main);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.928571rem;
+  cursor: pointer;
+}
+
+.storage-button:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+
+.storage-button.is-primary {
+  border-color: var(--neutral-solid);
+  background: var(--neutral-solid);
+  color: var(--surface-main);
+}
+
+.storage-button.is-primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--neutral-solid) 88%, #fff);
+}
+
+.storage-refresh {
+  padding: 2px 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.857143rem;
+}
+
+.storage-refresh:hover:not(:disabled) {
+  color: var(--text-primary);
+}
+
+.storage-button:focus-visible,
+.storage-refresh:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+button:disabled {
+  cursor: default;
+  opacity: 0.55;
+}

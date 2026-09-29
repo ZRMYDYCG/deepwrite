@@ -1,7 +1,10 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import { computed } from "vue";
 import type { LongWorkspaceImpactConfirmation } from "@deepwrite/contracts";
 import { longImpactConfirmationLines } from "../utils/longImpactConfirmation";
+
+const t = createScopedTranslator("components.longImpactConfirmationDetails");
 
 const props = withDefaults(
   defineProps<{
@@ -10,7 +13,7 @@ const props = withDefaults(
     open?: boolean;
   }>(),
   {
-    fallback: "本次操作没有额外关联影响。",
+    fallback: "",
     open: true
   }
 );
@@ -22,10 +25,24 @@ const summary = computed(() => {
   const fileCount = props.confirmation.fileIntents.length;
   const ledgerCount = props.confirmation.ledgerRecordEdits.length;
   return [
-    entityCount ? `${entityCount} 项实体变化` : "",
-    relationshipCount ? `${relationshipCount} 项关联变化` : "",
-    fileCount ? `${fileCount} 项文件变化` : "",
-    ledgerCount ? `${ledgerCount} 份连续性记录调整` : ""
+    entityCount
+      ? t("valueEntityChanges", {
+          arg0: entityCount
+        })
+      : "",
+    relationshipCount
+      ? t("valueLinkChanges", {
+          arg0: relationshipCount
+        })
+      : "",
+    fileCount
+      ? t("valueFileChanges", {
+          arg0: fileCount
+        })
+      : "",
+    ledgerCount
+      ? t("valueContinuityRecordAdjustments", { arg0: ledgerCount })
+      : ""
   ]
     .filter(Boolean)
     .join("、");
@@ -33,10 +50,18 @@ const summary = computed(() => {
 </script>
 
 <template>
-  <section class="long-impact-confirmation" aria-label="精确影响">
-    <p>{{ summary || fallback }}</p>
+  <section class="long-impact-confirmation" :aria-label="t('exactImpact')">
+    <p>
+      {{ summary || fallback || t("thisOperationHasNoAdditionalLinkImpact") }}
+    </p>
     <details v-if="lines.length" :open="open">
-      <summary>查看精确影响（{{ lines.length }} 项）</summary>
+      <summary>
+        {{
+          t("viewExactImpactMessage", {
+            arg0: lines.length ?? ""
+          })
+        }}
+      </summary>
       <ul>
         <li v-for="(line, index) in lines" :key="`${index}:${line}`">
           {{ line }}

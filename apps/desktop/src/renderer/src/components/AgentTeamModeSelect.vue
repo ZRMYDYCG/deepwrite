@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import { computed, watch } from "vue";
 import type {
   AgentTeamRunMode,
@@ -10,6 +11,8 @@ import { useSettingsStore } from "../stores/settingsStore";
 import { resolveAgentTeamModeAvailability } from "../utils/agentTeamModeAvailability";
 import AppIcon from "./AppIcon.vue";
 import PopupSelect, { type PopupSelectOption } from "./PopupSelect.vue";
+
+const t = createScopedTranslator("components.agentTeamModeSelect");
 
 const props = defineProps<{
   modelValue: AgentTeamRunMode;
@@ -35,12 +38,12 @@ const availability = computed(() =>
 const options = computed<PopupSelectOption[]>(() => [
   {
     value: "normal",
-    label: "普通模式",
-    description: "使用当前主智能体，也可调用已启用的内置资料库管理子智能体。"
+    label: t("standardMode"),
+    description: t("useTheCurrentPrimaryAgentWithAccessToEnabled")
   },
   {
     value: "team",
-    label: "团队模式",
+    label: t("teamMode"),
     description: availability.value.description,
     disabled: !availability.value.available,
     ...(availability.value.available
@@ -75,7 +78,7 @@ function updateMode(value: string | number): void {
   <PopupSelect
     :model-value="modelValue"
     :options="options"
-    accessible-label="选择智能体运行模式"
+    :accessible-label="t('selectAgentMode')"
     variant="compact"
     align="end"
     :menu-min-width="300"

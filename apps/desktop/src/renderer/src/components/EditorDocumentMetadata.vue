@@ -1,9 +1,13 @@
 <script setup lang="ts">
+import { documentFormatLabel } from "./catalogLabels";
+import { createScopedTranslator } from "../i18n";
 import { computed, defineAsyncComponent } from "vue";
 import type { TextViewMode } from "@deepwrite/contracts/renderer";
 import type { WorkspaceDocument } from "../types/workspace";
 import { parseSkillFrontmatter } from "../utils/skillFrontmatter";
 import DocumentMetaRow from "./DocumentMetaRow.vue";
+
+const t = createScopedTranslator("components.editorDocumentMetadata");
 
 const MaterialMetadataEditor = defineAsyncComponent(
   () => import("./MaterialMetadataEditor.vue")
@@ -40,11 +44,15 @@ const skillFormatError = computed(() => {
   >
     <span>{{ document.eyebrow }}</span>
     <span v-if="document.format" class="document-format">{{
-      document.format
+      documentFormatLabel(document.format)
     }}</span>
-    <span v-if="document.readOnly" class="readonly-badge">只读内容</span>
+    <span v-if="document.readOnly" class="readonly-badge">{{
+      t("readOnlyContent")
+    }}</span>
     <span v-if="document.domain !== 'creation'" class="readonly-badge">{{
-      boundToCurrentBook ? "已绑定到当前书籍" : "仅浏览 · 未绑定"
+      boundToCurrentBook
+        ? t("linkedToTheCurrentBook")
+        : t("browseOnlyNotLinked")
     }}</span>
     <span
       v-if="skillFormatError"

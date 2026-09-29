@@ -1,3 +1,4 @@
+import { nativeText, setNativeLanguage } from "./native-i18n";
 import { handleSessionCommands } from "./ipc/session-commands";
 import { handleBookTemplateCommands } from "./ipc/book-template-commands";
 import { handleCatalogProjectCommands } from "./ipc/catalog-project-commands";
@@ -7,6 +8,14 @@ import {
   refreshDesktopServices
 } from "./desktop-services";
 import { createDesktopStartup } from "./desktop-startup";
+import {
+  acquireStorageInstanceLock,
+  initializeStorageLocation
+} from "./storage-bootstrap";
+import { createStorageSettingsService } from "./storage-settings-runtime";
+import type { StorageSettingsService } from "./storage-settings-service";
+import { handleStorageSettingsCommands } from "./ipc/storage-settings-commands";
+import { runStorageSmoke } from "./smoke-storage";
 import {
   recordUsageObservation,
   type UsageRunContext
@@ -123,6 +132,12 @@ import { importLegacyLibraryArchives } from "./legacy-library-import-batch";
 import { AppearanceService } from "./appearance-service";
 import { AgentTeamConfigStore } from "./agent-team-config-store";
 import { GeneralSettingsStore } from "./general-settings-store";
+import { VoiceService } from "./voice/voice-service";
+import { handleVoiceCommands } from "./ipc/voice-commands";
+import {
+  installVoicePermissions,
+  requestVoiceMicrophoneAccess
+} from "./voice-permissions";
 import { resolveContextCompactionRun } from "./context-compaction-run";
 import { ModelConfigStore } from "./model-config-store";
 import { electronRemoteFetch } from "./electron-remote-fetch";
@@ -169,6 +184,21 @@ import {
 import { registerMarketplaceIpc } from "./ipc/marketplace-ipc";
 
 registerAppearanceFontScheme();
+const hasSingleInstanceLock = acquireStorageInstanceLock(app);
+// A second instance must not write diagnostics into a profile being migrated.
+if (!hasSingleInstanceLock) app.exit(0);
+let storageBootstrap: ReturnType<typeof initializeStorageLocation> | undefined;
+if (hasSingleInstanceLock) {
+  try {
+    storageBootstrap = initializeStorageLocation(app);
+  } catch (error) {
+    dialog.showErrorBox(
+      nativeText("storageReadFailure"),
+      error instanceof Error ? error.message : nativeText("checkUserData")
+    );
+    app.exit(1);
+  }
+}
 const desktopStartup = createDesktopStartup();
 
 interface ActiveRun extends MainInternalCommandActiveRun {
@@ -188,6 +218,7 @@ let softwareTokenUsageReporter: SoftwareTokenUsageReporter | undefined;
 let agentTeamConfigStore: AgentTeamConfigStore | undefined;
 let appearanceService: AppearanceService | undefined;
 let generalSettingsStore: GeneralSettingsStore | undefined;
+let voiceService: VoiceService | undefined;
 let extrasAgentService: ExtrasAgentService;
 let libraryAgentConfigStore: LibraryAgentConfigStore | undefined;
 let longAgentConfigStore: LongAgentConfigStore | undefined;
@@ -198,6 +229,7 @@ let utilitiesStarted = false;
 let nativeAppearanceListenerBound = false;
 let workspaceAgentConfigStore: WorkspaceAgentConfigStore | undefined;
 let workspaceDirectoryStore: WorkspaceDirectoryStore | undefined;
+let storageSettingsService: StorageSettingsService | undefined;
 let quitting = false;
 let shutdownComplete = false;
 let menuBarTray: Tray | undefined;
@@ -223,7 +255,9 @@ function broadcastEvent(event: SystemEventEnvelope): void {
 
 const gracefulShutdown = createGracefulShutdown({
   flushRenderer: async () => {
-    await rendererStateFlush.request(mainWindow);
+    // Storage migration already awaited this flush before accepting the IPC request.
+    if (!storageSettingsService?.restartPending)
+      await rendererStateFlush.request(mainWindow);
     mainWindow?.close();
   },
   shutdownUtilities: () => supervisor.shutdownAll(),
@@ -233,10 +267,20 @@ const gracefulShutdown = createGracefulShutdown({
     shutdownComplete = true;
     destroyMenuBarTray();
     if (installUpdate && updateService) updateService.quitAndInstall();
-    else app.quit();
+    else {
+      if (storageSettingsService?.restartPending) app.relaunch();
+      app.quit();
+    }
   },
   cancel(error) {
     quitting = false;
+    if (storageSettingsService?.restartPending) {
+      storageSettingsService.cancelRestart();
+      dialog.showErrorBox(
+        nativeText("migrationCancelled"),
+        nativeText("migrationCancelledDetail")
+      );
+    }
     console.warn(
       "DeepWrite shutdown was canceled before conversations were saved:",
       error
@@ -450,6 +494,13 @@ function createMainWindow(): BrowserWindow {
     fail: (error) => desktopStartup.fail(error, "window")
   });
   const windowWebContentsId = window.webContents.id;
+  installVoicePermissions(window);
+  window.webContents.on("did-start-loading", () =>
+    voiceService?.cancelOwner(windowWebContentsId)
+  );
+  window.webContents.on("render-process-gone", () =>
+    voiceService?.cancelOwner(windowWebContentsId)
+  );
   window.webContents.once("did-finish-load", () => {
     void announceReady(window).catch((error: unknown) => {
       desktopStartup.log.write("utilities.health.failed", { error });
@@ -472,6 +523,7 @@ function createMainWindow(): BrowserWindow {
     rendererStateFlush.reset(windowWebContentsId)
   );
   window.on("closed", () => {
+    voiceService?.cancelOwner(windowWebContentsId);
     rendererStateFlush.reset(windowWebContentsId);
     void disposeConversationExports({
       supervisor,
@@ -510,36 +562,34 @@ function syncMenuBarTray(): void {
     destroyMenuBarTray();
     return;
   }
-  if (menuBarTray && !menuBarTray.isDestroyed()) {
-    return;
+  if (!menuBarTray || menuBarTray.isDestroyed()) {
+    const rendererIconPath = join(__dirname, "../renderer/app-icon.png");
+    const buildIconPath = join(__dirname, "../../build/icon.png");
+    const sourceIcon = existsSync(rendererIconPath)
+      ? rendererIconPath
+      : buildIconPath;
+    let trayIcon = nativeImage.createFromPath(sourceIcon);
+    if (process.platform === "darwin" && !trayIcon.isEmpty()) {
+      trayIcon = trayIcon.resize({ width: 18, height: 18 });
+      trayIcon.setTemplateImage(true);
+    }
+    menuBarTray = new Tray(trayIcon);
+    menuBarTray.setToolTip("DeepWrite");
+    menuBarTray.on("click", showMainWindow);
   }
-
-  const rendererIconPath = join(__dirname, "../renderer/app-icon.png");
-  const buildIconPath = join(__dirname, "../../build/icon.png");
-  const sourceIcon = existsSync(rendererIconPath)
-    ? rendererIconPath
-    : buildIconPath;
-  let trayIcon = nativeImage.createFromPath(sourceIcon);
-  if (process.platform === "darwin" && !trayIcon.isEmpty()) {
-    trayIcon = trayIcon.resize({ width: 18, height: 18 });
-    trayIcon.setTemplateImage(true);
-  }
-  menuBarTray = new Tray(trayIcon);
-  menuBarTray.setToolTip("DeepWrite");
   menuBarTray.setContextMenu(
     Menu.buildFromTemplate([
       {
-        label: "显示 DeepWrite",
+        label: nativeText("showApp"),
         click: showMainWindow
       },
       { type: "separator" },
       {
-        label: "退出",
+        label: nativeText("quit"),
         click: () => app.quit()
       }
     ])
   );
-  menuBarTray.on("click", showMainWindow);
 }
 
 function syncGeneralSettings(settings: GeneralSettings): void {
@@ -547,6 +597,7 @@ function syncGeneralSettings(settings: GeneralSettings): void {
     utilitiesStarted &&
     cachedGeneralSettings.useNetworkProxy !== settings.useNetworkProxy;
   cachedGeneralSettings = settings;
+  setNativeLanguage(settings.language, app.getLocale());
   syncMenuBarTray();
   applyNetworkProxyPreference(settings.useNetworkProxy);
   if (shouldRestartAgent) {
@@ -684,7 +735,7 @@ async function chooseWorkspaceDirectory(): Promise<ReturnType<
 > | null> {
   const current = await requireWorkspaceDirectoryStore().list();
   const selection = await dialog.showOpenDialog({
-    title: "选择 DeepWrite 工作目录",
+    title: nativeText("chooseWorkspace"),
     defaultPath: current.path ?? app.getPath("documents"),
     properties: ["openDirectory", "createDirectory"]
   });
@@ -843,6 +894,47 @@ function registerIpc(): void {
       }
 
       const command = parsed.data;
+      if (
+        command.type.startsWith("storageSettings.") &&
+        storageSettingsService
+      ) {
+        if (event.senderFrame !== event.sender.mainFrame) {
+          return {
+            status: "rejected",
+            requestId: command.id,
+            error: {
+              code: "storage_settings.untrusted_frame",
+              message: "存储操作仅允许从应用主界面发起。"
+            }
+          };
+        }
+        const result = await handleStorageSettingsCommands(
+          command,
+          storageSettingsService
+        );
+        if (result) return result;
+      }
+      if (command.type.startsWith("voice.") && voiceService) {
+        if (event.senderFrame !== event.sender.mainFrame) {
+          return {
+            status: "rejected",
+            requestId: command.id,
+            error: {
+              code: "voice.untrusted_frame",
+              message: "语音操作仅允许从应用主界面发起。"
+            }
+          };
+        }
+        const result = await handleVoiceCommands(
+          command,
+          voiceService,
+          event.sender.id,
+          process.env.DEEPWRITE_SMOKE === "1"
+            ? async () => true
+            : requestVoiceMicrophoneAccess
+        );
+        if (result) return result;
+      }
       if (
         command.type === "deviceSync.workspace" ||
         command.type === "agent.prompt" ||
@@ -1047,6 +1139,9 @@ function registerIpc(): void {
       }
 
       if (command.type === "generalSettings.save") {
+        // Match Renderer session language even if the following disk write fails.
+        setNativeLanguage(command.payload.language, app.getLocale());
+        syncMenuBarTray();
         try {
           const snapshot = GeneralSettingsSnapshotSchema.parse(
             await requireGeneralSettingsStore().save(command.payload)
@@ -1091,7 +1186,7 @@ function registerIpc(): void {
           let selectedPath = defaultPath;
           if (command.type === "long.openExisting") {
             const selection = await dialog.showOpenDialog({
-              title: "打开已有长篇项目",
+              title: nativeText("openLongProject"),
               defaultPath,
               properties: ["openDirectory"]
             });
@@ -1148,9 +1243,9 @@ function registerIpc(): void {
       if (command.type === "long.chooseContinuationImportSource") {
         try {
           const selection = await dialog.showOpenDialog(mainWindow, {
-            title: "选择续写章节文件夹",
+            title: nativeText("chooseContinuation"),
             defaultPath: app.getPath("documents"),
-            buttonLabel: "扫描章节",
+            buttonLabel: nativeText("scanChapters"),
             properties: ["openDirectory"]
           });
           const sourcePath = selection.filePaths[0];
@@ -1212,10 +1307,12 @@ function registerIpc(): void {
       if (command.type === "long.chooseLegacySyncSource") {
         try {
           const selection = await dialog.showOpenDialog(mainWindow, {
-            title: "选择旧版本长篇压缩包",
+            title: nativeText("chooseLegacyLong"),
             defaultPath: app.getPath("documents"),
-            buttonLabel: "上传并预览",
-            filters: [{ name: "旧版本长篇压缩包", extensions: ["zip"] }],
+            buttonLabel: nativeText("uploadPreview"),
+            filters: [
+              { name: nativeText("legacyLongArchive"), extensions: ["zip"] }
+            ],
             properties: ["openFile"]
           });
           const sourcePath = selection.filePaths[0];
@@ -1380,12 +1477,12 @@ function registerIpc(): void {
             };
           }
           const selection = await dialog.showOpenDialog(mainWindow, {
-            title: "导入 DeepWrite 长篇可移植工程",
+            title: nativeText("importPortableLong"),
             defaultPath: app.getPath("documents"),
-            buttonLabel: "选择并导入",
+            buttonLabel: nativeText("selectImport"),
             filters: [
               {
-                name: "DeepWrite 长篇可移植工程",
+                name: nativeText("portableLongProject"),
                 extensions: ["json"]
               }
             ],
@@ -1553,20 +1650,20 @@ function registerIpc(): void {
             command.payload.sourceKind === "directory"
               ? mainWindow
                 ? await dialog.showOpenDialog(mainWindow, {
-                    title: "选择包含技能或素材的文件夹",
+                    title: nativeText("chooseLibraryFolder"),
                     properties: ["openDirectory"]
                   })
                 : await dialog.showOpenDialog({
-                    title: "选择包含技能或素材的文件夹",
+                    title: nativeText("chooseLibraryFolder"),
                     properties: ["openDirectory"]
                   })
               : mainWindow
                 ? await dialog.showOpenDialog(mainWindow, {
-                    title: "选择技能或素材文件",
+                    title: nativeText("chooseLibraryFile"),
                     properties: ["openFile", "multiSelections"],
                     filters: [
                       {
-                        name: "文本与文档",
+                        name: nativeText("documents"),
                         extensions: [
                           "txt",
                           "md",
@@ -1579,11 +1676,11 @@ function registerIpc(): void {
                     ]
                   })
                 : await dialog.showOpenDialog({
-                    title: "选择技能或素材文件",
+                    title: nativeText("chooseLibraryFile"),
                     properties: ["openFile", "multiSelections"],
                     filters: [
                       {
-                        name: "文本与文档",
+                        name: nativeText("documents"),
                         extensions: [
                           "txt",
                           "md",
@@ -2084,6 +2181,20 @@ async function announceReady(window: BrowserWindow): Promise<void> {
     window.webContents.send(IPC_EVENT_CHANNEL, event);
   }
 
+  if (process.env.DEEPWRITE_STORAGE_SMOKE) {
+    try {
+      console.log(
+        `DEEPWRITE_STORAGE_SMOKE_OK ${JSON.stringify(await runStorageSmoke(window))}`
+      );
+    } catch (error) {
+      console.error(
+        `DEEPWRITE_STORAGE_SMOKE_FAIL ${error instanceof Error ? error.message : "unknown"}`
+      );
+    } finally {
+      app.quit();
+    }
+    return;
+  }
   if (process.env.DEEPWRITE_SMOKE === "1") {
     try {
       await runApplicationSmoke(health, supervisor, window, (tap) => {
@@ -2101,7 +2212,6 @@ async function announceReady(window: BrowserWindow): Promise<void> {
 
 applyNetworkProxyPreference(false);
 
-const hasSingleInstanceLock = app.requestSingleInstanceLock();
 if (!hasSingleInstanceLock) {
   shutdownComplete = true;
   app.quit();
@@ -2112,6 +2222,7 @@ if (!hasSingleInstanceLock) {
 
   void desktopStartup.run(async () => {
     await app.whenReady();
+    setNativeLanguage("auto", app.getLocale());
     Menu.setApplicationMenu(null);
     const userDataPath = configureBootstrapEnvironment(
       app,
@@ -2138,12 +2249,32 @@ if (!hasSingleInstanceLock) {
       workspaceDirectoryStore,
       appearanceService,
       generalSettingsStore,
+      voiceService,
       updateService,
       appAlertStore,
       cloudBackupService,
       deviceSyncService,
       marketplaceClient
     } = services);
+    storageSettingsService = createStorageSettingsService({
+      locations: storageBootstrap!.locations,
+      workspace: requireWorkspaceDirectoryStore,
+      getWindow: requireMainWindow,
+      busy: () =>
+        quitting || activeRuns.size > 0 || pendingUsageContexts.size > 0,
+      flushRenderer: () => rendererStateFlush.request(mainWindow),
+      restart: () => {
+        quitting = true;
+        setImmediate(() => beginGracefulShutdown());
+      }
+    });
+    if (storageBootstrap?.migrationError) {
+      void dialog.showMessageBox({
+        type: "warning",
+        title: nativeText("migrationIncomplete"),
+        message: storageBootstrap.migrationError
+      });
+    }
     installAppearanceFontProtocolHandler(appearanceService);
     await desktopStartup.step("workspace", () =>
       services.workspaceDirectoryStore.initializeDefault(

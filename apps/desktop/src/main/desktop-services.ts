@@ -14,6 +14,8 @@ import { AppAlertStore } from "./app-alert-store";
 import { AppearanceService } from "./appearance-service";
 import { createExtrasAgentService } from "../extras/agents";
 import { GeneralSettingsStore } from "./general-settings-store";
+import { VoiceService } from "./voice/voice-service";
+import { voiceSmokeOptions } from "./smoke-voice-transport";
 import { LibraryAgentConfigStore } from "./library-agent-config-store";
 import { LongAgentConfigStore } from "./long-agent-config-store";
 import { MarketplaceClient } from "./marketplace-client";
@@ -24,6 +26,7 @@ import type { StartupLog } from "./startup-log";
 import { UpdateService } from "./update-service";
 import { WorkspaceAgentConfigStore } from "./workspace-agent-config-store";
 import { WorkspaceDirectoryStore } from "./workspace-directory-store";
+import { installationDirectory } from "./installation-directory-guard";
 
 interface DesktopServiceOptions {
   userDataPath: string;
@@ -40,7 +43,10 @@ export function createDesktopServices(options: DesktopServiceOptions) {
     appVersion: options.appVersion
   });
   const modelUsageStore = new ModelUsageStore(userDataPath);
-  const workspaceDirectoryStore = new WorkspaceDirectoryStore(userDataPath);
+  const workspaceDirectoryStore = new WorkspaceDirectoryStore(
+    userDataPath,
+    installationDirectory(process.execPath)
+  );
   const workspaceDirectory = async () =>
     (await workspaceDirectoryStore.list()).path;
   return {
@@ -58,6 +64,10 @@ export function createDesktopServices(options: DesktopServiceOptions) {
     workspaceDirectoryStore,
     appearanceService: new AppearanceService(userDataPath),
     generalSettingsStore: new GeneralSettingsStore(userDataPath),
+    voiceService: new VoiceService(
+      userDataPath,
+      process.env.DEEPWRITE_SMOKE === "1" ? voiceSmokeOptions() : undefined
+    ),
     updateService: new UpdateService(options.installUpdate),
     appAlertStore: new AppAlertStore(userDataPath),
     cloudBackupService: createCloudBackupFeature(

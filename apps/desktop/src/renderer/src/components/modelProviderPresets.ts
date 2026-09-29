@@ -1,4 +1,7 @@
+import { createScopedTranslator } from "../i18n";
 import type { ModelApi } from "@deepwrite/contracts";
+
+const t = createScopedTranslator("components.modelProviderPresets");
 
 interface ModelProviderPresetTarget {
   provider: string;
@@ -35,55 +38,78 @@ export const MODEL_PROVIDER_OPTIONS = [
   },
   {
     value: "xiaomi-token-plan-cn",
-    label: "小米 MiMo TokenPlan（国内）",
+    get label() {
+      return t("xiaomiMiMoTokenPlanChina");
+    },
     api: "openai-responses",
     baseUrl: "https://token-plan-cn.xiaomimimo.com/v1"
   },
   {
     value: "dashscope",
-    label: "阿里千问AI平台（百炼）",
-    description: "按量计费，使用千问AI平台 API Key，与 Token Plan 密钥不通用",
+    get label() {
+      return t("alibabaQwenAIPlatformBailian");
+    },
+    get description() {
+      return t("payAsYouGoUsesAQwenAIPlatform");
+    },
     api: "openai-completions",
     baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1"
   },
   {
     value: "qwen-token-plan",
-    label: "阿里千问 Token Plan",
-    description:
-      "国内个人版 / 团队版，使用套餐专属 API Key 和套餐支持的模型 ID",
+    get label() {
+      return t("alibabaQwenTokenPlan");
+    },
+    get description() {
+      return t("chinaIndividualTeamPlansUseThePlanSAPI");
+    },
     api: "openai-completions",
     baseUrl:
       "https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1"
   },
   {
     value: "volcengine",
-    label: "火山引擎（豆包）",
-    description: "按量直连，填写方舟控制台提供的模型 ID 或接入点 ID",
+    get label() {
+      return t("volcengineDoubao");
+    },
+    get description() {
+      return t("payAsYouGoDirectAccessEnterAModel");
+    },
     api: "openai-completions",
     baseUrl: "https://ark.cn-beijing.volces.com/api/v3"
   },
   {
     value: "volcengine-plan",
-    label: "火山引擎 Coding Plan",
-    description: "套餐接口，模型 ID 可填 ark-code-latest 或套餐模型名",
+    get label() {
+      return t("volcengineCodingPlan");
+    },
+    get description() {
+      return t("planEndpointUseArkCodeLatestOrASupported");
+    },
     api: "openai-completions",
     baseUrl: "https://ark.cn-beijing.volces.com/api/coding/v3"
   },
   {
     value: "zai-coding-cn",
-    label: "智谱 Z.AI Coding Plan",
+    get label() {
+      return t("zAICodingPlan");
+    },
     api: "openai-completions",
     baseUrl: "https://open.bigmodel.cn/api/coding/paas/v4"
   },
   {
     value: "zhipu",
-    label: "智谱 GLM 开放平台",
+    get label() {
+      return t("zhipuGLMOpenPlatform");
+    },
     api: "openai-completions",
     baseUrl: "https://open.bigmodel.cn/api/paas/v4"
   },
   {
     value: "moonshot",
-    label: "Kimi 开放平台",
+    get label() {
+      return t("kimiOpenPlatform");
+    },
     api: "openai-completions",
     baseUrl: "https://api.moonshot.cn/v1"
   },
@@ -96,14 +122,18 @@ export const MODEL_PROVIDER_OPTIONS = [
   {
     value: "openrouter",
     label: "OpenRouter",
-    description: "使用 OpenRouter API Key，模型 ID 需包含提供商前缀",
+    get description() {
+      return t("useAnOpenRouterAPIKeyModelIDsMustInclude");
+    },
     api: "openai-completions",
     baseUrl: "https://openrouter.ai/api/v1"
   },
   {
     value: "opencode-go",
     label: "OpenCode Go",
-    description: "Go 套餐，使用 OpenCode API Key；请按模型选择 API 协议",
+    get description() {
+      return t("goPlanWithAnOpenCodeAPIKeyChooseThe");
+    },
     api: "openai-completions",
     baseUrl: "https://opencode.ai/zen/go/v1"
   },
@@ -125,7 +155,12 @@ export const MODEL_PROVIDER_OPTIONS = [
     api: "openai-completions",
     baseUrl: "http://127.0.0.1:11434/v1"
   },
-  { value: "custom", label: "其他兼容服务" }
+  {
+    value: "custom",
+    get label() {
+      return t("otherCompatibleService");
+    }
+  }
 ] as const satisfies ReadonlyArray<ModelProviderOption>;
 
 export function applyProviderPresetDefaults(

@@ -1,3 +1,4 @@
+import { LongLedgerAuditError } from "./long-ledger-v4-audit";
 import { withShortBookAnalysisSources } from "./short-book-analysis-sources";
 import { handleLongCoreCommand } from "./long-core-commands";
 import { legacyDataRootsFromEnvironment } from "./legacy-data-roots";
@@ -494,6 +495,13 @@ async function handleCatalogCommand(
       }
     };
   } catch (error: unknown) {
+    if (error instanceof LongLedgerAuditError) {
+      return {
+        status: "rejected",
+        requestId: command.id,
+        error: { code: "long.ledger.audit_failed", message: error.message }
+      };
+    }
     if (error instanceof LongWorkspaceOperationError) {
       return {
         status: "rejected",

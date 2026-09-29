@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import {
   computed,
   nextTick,
@@ -34,6 +35,7 @@ import {
   type LongWorkspaceSelection
 } from "../types/longWorkspace";
 import AppIcon from "./AppIcon.vue";
+import EditorPaneToggle from "./EditorPaneToggle.vue";
 import EditorTextTools from "./EditorTextTools.vue";
 import { useBodyTextFormatting } from "../composables/useBodyTextFormatting";
 import { longBodyTextKind } from "../utils/bodyTextTarget";
@@ -76,6 +78,8 @@ import {
 } from "../composables/useLongEditorStructureSelection";
 import { useTextViewMode } from "../composables/useTextViewMode";
 
+const t = createScopedTranslator("components.longWorkspaceEditor");
+
 const props = defineProps<{
   bookId: string;
   selection: LongWorkspaceSelection | null;
@@ -85,6 +89,7 @@ const props = defineProps<{
   rightPane?: boolean;
   rightPaneCollapsed?: boolean;
   defaultViewMode: TextViewMode;
+  autoSaveEnabled: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -223,11 +228,13 @@ const currentEmptyCollection = computed<{
   if (currentIsCharacterGroup.value && selection?.characterTabs?.length === 0) {
     return {
       icon: "user",
-      title: `还没有${selection.title}`,
+      title: t("noValueYet", {
+        arg0: selection.title
+      }),
       description: currentUsesLeftTreeCharacter.value
-        ? "新建人物后，可从左侧树选择并编辑人物档案。"
-        : "新建人物后，可通过条目导航切换并编辑人物档案。",
-      buttonLabel: "新建第一个人物",
+        ? t("createACharacterThenSelectItInTheLeft")
+        : t("createACharacterThenUseEntryNavigationToEdit"),
+      buttonLabel: t("createFirstCharacter"),
       action: "character"
     };
   }
@@ -237,11 +244,11 @@ const currentEmptyCollection = computed<{
   ) {
     return {
       icon: "file",
-      title: "还没有剧情点",
+      title: t("noPlotPointsYet"),
       description: currentUsesLeftTreePlot.value
-        ? "新建剧情点后，可从左侧树选择并编辑内容。"
-        : "新建剧情点后，可通过条目导航切换并编辑内容。",
-      buttonLabel: "新建第一个剧情点",
+        ? t("createAPlotPointThenSelectItInThe")
+        : t("createAPlotPointThenUseEntryNavigationTo"),
+      buttonLabel: t("createFirstPlotPoint"),
       action: "plotPoint"
     };
   }
@@ -251,11 +258,11 @@ const currentEmptyCollection = computed<{
   ) {
     return {
       icon: "file",
-      title: "还没有章卡",
+      title: t("noChapterCardsYet"),
       description: currentUsesLeftTreePlot.value
-        ? "新建章卡后，可从左侧树选择并编辑内容。"
-        : "新建章卡后，可通过条目导航切换并编辑内容。",
-      buttonLabel: "新建第一张章卡",
+        ? t("createAChapterCardThenSelectItInThe")
+        : t("createAChapterCardThenUseEntryNavigationTo"),
+      buttonLabel: t("createFirstChapterCard"),
       action: "chapterCard"
     };
   }
@@ -279,8 +286,8 @@ const currentStructureTitleTarget = computed<LongStructureTitleTarget | null>(
         kind: "plotPoint",
         id: currentPlotPoint.value.id,
         title: currentPlotPoint.value.title,
-        inputLabel: "剧情点标题",
-        emptyMessage: "剧情点标题不能为空。"
+        inputLabel: t("plotPointTitle"),
+        emptyMessage: t("plotPointTitleIsRequired")
       };
     }
     if (currentIsVolumeOutline.value && currentBookLineVolume.value) {
@@ -288,8 +295,8 @@ const currentStructureTitleTarget = computed<LongStructureTitleTarget | null>(
         kind: "volume",
         id: currentBookLineVolume.value.id,
         title: currentBookLineVolume.value.title,
-        inputLabel: "分卷名称",
-        emptyMessage: "分卷名称不能为空。"
+        inputLabel: t("volumeName"),
+        emptyMessage: t("volumeNameIsRequired")
       };
     }
     if (
@@ -305,8 +312,8 @@ const currentStructureTitleTarget = computed<LongStructureTitleTarget | null>(
           kind: "chapterCard",
           id: chapter.id,
           title: chapter.title,
-          inputLabel: "章卡标题",
-          emptyMessage: "章卡标题不能为空。"
+          inputLabel: t("chapterCardTitle"),
+          emptyMessage: t("chapterCardTitleIsRequired")
         };
       }
     }
@@ -323,8 +330,8 @@ const currentStructureTitleTarget = computed<LongStructureTitleTarget | null>(
           kind: "worldbuilding",
           id: category.id,
           title: category.title,
-          inputLabel: "世界观分类名称",
-          emptyMessage: "世界观分类名称不能为空。"
+          inputLabel: t("worldbuildingCategoryName"),
+          emptyMessage: t("worldbuildingCategoryNameIsRequired")
         };
       }
     }
@@ -375,7 +382,7 @@ const currentNavigationDeleteTarget =
         kind: "character",
         id: character.id,
         title: character.name,
-        label: "人物",
+        label: t("characters"),
         description: longDeletionDescription(index, "character", character.id)
       };
     }
@@ -385,7 +392,7 @@ const currentNavigationDeleteTarget =
         kind: "volume",
         id: volume.id,
         title: volume.title,
-        label: "分卷",
+        label: t("volume"),
         description: longDeletionDescription(index, "volume", volume.id)
       };
     }
@@ -395,7 +402,7 @@ const currentNavigationDeleteTarget =
         kind: "plotPoint",
         id: plotPoint.id,
         title: plotPoint.title,
-        label: "剧情点",
+        label: t("plotPoint"),
         description: longDeletionDescription(index, "plotPoint", plotPoint.id)
       };
     }
@@ -405,7 +412,7 @@ const currentNavigationDeleteTarget =
         kind: "chapterCard",
         id: chapterCard.id,
         title: chapterCard.title,
-        label: "章卡",
+        label: t("chapterCard"),
         description: longDeletionDescription(
           index,
           "chapterCard",
@@ -451,8 +458,8 @@ const currentIsCommittedEditableDocument = computed(
 );
 const currentCommittedEditNotice = computed(() =>
   currentIsChapterCardWorkspace.value
-    ? "章卡已有连续性记录；仍可编辑、移动或删除，删除时会同时清理该章正文与记录。"
-    : "本章已有连续性记录；记录仅供参考，不限制正文修改。"
+    ? t("thisChapterCardHasContinuityRecordsItCanStill")
+    : t("thisChapterHasContinuityRecordsTheyAreForReference")
 );
 const currentIsVolumeOutline = computed(
   () =>
@@ -524,8 +531,7 @@ const pendingStoryPlotDelete = computed(() => {
     ({ id }) => id === pendingStoryPlotDeleteId.value
   );
   if (!storyPlot) return null;
-  const fallback =
-    "该故事情节及其正文文件将被删除，所属剧情点与连续性投影会同步更新。";
+  const fallback = t("thisStoryEventAndItsManuscriptFileWillBe");
   return {
     ...storyPlot,
     description: pendingStoryPlotDeleteImpact.value
@@ -739,7 +745,7 @@ const currentDocumentTitle = computed(
   () =>
     (currentIsWorldbuildingList.value &&
     activeWorldbuildingItemId.value === null
-      ? "概览"
+      ? t("overview")
       : undefined) ??
     (currentIsChapterCardWorkspace.value
       ? currentChapterCard.value?.title
@@ -751,20 +757,20 @@ const currentDocumentTitle = computed(
       ? currentBookLineVolume.value?.title
       : undefined) ??
     (currentIsBookLineWorkspace.value
-      ? "全书总纲"
+      ? t("overallOutline")
       : (props.selection?.title ?? ""))
 );
 const currentDocumentFormat = computed(() =>
   currentIsChapterCardContent.value
-    ? "章卡内容"
+    ? t("chapterCardContent")
     : currentIsPlotPointStoryline.value
-      ? "故事情节"
+      ? t("storyEvent")
       : currentIsPlotPointSummary.value
-        ? "概要"
+        ? t("summary")
         : currentIsVolumeOutline.value
-          ? "卷纲"
+          ? t("volumeOutline")
           : currentIsBookLineWorkspace.value
-            ? "全书总纲"
+            ? t("overallOutline")
             : (currentSelectionFile.value?.label ?? "")
 );
 const currentSaving = computed(
@@ -781,17 +787,18 @@ const currentSaving = computed(
 const documentEyebrow = computed(() => {
   const role = currentSelectionFile.value?.role;
   if (props.selection?.root === "draft") {
-    if (role === "character-state") return "长篇 · 章节人物状态";
-    if (role === "handoff") return "长篇 · 章节交接";
-    return "长篇 · 章节正文";
+    if (role === "character-state") return t("novelChapterCharacterState");
+    if (role === "handoff") return t("novelChapterHandoff");
+    return t("novelChapterManuscript");
   }
-  if (props.selection?.root === "worldbuilding") return "长篇 · 世界设定";
-  if (props.selection?.root === "character_design") return "长篇 · 人物档案";
-  if (props.selection?.root === "plot_design") return "长篇 · 剧情设计";
+  if (props.selection?.root === "worldbuilding") return t("novelWorldbuilding");
+  if (props.selection?.root === "character_design")
+    return t("novelCharacterProfile");
+  if (props.selection?.root === "plot_design") return t("novelPlotDesign");
   if (props.selection?.root === "continuity_ledger") {
-    return "长篇 · 连续性记录";
+    return t("novelContinuityRecord");
   }
-  return "长篇文稿";
+  return t("novelManuscript");
 });
 const canUseTextTools = computed(
   () =>
@@ -1490,85 +1497,22 @@ onBeforeUnmount(() => {
   <section
     class="long-workspace-editor"
     :class="{
-      'is-foreshadowing-overview': currentIsForeshadowingWorkspace,
       'has-navigation-tabs':
         currentUsesTopCharacterTabs ||
         currentUsesTopPlotTabs ||
         currentUsesTopWorldbuildingTabs
     }"
-    aria-label="长篇文件编辑器"
+    :aria-label="t('novelFileEditor')"
   >
     <template v-if="selection">
-      <header class="long-editor-header">
-        <div
-          class="long-editor-breadcrumbs"
-          :title="selection.breadcrumbs.join(' / ')"
-        >
-          <span
-            v-for="(part, index) in selection.breadcrumbs"
-            :key="`${part}-${index}`"
-          >
-            {{ part }}
-            <i v-if="index < selection.breadcrumbs.length - 1">/</i>
-          </span>
-        </div>
-        <div class="long-editor-header-actions">
-          <span
-            class="long-editor-save-state"
-            :class="{ 'is-dirty': currentDirty }"
-          >
-            <AppIcon :name="currentDirty ? 'save' : 'check'" :size="13" />
-            <span>
-              {{
-                currentIsForeshadowingView
-                  ? locked
-                    ? (lockedReason ?? "编辑暂时锁定")
-                    : currentDirty
-                      ? "关联文本有未保存修改"
-                      : "伏笔数据已同步"
-                  : !currentSelectionFile && !currentIsStructuredText
-                    ? "已选择工作区上下文"
-                    : locked
-                      ? (lockedReason ?? "编辑暂时锁定")
-                      : currentSelectionFile?.readOnly
-                        ? "只读记录"
-                        : isDocumentSwitchPending || currentState?.loading
-                          ? "正在读取"
-                          : currentSaving
-                            ? "正在保存到本机"
-                            : currentDirty
-                              ? "有未保存修改"
-                              : currentState?.loaded || currentIsStructuredText
-                                ? "已保存到本机"
-                                : "等待读取"
-              }}
-            </span>
-          </span>
-          <button
-            v-if="rightPane !== false"
-            class="long-editor-collapse-button"
-            type="button"
-            aria-label="收起长篇编辑栏"
-            @click="emit('collapse')"
-          >
-            <AppIcon name="panel-right" :size="18" />
-          </button>
-          <button
-            v-else-if="rightPaneCollapsed"
-            class="long-editor-collapse-button"
-            type="button"
-            aria-label="展开智能体栏"
-            @click="emit('toggleRight')"
-          >
-            <AppIcon name="panel-right" :size="18" />
-          </button>
-        </div>
-      </header>
-
       <LongCharacterNavigation
         v-if="currentUsesTopCharacterTabs"
         mode="top-tabs"
-        :label="`${selection.characterGroup ?? '人物'}人物`"
+        :label="
+          t('valueCharacters', {
+            arg0: selection.characterGroup ?? t('characters')
+          })
+        "
         :title="selection.title"
         :items="currentCharacterNavigationItems"
         :active-character-id="selection.characterId ?? null"
@@ -1583,7 +1527,7 @@ onBeforeUnmount(() => {
       <nav
         v-if="currentIsBookLineWorkspace && currentUsesTopPlotTabs"
         class="section-tabs-bar long-worldbuilding-tabs long-book-line-tabs"
-        aria-label="全书故事线"
+        :aria-label="t('overallStoryline')"
       >
         <div
           class="section-tabs-scroll"
@@ -1596,10 +1540,10 @@ onBeforeUnmount(() => {
             type="button"
             role="tab"
             :aria-selected="activeBookLineVolumeId === null"
-            title="全书总纲"
+            :title="t('overallOutline')"
             @click="selectBookLineOverview"
           >
-            全书总纲
+            {{ t("overallOutline") }}
           </button>
           <button
             v-for="volume in orderedBookLineVolumes"
@@ -1619,8 +1563,8 @@ onBeforeUnmount(() => {
           v-if="!currentReadOnly"
           class="long-worldbuilding-add"
           type="button"
-          aria-label="新建分卷"
-          title="新建分卷"
+          :aria-label="t('newVolume')"
+          :title="t('newVolume')"
           @click="requestCreateVolume"
         >
           <AppIcon name="plus" :size="15" />
@@ -1629,8 +1573,12 @@ onBeforeUnmount(() => {
           v-if="!currentReadOnly"
           class="long-worldbuilding-remove"
           type="button"
-          aria-label="删除当前分卷"
-          :title="currentBookLineVolume ? '删除当前分卷' : '请先选择一个分卷'"
+          :aria-label="t('deleteCurrentVolume')"
+          :title="
+            currentBookLineVolume
+              ? t('deleteCurrentVolume')
+              : t('selectAVolumeFirst')
+          "
           :disabled="locked || !currentNavigationDeleteTarget"
           @click="openNavigationDelete"
         >
@@ -1641,7 +1589,11 @@ onBeforeUnmount(() => {
       <nav
         v-if="currentIsPlotPointWorkspace && currentUsesTopPlotTabs"
         class="section-tabs-bar long-worldbuilding-tabs long-plot-point-tabs"
-        :aria-label="`${selection.breadcrumbs.at(-1) ?? '当前分卷'}剧情点`"
+        :aria-label="
+          t('valuePlotPoints', {
+            arg0: selection.breadcrumbs.at(-1) ?? t('currentVolume')
+          })
+        "
       >
         <div
           class="section-tabs-scroll"
@@ -1666,8 +1618,8 @@ onBeforeUnmount(() => {
           v-if="!currentReadOnly"
           class="long-worldbuilding-add"
           type="button"
-          aria-label="新增剧情点"
-          title="新增剧情点"
+          :aria-label="t('addPlotPoint')"
+          :title="t('addPlotPoint')"
           :disabled="locked"
           @click="emit('createPlotPoint')"
         >
@@ -1677,8 +1629,8 @@ onBeforeUnmount(() => {
           v-if="!currentReadOnly"
           class="long-worldbuilding-remove"
           type="button"
-          aria-label="删除当前剧情点"
-          title="删除当前剧情点"
+          :aria-label="t('deleteCurrentPlotPoint')"
+          :title="t('deleteCurrentPlotPoint')"
           :disabled="locked || !currentNavigationDeleteTarget"
           @click="openNavigationDelete"
         >
@@ -1689,7 +1641,11 @@ onBeforeUnmount(() => {
       <LongManuscriptNavigation
         v-if="currentIsChapterCardWorkspace && currentUsesTopPlotTabs"
         mode="top-tabs"
-        :label="`${selection.breadcrumbs[3] ?? '当前分卷'}章卡`"
+        :label="
+          t('valueChapterCards', {
+            arg0: selection.breadcrumbs[3] ?? t('currentVolume')
+          })
+        "
         :items="selection.chapterCardTabs ?? []"
         :active-chapter-id="selection.chapterCardId ?? null"
         :locked="locked"
@@ -1715,12 +1671,16 @@ onBeforeUnmount(() => {
         @delete-item="openWorldbuildingItemDelete"
       />
 
-      <div v-if="!currentIsForeshadowingWorkspace" class="long-editor-toolbar">
+      <div class="long-editor-toolbar">
         <div
           v-if="currentIsBookLineWorkspace && currentBookLineVolume"
           class="long-editor-file-tabs"
           role="tablist"
-          :aria-label="`${currentBookLineVolume.title}内容`"
+          :aria-label="
+            t('valueContent', {
+              arg0: currentBookLineVolume.title
+            })
+          "
         >
           <button
             type="button"
@@ -1731,7 +1691,7 @@ onBeforeUnmount(() => {
             }"
             @click="selectBookLineContentTab('outline')"
           >
-            卷纲
+            {{ t("volumeOutline") }}
           </button>
           <button
             type="button"
@@ -1742,14 +1702,18 @@ onBeforeUnmount(() => {
             }"
             @click="selectBookLineContentTab('foreshadowing')"
           >
-            本卷伏笔
+            {{ t("volumeForeshadowing") }}
           </button>
         </div>
         <div
           v-if="currentIsPlotPointWorkspace && currentPlotPoint"
           class="long-editor-file-tabs"
           role="tablist"
-          :aria-label="`${currentPlotPoint?.title ?? '当前剧情点'}内容`"
+          :aria-label="
+            t('valueContent', {
+              arg0: currentPlotPoint?.title ?? t('currentPlotPoint')
+            })
+          "
         >
           <button
             type="button"
@@ -1758,7 +1722,7 @@ onBeforeUnmount(() => {
             :class="{ 'is-active': activePlotPointTab === 'summary' }"
             @click="selectPlotPointTab('summary')"
           >
-            概要
+            {{ t("summary") }}
           </button>
           <button
             type="button"
@@ -1767,7 +1731,7 @@ onBeforeUnmount(() => {
             :class="{ 'is-active': activePlotPointTab === 'storyline' }"
             @click="selectPlotPointTab('storyline')"
           >
-            故事情节
+            {{ t("storyEvent") }}
           </button>
           <button
             type="button"
@@ -1778,7 +1742,7 @@ onBeforeUnmount(() => {
             }"
             @click="selectPlotPointTab('foreshadowing')"
           >
-            伏笔触点
+            {{ t("foreshadowingTouchpoints") }}
           </button>
         </div>
         <LongContinuityLedgerNavigation
@@ -1794,7 +1758,11 @@ onBeforeUnmount(() => {
           v-if="showGenericFileTabs"
           class="long-editor-file-tabs"
           role="tablist"
-          :aria-label="`${selection.title}文件`"
+          :aria-label="
+            t('valueFile', {
+              arg0: selection.title
+            })
+          "
         >
           <button
             v-for="file in selection.files"
@@ -1828,7 +1796,7 @@ onBeforeUnmount(() => {
           v-if="!currentIsForeshadowingView && !currentIsPlotPointStoryline"
           class="long-editor-view-tabs"
           role="tablist"
-          aria-label="文本视图"
+          :aria-label="t('textView')"
         >
           <button
             type="button"
@@ -1838,7 +1806,7 @@ onBeforeUnmount(() => {
             :disabled="!canUseTextTools || currentReadOnly"
             @click="setViewMode('edit')"
           >
-            编辑
+            {{ t("edit") }}
           </button>
           <button
             type="button"
@@ -1848,7 +1816,7 @@ onBeforeUnmount(() => {
             :disabled="!canUseTextTools"
             @click="setViewMode('preview')"
           >
-            预览
+            {{ t("preview") }}
           </button>
         </div>
         <span
@@ -1860,7 +1828,7 @@ onBeforeUnmount(() => {
           ref="editorToolsElement"
           class="long-editor-text-tools"
           role="group"
-          aria-label="文本操作"
+          :aria-label="t('textActions')"
         >
           <EditorTextTools
             :can-undo="canUndo"
@@ -1903,7 +1871,12 @@ onBeforeUnmount(() => {
             @select-entry-search="selectEntrySearchResult"
           />
         </div>
-        <span class="long-toolbar-spacer" />
+        <EditorPaneToggle
+          :right-pane="rightPane"
+          :right-pane-collapsed="rightPaneCollapsed"
+          @collapse="emit('collapse')"
+          @toggle-right="emit('toggleRight')"
+        />
       </div>
 
       <div
@@ -1929,11 +1902,21 @@ onBeforeUnmount(() => {
         <section
           v-else-if="currentIsPlotPointStoryline"
           class="long-story-plot-workspace"
-          :aria-label="`${currentPlotPoint?.title ?? '当前剧情点'} · 故事情节`"
+          :aria-label="
+            t('valueStoryEvents', {
+              arg0: currentPlotPoint?.title ?? t('currentPlotPoint')
+            })
+          "
         >
           <header class="long-story-plot-header">
             <div class="long-story-plot-heading">
-              <h2>{{ currentPlotPoint?.title ?? "当前剧情点" }} · 故事情节</h2>
+              <h2>
+                {{
+                  t("storyEventsMessage", {
+                    arg0: currentPlotPoint?.title ?? t("currentPlotPoint") ?? ""
+                  })
+                }}
+              </h2>
             </div>
             <div class="long-story-plot-header-actions">
               <button
@@ -1944,7 +1927,7 @@ onBeforeUnmount(() => {
                 @click="addStoryPlot"
               >
                 <AppIcon name="plus" :size="15" />
-                新增情节
+                {{ t("addEvent") }}
               </button>
             </div>
           </header>
@@ -1974,7 +1957,7 @@ onBeforeUnmount(() => {
             <div
               class="long-editor-internal-resizer long-story-plot-resizer"
               role="separator"
-              aria-label="调整当前剧情点涉及列表宽度"
+              :aria-label="t('resizeCurrentPlotPointEventList')"
               aria-orientation="vertical"
               :aria-valuemin="LONG_EDITOR_LIST_MIN_WIDTH"
               :aria-valuemax="storyPlotListMaxWidth"
@@ -1988,10 +1971,13 @@ onBeforeUnmount(() => {
               "
             />
 
-            <main class="long-story-plot-detail" aria-label="故事情节正文">
+            <main
+              class="long-story-plot-detail"
+              :aria-label="t('storyEventManuscript')"
+            >
               <div v-if="showEditorLoading" class="long-editor-loading">
                 <span class="long-loading-dot" />
-                <span>正在读取文件内容…</span>
+                <span>{{ t("readingFileContent") }}</span>
               </div>
               <div
                 v-else-if="showEditorLoadError"
@@ -1999,7 +1985,7 @@ onBeforeUnmount(() => {
                 role="status"
               >
                 <AppIcon name="file" :size="22" />
-                <strong>文件读取失败</strong>
+                <strong>{{ t("couldNotReadFile") }}</strong>
                 <span>{{ currentState?.loadError }}</span>
               </div>
               <div
@@ -2016,7 +2002,7 @@ onBeforeUnmount(() => {
                   :preview-element="documentPreview"
                   :document-key="currentStoryPlot.id"
                 >
-                  <span>故事情节正文</span>
+                  <span>{{ t("storyEventManuscript") }}</span>
                 </DocumentMetaRow>
                 <input
                   :value="currentStoryPlot.title"
@@ -2024,14 +2010,14 @@ onBeforeUnmount(() => {
                   :readonly="currentReadOnly || locked || isDocumentContentBusy"
                   maxlength="256"
                   autocomplete="off"
-                  aria-label="故事情节名称"
+                  :aria-label="t('storyEventName')"
                   @change="updateStoryPlotTitle(currentStoryPlot.id, $event)"
                 />
                 <div class="long-story-plot-text-toolbar">
                   <div
                     class="long-editor-view-tabs"
                     role="tablist"
-                    aria-label="文本视图"
+                    :aria-label="t('textView')"
                   >
                     <button
                       type="button"
@@ -2041,7 +2027,7 @@ onBeforeUnmount(() => {
                       :disabled="!canUseTextTools"
                       @click="setViewMode('edit')"
                     >
-                      编辑
+                      {{ t("edit") }}
                     </button>
                     <button
                       type="button"
@@ -2051,7 +2037,7 @@ onBeforeUnmount(() => {
                       :disabled="!canUseTextTools"
                       @click="setViewMode('preview')"
                     >
-                      预览
+                      {{ t("preview") }}
                     </button>
                   </div>
                   <span class="long-toolbar-separator" />
@@ -2059,7 +2045,7 @@ onBeforeUnmount(() => {
                     ref="editorToolsElement"
                     class="long-editor-text-tools"
                     role="group"
-                    aria-label="文本操作"
+                    :aria-label="t('textActions')"
                   >
                     <EditorTextTools
                       :can-undo="canUndo"
@@ -2115,7 +2101,11 @@ onBeforeUnmount(() => {
                     :value="currentVisibleContent"
                     class="long-document-editor long-story-plot-editor"
                     :readonly="currentReadOnly || isDocumentContentBusy"
-                    :aria-label="`${currentStoryPlot.title}正文`"
+                    :aria-label="
+                      t('valueManuscript', {
+                        arg0: currentStoryPlot.title
+                      })
+                    "
                     spellcheck="false"
                     @beforeinput="handleEditorBeforeInput"
                     @input="handleEditorInput"
@@ -2136,20 +2126,22 @@ onBeforeUnmount(() => {
                     :content="currentVisibleContent"
                     annotate-headings
                   />
-                  <p v-else class="is-empty">暂无故事情节正文</p>
+                  <p v-else class="is-empty">
+                    {{ t("noStoryEventManuscriptYet") }}
+                  </p>
                 </article>
               </div>
               <div v-else class="long-story-plot-detail-empty">
                 <AppIcon name="sparkles" :size="26" />
-                <strong>选择一条故事情节查看正文</strong>
-                <span>右侧列表管理情节条目，左侧文本框编写内容。</span>
+                <strong>{{ t("selectAStoryEventToViewItsManuscript") }}</strong>
+                <span>{{ t("manageEntriesInTheRightListAndWriteTheir") }}</span>
               </div>
             </main>
           </div>
         </section>
         <div v-else-if="showEditorLoading" class="long-editor-loading">
           <span class="long-loading-dot" />
-          <span>正在读取文件内容…</span>
+          <span>{{ t("readingFileContent") }}</span>
         </div>
         <div
           v-else-if="showEditorLoadError"
@@ -2157,14 +2149,14 @@ onBeforeUnmount(() => {
           role="status"
         >
           <AppIcon name="file" :size="22" />
-          <strong>文件读取失败</strong>
+          <strong>{{ t("couldNotReadFile") }}</strong>
           <span>{{ currentState?.loadError }}</span>
           <button
             type="button"
             :disabled="workspaceSavePending"
             @click="loadSelectedDocument(true)"
           >
-            重新读取
+            {{ t("reload") }}
           </button>
         </div>
         <LongManuscriptEditor
@@ -2226,22 +2218,25 @@ onBeforeUnmount(() => {
             class="long-worldbuilding-empty"
           >
             <AppIcon name="file" :size="22" />
-            <strong>还没有世界观条目</strong>
+            <strong>{{ t("noWorldbuildingEntriesYet") }}</strong>
             <span>
-              新建条目后，可通过{{
-                currentUsesLeftTreeWorldbuilding
-                  ? "左侧树"
-                  : currentUsesRightWorldbuildingList
-                    ? "右侧列表"
-                    : "上方 Tab"
-              }}切换并编辑内容。
+              {{
+                t("afterCreatingAnEntryUseToSwitchMessage", {
+                  arg0:
+                    (currentUsesLeftTreeWorldbuilding
+                      ? t("theLeftTree")
+                      : currentUsesRightWorldbuildingList
+                        ? t("theRightList")
+                        : t("theTabsAbove")) ?? ""
+                })
+              }}
             </span>
             <button
               v-if="!currentReadOnly"
               type="button"
               @click="addWorldbuildingItem"
             >
-              新建第一个条目
+              {{ t("createFirstEntry") }}
             </button>
           </div>
           <template v-else>
@@ -2265,7 +2260,7 @@ onBeforeUnmount(() => {
                 {{ currentCommittedEditNotice }}
               </span>
               <span v-else-if="currentReadOnly" class="long-readonly-badge">
-                只读内容
+                {{ t("readOnlyContent") }}
               </span>
               <template #actions>
                 <button
@@ -2281,7 +2276,7 @@ onBeforeUnmount(() => {
                     openWorldbuildingItemDelete(currentWorldbuildingItem.id)
                   "
                 >
-                  删除条目
+                  {{ t("deleteEntry") }}
                 </button>
               </template>
             </DocumentMetaRow>
@@ -2296,7 +2291,7 @@ onBeforeUnmount(() => {
               :readonly="currentReadOnly || locked || isDocumentContentBusy"
               maxlength="256"
               autocomplete="off"
-              aria-label="世界观条目名称"
+              :aria-label="t('worldbuildingEntryName')"
               @change="
                 updateWorldbuildingItemTitle(
                   currentWorldbuildingItem.id,
@@ -2311,7 +2306,7 @@ onBeforeUnmount(() => {
               :readonly="locked || characterNameSaving"
               maxlength="256"
               autocomplete="off"
-              aria-label="人物姓名"
+              :aria-label="t('characterName')"
               @change="saveCharacterName"
               @keydown="handleCharacterNameKeydown"
             />
@@ -2341,7 +2336,12 @@ onBeforeUnmount(() => {
                 :value="currentVisibleContent"
                 class="long-document-editor"
                 :readonly="currentReadOnly || isDocumentContentBusy"
-                :aria-label="`${currentDocumentTitle}${currentDocumentFormat || '内容'}`"
+                :aria-label="
+                  t('documentLabel', {
+                    title: currentDocumentTitle,
+                    format: currentDocumentFormat || t('content')
+                  })
+                "
                 :maxlength="
                   currentIsStructuredText
                     ? 200000
@@ -2373,14 +2373,14 @@ onBeforeUnmount(() => {
               <p v-else class="is-empty">
                 {{
                   currentIsPlotPointStoryline
-                    ? "暂无故事情节"
+                    ? t("noStoryEventsYet")
                     : currentIsPlotPointSummary
-                      ? "暂无概要"
+                      ? t("noSummaryYet")
                       : currentIsChapterCardContent
-                        ? "暂无章卡内容"
+                        ? t("noChapterCardContentYet")
                         : currentIsVolumeOutline
-                          ? "暂无卷纲"
-                          : "暂无正文"
+                          ? t("noVolumeOutlineYet")
+                          : t("noManuscriptYet")
                 }}
               </p>
             </article>
@@ -2412,9 +2412,7 @@ onBeforeUnmount(() => {
           />
           <strong>{{ selection.title }}</strong>
           <span>
-            {{
-              selection.description ?? "选择该目录中的文件后将在这里加载内容。"
-            }}
+            {{ selection.description ?? t("selectAFileInThisFolderToLoadIts") }}
           </span>
         </div>
 
@@ -2422,7 +2420,7 @@ onBeforeUnmount(() => {
           v-if="currentUsesAnyRightEntryList"
           class="long-editor-internal-resizer long-entry-list-resizer"
           role="separator"
-          aria-label="调整右侧条目列表宽度"
+          :aria-label="t('resizeRightEntryList')"
           aria-orientation="vertical"
           :aria-valuemin="LONG_EDITOR_LIST_MIN_WIDTH"
           :aria-valuemax="entryListMaxWidth"
@@ -2449,7 +2447,11 @@ onBeforeUnmount(() => {
         <LongCharacterNavigation
           v-if="currentUsesRightCharacterList"
           mode="right-list"
-          :label="`${selection.characterGroup ?? '人物'}人物`"
+          :label="
+            t('valueCharacters', {
+              arg0: selection.characterGroup ?? t('characters')
+            })
+          "
           :title="selection.title"
           :items="currentCharacterNavigationItems"
           :active-character-id="selection.characterId ?? null"
@@ -2463,25 +2465,25 @@ onBeforeUnmount(() => {
         <aside
           v-if="currentUsesRightBookLineList"
           class="long-story-plot-pane long-entry-list-pane"
-          aria-label="全书故事线列表"
+          :aria-label="t('overallStorylineList')"
         >
           <header>
             <div>
-              <strong>全书故事线</strong>
+              <strong>{{ t("overallStoryline") }}</strong>
               <span>{{ orderedBookLineVolumes.length + 1 }}</span>
             </div>
             <div v-if="!currentReadOnly" class="long-entry-list-actions">
               <button
                 type="button"
-                aria-label="新建分卷"
-                title="新建分卷"
+                :aria-label="t('newVolume')"
+                :title="t('newVolume')"
                 @click="requestCreateVolume"
               >
                 <AppIcon name="plus" :size="14" />
               </button>
               <button
                 type="button"
-                aria-label="删除当前分卷"
+                :aria-label="t('deleteCurrentVolume')"
                 :disabled="locked || !currentNavigationDeleteTarget"
                 @click="openNavigationDelete"
               >
@@ -2502,7 +2504,9 @@ onBeforeUnmount(() => {
                 @click="selectBookLineOverview"
               >
                 <span class="long-story-plot-card-order">—</span>
-                <span class="long-story-plot-card-title">全书总纲</span>
+                <span class="long-story-plot-card-title">{{
+                  t("overallOutline")
+                }}</span>
               </button>
             </article>
             <article
@@ -2532,18 +2536,18 @@ onBeforeUnmount(() => {
         <aside
           v-if="currentUsesRightPlotPointList"
           class="long-story-plot-pane long-entry-list-pane"
-          aria-label="剧情点列表"
+          :aria-label="t('plotPoints')"
         >
           <header>
             <div>
-              <strong>剧情点</strong>
+              <strong>{{ t("plotPoint") }}</strong>
               <span>{{ selection.plotPointTabs?.length ?? 0 }}</span>
             </div>
             <div v-if="!currentReadOnly" class="long-entry-list-actions">
               <button
                 type="button"
-                aria-label="新增剧情点"
-                title="新增剧情点"
+                :aria-label="t('addPlotPoint')"
+                :title="t('addPlotPoint')"
                 :disabled="locked"
                 @click="emit('createPlotPoint')"
               >
@@ -2551,7 +2555,7 @@ onBeforeUnmount(() => {
               </button>
               <button
                 type="button"
-                aria-label="删除当前剧情点"
+                :aria-label="t('deleteCurrentPlotPoint')"
                 :disabled="locked || !currentNavigationDeleteTarget"
                 @click="openNavigationDelete"
               >
@@ -2585,7 +2589,7 @@ onBeforeUnmount(() => {
         <LongManuscriptNavigation
           v-if="currentUsesRightChapterCardList"
           mode="right-list"
-          label="章卡列表"
+          :label="t('chapterCards')"
           :items="selection.chapterCardTabs ?? []"
           :active-chapter-id="selection.chapterCardId ?? null"
           :locked="locked"
@@ -2618,7 +2622,7 @@ onBeforeUnmount(() => {
           :character-count="characterCount"
           :document-states="documentStates"
           :ensure-documents-loaded="ensureDocumentsLoaded"
-          :auto-save-enabled="currentIsForeshadowingView"
+          :auto-save-enabled="autoSaveEnabled || currentIsForeshadowingView"
         />
         <span class="long-footer-spacer" />
         <button
@@ -2636,7 +2640,7 @@ onBeforeUnmount(() => {
           @click="saveCurrentDocument"
         >
           <AppIcon name="save" :size="14" />
-          {{ currentSaving ? "保存中…" : "立即保存" }}
+          {{ currentSaving ? t("saving") : t("saveNow") }}
         </button>
       </footer>
     </template>
@@ -2645,8 +2649,14 @@ onBeforeUnmount(() => {
       <span class="long-editor-empty-icon">
         <AppIcon name="book" :size="28" />
       </span>
-      <h2>选择一个长篇文件</h2>
-      <p>从左侧五个工作区根目录中选择设定、人物、故事线、章节或账本记录。</p>
+      <h2>{{ t("selectANovelFile") }}</h2>
+      <p>
+        {{
+          t(
+            "chooseWorldbuildingCharactersStorylinesChaptersOrLedgerRecordsFrom"
+          )
+        }}
+      </p>
     </div>
 
     <LongEditorDeleteDialogs
@@ -2677,9 +2687,7 @@ onBeforeUnmount(() => {
   container-type: inline-size;
   grid-column: 3;
   display: grid;
-  grid-template-rows:
-    minmax(50px, auto) minmax(40px, auto) minmax(0, 1fr)
-    minmax(36px, auto);
+  grid-template-rows: minmax(40px, auto) minmax(0, 1fr) minmax(36px, auto);
   min-width: 0;
   min-height: 0;
   overflow: hidden;
@@ -2690,122 +2698,8 @@ onBeforeUnmount(() => {
 
 .long-workspace-editor.has-navigation-tabs {
   grid-template-rows:
-    minmax(50px, auto) minmax(42px, auto) minmax(40px, auto)
+    minmax(42px, auto) minmax(40px, auto)
     minmax(0, 1fr) minmax(36px, auto);
-}
-
-.long-workspace-editor.is-foreshadowing-overview {
-  grid-template-rows: minmax(50px, auto) minmax(0, 1fr) minmax(36px, auto);
-}
-
-:global(html[data-platform="darwin"] .long-workspace-editor) {
-  grid-template-rows:
-    minmax(52px, auto) minmax(40px, auto) minmax(0, 1fr)
-    minmax(36px, auto);
-}
-
-:global(
-  html[data-platform="darwin"] .long-workspace-editor.is-foreshadowing-overview
-) {
-  grid-template-rows: minmax(52px, auto) minmax(0, 1fr) minmax(36px, auto);
-}
-
-:global(
-  html[data-platform="darwin"] .long-workspace-editor.has-navigation-tabs
-) {
-  grid-template-rows:
-    minmax(52px, auto) minmax(42px, auto) minmax(40px, auto)
-    minmax(0, 1fr) minmax(36px, auto);
-}
-
-.long-editor-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  min-width: 0;
-  gap: 10px;
-  padding: 7px 9px 7px 15px;
-  border-bottom: 1px solid var(--theme-line-soft);
-  background: var(--surface-raised);
-  -webkit-app-region: drag;
-}
-
-.long-editor-breadcrumbs {
-  display: flex;
-  align-items: center;
-  min-width: 0;
-  overflow: hidden;
-  color: var(--text-tertiary);
-  font-size: 0.75rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.long-editor-breadcrumbs span {
-  flex: 0 0 auto;
-}
-
-.long-editor-breadcrumbs span:last-child {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--text-secondary);
-  font-weight: 560;
-  text-overflow: ellipsis;
-}
-
-.long-editor-breadcrumbs i {
-  margin: 0 6px;
-  color: var(--text-tertiary);
-  font-style: normal;
-}
-
-.long-editor-header-actions {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: 5px;
-}
-
-.long-editor-save-state {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  color: var(--text-tertiary);
-  font-size: 0.678571rem;
-}
-
-.long-editor-save-state > span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.long-editor-save-state.is-dirty {
-  color: var(--warning);
-}
-
-.long-editor-collapse-button {
-  display: grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 7px;
-  background: transparent;
-  color: var(--text-secondary);
-  cursor: pointer;
-  -webkit-app-region: no-drag;
-}
-
-.long-editor-collapse-button:hover {
-  background: var(--surface-hover);
-  color: var(--text-primary);
-}
-
-:global(html[data-platform="darwin"] .long-editor-header) {
-  min-height: 52px;
-  padding-top: 10px;
-  padding-bottom: 8px;
 }
 
 .long-editor-toolbar {
@@ -2872,7 +2766,6 @@ onBeforeUnmount(() => {
   background: var(--theme-line);
 }
 
-.long-toolbar-spacer,
 .long-footer-spacer {
   flex: 1 1 auto;
 }
@@ -3258,14 +3151,6 @@ onBeforeUnmount(() => {
 }
 
 @container (max-width: 38rem) {
-  .long-editor-header {
-    padding-inline: 10px 7px;
-  }
-
-  .long-editor-save-state {
-    max-width: min(42cqw, 11rem);
-  }
-
   .long-editor-toolbar {
     flex-wrap: wrap;
     padding-inline: 8px;
@@ -3274,14 +3159,6 @@ onBeforeUnmount(() => {
   .long-editor-file-tabs {
     flex: 1 1 100%;
     max-width: 100%;
-  }
-
-  .long-toolbar-spacer {
-    display: none;
-  }
-
-  .long-editor-toolbar-actions {
-    margin-left: auto;
   }
 
   .long-editor-writing-surface {
@@ -3296,15 +3173,6 @@ onBeforeUnmount(() => {
 }
 
 @container (max-width: 27rem) {
-  .long-editor-breadcrumbs span:not(:last-child),
-  .long-editor-breadcrumbs i {
-    display: none;
-  }
-
-  .long-editor-save-state {
-    max-width: 34cqw;
-  }
-
   .long-editor-footer > span:nth-child(2) {
     display: none;
   }

@@ -6,7 +6,7 @@ import subagentSource from "./SubagentRunList.vue?raw";
 describe("SubagentRunList parent-delegated task", () => {
   it("shows the full parent-delegated task inside the expanded card", () => {
     expect(subagentSource).toContain("{{ run.task }}");
-    expect(subagentSource).toContain("主智能体下发的任务");
+    expect(subagentSource).toContain("taskAssignedByPrimaryAgent");
     expect(subagentSource).toContain("subagent-run-assigned-task");
     expect(subagentSource).not.toContain("SubagentTaskHoverPreview");
     expect(subagentSource).not.toContain("showTaskPreview");

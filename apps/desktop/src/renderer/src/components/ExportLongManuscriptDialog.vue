@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import type { LongManuscriptExportSection } from "@deepwrite/contracts";
 import type { IconName } from "../types/workspace";
@@ -10,6 +11,8 @@ import {
 import { uiMessage } from "../ui-feedback";
 import AppIcon from "./AppIcon.vue";
 import ExportLongManuscriptChapterList from "./ExportLongManuscriptChapterList.vue";
+
+const t = createScopedTranslator("components.exportLongManuscriptDialog");
 
 const props = defineProps<{
   open: boolean;
@@ -31,26 +34,42 @@ const options: ReadonlyArray<{
 }> = [
   {
     id: "worldbuilding",
-    label: "世界观",
-    description: "分类正文与全部条目",
+    get label() {
+      return t("worldbuilding");
+    },
+    get description() {
+      return t("categoryContentAndAllEntries");
+    },
     icon: "globe"
   },
   {
     id: "characters",
-    label: "人物",
-    description: "概览、档案、关系与状态",
+    get label() {
+      return t("characters");
+    },
+    get description() {
+      return t("overviewProfilesRelationshipsAndState");
+    },
     icon: "user"
   },
   {
     id: "plot",
-    label: "剧情",
-    description: "卷、剧情点、章节卡与伏笔",
+    get label() {
+      return t("plot");
+    },
+    get description() {
+      return t("volumesPlotPointsChapterCardsAndForeshadowing");
+    },
     icon: "book"
   },
   {
     id: "manuscript",
-    label: "正文",
-    description: "可勾选单章或多章，每章一个 TXT",
+    get label() {
+      return t("manuscript");
+    },
+    get description() {
+      return t("selectOneOrMoreChaptersEachExportsAsA");
+    },
     icon: "file"
   }
 ];
@@ -82,7 +101,7 @@ async function loadChapters(): Promise<void> {
     if (!snapshot) {
       chapters.value = [];
       selectedChapterIds.value = [];
-      uiMessage.error("读取正文章节失败。");
+      uiMessage.error(t("couldNotLoadManuscriptChapters"));
       return;
     }
     chapters.value = listLongManuscriptExportChapters(snapshot.workspaceIndex);
@@ -91,7 +110,7 @@ async function loadChapters(): Promise<void> {
     if (loadId !== chaptersLoadId) return;
     chapters.value = [];
     selectedChapterIds.value = [];
-    uiMessage.error("读取正文章节失败。");
+    uiMessage.error(t("couldNotLoadManuscriptChapters"));
   } finally {
     if (loadId === chaptersLoadId) chaptersLoading.value = false;
   }
@@ -142,12 +161,14 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
         <header>
           <div>
             <span class="dialog-eyebrow">{{ bookTitle }}</span>
-            <h2 id="export-long-title">导出长篇</h2>
+            <h2 id="export-long-title">
+              {{ t("exportNovel") }}
+            </h2>
           </div>
           <button
             class="dialog-close"
             type="button"
-            aria-label="关闭"
+            :aria-label="t('close')"
             :disabled="submitting"
             @click="requestClose"
           >
@@ -162,13 +183,14 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
           <div class="export-long-notice" role="note">
             <AppIcon name="folder" :size="18" />
             <p>
-              所选内容会导出到同一个文件夹，全部使用页面中可见的名称生成 TXT
-              文件，不使用内部 ID。勾选正文后可只导出一章或多章。
+              {{ t("selectedContentExportsToOneFolderAsTXTFiles") }}
             </p>
           </div>
 
           <fieldset class="export-long-options">
-            <legend>选择导出内容</legend>
+            <legend>
+              {{ t("selectContentToExport") }}
+            </legend>
             <div class="export-long-grid">
               <label
                 v-for="option in options"
@@ -209,7 +231,7 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
               :disabled="submitting"
               @click="requestClose"
             >
-              取消
+              {{ t("cancel") }}
             </button>
             <button
               class="dialog-primary-button"
@@ -217,7 +239,11 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
               :disabled="!canSubmit"
             >
               <AppIcon name="download" :size="15" />
-              {{ submitting ? "正在整理并导出…" : "选择导出位置" }}
+              {{
+                submitting
+                  ? t("preparingAndExporting")
+                  : t("selectExportLocation")
+              }}
             </button>
           </div>
         </form>

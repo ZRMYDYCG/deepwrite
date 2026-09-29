@@ -1,3 +1,4 @@
+import { t } from "../../i18n";
 import { reactive } from "vue";
 import type {
   AgentContextCompactionPayload,
@@ -78,7 +79,11 @@ export function parseStoredContextCompactions(
         ...(typeof item.errorMessage === "string"
           ? { errorMessage: item.errorMessage }
           : item.status === "running"
-            ? { errorMessage: "压缩未完成，运行已中断。" }
+            ? {
+                errorMessage: t(
+                  "workspace.contextCompaction.compactionWasNotCompletedTheRunWasInterrupted"
+                )
+              }
             : {})
       };
       return [parsed];

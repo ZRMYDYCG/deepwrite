@@ -1,14 +1,17 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../../i18n";
 import { ref } from "vue";
+
+const t = createScopedTranslator("extras.zhuqueDetection");
 
 const ZHUQUE_DETECTION_URL = "https://matrix.tencent.com/ai-detect/";
 const loading = ref(true);
 </script>
 
 <template>
-  <section class="zhuque-detection-page" aria-label="朱雀检测网页">
+  <section class="zhuque-detection-page" :aria-label="t('zhuqueWebPage')">
     <div v-if="loading" class="zhuque-detection-loading" role="status">
-      正在加载朱雀检测…
+      {{ t("loadingZhuque") }}
     </div>
     <webview
       class="zhuque-detection-webview"

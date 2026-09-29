@@ -1,7 +1,10 @@
+import { createScopedTranslator } from "../../i18n";
 import type { AgentConversationContext } from "./context";
 import { cloneMessage } from "./clone";
 import { finalizeUnfinishedMessageTools } from "./attempt-state";
 import { id } from "./shared";
+
+const t = createScopedTranslator("workspace.sessionLifecycle");
 
 type SessionLifecycleContext = Pick<
   AgentConversationContext,
@@ -85,12 +88,12 @@ export function stopStreamingMessages(ctx: SessionLifecycleContext): void {
       message,
       "stopped",
       completedAt,
-      "会话已切换或关闭，子任务同步停止。"
+      t("theConversationWasSwitchedOrClosedSubtasksWereAlso")
     );
     finalizeUnfinishedMessageTools(
       message,
       completedAt,
-      "会话已切换或关闭，工具调用未返回完整终态。"
+      t("theConversationWasSwitchedOrClosedBeforeToolCalls")
     );
     for (const run of message.subagentRuns ?? []) {
       if (run.retry) delete run.retry;

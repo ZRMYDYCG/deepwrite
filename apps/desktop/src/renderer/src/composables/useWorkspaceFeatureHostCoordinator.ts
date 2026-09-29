@@ -1,3 +1,5 @@
+import { formatError } from "../i18n/errors";
+import { createScopedTranslator } from "../i18n";
 import { watchFeatureErrors } from "./workspaceFeatureErrors";
 import type { MarketplaceSession } from "@deepwrite/contracts";
 import { computed, ref } from "vue";
@@ -9,7 +11,10 @@ import type {
 } from "./workspaceFeatureHostTypes";
 import { buildWorkspaceFeatureModule } from "./workspaceFeatureHostModule";
 import { useMarketplaceDisplayName } from "./useMarketplaceDisplayName";
+import { useWorkspaceDirectorySettings } from "./useWorkspaceDirectorySettings";
 import type { buildSettingsFeatureModule } from "./settingsFeatureModule";
+
+const t = createScopedTranslator("workspace.workspaceFeatureHostCoordinator");
 export type {
   ActiveFeature,
   WorkspaceFeatureHostApi,
@@ -19,7 +24,7 @@ export type {
 } from "./workspaceFeatureHostTypes";
 
 function errorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error ? error.message : fallback;
+  return formatError(error, fallback);
 }
 
 /**
@@ -39,8 +44,6 @@ export function useWorkspaceFeatureHostCoordinator(
   let navigationGeneration = 0;
   let marketplaceRevision = 0;
   let marketplaceRequestGeneration = 0;
-  let directoryChooseGeneration = 0;
-  let directoryChoosePending = false;
   let buildSettingsModule: typeof buildSettingsFeatureModule | undefined;
 
   const isLongWorkspaceActive = computed(
@@ -67,6 +70,12 @@ export function useWorkspaceFeatureHostCoordinator(
   );
 
   const stopFeatureErrors = watchFeatureErrors(options, () => active);
+  const directorySettings = useWorkspaceDirectorySettings(options);
+  const {
+    loadWorkspaceDirectory,
+    chooseWorkspaceDirectory,
+    resetWorkspaceDirectory
+  } = directorySettings;
 
   function beginNavigation(): number {
     return ++navigationGeneration;
@@ -125,10 +134,10 @@ export function useWorkspaceFeatureHostCoordinator(
             errorMessage(
               error,
               mode === "revision-analysis"
-                ? "加载修改分析模块失败。"
+                ? t("couldNotLoadTheRevisionAnalysisModule")
                 : mode === "short-book-analysis"
-                  ? "加载短篇拆书模块失败。"
-                  : "加载长篇拆书模块失败。"
+                  ? t("couldNotLoadTheShortStoryAnalysisModule")
+                  : t("couldNotLoadTheLongFormAnalysisModule")
             )
           );
         }
@@ -164,7 +173,7 @@ export function useWorkspaceFeatureHostCoordinator(
     } catch {
       if (navigationIsCurrent(generation)) {
         options.notifications.error(
-          "设置页面加载失败，请稍后重试或重新启动应用。"
+          t("couldNotLoadSettingsTryAgainShortlyOrRestart")
         );
       }
       return;
@@ -194,7 +203,7 @@ export function useWorkspaceFeatureHostCoordinator(
     } catch (error: unknown) {
       if (navigationIsCurrent(generation)) {
         options.notifications.error(
-          errorMessage(error, "加载智能体团队模块失败。")
+          errorMessage(error, t("couldNotLoadTheAgentTeamsModule"))
         );
       }
       return;
@@ -238,52 +247,6 @@ export function useWorkspaceFeatureHostCoordinator(
     const generation = beginNavigation();
     if (!(await canApplyNavigation(generation))) return;
     options.view.workspaceMain.value = "zhuque-detection";
-  }
-
-  async function loadWorkspaceDirectory(): Promise<void> {
-    const api = options.api();
-    if (!active || !api) return;
-    try {
-      await settingsStore.ensureWorkspaceDirectoryLoaded(() =>
-        api.workspaceDirectory.list()
-      );
-    } catch (error: unknown) {
-      if (active) {
-        options.notifications.error(errorMessage(error, "加载工作目录失败。"));
-      }
-    }
-  }
-
-  async function chooseWorkspaceDirectory(): Promise<void> {
-    const api = options.api();
-    if (
-      !active ||
-      !api ||
-      directoryChoosePending ||
-      settingsStore.workspaceDirectoryLoading
-    ) {
-      return;
-    }
-    const generation = ++directoryChooseGeneration;
-    directoryChoosePending = true;
-    settingsStore.workspaceDirectoryLoading = true;
-    try {
-      const settings = await api.workspaceDirectory.choose();
-      if (!active || generation !== directoryChooseGeneration || !settings) {
-        return;
-      }
-      settingsStore.markLoaded("workspaceDirectory", settings);
-      options.notifications.success("工作目录已切换；现有项目保持原位置不变");
-    } catch (error: unknown) {
-      if (active && generation === directoryChooseGeneration) {
-        options.notifications.error(errorMessage(error, "切换工作目录失败。"));
-      }
-    } finally {
-      if (generation === directoryChooseGeneration) {
-        directoryChoosePending = false;
-        settingsStore.workspaceDirectoryLoading = false;
-      }
-    }
   }
 
   function closeSettings(): void {
@@ -348,11 +311,7 @@ export function useWorkspaceFeatureHostCoordinator(
     navigationGeneration += 1;
     marketplaceRevision += 1;
     marketplaceRequestGeneration += 1;
-    directoryChooseGeneration += 1;
-    if (directoryChoosePending) {
-      directoryChoosePending = false;
-      settingsStore.workspaceDirectoryLoading = false;
-    }
+    directorySettings.dispose();
   }
 
   return {
@@ -372,6 +331,7 @@ export function useWorkspaceFeatureHostCoordinator(
     openZhuqueDetection,
     loadWorkspaceDirectory,
     chooseWorkspaceDirectory,
+    resetWorkspaceDirectory,
     closeSettings,
     applyMarketplaceSession,
     loadMarketplaceSession,

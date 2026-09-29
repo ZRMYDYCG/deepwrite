@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import {
   computed,
   onBeforeUnmount,
@@ -14,6 +15,8 @@ import {
 } from "../composables/windowFrameMenus";
 import { uiMessage } from "../ui-feedback";
 import { WindowMenuBar } from "./lazyAppComponents";
+
+const t = createScopedTranslator("components.windowFrame");
 const api = window.deepwrite?.windowFrame;
 const state = ref<WindowFrameState>({
   customTitlebar: false,
@@ -38,7 +41,7 @@ async function command(action: WindowFrameAction) {
   try {
     if (api) state.value = await api.command(action);
   } catch {
-    uiMessage.error("窗口操作失败，请重试。");
+    uiMessage.error(t("windowActionFailedTryAgain"));
   }
 }
 function keydown(event: KeyboardEvent) {
@@ -88,16 +91,21 @@ onBeforeUnmount(() => {
         :open-initially="openInitially"
         @command="command"
       />
-      <nav v-else role="menubar" aria-label="应用菜单" class="window-menus">
+      <nav
+        v-else
+        role="menubar"
+        :aria-label="t('applicationMenu')"
+        class="window-menus"
+      >
         <button
-          v-for="(label, index) in ['文件', '视图', '帮助']"
+          v-for="(label, index) in [t('file'), t('view'), t('help')]"
           :key="label"
           type="button"
           class="window-menu-launcher"
           role="menuitem"
           aria-haspopup="menu"
           aria-expanded="false"
-          :aria-label="label + '菜单'"
+          :aria-label="label + t('menu')"
           :disabled="!actions"
           @pointerdown.prevent="activateMenu(index)"
           @click="activateMenu(index)"
@@ -112,9 +120,11 @@ onBeforeUnmount(() => {
       <div class="window-controls">
         <button
           v-for="(label, action) in {
-            minimize: '最小化窗口',
-            toggleMaximize: state.maximized ? '还原窗口' : '最大化窗口',
-            close: '关闭窗口'
+            minimize: t('minimizeWindow'),
+            toggleMaximize: state.maximized
+              ? t('restoreWindow')
+              : t('maximizeWindow'),
+            close: t('closeWindow')
           }"
           :key="action"
           type="button"

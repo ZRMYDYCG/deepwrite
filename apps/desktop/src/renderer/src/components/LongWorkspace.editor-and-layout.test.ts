@@ -28,10 +28,10 @@ import {
 describe("long-form renderer vertical slice: editor-and-layout", () => {
   it("edits and persists long-form structure titles from the document title", () => {
     expect(editorSource).toContain("currentStructureTitleTarget");
-    expect(editorSource).toContain('inputLabel: "剧情点标题"');
-    expect(editorSource).toContain('inputLabel: "分卷名称"');
-    expect(editorSource).toContain('inputLabel: "章卡标题"');
-    expect(editorSource).toContain('inputLabel: "世界观分类名称"');
+    expect(editorSource).toContain("plotPointTitle");
+    expect(editorSource).toContain("volumeName");
+    expect(editorSource).toContain("chapterCardTitle");
+    expect(editorSource).toContain("worldbuildingCategoryName");
     expect(editorSource).toContain('v-model="structureTitleDraft"');
     expect(editorSource).toContain('@change="saveStructureTitle"');
     expect(editorSource).toContain('@keydown="handleStructureTitleKeydown"');
@@ -69,11 +69,13 @@ describe("long-form renderer vertical slice: editor-and-layout", () => {
     expect(editorSessionSource).not.toContain("baseWorkspaceRevision");
     expect(editorSessionSource).not.toContain("baseProjectRevision");
     expect(editorSource).toContain("currentReadOnly");
-    expect(longWorkspaceTypeSource).toContain('label: "正文"');
-    expect(longWorkspaceTypeSource).toContain('label: "章末状态"');
-    expect(longWorkspaceTypeSource).toContain('label: "下一章接续包"');
+    expect(longWorkspaceTypeSource).toContain('t("manuscript")');
+    expect(longWorkspaceTypeSource).toContain('t("chapterEndState")');
+    expect(longWorkspaceTypeSource).toContain('t("nextChapterHandoff")');
     expect(editorSessionSource).toContain("async function saveAllChanges()");
-    expect(editorSessionSource).toContain("离开前已自动保存");
+    expect(editorSessionSource).toContain(
+      "automaticallySavedLongFormChangesBeforeLeaving"
+    );
     expect(appSource).toContain("saveActiveLongEditorBeforeLeaving");
     expect(appSource).toContain(
       '@editor-port-change="updateLongWorkspaceEditorPort"'
@@ -140,15 +142,13 @@ describe("long-form renderer vertical slice: editor-and-layout", () => {
     expect(worldbuildingNavigationSource).toContain(
       'class="section-tabs-bar long-worldbuilding-tabs"'
     );
-    expect(worldbuildingNavigationSource).toContain('aria-label="世界观条目"');
+    expect(worldbuildingNavigationSource).toContain("worldbuildingEntry");
     expect(editorSource).toContain("currentUsesTopWorldbuildingTabs");
     expect(editorSource).toContain("currentUsesRightWorldbuildingList");
     expect(editorSource).toContain("currentUsesLeftTreeWorldbuilding");
     expect(editorSource).toContain('=== "left-tree"');
     expect(editorSource).toContain('"right-list"');
-    expect(worldbuildingNavigationSource).toContain(
-      'aria-label="世界观条目列表"'
-    );
+    expect(worldbuildingNavigationSource).toContain("worldbuildingEntries");
     expect(worldbuildingNavigationSource).toContain("long-entry-list-pane");
     expect(worldbuildingNavigationSource).toContain("items.length");
     expect(editorSource).toContain("@container (max-width: 26rem)");
@@ -173,12 +173,10 @@ describe("long-form renderer vertical slice: editor-and-layout", () => {
     expect(editorSource).toContain("currentUsesLeftTreeCharacter");
     expect(editorSource).toContain("currentUsesLeftTreePlot");
     expect(editorSource).toContain("currentUsesLeftTreeContinuity");
-    expect(continuityNavigationSource).toContain(
-      'aria-label="连续性账本文件列表"'
-    );
-    expect(editorSource).toContain('aria-label="全书故事线列表"');
-    expect(editorSource).toContain('aria-label="剧情点列表"');
-    expect(manuscriptNavigationSource).toContain('aria-label="章卡列表"');
+    expect(continuityNavigationSource).toContain("continuityLedgerFiles");
+    expect(editorSource).toContain("overallStorylineList");
+    expect(editorSource).toContain("plotPoints");
+    expect(manuscriptNavigationSource).toContain("chapterCards");
     expect(manuscriptNavigationSource).toContain("toggleActionMenu");
     expect(manuscriptNavigationSource).toContain("runMenuAction");
     expect(editorStructureSource).toContain('type: "chapter.reorder"');
@@ -276,13 +274,14 @@ describe("long-form renderer vertical slice: editor-and-layout", () => {
   });
 
   it("uses the shared writing-editor layout without exposing internal revisions", () => {
-    expect(editorSource).toContain('class="long-editor-breadcrumbs"');
+    expect(editorSource).not.toContain('class="long-editor-breadcrumbs"');
+    expect(editorSource).toContain("<EditorPaneToggle");
     expect(editorSource).toContain('class="long-editor-file-tabs"');
     expect(editorSource).toContain('class="long-editor-view-tabs"');
     expect(editorSource).toContain('class="long-document-title"');
     expect(editorSource).toContain('class="long-editor-footer"');
-    expect(editorSource).toContain("已保存到本机");
-    expect(editorSource).toContain("立即保存");
+    expect(editorSource).toContain("<LongEditorFooterMeta");
+    expect(editorSource).toContain("saveNow");
     expect(editorSource).not.toContain("currentState.file.revision");
   });
 

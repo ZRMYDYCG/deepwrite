@@ -1,3 +1,6 @@
+import { createScopedTranslator } from "../../i18n";
+
+const t = createScopedTranslator("workspace.jsonChunks");
 interface ValueFrame {
   kind: "value";
   value: unknown;
@@ -74,9 +77,11 @@ function* tokens(value: unknown, stringSlice: number): Generator<string> {
       continue;
     }
     if (typeof current !== "object")
-      throw new Error("会话中包含无法导出为 JSON 的数据。");
+      throw new Error(t("theConversationContainsDataThatCannotBeExportedAs"));
     if (ancestors.has(current))
-      throw new Error("会话中包含循环引用，无法完整导出。");
+      throw new Error(
+        t("theConversationContainsCircularReferencesAndCannotBeFully")
+      );
     ancestors.add(current);
     if (Array.isArray(current)) {
       yield "[";

@@ -46,7 +46,7 @@ describe("ModelSettingsFeature DeepWrite free models", () => {
   });
 
   it("renders managed free models as read-only cards with default and test actions", () => {
-    expect(featureSource).toContain("DeepWrite 免费模型");
+    expect(featureSource).toContain("deepWriteFreeModels");
     expect(featureSource).toContain('v-if="!row.model.managedBy"');
     expect(featureSource).toContain("setDefaultModel(row.model.id)");
     expect(featureSource).toContain("testDraftModel(row.model)");
@@ -80,16 +80,16 @@ describe("ModelSettingsFeature DeepWrite free models", () => {
 
 describe("ModelSettingsFeature provider presets", () => {
   it("offers an explicit PI-native or portable tool schema override", () => {
-    expect(source).toContain('label: "自动（推荐）"');
+    expect(source).toContain("modelEditor.automaticRecommended");
     expect(source).toContain('value: "native"');
     expect(source).toContain('value: "portable"');
-    expect(source).toContain('accessible-label="选择工具结构兼容模式"');
+    expect(source).toContain("selectToolSchemaCompatibilityMode");
     expect(source).toContain("toolSchemaProfile: model.toolSchemaProfile");
   });
 
   it("places the tool schema beside and after the API address", () => {
-    const apiUrlIndex = editorSource.indexOf("<span>API 地址</span>");
-    const toolSchemaIndex = editorSource.indexOf("<span>工具结构</span>");
+    const apiUrlIndex = editorSource.indexOf('t("aPIEndpoint")');
+    const toolSchemaIndex = editorSource.indexOf('t("toolSchema")');
     expect(apiUrlIndex).toBeGreaterThan(-1);
     expect(toolSchemaIndex).toBeGreaterThan(apiUrlIndex);
   });
@@ -172,8 +172,8 @@ describe("ModelSettingsFeature provider presets", () => {
 
 describe("ModelSettingsFeature official models", () => {
   it("keeps official models selectable but hides edit and delete actions", () => {
-    expect(source).toContain("旧官方小站模型");
-    expect(source).toContain("新官方小站模型");
+    expect(source).toContain("legacyOfficialModels");
+    expect(source).toContain("officialSiteModels");
     expect(source).toContain('v-if="!row.model.managedBy"');
     expect(source).toContain("requestModelId: model.requestModelId");
     expect(source).toContain(
@@ -186,7 +186,7 @@ describe("ModelSettingsFeature official models", () => {
     expect(source).toContain('v-for="(message, index) in modelAlertMessages"');
     expect(source).toContain("{{ message }}");
     expect(source).toContain("@click=\"emit('openOfficialModels')\"");
-    expect(source).toContain('title="前往设置官方模型"');
+    expect(source).toContain("configureOfficialModels");
     expect(source).not.toContain("官方模型已经上线！直连厂商！");
     expect(source).not.toContain("配置会同时用于连接测试与实际对话");
   });
@@ -195,28 +195,25 @@ describe("ModelSettingsFeature official models", () => {
 describe("ModelSettingsFeature remote model ids", () => {
   it("offers a fetch button beside the model id field and turns it into a selector", () => {
     expect(source).toContain('class="model-id-field"');
-    expectSourceToContain(
-      source,
-      ":aria-label=\"listingRemoteModels ? '拉取中' : '拉取可用模型'\""
-    );
-    expect(source).toContain('{{ listingRemoteModels ? "拉取中" : "拉取" }}');
+    expectSourceToContain(source, "fetchAvailableModels");
+    expect(source).toContain("fetchingLabel");
     expect(source).toContain('@click="fetchRemoteModels"');
     expect(source).toContain("window.deepwrite.models.listRemote({");
-    expect(source).toContain('accessible-label="选择模型 ID"');
-    expect(source).toContain("手动输入其他模型 ID");
+    expect(source).toContain("selectModelMode");
+    expect(source).toContain("enterAnotherModelID");
     expect(source).toContain("canSelectRemoteModel");
   });
 
   it("shows a dialog when the api url or key is missing", () => {
     expect(source).toContain("function missingCredentials");
-    expect(source).toContain("请先填写 API 地址和 API Key，再拉取可用模型。");
-    expect(source).toContain("请先填写 API 地址，再拉取可用模型。");
-    expect(source).toContain("请先填写 API Key，再拉取可用模型。");
+    expect(source).toContain("enterTheApiUrlAndApiKeyBeforeFetching");
+    expect(source).toContain("enterTheApiUrlBeforeFetchingAvailableModels");
+    expect(source).toContain("enterTheApiUrlBeforeFetchingAvailableModels");
     expect(source).toContain(
       'class="dialog-backdrop model-fetch-hint-overlay"'
     );
     expect(source).toContain('id="model-fetch-hint-title"');
-    expect(source).toContain("无法拉取模型");
+    expect(source).toContain("couldNotFetchModels");
     expect(source).toContain("fetchHintDialog.value = missing");
     expect(source).not.toContain("uiMessage.warning(missing)");
   });
@@ -249,10 +246,7 @@ describe("ModelSettingsFeature model draft lifecycle", () => {
   it("filters managed models and free-provider options in custom scope", () => {
     expect(source).toContain('props.modelScope === "all" || !model.managedBy');
     expect(providerLabel("deepwrite-free")).toBeUndefined();
-    expectSourceToContain(
-      source,
-      'modelScope === "custom" ? "尚未配置自定义模型"'
-    );
+    expectSourceToContain(source, "noCustomModelsConfigured");
   });
 
   it("merges custom drafts with hidden managed models before saving", () => {
@@ -264,22 +258,22 @@ describe("ModelSettingsFeature model draft lifecycle", () => {
 
 describe("ModelSettingsFeature custom providers", () => {
   it("offers 新建提供商 below 其他兼容服务 and merges known names", () => {
-    expect(editorSource).toContain("新建提供商");
+    expect(editorSource).toContain("newProvider");
     expect(editorSource).toContain("CreateCustomProviderDialog");
     expect(editorSource).toContain("openCreateProvider");
     expect(editorLogicSource).toContain("applyCustomProvider");
     expect(editorLogicSource).toContain("mergeProviderSelectOptions");
     expect(source).toContain("knownUserProviders");
     expect(source).toContain("collectUserProviderIds");
-    expect(editorSource.indexOf("新建提供商")).toBeGreaterThan(
-      editorSource.indexOf('accessible-label="选择 Provider"')
+    expect(editorSource.indexOf("newProvider")).toBeGreaterThan(
+      editorSource.indexOf("selectProvider")
     );
   });
 });
 
 describe("ModelSettingsFeature advanced capacity", () => {
   it("places advanced configuration before delete on custom models only", () => {
-    const advancedIndex = featureSource.indexOf("高级配置");
+    const advancedIndex = featureSource.indexOf("advancedSettings");
     const deleteIndex = featureSource.indexOf("removeModel(row.model.id)");
     expect(advancedIndex).toBeGreaterThan(-1);
     expect(deleteIndex).toBeGreaterThan(advancedIndex);
@@ -289,15 +283,17 @@ describe("ModelSettingsFeature advanced capacity", () => {
   });
 
   it("opens a dialog for context window and max output tokens", () => {
-    expect(advancedConfigSource).toContain("上下文长度");
-    expect(advancedConfigSource).toContain("最高输出长度");
+    expect(advancedConfigSource).toContain("contextLength");
+    expect(advancedConfigSource).toContain("maximumOutputLength");
     expect(advancedConfigSource).toContain(
       "window.deepwrite.models.resolveCapacity"
     );
     expect(advancedConfigSource).toContain("hasCustomCapacity(model)");
     expect(advancedConfigSource).toContain("contextWindow: undefined");
     expect(advancedConfigSource).toContain("maxTokens: undefined");
-    expect(advancedConfigSource).toContain("最高输出长度不能超过上下文长度。");
+    expect(advancedConfigSource).toContain(
+      "maximumOutputLengthCannotExceedContextLength"
+    );
   });
 
   it("applies successful test defaults then persists edited capacity immediately", () => {

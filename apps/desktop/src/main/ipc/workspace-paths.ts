@@ -1,3 +1,4 @@
+import { nativeText } from "../native-i18n";
 import { join } from "node:path";
 import { WorkspaceDirectorySettingsSchema } from "@deepwrite/contracts";
 import type { WorkspaceDirectoryStore } from "../workspace-directory-store";
@@ -29,7 +30,7 @@ export async function chooseWorkspaceDirectory(options: {
 }): Promise<ReturnType<typeof WorkspaceDirectorySettingsSchema.parse> | null> {
   const current = await options.requireWorkspaceDirectoryStore().list();
   const selection = await options.dialog.showOpenDialog({
-    title: "选择 DeepWrite 工作目录",
+    title: nativeText("chooseWorkspace"),
     defaultPath: current.path ?? options.getDocumentsPath(),
     properties: ["openDirectory", "createDirectory"]
   });

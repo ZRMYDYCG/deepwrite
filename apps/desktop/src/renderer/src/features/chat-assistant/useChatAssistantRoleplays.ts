@@ -1,3 +1,4 @@
+import { t } from "../../i18n";
 import { computed, ref } from "vue";
 import type { ChatRoleplayProfile } from "@deepwrite/contracts";
 import { uiMessage } from "../../ui-feedback";
@@ -31,7 +32,7 @@ export function useChatAssistantRoleplays() {
     try {
       roleplays.value = await listChatRoles();
     } catch {
-      uiMessage.error("读取人物配置失败，请重新打开聊天后重试");
+      uiMessage.error(t("extras.chatAssistant.loadCharactersFailed"));
     }
   }
   async function save(

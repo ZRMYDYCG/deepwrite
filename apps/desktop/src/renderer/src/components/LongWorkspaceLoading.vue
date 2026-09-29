@@ -1,7 +1,10 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import type { WorkspacePaneLayout } from "@deepwrite/contracts";
 import AppIcon from "./AppIcon.vue";
 import LongWorkspacePanePlaceholder from "./LongWorkspacePanePlaceholder.vue";
+
+const t = createScopedTranslator("components.longWorkspaceLoading");
 
 // Vue forwards the async component's complete props/listeners to its fallback.
 // Ignore the data-loading prop: the component chunk may still be pending
@@ -24,7 +27,7 @@ const emit = defineEmits<{ expandLeft: [] }>();
     v-if="leftCollapsed"
     class="icon-button long-workspace-expand-sidebar"
     type="button"
-    aria-label="展开左侧栏"
+    :aria-label="t('expandSidebar')"
     @click="emit('expandLeft')"
   >
     <AppIcon name="panel-left" :size="18" />
@@ -32,7 +35,7 @@ const emit = defineEmits<{ expandLeft: [] }>();
   <div
     v-show="paneLayout === 'agent-editor' || !rightPane.collapsed"
     class="long-agent-column"
-    aria-label="长篇创作空间"
+    :aria-label="t('novelWorkspace')"
   >
     <LongWorkspacePanePlaceholder kind="agent" :loading="pending" />
   </div>

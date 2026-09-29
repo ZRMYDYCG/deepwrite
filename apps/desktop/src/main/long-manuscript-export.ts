@@ -1,3 +1,4 @@
+import { nativeText } from "./native-i18n";
 import type { BrowserWindow } from "electron";
 import { dialog } from "electron";
 import { access, mkdir, writeFile } from "node:fs/promises";
@@ -89,8 +90,8 @@ export async function exportLongManuscript(
 ): Promise<ExportLongManuscriptResult> {
   const input = ExportLongManuscriptInputSchema.parse(rawInput);
   const selection = await dialog.showOpenDialog(window, {
-    title: "选择长篇导出位置",
-    buttonLabel: "导出到这里",
+    title: nativeText("chooseLongExport"),
+    buttonLabel: nativeText("exportHere"),
     properties: ["openDirectory", "createDirectory"]
   });
   const parentDirectory = selection.filePaths[0];

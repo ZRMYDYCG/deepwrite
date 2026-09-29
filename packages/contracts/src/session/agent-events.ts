@@ -1,14 +1,12 @@
 import { z } from "zod";
 import { AgentUsageSchema } from "../agent-usage";
 import { SubagentAuthoringDraftSchema } from "../subagent-authoring";
-import { AgentRuntimeRefSchema } from "./runtime";
+import {
+  AgentEventIdentitySchema,
+  AgentRuntimeRefSchema
+} from "./agent-event-identity";
 
-export const AgentEventIdentitySchema = z.object({
-  sessionId: z.string().min(1),
-  runId: z.string().min(1),
-  messageId: z.string().min(1),
-  runtime: AgentRuntimeRefSchema
-});
+export { AgentEventIdentitySchema } from "./agent-event-identity";
 
 export const AgentTurnStartedFieldsSchema = z.object({
   turnId: z.string().min(1),

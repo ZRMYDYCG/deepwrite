@@ -105,8 +105,12 @@ describe("App agent-team integration", () => {
     expect(source).toContain('import { uiMessage } from "./ui-feedback"');
     expect(source).toContain("notifications: uiMessage");
     expect(coordinatorSource).toContain("uiMessage.success(");
-    expect(coordinatorSource).toContain("保存创作空间智能体设置失败。");
-    expect(coordinatorSource).toContain("保存长篇智能体设置失败。");
+    expect(coordinatorSource).toContain(
+      "settingsFeatureCoordinator.failedToSaveWorkspaceAgentSettings"
+    );
+    expect(coordinatorSource).toContain(
+      "settingsFeatureCoordinator.failedToSaveNovelAgentSettings"
+    );
     expect(source).not.toContain("function showWorkspaceAgentFeedback");
     expect(source).not.toContain("function showLongAgentFeedback");
     expect(featureModulesSource).toContain(

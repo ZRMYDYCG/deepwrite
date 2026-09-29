@@ -30,7 +30,11 @@ export function updateSkillMarkdownMetadata(
   const name = values.name.replace(/\s+/g, " ").trim();
   const description = values.description.replace(/\s+/g, " ").trim();
   if (!name || !description)
-    return { updated: false, message: "请填写技能名称和使用说明。" };
+    return {
+      updated: false,
+      code: "missing_skill_fields",
+      message: "请填写技能名称和使用说明。"
+    };
 
   const lines = content.split(/\r?\n/);
   let headerEnd: number | undefined;
@@ -39,6 +43,7 @@ export function updateSkillMarkdownMetadata(
     if (end < 0)
       return {
         updated: false,
+        code: "unclosed_skill_header",
         message: "技能说明头部缺少结束分隔符 ---，请先在正文编辑器中调整。"
       };
     const header = lines.slice(1, end);
@@ -52,6 +57,7 @@ export function updateSkillMarkdownMetadata(
       if (matches.length > 1 || (nextLine && /^\s+\S/.test(nextLine)))
         return {
           updated: false,
+          code: "complex_skill_header",
           message: "技能说明包含重复字段或多行配置，请先在正文编辑器中调整。"
         };
     }
@@ -65,6 +71,7 @@ export function updateSkillMarkdownMetadata(
   } else if (content.startsWith("\uFEFF---")) {
     return {
       updated: false,
+      code: "skill_header_bom",
       message: "技能首行包含不可见字符，请先在正文编辑器中调整为 ---。"
     };
   }

@@ -1,9 +1,23 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, ref, useId, watch } from "vue";
+import { createScopedTranslator, locale } from "../i18n";
+import {
+  computed,
+  defineAsyncComponent,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  useId,
+  watch,
+  type CSSProperties
+} from "vue";
 import { useCurrentConversationExport } from "../composables/useCurrentConversationExport";
 import { useConversationHistoryManagement } from "../composables/useConversationHistoryManagement";
 import type { ConversationHistoryItem } from "../types/conversation";
 import AppIcon from "./AppIcon.vue";
+import { conversationHistoryPosition } from "./conversationHistoryPosition";
+
+const t = createScopedTranslator("components.conversationHistoryMenu");
 const ConversationHistoryDeleteDialog = defineAsyncComponent(
   () => import("./ConversationHistoryDeleteDialog.vue")
 );
@@ -17,6 +31,9 @@ const props = defineProps<{
 const emit = defineEmits<{ selectConversation: [sessionId: string] }>();
 const exportAction = useCurrentConversationExport(() => props.currentSessionId);
 const historyOpen = ref(false);
+const trigger = ref<HTMLButtonElement>();
+const panelStyle = ref<CSSProperties>({ visibility: "hidden" });
+let surfaceObserver: ResizeObserver | undefined;
 const panelId = useId();
 const view = ref<"active" | "deleted">("active");
 const pendingDelete = ref<ConversationHistoryItem>();
@@ -34,6 +51,46 @@ const visibleHistory = computed(() =>
 );
 watch([historyOpen, view], ([open, selected]) => {
   if (open && selected === "deleted") void refreshDeleted();
+});
+function positionPanel(): void {
+  if (!historyOpen.value || !trigger.value) return;
+  const surface = trigger.value.closest<HTMLElement>(
+    ".conversation-pane, .chat-assistant-window"
+  );
+  if (!surface) return;
+  const position = conversationHistoryPosition(
+    trigger.value.getBoundingClientRect(),
+    surface.getBoundingClientRect(),
+    { width: window.innerWidth, height: window.innerHeight }
+  );
+  panelStyle.value = {
+    left: `${position.left}px`,
+    top: `${position.top}px`,
+    width: `${position.width}px`,
+    maxHeight: `${position.maxHeight}px`
+  };
+}
+watch(historyOpen, async (open) => {
+  surfaceObserver?.disconnect();
+  if (!open) {
+    panelStyle.value = { visibility: "hidden" };
+    return;
+  }
+  await nextTick();
+  if (!historyOpen.value || !trigger.value) return;
+  positionPanel();
+  if (typeof ResizeObserver !== "undefined") {
+    surfaceObserver = new ResizeObserver(positionPanel);
+    const surface = trigger.value.closest<HTMLElement>(
+      ".conversation-pane, .chat-assistant-window"
+    );
+    if (surface) surfaceObserver.observe(surface);
+  }
+});
+onMounted(() => window.addEventListener("resize", positionPanel));
+onBeforeUnmount(() => {
+  window.removeEventListener("resize", positionPanel);
+  surfaceObserver?.disconnect();
 });
 async function confirmDelete(): Promise<void> {
   if (pendingDelete.value && (await deleteConversation(pendingDelete.value)))
@@ -53,12 +110,12 @@ function formatHistoryTime(value: string): string {
   const date = new Date(timestamp);
   const now = new Date();
   if (date.toDateString() === now.toDateString()) {
-    return date.toLocaleTimeString("zh-CN", {
+    return date.toLocaleTimeString(locale.value, {
       hour: "2-digit",
       minute: "2-digit"
     });
   }
-  return date.toLocaleDateString("zh-CN", {
+  return date.toLocaleDateString(locale.value, {
     month: "numeric",
     day: "numeric"
   });
@@ -77,18 +134,19 @@ function selectHistoryConversation(item: ConversationHistoryItem): void {
     @keydown.esc.stop="historyOpen = false"
   >
     <button
+      ref="trigger"
       class="header-text-button"
       :class="{ 'is-active': historyOpen }"
       type="button"
       aria-haspopup="dialog"
       :aria-expanded="historyOpen"
       :aria-controls="panelId"
-      aria-label="历史对话"
-      title="历史对话"
+      :aria-label="t('conversationHistory')"
+      :title="t('conversationHistory')"
       @click="historyOpen = !historyOpen"
     >
       <AppIcon name="history" :size="16" />
-      <span v-if="!compact">历史对话</span>
+      <span v-if="!compact">{{ t("conversationHistory") }}</span>
     </button>
     <div
       v-if="historyOpen"
@@ -100,31 +158,32 @@ function selectHistoryConversation(item: ConversationHistoryItem): void {
       v-if="historyOpen"
       :id="panelId"
       class="conversation-history-panel"
+      :style="panelStyle"
       role="dialog"
-      aria-label="历史对话"
+      :aria-label="t('conversationHistory')"
     >
       <header>
         <div class="conversation-history-heading">
-          <strong>历史对话</strong>
+          <strong>{{ t("conversationHistory") }}</strong>
           <div
             v-if="managementAvailable"
             class="conversation-history-tabs"
             role="group"
-            aria-label="历史记录视图"
+            :aria-label="t('historyView')"
           >
             <button
               type="button"
               :aria-pressed="view === 'active'"
               @click="view = 'active'"
             >
-              全部对话
+              {{ t("allConversations") }}
             </button>
             <button
               type="button"
               :aria-pressed="view === 'deleted'"
               @click="view = 'deleted'"
             >
-              已删除
+              {{ t("deleted") }}
             </button>
             <button
               v-if="view === 'deleted'"
@@ -133,13 +192,13 @@ function selectHistoryConversation(item: ConversationHistoryItem): void {
               :disabled="loading"
               @click="refreshDeleted"
             >
-              刷新
+              {{ t("refresh") }}
             </button>
           </div>
         </div>
         <button
           type="button"
-          aria-label="关闭历史对话"
+          :aria-label="t('closeConversationHistory')"
           @click="historyOpen = false"
         >
           <AppIcon name="close" :size="15" />
@@ -157,7 +216,7 @@ function selectHistoryConversation(item: ConversationHistoryItem): void {
             :aria-current="item.current ? 'true' : undefined"
             :title="
               responding && !item.current
-                ? '回复完成或停止后可切换'
+                ? t('switchAfterTheReplyFinishesOrStops')
                 : item.title
             "
             type="button"
@@ -183,14 +242,19 @@ function selectHistoryConversation(item: ConversationHistoryItem): void {
             class="conversation-history-manage"
             type="button"
             :disabled="busy"
-            :aria-label="`${view === 'deleted' ? '恢复' : '删除'}对话：${item.title}`"
+            :aria-label="
+              t('valueConversationValue', {
+                arg0: view === 'deleted' ? t('restore') : t('delete'),
+                arg1: item.title
+              })
+            "
             @click="
               view === 'deleted'
                 ? restoreConversation(item)
                 : (pendingDelete = item)
             "
           >
-            <span v-if="view === 'deleted'">恢复</span
+            <span v-if="view === 'deleted'">{{ t("restore") }}</span
             ><AppIcon v-else name="trash" :size="15" />
           </button>
         </div>
@@ -199,10 +263,10 @@ function selectHistoryConversation(item: ConversationHistoryItem): void {
         <AppIcon name="history" :size="22" />
         <strong>{{
           loading
-            ? "正在读取对话"
+            ? t("loadingConversations")
             : view === "deleted"
-              ? "没有已删除的对话"
-              : "还没有历史对话"
+              ? t("noDeletedConversations")
+              : t("noConversationHistoryYet")
         }}</strong>
       </div>
       <div
@@ -212,17 +276,21 @@ function selectHistoryConversation(item: ConversationHistoryItem): void {
         <button
           type="button"
           :disabled="exportAction.exporting.value"
-          title="包含当前客户端里尚未保存的内容"
+          :title="t('includesContentNotYetSavedInThisClient')"
           @click="exportAction.start"
         >
-          {{ exportAction.exporting.value ? "正在导出…" : "导出当前对话" }}
+          {{
+            exportAction.exporting.value
+              ? t("exporting")
+              : t("exportCurrentConversation")
+          }}
         </button>
         <button
           v-if="exportAction.exporting.value"
           type="button"
           @click="exportAction.cancel"
         >
-          取消
+          {{ t("cancel") }}
         </button>
       </div>
     </section>

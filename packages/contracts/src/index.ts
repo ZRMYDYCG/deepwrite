@@ -1,6 +1,11 @@
+export {
+  BUILTIN_AGENT_METADATA,
+  DEFAULT_LONG_AGENT_WELCOME_SHORTCUTS
+} from "./builtin-agent-metadata";
 export * from "./book-templates";
 export { loadBookTemplateDraftSchema } from "./load-book-template-schema";
 export * from "./appearance";
+export * from "./voice";
 export * from "./app-alert";
 export * from "./agent-team";
 export * from "./agent-team-catalog";
@@ -11,6 +16,7 @@ export * from "./envelope";
 export * from "./extras-agent";
 export * from "./expert-draft";
 export * from "./general-settings";
+export * from "./storage-settings";
 export * from "./body-text-format";
 export * from "./library-agent";
 export * from "./long-agent-settings";

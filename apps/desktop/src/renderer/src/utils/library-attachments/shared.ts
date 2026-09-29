@@ -1,3 +1,4 @@
+import { createScopedTranslator, locale } from "../../i18n";
 import {
   ATTACHED_CONTEXT_MAX_CONTENT_LENGTH,
   ATTACHED_CONTEXT_MAX_ITEMS,
@@ -9,6 +10,8 @@ import {
   type SkillKind,
   type WorkspaceRuntimeContext
 } from "@deepwrite/contracts/renderer";
+
+const t = createScopedTranslator("workspace");
 
 export type AttachedSkill = NonNullable<
   WorkspaceRuntimeContext["attachedSkills"]
@@ -136,7 +139,13 @@ export function truncateContent(
   if (candidate.content.length <= maxContentLength) {
     return candidate.content;
   }
-  const marker = `\n\n[DeepWrite：附件内容因 ${maxContentLength.toLocaleString("zh-CN")} 字符上限截断；原文 ${candidate.content.length.toLocaleString("zh-CN")} 字符。]`;
+  const marker = t(
+    "libraryAgentSkillAttachments.deepwriteAttachmentTruncatedAtCharactersOriginalLengthCharacters",
+    {
+      toLocaleString: maxContentLength.toLocaleString(locale.value),
+      toLocaleString2: candidate.content.length.toLocaleString(locale.value)
+    }
+  );
   const content =
     marker.length >= maxContentLength
       ? marker.slice(0, maxContentLength)
@@ -144,7 +153,9 @@ export function truncateContent(
   diagnostics.push({
     code: "content-truncated",
     domain: candidate.domain,
-    message: `“${candidate.title}”超过附件内容上限，已携带显式截断说明。`,
+    message: t("shared.exceedsTheAttachmentLimitATruncationNoticeHasBeen", {
+      title: candidate.title
+    }),
     bookId,
     libraryId: candidate.libraryId,
     entryId: candidate.entryId,
@@ -176,7 +187,14 @@ export function capacityDiagnostics<TKind extends MaterialKind | SkillKind>(
     diagnostics.push({
       code: "capacity-exceeded",
       ...(domain ? { domain } : {}),
-      message: `${domain === "skill" ? "技能" : "素材"}附件超过契约容量 ${limit} 条，另有 ${omitted.length} 条已在 omittedAttachments 中明确列出。`,
+      message: t("shared.theAttachmentLimitIsAnotherEntriesAreListedIn", {
+        value:
+          domain === "skill"
+            ? t("catalogWorkspace.skill")
+            : t("catalogWorkspace.material"),
+        limit: limit,
+        length: omitted.length
+      }),
       bookId
     });
   }

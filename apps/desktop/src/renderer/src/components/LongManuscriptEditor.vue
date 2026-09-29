@@ -1,9 +1,13 @@
 <script setup lang="ts">
+import { documentFormatLabel } from "./catalogLabels";
+import { createScopedTranslator } from "../i18n";
 import type { TextViewMode } from "@deepwrite/contracts";
 import { onBeforeUnmount, ref, watch } from "vue";
 import DocumentMetaRow from "./DocumentMetaRow.vue";
 import EditorSearchHighlight from "./EditorSearchHighlight.vue";
 import MarkdownContent from "./MarkdownContent.vue";
+
+const t = createScopedTranslator("components.longManuscriptEditor");
 
 defineProps<{
   title: string;
@@ -64,7 +68,7 @@ function updateTitle(event: Event): void {
   <section
     class="long-manuscript-editor long-editor-writing-surface"
     :class="{ 'is-readonly': readOnly }"
-    aria-label="章节正文编辑区"
+    :aria-label="t('chapterManuscriptEditor')"
   >
     <DocumentMetaRow
       variant="long"
@@ -75,12 +79,14 @@ function updateTitle(event: Event): void {
     >
       <span>{{ eyebrow }}</span>
       <span v-if="format" class="long-document-format">
-        {{ format }}
+        {{ documentFormatLabel(format) }}
       </span>
       <span v-if="committedNotice" class="long-committed-content-notice">
         {{ committedNotice }}
       </span>
-      <span v-else-if="readOnly" class="long-readonly-badge"> 只读内容 </span>
+      <span v-else-if="readOnly" class="long-readonly-badge">
+        {{ t("readOnlyContent") }}
+      </span>
     </DocumentMetaRow>
 
     <input
@@ -90,7 +96,7 @@ function updateTitle(event: Event): void {
       :readonly="titleReadOnly"
       maxlength="256"
       autocomplete="off"
-      aria-label="章卡标题"
+      :aria-label="t('chapterCardTitle')"
       @input="updateTitle"
       @change="emit('titleChange', $event)"
       @keydown="emit('titleKeydown', $event)"
@@ -111,7 +117,12 @@ function updateTitle(event: Event): void {
         :value="content"
         class="long-document-editor"
         :readonly="readOnly || busy"
-        :aria-label="`${title}${format || '正文'}`"
+        :aria-label="
+          t('documentLabel', {
+            title: title,
+            format: documentFormatLabel(format) || t('manuscript')
+          })
+        "
         spellcheck="false"
         @beforeinput="emit('beforeinput', $event)"
         @input="emit('input', $event)"
@@ -132,7 +143,9 @@ function updateTitle(event: Event): void {
         :content="content"
         annotate-headings
       />
-      <p v-else class="is-empty">暂无正文</p>
+      <p v-else class="is-empty">
+        {{ t("noManuscriptYet") }}
+      </p>
     </article>
   </section>
 </template>

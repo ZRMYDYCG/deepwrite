@@ -1,3 +1,4 @@
+import { nativeText, nativeMessages } from "./native-i18n";
 import { app, crashReporter, dialog } from "electron";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
@@ -7,14 +8,14 @@ import {
 } from "./startup-controller";
 import { createStartupLog, startupErrorCode } from "./startup-log";
 
-const phaseLabels: Record<StartupPhase, string> = {
-  runtime: "初始化运行环境",
-  services: "初始化本地服务",
-  workspace: "读取工作目录配置",
-  appearance: "读取外观设置",
-  settings: "读取常规设置",
-  utilities: "启动后台服务",
-  window: "加载主界面"
+const phaseLabelKeys: Record<StartupPhase, Parameters<typeof nativeText>[0]> = {
+  runtime: "startupRuntime",
+  services: "startupServices",
+  workspace: "startupWorkspace",
+  appearance: "startupAppearance",
+  settings: "startupSettings",
+  utilities: "startupUtilities",
+  window: "startupWindow"
 };
 
 /** Install before app readiness so native startup crashes can leave a local dump. */
@@ -56,8 +57,13 @@ export function createDesktopStartup() {
         console.error(`DEEPWRITE_STARTUP_FAIL phase=${phase} code=${code}`);
       } else {
         dialog.showErrorBox(
-          "DeepWrite 无法启动",
-          `${phaseLabels[phase]}时发生错误（${code}）。\n\n${phase === "workspace" || phase === "settings" ? "请检查用户配置目录的访问权限和磁盘空间，再尝试启动。\n\n" : ""}请将下方本地诊断记录提供给开发者协助排查。\n\n记录位置（目录可写时生成）：\n${log.path}`
+          nativeText("startupFailure"),
+          nativeMessages().startupDetails(
+            nativeText(phaseLabelKeys[phase]),
+            code,
+            phase === "workspace" || phase === "settings",
+            log.path
+          )
         );
       }
     } finally {

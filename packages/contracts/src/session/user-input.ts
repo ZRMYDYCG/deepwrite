@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { AgentRuntimeRefSchema } from "./runtime";
+import { AgentRuntimeRefSchema } from "./agent-event-identity";
 
 export const AGENT_USER_INPUT_MAX_QUESTIONS = 3;
 export const AGENT_USER_INPUT_MAX_OPTIONS = 5;

@@ -1,3 +1,4 @@
+import { t } from "../i18n";
 import {
   CONVERSATION_HISTORY_TEXT_CHUNK_SIZE,
   conversationHistoryJsonBytes,
@@ -43,7 +44,11 @@ export function* conversationValueChanges(
       yield* conversationValueChanges([...path, key], child);
     return;
   }
-  throw new Error("无法分块保存此会话字段。");
+  throw new Error(
+    t(
+      "workspace.conversationHistoryUpload.thisConversationFieldCannotBeSavedInChunks"
+    )
+  );
 }
 
 export function* conversationRecordChanges(

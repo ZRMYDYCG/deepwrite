@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator, locale } from "../i18n";
 import { computed, ref, watch } from "vue";
 import type {
   ModelSettings,
@@ -8,6 +9,8 @@ import type {
 } from "@deepwrite/contracts";
 import { uiMessage } from "../ui-feedback";
 import AppIcon from "./AppIcon.vue";
+
+const t = createScopedTranslator("components.officialModelsPanel");
 
 const props = defineProps<{
   settings: ModelSettings | null;
@@ -81,20 +84,20 @@ function openTokenEditor(): void {
 function submitToken(): void {
   const apiKey = tokenDraft.value.trim();
   if (!apiKey) {
-    uiMessage.warning("请输入官方令牌。");
+    uiMessage.warning(t("enterAnOfficialToken"));
     return;
   }
   emit("saveToken", apiKey);
 }
 
 function formatTokens(value: number): string {
-  return new Intl.NumberFormat("zh-CN", { maximumFractionDigits: 0 }).format(
-    Math.max(0, Number.isFinite(value) ? value : 0)
-  );
+  return new Intl.NumberFormat(locale.value, {
+    maximumFractionDigits: 0
+  }).format(Math.max(0, Number.isFinite(value) ? value : 0));
 }
 
 function formatYuan(value: number): string {
-  return new Intl.NumberFormat("zh-CN", {
+  return new Intl.NumberFormat(locale.value, {
     style: "currency",
     currency: "CNY",
     minimumFractionDigits: 2,
@@ -112,13 +115,17 @@ function isModelAvailable(status: 0 | 1 | undefined): boolean {
 
 function formatDiscount(discount: number | undefined): string {
   if (discount === undefined) return "--";
-  if (discount === 1) return "原价";
-  return `${new Intl.NumberFormat("zh-CN", { maximumFractionDigits: 2 }).format(discount * 10)} 折`;
+  if (discount === 1) return t("fullPrice");
+  return t("value10OfListPrice", {
+    arg0: new Intl.NumberFormat(locale.value, {
+      maximumFractionDigits: 2
+    }).format(discount * 10)
+  });
 }
 
 function formatPrice(value: number | undefined): string {
   if (value === undefined) return "--";
-  return `¥${new Intl.NumberFormat("zh-CN", { maximumFractionDigits: 4 }).format(value)}`;
+  return `¥${new Intl.NumberFormat(locale.value, { maximumFractionDigits: 4 }).format(value)}`;
 }
 </script>
 
@@ -130,11 +137,14 @@ function formatPrice(value: number | undefined): string {
     <header class="official-models-header">
       <div>
         <span class="official-models-kicker">
-          <AppIcon name="model" :size="15" /> DeepWrite 旧官方小站托管接入
+          <AppIcon name="model" :size="15" />
+          {{ t("deepWriteLegacyOfficialManagedAccess") }}
         </span>
-        <h2 id="official-models-title">旧官方小站模型与令牌</h2>
+        <h2 id="official-models-title">
+          {{ t("legacyOfficialModelsAndToken") }}
+        </h2>
         <p>
-          旧官方小站模型来源于国内模型厂商直连，随着软件整体调用量越多，价格会逐渐降低，目前和官方价格一致。
+          {{ t("legacyOfficialModelsConnectDirectlyToChineseModelProviders") }}
         </p>
       </div>
       <div class="official-models-header-actions">
@@ -143,10 +153,10 @@ function formatPrice(value: number | undefined): string {
           href="https://pay.ldxp.cn/shop/UKGFTY58"
           target="_blank"
           rel="noopener noreferrer"
-          title="在浏览器中打开官方模型店铺"
+          :title="t('openOfficialModelStoreInBrowser')"
         >
           <AppIcon name="globe" :size="15" />
-          店铺
+          {{ t("store") }}
         </a>
         <button
           class="official-refresh-button"
@@ -155,7 +165,7 @@ function formatPrice(value: number | undefined): string {
           @click="emit('load')"
         >
           <AppIcon name="history" :size="15" />
-          {{ loading ? "刷新中…" : "刷新" }}
+          {{ loading ? t("refreshing") : t("refresh") }}
         </button>
       </div>
     </header>
@@ -170,18 +180,22 @@ function formatPrice(value: number | undefined): string {
         /></span>
         <div>
           <strong>{{
-            tokenConfigured ? "官方令牌已添加" : "添加你的官方令牌"
+            tokenConfigured
+              ? t("officialTokenAdded")
+              : t("addYourOfficialToken")
           }}</strong>
           <small>
             {{
               tokenConfigured
-                ? `已启用 ${enabledModelCount} 个官方模型，令牌明文不会回传到页面。`
-                : "添加后，官方模型会自动出现在模型配置列表最上方。"
+                ? t("valueOfficialModelsEnabledTheTokenIsNeverReturned", {
+                    arg0: enabledModelCount
+                  })
+                : t("afterAddingATokenOfficialModelsAppearAtThe")
             }}
           </small>
         </div>
         <span class="official-token-badge">{{
-          tokenConfigured ? "已启用" : "未添加"
+          tokenConfigured ? t("enabled") : t("notAdded")
         }}</span>
       </div>
 
@@ -191,12 +205,12 @@ function formatPrice(value: number | undefined): string {
         @submit.prevent="submitToken"
       >
         <label>
-          <span>官方令牌</span>
+          <span>{{ t("officialToken") }}</span>
           <input
             v-model="tokenDraft"
             type="password"
             autocomplete="new-password"
-            placeholder="请输入官方令牌"
+            :placeholder="t('enterOfficialToken')"
             :disabled="saving"
           />
         </label>
@@ -209,10 +223,16 @@ function formatPrice(value: number | undefined): string {
               tokenDraft = '';
             "
           >
-            取消
+            {{ t("cancel") }}
           </button>
           <button class="is-primary" type="submit" :disabled="saving">
-            {{ saving ? "保存中…" : tokenConfigured ? "更新令牌" : "添加令牌" }}
+            {{
+              saving
+                ? t("saving")
+                : tokenConfigured
+                  ? t("updateToken")
+                  : t("addToken")
+            }}
           </button>
         </div>
       </form>
@@ -225,7 +245,7 @@ function formatPrice(value: number | undefined): string {
           @click="openTokenEditor"
         >
           <AppIcon name="plus" :size="15" />
-          {{ tokenConfigured ? "更换令牌" : "添加令牌" }}
+          {{ tokenConfigured ? t("replaceToken") : t("addToken") }}
         </button>
         <button
           v-if="tokenConfigured"
@@ -234,23 +254,26 @@ function formatPrice(value: number | undefined): string {
           :disabled="saving"
           @click="emit('clearToken')"
         >
-          移除令牌
+          {{ t("removeToken") }}
         </button>
       </div>
     </section>
 
-    <section class="official-quota-card" aria-label="官方模型用量与消费">
+    <section
+      class="official-quota-card"
+      :aria-label="t('officialModelUsageAndSpending')"
+    >
       <div class="official-quota-heading official-usage-summary">
         <div>
-          <span>本机累计使用 Token</span>
+          <span>{{ t("tokensUsedOnThisDevice") }}</span>
           <strong>{{ formatTokens(totalUsed) }}</strong>
         </div>
         <div class="official-quota-remaining">
-          <span>当前 Key 费用使用</span>
+          <span>{{ t("currentKeySpending") }}</span>
           <strong>
             {{
               balance?.currentKeyUnlimited
-                ? "无限额度"
+                ? t("unlimitedQuota")
                 : balance?.currentKeyUsedYuan === undefined ||
                     balance?.currentKeyGrantedYuan === undefined
                   ? "--"
@@ -263,7 +286,7 @@ function formatPrice(value: number | undefined): string {
         v-if="currentKeyUsagePercentage !== null"
         class="official-cost-track"
         role="progressbar"
-        aria-label="当前 Key 费用使用进度"
+        :aria-label="t('currentKeySpendingProgress')"
         :aria-valuenow="currentKeyUsagePercentage"
         aria-valuemin="0"
         aria-valuemax="100"
@@ -271,12 +294,18 @@ function formatPrice(value: number | undefined): string {
         <span :style="{ width: `${currentKeyUsagePercentage}%` }" />
       </div>
       <div class="official-balance-details">
-        <span>本机 Token 来自本地账本</span>
-        <span v-if="balance?.currentKeyUnlimited">当前 Key 为无限额度</span>
+        <span>{{ t("deviceTokenCountsComeFromTheLocalLedger") }}</span>
+        <span v-if="balance?.currentKeyUnlimited">{{
+          t("currentKeyHasUnlimitedQuota")
+        }}</span>
         <span v-else-if="balance?.currentKeyRemainingYuan !== undefined">
-          当前 Key 剩余 {{ formatYuan(balance.currentKeyRemainingYuan) }}
+          {{
+            t("currentKeyBalanceMessage", {
+              arg0: formatYuan(balance.currentKeyRemainingYuan) ?? ""
+            })
+          }}
         </span>
-        <span v-else>当前 Key 费用信息暂不可用</span>
+        <span v-else>{{ t("currentKeySpendingInformationUnavailable") }}</span>
       </div>
     </section>
 
@@ -286,28 +315,52 @@ function formatPrice(value: number | undefined): string {
     >
       <header>
         <div>
-          <span>当前支持</span>
-          <h3 id="official-model-list-title">支撑的模型列表</h3>
+          <span>{{ t("currentlySupported") }}</span>
+          <h3 id="official-model-list-title">
+            {{ t("supportedModels") }}
+          </h3>
         </div>
-        <span>{{ officialModels.length }} 个模型</span>
+        <span>{{
+          t("modelsMessage", {
+            arg0: officialModels.length ?? ""
+          })
+        }}</span>
       </header>
 
       <div v-if="loading && !settings" class="official-model-state">
-        正在加载官方模型…
+        {{ t("loadingOfficialModels") }}
       </div>
       <div v-else class="official-model-table-wrap">
         <table class="official-model-table">
           <thead>
             <tr>
-              <th scope="col">模型</th>
-              <th scope="col">总消耗</th>
-              <th scope="col">输入</th>
-              <th scope="col">输出</th>
-              <th scope="col">缓存</th>
-              <th scope="col">折扣</th>
-              <th scope="col">价格</th>
-              <th scope="col">启用</th>
-              <th scope="col">状态</th>
+              <th scope="col">
+                {{ t("model") }}
+              </th>
+              <th scope="col">
+                {{ t("totalUsage") }}
+              </th>
+              <th scope="col">
+                {{ t("input") }}
+              </th>
+              <th scope="col">
+                {{ t("output") }}
+              </th>
+              <th scope="col">
+                {{ t("cache") }}
+              </th>
+              <th scope="col">
+                {{ t("discount") }}
+              </th>
+              <th scope="col">
+                {{ t("price") }}
+              </th>
+              <th scope="col">
+                {{ t("enable") }}
+              </th>
+              <th scope="col">
+                {{ t("status") }}
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -321,17 +374,31 @@ function formatPrice(value: number | undefined): string {
               <td>{{ formatTokens(row.totals.outputTokens) }}</td>
               <td>
                 <strong>{{ formatTokens(cacheTokens(row.totals)) }}</strong>
-                <small
-                  >读 {{ formatTokens(row.totals.cacheReadTokens) }} · 写
-                  {{ formatTokens(row.totals.cacheWriteTokens) }}</small
-                >
+                <small>{{
+                  t("readWriteMessage", {
+                    arg0: formatTokens(row.totals.cacheReadTokens) ?? "",
+                    arg1: formatTokens(row.totals.cacheWriteTokens) ?? ""
+                  })
+                }}</small>
               </td>
               <td>{{ formatDiscount(row.model.discount) }}</td>
               <td class="official-model-price">
-                <span>输入 {{ formatPrice(row.model.input) }}</span>
-                <span>输出 {{ formatPrice(row.model.output) }}</span>
-                <span>缓存 {{ formatPrice(row.model.cache) }}</span>
-                <small>元 / 百万 Token</small>
+                <span>{{
+                  t("inputMessage", {
+                    arg0: formatPrice(row.model.input) ?? ""
+                  })
+                }}</span>
+                <span>{{
+                  t("outputMessage", {
+                    arg0: formatPrice(row.model.output) ?? ""
+                  })
+                }}</span>
+                <span>{{
+                  t("cacheMessage", {
+                    arg0: formatPrice(row.model.cache) ?? ""
+                  })
+                }}</span>
+                <small>{{ t("cNYMillionTokens") }}</small>
               </td>
               <td>
                 <button
@@ -339,7 +406,11 @@ function formatPrice(value: number | undefined): string {
                   type="button"
                   role="switch"
                   :aria-checked="enabledModelIds.has(row.model.id)"
-                  :aria-label="`${row.model.label}启用状态`"
+                  :aria-label="
+                    t('valueEnabledStatus', {
+                      arg0: row.model.label
+                    })
+                  "
                   :disabled="saving || !isModelAvailable(row.model.status)"
                   @click="
                     emit('setModelEnabled', {
@@ -362,16 +433,18 @@ function formatPrice(value: number | undefined): string {
                 >
                   {{
                     !isModelAvailable(row.model.status)
-                      ? "不可用"
+                      ? t("unavailable")
                       : !tokenConfigured
-                        ? "待添加令牌"
-                        : "可用"
+                        ? t("tokenRequired")
+                        : t("available")
                   }}
                 </span>
               </td>
             </tr>
             <tr v-if="!modelRows.length">
-              <td colspan="9" class="official-model-state">暂无官方模型。</td>
+              <td colspan="9" class="official-model-state">
+                {{ t("noOfficialModelsAvailable") }}
+              </td>
             </tr>
           </tbody>
         </table>

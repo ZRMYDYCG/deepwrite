@@ -63,8 +63,8 @@ describe("long workspace editor crash recovery", () => {
     );
     expect(implementationSource).toContain("content: recoveredContent");
     expect(implementationSource).toContain("savedContent: content");
-    expect(implementationSource).toContain("已恢复");
-    expect(implementationSource).toContain("本机未保存内容");
+    expect(implementationSource).toContain("restoredUnsavedLocalContentFor");
+    expect(implementationSource).toContain("restoredUnsavedLocalContentFor");
   });
 
   it("keeps disk text as the saved baseline while editing the recovered copy", () => {
@@ -143,7 +143,7 @@ describe("long workspace editor crash recovery", () => {
       "Preserve previously shown text while the failed read is retried."
     );
     expect(implementationSource).toContain("!state.loaded");
-    expect(implementationSource).toContain("重新读取");
+    expect(implementationSource).toContain("reload");
     expect(implementationSource).toContain(
       '@click="loadSelectedDocument(true)"'
     );
@@ -162,6 +162,8 @@ describe("long workspace editor crash recovery", () => {
     expect(
       documentSessionSource.match(/props\.bookId === bookId/gu)
     ).toHaveLength(2);
-    expect(implementationSource).toContain("保存期间的新修改仍待保存");
+    expect(implementationSource).toContain(
+      "theSubmittedContentWasSavedNewEditsMadeDuring"
+    );
   });
 });

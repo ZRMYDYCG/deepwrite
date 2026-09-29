@@ -46,6 +46,7 @@ import type {
   WriteWritingContextResult
 } from "./writing-context";
 import type { WorkspaceDirectorySettings } from "./workspace-directory";
+import type { StorageSettingsApi } from "./storage-settings";
 import type {
   AppearanceCustomFontId,
   AppearanceFontCatalogSnapshot,
@@ -163,6 +164,7 @@ import type {
 import type { ConversationPersistenceApi } from "./renderer-state";
 
 export interface DeepWriteApi extends TextContextMenuPreloadApi {
+  voice: import("./voice").VoiceApi;
   windowFrame?: WindowFrameApi;
   system: {
     health(): Promise<SystemHealthPayload>;
@@ -371,6 +373,7 @@ export interface DeepWriteApi extends TextContextMenuPreloadApi {
     list(): Promise<WorkspaceDirectorySettings>;
     choose(): Promise<WorkspaceDirectorySettings | null>;
   };
+  storageSettings?: StorageSettingsApi;
   appearance: {
     list(): Promise<AppearanceSettingsSnapshot>;
     save(settings: AppearanceSettings): Promise<AppearanceSettingsSnapshot>;

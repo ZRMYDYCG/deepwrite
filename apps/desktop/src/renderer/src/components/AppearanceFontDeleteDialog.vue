@@ -1,7 +1,10 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import type { AppearanceCustomFont } from "@deepwrite/contracts/renderer";
 import AppIcon from "./AppIcon.vue";
+
+const t = createScopedTranslator("components.appearanceFontDeleteDialog");
 
 const props = defineProps<{
   font: AppearanceCustomFont | null;
@@ -49,16 +52,23 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
             <AppIcon name="trash" :size="20" />
           </div>
           <div>
-            <span>本地字体</span>
-            <h2 id="font-delete-title">删除“{{ font.displayName }}”？</h2>
+            <span>{{ t("localFonts") }}</span>
+            <h2 id="font-delete-title">
+              {{
+                t("deleteMessage", {
+                  arg0: font.displayName ?? ""
+                })
+              }}
+            </h2>
           </div>
         </header>
         <p id="font-delete-description">
-          将删除 DeepWrite
-          保存的字体副本，不会影响原始文件。若它正在使用，界面与正文会自动恢复默认字体。
+          {{ t("theFontCopySavedByDeepWriteWillBeDeleted") }}
         </p>
         <footer>
-          <button type="button" :disabled="busy" @click="close">取消</button>
+          <button type="button" :disabled="busy" @click="close">
+            {{ t("cancel") }}
+          </button>
           <button
             ref="confirmButton"
             class="is-danger"
@@ -66,7 +76,7 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
             :disabled="busy"
             @click="emit('confirm')"
           >
-            {{ busy ? "正在删除…" : "确认删除" }}
+            {{ busy ? t("deleting") : t("deleteLabel") }}
           </button>
         </footer>
       </section>

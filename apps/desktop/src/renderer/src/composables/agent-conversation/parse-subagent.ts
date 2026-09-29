@@ -1,3 +1,4 @@
+import { createScopedTranslator } from "../../i18n";
 import type {
   AgentSubagentProcessingStep,
   AgentSubagentRun,
@@ -9,6 +10,8 @@ import {
   parseStoredUsage,
   parseStoredToolTrace
 } from "./parse-runtime";
+
+const t = createScopedTranslator("workspace.parseSubagent");
 export function parseStoredSubagentStep(
   value: unknown
 ): AgentSubagentProcessingStep | undefined {
@@ -89,7 +92,8 @@ export function parseStoredSubagentRun(
               status: "error" as const,
               completedAt: restoredAt,
               resultSummary:
-                toolCall.resultSummary ?? "会话恢复时子任务已停止。",
+                toolCall.resultSummary ??
+                t("theSubtaskWasStoppedWhenTheConversationWasRestored"),
               isError: true
             }
           : toolCall
@@ -121,7 +125,9 @@ export function parseStoredSubagentRun(
     ...(typeof value.errorMessage === "string"
       ? { errorMessage: value.errorMessage }
       : restoredWhileRunning
-        ? { errorMessage: "应用关闭或对话恢复时，子任务仍在运行。" }
+        ? {
+            errorMessage: t("theSubtaskWasStillRunningWhenTheAppClosed")
+          }
         : {}),
     ...(usage ? { usage } : {})
   };

@@ -68,7 +68,7 @@ const flush = async () => {
 describe("short analysis run", () => {
   it("records actual stage changes once per stream with timestamps and retains public output on failure", async () => {
     const f = fixture();
-    f.run.start([book], preset, model, "off", "");
+    f.run.start([book], preset, model, "off");
     await flush();
     const input = f.prompt.mock.calls[0]![0];
     expect(f.run.entries.value[0]?.detail).toContain(book.title);
@@ -109,7 +109,7 @@ describe("short analysis run", () => {
   });
   it("retains a non-streamed public response when no structured result was submitted", async () => {
     const f = fixture();
-    f.run.start([book], preset, model, "off", "");
+    f.run.start([book], preset, model, "off");
     await flush();
     f.run.handleEvent(
       event("agent.message_completed", f.prompt.mock.calls[0]![0], {
@@ -124,7 +124,7 @@ describe("short analysis run", () => {
     const f = fixture();
     const books = [{ ...book }, { ...book, id: "book2", title: "第二本" }];
     const mutable = { ...preset };
-    f.run.start(books, mutable, model, "off", "");
+    f.run.start(books, mutable, model, "off");
     const input = f.prompt.mock.calls[0]![0];
     books[0]!.text = "修改";
     mutable.name = "修改";
@@ -153,6 +153,54 @@ describe("short analysis run", () => {
     expect(f.run.result.value?.name).toBe("联合结果");
     expect(f.prompt).toHaveBeenCalledTimes(1);
   });
+  it("retains the completed result and its identity through edits, failed reruns and successful replacement", async () => {
+    const f = fixture();
+    f.run.start([book], preset, model, "off");
+    await flush();
+    const first = f.prompt.mock.calls[0]![0];
+    f.run.handleEvent(
+      outputEvent(first, { kind: "book-analysis-result", result: submitted })
+    );
+    f.run.handleEvent(event("agent.message_completed", first));
+    await flush();
+    f.run.result.value!.content = "用户整理后的结果";
+    f.run.clear();
+    expect(f.run.result.value?.content).toBe("用户整理后的结果");
+    expect(f.run.resultIsPrevious.value).toBe(true);
+    const nextPreset: ShortBookAnalysisPreset = {
+      ...preset,
+      id: "next",
+      name: "新任务",
+      output: {
+        domain: "material" as const,
+        kind: "plot" as const,
+        stageId: "pacing"
+      }
+    };
+    f.run.start([{ ...book, title: "另一篇" }], nextPreset, model, "off");
+    await flush();
+    expect(f.run.resultPreset.value?.name).toBe("综合");
+    expect(f.run.resultContext.value).toBe("来信");
+    const failed = f.prompt.mock.calls[1]![0];
+    f.run.handleEvent(event("agent.error", failed, { message: "测试失败" }));
+    await flush();
+    expect(f.run.result.value?.content).toBe("用户整理后的结果");
+    f.run.retry();
+    await flush();
+    const retried = f.prompt.mock.calls[2]![0];
+    f.run.handleEvent(
+      outputEvent(retried, {
+        kind: "book-analysis-result",
+        result: { ...submitted, name: "新结果" }
+      })
+    );
+    expect(f.run.result.value?.name).toBe(submitted.name);
+    f.run.handleEvent(event("agent.message_completed", retried));
+    await flush();
+    expect(f.run.result.value?.name).toBe("新结果");
+    expect(f.run.resultPreset.value?.name).toBe("新任务");
+    expect(f.run.resultIsPrevious.value).toBe(false);
+  });
   it("does not issue requests for oversized or invalid selections", () => {
     const f = fixture();
     expect(() =>
@@ -160,8 +208,7 @@ describe("short analysis run", () => {
         [book, { ...book, id: "b" }],
         { ...preset, selectionMode: "single" },
         model,
-        "off",
-        ""
+        "off"
       )
     ).toThrow("一本");
     expect(() =>
@@ -169,15 +216,14 @@ describe("short analysis run", () => {
         [{ ...book, text: "文".repeat(200000) }],
         preset,
         model,
-        "off",
-        ""
+        "off"
       )
     ).toThrow("上下文");
     expect(f.prompt).not.toHaveBeenCalled();
   });
   it("rejects plain model messages and retries the complete task with a fresh session", async () => {
     const f = fixture();
-    f.run.start([book], preset, model, "off", "");
+    f.run.start([book], preset, model, "off");
     await flush();
     const input = f.prompt.mock.calls[0]![0];
     f.run.handleEvent(
@@ -211,7 +257,7 @@ describe("short analysis run", () => {
           accept = resolve;
         })
     );
-    f.run.start([book], preset, model, "off", "");
+    f.run.start([book], preset, model, "off");
     const input = f.prompt.mock.calls[0]![0];
     await f.run.stop();
     expect(f.run.status.value).toBe("stopping");
@@ -237,7 +283,7 @@ describe("short analysis run", () => {
           reject = rejectPromise;
         })
     );
-    f.run.start([book], preset, model, "off", "");
+    f.run.start([book], preset, model, "off");
     await flush();
     const input = f.prompt.mock.calls[0]![0];
     const stop = f.run.stop();
@@ -249,7 +295,7 @@ describe("short analysis run", () => {
   });
   it("reports agent worker restarts instead of remaining busy", async () => {
     const f = fixture();
-    f.run.start([book], preset, model, "off", "");
+    f.run.start([book], preset, model, "off");
     await flush();
     f.run.handleEvent({
       type: "system.worker_restarting",

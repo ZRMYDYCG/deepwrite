@@ -1,3 +1,4 @@
+import { nativeText } from "../native-i18n";
 import {
   AppearanceFontCatalogSnapshotSchema,
   AppearanceFontInstallResultSchema,
@@ -102,9 +103,11 @@ export async function handleAppearanceCommands(
   if (command.type === "appearance.fonts.install") {
     try {
       const selection = await ctx.dialog.showOpenDialog(ctx.getMainWindow(), {
-        title: "上传本地字体",
+        title: nativeText("uploadFont"),
         buttonLabel: "上传",
-        filters: [{ name: "字体文件", extensions: ["ttf", "otf"] }],
+        filters: [
+          { name: nativeText("fontFiles"), extensions: ["ttf", "otf"] }
+        ],
         properties: ["openFile", "multiSelections"]
       });
       if (selection.canceled || selection.filePaths.length === 0) {

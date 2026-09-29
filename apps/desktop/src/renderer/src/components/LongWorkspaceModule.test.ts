@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import shellSource from "../WorkspaceShell.vue?raw";
 import editorBridgeSource from "../composables/useLongWorkspaceModuleEditorBridge.ts?raw";
+import editorPaneToggleSource from "./EditorPaneToggle.vue?raw";
 import editorSource from "./LongWorkspaceEditor.vue?raw";
 import source from "./LongWorkspaceModule.vue?raw";
 
@@ -21,7 +22,8 @@ describe("LongWorkspaceModule boundary", () => {
     );
     expect(source).toContain('v-if="!rightPane.collapsed"');
     expect(source).toContain(':right-pane-collapsed="rightPane.collapsed"');
-    expect(editorSource).toContain('aria-label="展开智能体栏"');
+    expect(editorSource).toContain("<EditorPaneToggle");
+    expect(editorPaneToggleSource).toContain("expandAgentPane");
     expect(editorSource).toContain("emit('toggleRight')");
     expect(shellSource).toContain(':right-pane="writingRightPaneViewModel"');
     expect(shellSource).toContain(

@@ -1,3 +1,5 @@
+import { syncDisplayText } from "../../../localization/sync-display-text";
+import type { SyncDisplayText } from "@deepwrite/contracts";
 import {
   clockIncludes,
   stableSyncJson,
@@ -78,8 +80,12 @@ export async function publishSync(
     published: commit,
     baselines: { ...metadata.baselines, ...accepted },
     history: metadata.history.map((entry) =>
-      entry.description === "已准备上传本机修改"
-        ? { ...entry, description: "本机修改已同步到网盘" }
+      entry.descriptionText?.code === "preparedUpload"
+        ? {
+            ...entry,
+            description: syncDisplayText("uploaded").fallback,
+            descriptionText: syncDisplayText("uploaded").text
+          }
         : entry
     ),
     pendingIssues: issues,
@@ -94,7 +100,7 @@ export async function preserveSync(
   key: string,
   item: SyncItem | null,
   title: string,
-  description: string
+  descriptionText: SyncDisplayText
 ): Promise<SyncMetadata> {
   const next = {
     ...metadata,
@@ -104,7 +110,11 @@ export async function preserveSync(
         key,
         title,
         at: options.runtime.now(),
-        description,
+        description: syncDisplayText(
+          descriptionText.code,
+          descriptionText.params
+        ).fallback,
+        descriptionText,
         item
       },
       ...metadata.history

@@ -1,4 +1,7 @@
+import { createScopedTranslator } from "../i18n";
 import type { ConversationPersistenceAdapter } from "./conversationPersistenceTypes";
+
+const t = createScopedTranslator("workspace.conversationPersistenceQueue");
 
 const DEFAULT_SAVE_DELAY_MS = 2_000;
 const MAX_SAVE_WAIT_MS = 2_000;
@@ -118,8 +121,9 @@ export function createConversationPersistenceQueue(hooks: QueueHooks) {
     key: string,
     factory: () => ConversationPersistenceWork
   ): void {
-    if (!accepting) throw new Error("会话持久化调度器已经关闭。");
-    if (!key.trim()) throw new Error("持久化 key 不能为空。");
+    if (!accepting)
+      throw new Error(t("theConversationPersistenceQueueIsClosed"));
+    if (!key.trim()) throw new Error(t("persistenceKeyCannotBeEmpty"));
     let queue = queues.get(key);
     if (!queue) {
       queue = { key, requested: 0, confirmed: 0 };
@@ -141,7 +145,10 @@ export function createConversationPersistenceQueue(hooks: QueueHooks) {
     hooks.changed();
     while (queue.pending || queue.retry || queue.inFlight) {
       if (!queue.inFlight) {
-        if (!adapter) throw new Error("会话持久化适配器尚未配置。");
+        if (!adapter)
+          throw new Error(
+            t("theConversationStorageAdapterHasNotBeenConfigured")
+          );
         start(queue);
       }
       await queue.inFlight;

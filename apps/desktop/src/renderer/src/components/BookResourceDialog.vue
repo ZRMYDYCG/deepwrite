@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import { useBookResourceBindings } from "../composables/useBookResourceBindings";
 import {
   computed,
@@ -21,6 +22,8 @@ import type {
 import { uiMessage } from "../ui-feedback";
 import AppIcon from "./AppIcon.vue";
 import PopupSelect from "./PopupSelect.vue";
+
+const t = createScopedTranslator("components.bookResourceDialog");
 
 const props = withDefaults(
   defineProps<{
@@ -82,14 +85,23 @@ const nameDraft = ref("");
 const nameInput = ref<HTMLInputElement | null>(null);
 
 const bookTypeLabel = computed(() =>
-  props.book?.workspaceType === "script" ? "剧本" : "书籍"
+  props.book?.workspaceType === "script" ? t("screenplay") : t("book")
 );
 const title = computed(() => {
-  if (props.mode === "rename") return `修改${bookTypeLabel.value}名称`;
-  if (props.mode === "remove") return `移除${bookTypeLabel.value}`;
-  if (props.mode === "delete") return `删除${bookTypeLabel.value}`;
-  if (props.mode === "bind-skill") return "技能库绑定";
-  return "素材库绑定";
+  if (props.mode === "rename")
+    return t("renameValue", {
+      arg0: bookTypeLabel.value
+    });
+  if (props.mode === "remove")
+    return t("removeValue", {
+      arg0: bookTypeLabel.value
+    });
+  if (props.mode === "delete")
+    return t("deleteValue", {
+      arg0: bookTypeLabel.value
+    });
+  if (props.mode === "bind-skill") return t("skillLibraryLinks");
+  return t("materialLibraryLinks");
 });
 
 watch(
@@ -112,7 +124,7 @@ function submit(): void {
   if (props.mode === "rename") {
     const label = nameDraft.value.trim();
     if (!label) {
-      uiMessage.warning("请输入书籍名称");
+      uiMessage.warning(t("enterABookName"));
       nameInput.value?.focus();
       return;
     }
@@ -192,7 +204,7 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
           <button
             class="dialog-close"
             type="button"
-            aria-label="关闭"
+            :aria-label="t('close')"
             :disabled="submitting"
             @click="requestClose"
           >
@@ -207,18 +219,26 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
         >
           <template v-if="mode === 'rename'">
             <label class="book-resource-name-field">
-              <span>{{ bookTypeLabel }}名称</span>
+              <span>{{
+                t("nameMessage", {
+                  arg0: bookTypeLabel ?? ""
+                })
+              }}</span>
               <input
                 ref="nameInput"
                 v-model="nameDraft"
                 type="text"
                 maxlength="80"
                 autocomplete="off"
-                :aria-label="`${bookTypeLabel}名称`"
+                :aria-label="
+                  t('valueName', {
+                    arg0: bookTypeLabel
+                  })
+                "
               />
             </label>
             <p class="book-resource-help">
-              侧栏和文稿显示路径会同步更新，本地文件夹名称不会被自动修改。
+              {{ t("theSidebarAndManuscriptDisplayPathsWillUpdateThe") }}
             </p>
           </template>
 
@@ -226,18 +246,21 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
             <div class="book-remove-warning">
               <AppIcon name="trash" :size="20" />
               <div>
-                <strong
-                  >确认{{ mode === "delete" ? "删除" : "移除" }}“{{
-                    book.label
-                  }}”？</strong
-                >
+                <strong>{{
+                  t("summaryMessage", {
+                    arg0: (mode === "delete" ? t("delete") : t("remove")) ?? "",
+                    arg1: book.label ?? ""
+                  })
+                }}</strong>
                 <p v-if="mode === 'delete'">
-                  会从当前创作空间移除，并永久删除本地项目文件夹及其中所有文件。此操作无法撤销。
+                  {{ t("willBeRemovedFromTheWorkspaceAndItsLocal") }}
                 </p>
                 <p v-else>
-                  只会从当前创作空间解除注册，不会删除本地文件夹；之后可通过“打开已存在{{
-                    bookTypeLabel
-                  }}”恢复。
+                  {{
+                    t("thisOnlyUnregistersTheWorkFromTheMessage", {
+                      arg0: bookTypeLabel ?? ""
+                    })
+                  }}
                 </p>
               </div>
             </div>
@@ -257,13 +280,17 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
               </span>
               <div>
                 <h3 :id="`book-binding-heading-${mode}`">
-                  {{ bindingDomain === "skill" ? "绑定技能库" : "关联素材库" }}
+                  {{
+                    bindingDomain === "skill"
+                      ? t("linkSkillLibraries")
+                      : t("linkMaterialLibraries")
+                  }}
                 </h3>
                 <p>
                   {{
                     bindingDomain === "skill"
-                      ? "已绑定技能可在所有阶段按需加载。"
-                      : "已关联素材可在所有阶段按需加载；未选择的分类可稍后补充。"
+                      ? t("linkedSkillsCanBeLoadedAsNeededAtAny")
+                      : t("linkedMaterialsCanBeLoadedAsNeededAtAny")
                   }}
                 </p>
               </div>
@@ -273,7 +300,9 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
               class="create-short-binding-modes"
               role="radiogroup"
               :aria-label="
-                bindingDomain === 'skill' ? '技能库绑定方式' : '素材库关联方式'
+                bindingDomain === 'skill'
+                  ? t('skillLibraryLinking')
+                  : t('materialLibraryLinking')
               "
             >
               <label :class="{ 'is-selected': bindingMode === 'single' }">
@@ -283,14 +312,17 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
                   value="single"
                   :disabled="submitting"
                 />
-                按分类选择
+                {{ t("chooseByCategory") }}
               </label>
               <label
                 :class="{ 'is-selected': bindingMode === 'group' }"
                 :title="
                   availableGroups.length
                     ? ''
-                    : `暂无可用${bindingDomain === 'skill' ? '技能' : '素材'}分组`
+                    : t('noValueGroupsAvailable', {
+                        arg0:
+                          bindingDomain === 'skill' ? t('skill') : t('material')
+                      })
                 "
               >
                 <input
@@ -299,7 +331,7 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
                   value="group"
                   :disabled="submitting || availableGroups.length === 0"
                 />
-                选择分组
+                {{ t("selectGroup") }}
               </label>
             </div>
 
@@ -358,13 +390,17 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
             <div v-else class="create-short-group-picker">
               <label class="create-short-book-field">
                 <span>{{
-                  bindingDomain === "skill" ? "技能分组" : "素材分组"
+                  bindingDomain === "skill"
+                    ? t("skillGroup")
+                    : t("materialGroup")
                 }}</span>
                 <PopupSelect
                   :model-value="selectedGroupId"
                   :options="groupOptions"
                   :accessible-label="
-                    bindingDomain === 'skill' ? '技能分组' : '素材分组'
+                    bindingDomain === 'skill'
+                      ? t('skillGroup')
+                      : t('materialGroup')
                   "
                   size="large"
                   :disabled="loading || submitting"
@@ -382,7 +418,7 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
                     materialLibraries.find(
                       (library) =>
                         library.id === selectedMaterialGroup?.members[kind.id]
-                    )?.label ?? "未配置"
+                    )?.label ?? t("notConfigured")
                   }}</strong>
                 </span>
               </div>
@@ -396,16 +432,23 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
                     skillLibraries.find(
                       (library) =>
                         library.id === selectedSkillGroup?.members[kind.id]
-                    )?.label ?? "未配置"
+                    )?.label ?? t("notConfigured")
                   }}</strong>
                 </span>
               </div>
               <p v-else class="create-short-stable-hint">
-                选择分组后，会一次{{
-                  bindingDomain === "skill" ? "绑定" : "关联"
-                }}其中已配置的各类{{
-                  bindingDomain === "skill" ? "技能库" : "素材库"
-                }}。
+                {{
+                  t("selectingAGroupWillAllConfiguredCategoriesMessage", {
+                    arg0:
+                      (bindingDomain === "skill"
+                        ? t("link")
+                        : t("linkLabel")) ?? "",
+                    arg1:
+                      (bindingDomain === "skill"
+                        ? t("skillLibrary")
+                        : t("materialLibrary")) ?? ""
+                  })
+                }}
               </p>
             </div>
           </section>
@@ -419,7 +462,7 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
               class="dialog-action-status"
               aria-live="polite"
             >
-              正在加载素材库和技能库目录…
+              {{ t("loadingMaterialAndSkillLibraries") }}
             </span>
             <button
               class="dialog-secondary-button"
@@ -427,7 +470,7 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
               :disabled="submitting"
               @click="requestClose"
             >
-              取消
+              {{ t("cancel") }}
             </button>
             <button
               class="dialog-primary-button"
@@ -438,15 +481,15 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
               {{
                 submitting
                   ? mode === "remove" || mode === "delete"
-                    ? "处理中…"
-                    : "保存中…"
+                    ? t("processing")
+                    : t("saving")
                   : mode === "delete"
-                    ? "确认删除"
+                    ? t("deleteLabel")
                     : mode === "remove"
-                      ? "确认移除"
+                      ? t("confirmRemoval")
                       : mode === "rename"
-                        ? "保存名称"
-                        : "保存绑定"
+                        ? t("saveName")
+                        : t("saveLinks")
               }}
             </button>
           </div>

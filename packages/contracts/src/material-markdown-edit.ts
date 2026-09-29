@@ -15,6 +15,7 @@ export function updateMaterialMarkdownMetadata(
   if (parsed.state === "malformed") {
     return {
       updated: false,
+      code: "malformed_material_header",
       message:
         "已有说明头部无法安全修改，请在正文编辑器中调整；素材仍可正常使用。"
     };

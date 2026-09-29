@@ -4,7 +4,17 @@ export interface MarkdownMetadataFields {
 }
 
 export type MarkdownMetadataEditResult =
-  { updated: true; content: string } | { updated: false; message: string };
+  | { updated: true; content: string }
+  | {
+      updated: false;
+      code:
+        | "malformed_material_header"
+        | "missing_skill_fields"
+        | "unclosed_skill_header"
+        | "complex_skill_header"
+        | "skill_header_bom";
+      message: string;
+    };
 
 /** Callers validate the header and serialize values using their own format rules. */
 export function writeMarkdownMetadataFields(

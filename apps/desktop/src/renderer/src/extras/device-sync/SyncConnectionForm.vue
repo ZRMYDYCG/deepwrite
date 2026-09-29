@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../../i18n";
 import { ref } from "vue";
 import type {
   SyncConfig,
@@ -7,6 +8,8 @@ import type {
   SyncSpace
 } from "@deepwrite/contracts/renderer";
 import PopupSelect from "../../components/PopupSelect.vue";
+
+const t = createScopedTranslator("extras.deviceSync");
 const props = defineProps<{
   config: SyncConfig | null;
   pending: boolean;
@@ -24,7 +27,9 @@ const form = ref<SyncConfig>(
         username: "",
         directory: "DeepWriteSync",
         spaceId: null,
-        deviceName: "我的电脑",
+        get deviceName() {
+          return t("myComputer");
+        },
         excludedKeys: []
       }
 );
@@ -51,8 +56,8 @@ async function join(spaceId: string | null) {
 <template>
   <section class="sync-card sync-connection">
     <template v-if="spaces">
-      <h2>选择同步空间</h2>
-      <p>加入另一台设备正在使用的空间，首次同步前会展示内容预览。</p>
+      <h2>{{ t("chooseSyncSpace") }}</h2>
+      <p>{{ t("joinSpaceDescription") }}</p>
       <button
         v-for="space in spaces"
         :key="space.id"
@@ -61,28 +66,30 @@ async function join(spaceId: string | null) {
         @click="join(space.id)"
       >
         {{ space.name }}
-        <small
-          >{{ space.itemCount }} 项 · 最近更新
-          {{ (space.lastUpdatedAt ?? space.createdAt).slice(0, 10) }}</small
-        >
+        <small>{{
+          t("spaceSummary", {
+            count: space.itemCount,
+            date: (space.lastUpdatedAt ?? space.createdAt).slice(0, 10)
+          })
+        }}</small>
       </button>
       <button class="sync-button" :disabled="pending" @click="join(null)">
-        建立新的写作空间
+        {{ t("createWritingSpace") }}
       </button>
       <button class="sync-button quiet" @click="spaces = null">
-        返回连接设置
+        {{ t("backToConnection") }}
       </button>
     </template>
     <form v-else class="sync-form" @submit.prevent="connect">
-      <h2>连接自己的网盘</h2>
-      <p>电脑和手机使用同一空间，每次由你发起同步。</p>
-      <label>网盘服务</label
+      <h2>{{ t("connectCloudStorage") }}</h2>
+      <p>{{ t("manualSyncDescription") }}</p>
+      <label>{{ t("cloudProvider") }}</label
       ><PopupSelect
         :model-value="form.provider"
-        accessible-label="网盘服务"
+        :accessible-label="t('cloudProvider')"
         :options="[
-          { value: 'jianguoyun', label: '坚果云' },
-          { value: 'webdav', label: '其他 WebDAV' }
+          { value: 'jianguoyun', label: t('nutstore') },
+          { value: 'webdav', label: t('otherWebdav') }
         ]"
         @update:model-value="
           (value) => {
@@ -92,32 +99,37 @@ async function join(spaceId: string | null) {
         "
       />
       <label v-if="form.provider === 'webdav'"
-        >服务器地址<input
+        >{{ t("serverAddress")
+        }}<input
           v-model="form.endpoint"
-          aria-label="WebDAV 服务器地址"
+          :aria-label="t('webdavAddress')"
           autocomplete="url"
           placeholder="https://example.test/dav/"
       /></label>
       <label
-        >账号<input
+        >{{ t("account")
+        }}<input
           v-model="form.username"
-          aria-label="网盘账号"
+          :aria-label="t('storageAccount')"
           autocomplete="username"
       /></label>
       <label
-        >应用密码<input
+        >{{ t("appPassword")
+        }}<input
           v-model="password"
-          aria-label="网盘应用密码"
+          :aria-label="t('storageAppPassword')"
           type="password"
           autocomplete="off"
-          :placeholder="config ? '留空使用已保存的密码' : '填写网盘应用密码'"
+          :placeholder="
+            config ? t('keepSavedPassword') : t('enterAppPassword')
+          "
       /></label>
       <a
         v-if="form.provider === 'jianguoyun'"
         href="https://help.jianguoyun.com/?p=2064"
         target="_blank"
         rel="noreferrer"
-        >如何获取坚果云应用密码</a
+        >{{ t("getNutstorePassword") }}</a
       >
       <button
         type="button"
@@ -125,20 +137,22 @@ async function join(spaceId: string | null) {
         :aria-expanded="advanced"
         @click="advanced = !advanced"
       >
-        高级设置
+        {{ t("advancedSettings") }}
       </button>
       <template v-if="advanced"
         ><label
-          >同步目录<input
+          >{{ t("syncDirectory")
+          }}<input
             v-model="form.directory"
-            aria-label="同步目录" /></label
+            :aria-label="t('syncDirectory')" /></label
         ><label
-          >设备名称<input
+          >{{ t("deviceName")
+          }}<input
             v-model="form.deviceName"
-            aria-label="设备名称" /></label
+            :aria-label="t('deviceName')" /></label
       ></template>
       <button class="sync-button" type="submit" :disabled="pending">
-        {{ pending ? "正在验证连接…" : "连接并继续" }}
+        {{ pending ? t("verifyingConnection") : t("connectContinue") }}
       </button>
     </form>
   </section>

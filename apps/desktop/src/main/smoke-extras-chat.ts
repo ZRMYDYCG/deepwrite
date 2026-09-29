@@ -109,7 +109,13 @@ async function extrasChatSmokeInRenderer() {
       conversation: { message: "项目里有什么？" }
     });
   } catch (error) {
-    projectRejected = String(error).includes("所选创作项目不存在");
+    projectRejected =
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      error.code === "extras_agent.run_failed" &&
+      "message" in error &&
+      String(error.message).includes("所选创作项目不存在");
   }
   ensure(projectRejected, "missing project was not rejected by Main");
 

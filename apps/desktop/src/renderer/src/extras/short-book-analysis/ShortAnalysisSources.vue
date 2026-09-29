@@ -1,10 +1,15 @@
 <script setup lang="ts">
+import { formatError } from "../../i18n/errors";
+import { createScopedTranslator, locale } from "../../i18n";
 import { computed, ref, watch } from "vue";
 import AppIcon from "../../components/AppIcon.vue";
 import { uiMessage } from "../../ui-feedback";
 import type { ShortBookAnalysisController } from "./useShortBookAnalysis";
+
+const t = createScopedTranslator("extras");
 const props = defineProps<{ controller: ShortBookAnalysisController }>();
 const c = props.controller;
+const expanded = ref(false);
 const editing = computed(() =>
   c.drafts.value.find((b) => b.id === c.activeId.value)
 );
@@ -24,7 +29,7 @@ async function act(action: () => unknown) {
     await action();
   } catch (error) {
     uiMessage.warning(
-      error instanceof Error ? error.message : "来源操作失败。"
+      formatError(error, t("shortBookAnalysis.sourceOperationFailed"))
     );
   }
 }
@@ -37,7 +42,7 @@ function save() {
 function removeBook(id: string) {
   return act(() => {
     c.removeBook(id);
-    uiMessage.success("已从当前列表去除，可从上方重新添加。");
+    uiMessage.success(t("shortBookAnalysis.removedFromList"));
   });
 }
 </script>
@@ -45,19 +50,40 @@ function removeBook(id: string) {
   <section v-if="c.drafts.value.length" class="analysis-card short-source-card">
     <header class="analysis-card-heading">
       <div>
-        <p class="analysis-eyebrow">导入与校正</p>
-        <h2>短篇正文</h2>
+        <p class="analysis-eyebrow">
+          {{ t("shortBookAnalysis.analysisSources") }}
+        </p>
+        <h2>
+          {{
+            t("shortBookAnalysis.selectedBookCount", {
+              selected: c.selectedIds.value.length,
+              total: c.selectionLimit.value
+            })
+          }}
+        </h2>
       </div>
-      <span>{{ c.drafts.value.length.toLocaleString() }} 本</span>
+      <button
+        type="button"
+        :aria-expanded="expanded"
+        @click="expanded = !expanded"
+      >
+        {{
+          expanded
+            ? t("longBookAnalysis.collapseText")
+            : t("longBookAnalysis.reviewAndCorrect")
+        }}
+      </button>
     </header>
-    <div class="short-source-workspace">
+    <div class="short-source-workspace" :class="{ 'is-expanded': expanded }">
       <div class="short-list-pane">
-        <div class="short-list-heading">
-          <strong>短篇列表</strong
-          ><span
-            >已选 {{ c.selectedIds.value.length }} /
-            {{ c.selectionLimit.value }} 本</span
-          >
+        <div v-if="expanded" class="short-list-heading">
+          <strong>{{ t("shortBookAnalysis.storyList") }}</strong
+          ><span>{{
+            t("shortBookAnalysis.selectedBookCount", {
+              selected: c.selectedIds.value.length,
+              total: c.selectionLimit.value
+            })
+          }}</span>
         </div>
         <ul class="short-book-list">
           <li
@@ -66,65 +92,82 @@ function removeBook(id: string) {
             :class="{ selected: c.activeId.value === book.id }"
           >
             <input
-              type="checkbox"
-              :aria-label="`选择 ${book.title}`"
+              :type="c.selectionLimit.value === 1 ? 'radio' : 'checkbox'"
+              name="short-analysis-book"
+              :aria-label="
+                t('shortBookAnalysis.selectBook', { title: book.title })
+              "
               :checked="c.selectedIds.value.includes(book.id)"
               :disabled="
                 disabled ||
-                (!c.selectedIds.value.includes(book.id) &&
+                (c.selectionLimit.value > 1 &&
+                  !c.selectedIds.value.includes(book.id) &&
                   c.selectedIds.value.length >= c.selectionLimit.value)
               "
               @change="act(() => c.toggleBook(book.id))"
             /><button
               class="short-book-open"
               :disabled="disabled"
-              @click="c.activeId.value = book.id"
+              @click="
+                c.selectionLimit.value === 1
+                  ? act(() => c.toggleBook(book.id))
+                  : (c.activeId.value = book.id)
+              "
             >
               <strong>{{ book.title }}</strong
-              ><small>{{ book.text.length.toLocaleString() }} 字</small>
+              ><small>{{
+                t("longBookAnalysis.characterCount", {
+                  count: book.text.length.toLocaleString(locale)
+                })
+              }}</small>
             </button>
             <button
               type="button"
               class="short-book-remove"
-              :aria-label="`去除 ${book.title}`"
-              title="从当前列表去除，保留已导入短篇"
+              :aria-label="
+                t('shortBookAnalysis.removeBook', { title: book.title })
+              "
+              :title="t('shortBookAnalysis.removeKeepImported')"
               :disabled="disabled"
               @click="removeBook(book.id)"
             >
-              去除
+              {{ t("shortBookAnalysis.remove") }}
             </button>
           </li>
         </ul>
       </div>
-      <div v-if="editing" class="short-text-editor">
+      <div v-if="editing && expanded" class="short-text-editor">
         <label
-          >书名<input
+          >{{ t("shortBookAnalysis.bookTitle")
+          }}<input
             v-model="title"
             :disabled="disabled"
             maxlength="256"
             @change="save" /></label
         ><label
-          >完整正文<textarea
+          >{{ t("shortBookAnalysis.completeText")
+          }}<textarea
             v-model="text"
             :disabled="disabled"
             maxlength="2000000"
             @change="save"
           /></label
-        ><small>编辑仅用于当前任务，不覆盖原文件或保存的来源快照。</small>
+        ><small>{{ t("shortBookAnalysis.taskEditsOnly") }}</small>
       </div>
     </div>
   </section>
   <section v-else class="analysis-card analysis-empty-source">
     <div class="analysis-empty-icon"><AppIcon name="book" :size="26" /></div>
     <div class="analysis-empty-copy">
-      <strong>先导入一篇短篇</strong>
-      <p>
-        支持 TXT / Markdown
-        文件或粘贴文本，每篇保留完整正文；添加后会备份到工作目录，下次可从顶部直接选择。
-      </p>
+      <strong>{{ t("shortBookAnalysis.importStoryToStart") }}</strong>
+      <p>{{ t("shortBookAnalysis.storyImportHelp") }}</p>
     </div>
-    <div class="analysis-empty-meta" aria-label="支持的导入格式">
-      <span>TXT</span><span>Markdown</span><span>最多选择 10 本</span>
+    <div
+      class="analysis-empty-meta"
+      :aria-label="t('shortBookAnalysis.supportedFormats')"
+    >
+      <span>TXT</span><span>Markdown</span
+      ><span>{{ t("shortBookAnalysis.maxTenBooks") }}</span>
     </div>
   </section>
 </template>

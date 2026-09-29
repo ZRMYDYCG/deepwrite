@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { genreLabel } from "./catalogLabels";
+import { createScopedTranslator } from "../i18n";
 import {
   computed,
   nextTick,
@@ -28,6 +30,8 @@ import type {
 } from "@deepwrite/contracts";
 import { uiMessage } from "../ui-feedback";
 import BookLibraryBindings from "./BookLibraryBindings.vue";
+
+const t = createScopedTranslator("components.createBookDialog");
 
 const props = withDefaults(
   defineProps<{
@@ -65,14 +69,30 @@ const genre = ref<string>("世情");
 const workspaceTypeOptions = [
   {
     value: "short",
-    label: "短篇",
-    description: "人物、剧情、导语、大纲与正文"
+    get label() {
+      return t("shortStory");
+    },
+    get description() {
+      return t("charactersPlotIntroductionOutlineAndManuscript");
+    }
   },
-  { value: "script", label: "剧本", description: "人物、剧情、大纲与分集正文" },
+  {
+    value: "script",
+    get label() {
+      return t("screenplay");
+    },
+    get description() {
+      return t("charactersPlotOutlineAndEpisodeManuscripts");
+    }
+  },
   {
     value: "long",
-    label: "长篇",
-    description: "世界观、人物、情节、正文与连续性"
+    get label() {
+      return t("novel");
+    },
+    get description() {
+      return t("worldbuildingCharactersPlotManuscriptAndContinuity");
+    }
   }
 ] as const;
 const genreOptions = computed<readonly string[]>(() =>
@@ -90,7 +110,7 @@ const bindings = ref<{
 function workspaceTypeLabel(): string {
   return (
     workspaceTypeOptions.find((option) => option.value === workspaceType.value)
-      ?.label ?? "短篇"
+      ?.label ?? t("shortStory")
   );
 }
 
@@ -108,7 +128,7 @@ function requestClose(): void {
 function submit(): void {
   const normalizedTitle = title.value.trim();
   if (!normalizedTitle) {
-    uiMessage.warning("请输入书名");
+    uiMessage.warning(t("enterABookTitle"));
     titleInput.value?.focus();
     return;
   }
@@ -116,7 +136,7 @@ function submit(): void {
   const linkedSkillIdsByKind = bindings.value?.linkedSkillIdsByKind;
   if (workspaceType.value === "long") {
     if (Array.from(normalizedTitle).length > 256) {
-      uiMessage.warning("长篇书名不能超过 256 个字符");
+      uiMessage.warning(t("novelTitlesCannotExceed256Characters"));
       titleInput.value?.focus();
       return;
     }
@@ -182,23 +202,28 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
       >
         <header>
           <div>
-            <span class="dialog-eyebrow"
-              >创作空间 · {{ workspaceTypeLabel() }}</span
-            >
+            <span class="dialog-eyebrow">{{
+              t("workspaceMessage", {
+                arg0: workspaceTypeLabel() ?? ""
+              })
+            }}</span>
             <h2 id="create-book-title">
-              新建{{
-                workspaceType === "long"
-                  ? "长篇作品"
-                  : workspaceType === "script"
-                    ? "剧本"
-                    : "短篇书籍"
+              {{
+                t("newMessage", {
+                  arg0:
+                    (workspaceType === "long"
+                      ? t("novelLabel")
+                      : workspaceType === "script"
+                        ? t("screenplay")
+                        : t("shortStoryLabel")) ?? ""
+                })
               }}
             </h2>
           </div>
           <button
             class="dialog-close"
             type="button"
-            aria-label="关闭"
+            :aria-label="t('close')"
             :disabled="submitting"
             @click="requestClose"
           >
@@ -214,11 +239,13 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
             class="create-short-book-basics"
             aria-labelledby="create-workspace-type-heading"
           >
-            <h3 id="create-workspace-type-heading">创作类型</h3>
+            <h3 id="create-workspace-type-heading">
+              {{ t("writingType") }}
+            </h3>
             <div
               class="create-short-binding-modes create-workspace-type-options"
               role="tablist"
-              aria-label="创作类型"
+              :aria-label="t('writingType')"
             >
               <button
                 v-for="option in workspaceTypeOptions"
@@ -244,9 +271,11 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
             class="create-short-book-basics"
             aria-labelledby="create-short-basics-heading"
           >
-            <h3 id="create-short-basics-heading">书籍信息</h3>
+            <h3 id="create-short-basics-heading">
+              {{ t("bookInformation") }}
+            </h3>
             <label class="create-short-book-field">
-              <span>书名</span>
+              <span>{{ t("bookTitle") }}</span>
               <input
                 ref="titleInput"
                 v-model="title"
@@ -254,7 +283,9 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
                 :maxlength="workspaceType === 'long' ? 256 : 80"
                 autocomplete="off"
                 :placeholder="
-                  workspaceType === 'long' ? '请输入长篇书名' : '请输入书名'
+                  workspaceType === 'long'
+                    ? t('enterANovelTitle')
+                    : t('enterABookTitle')
                 "
                 :disabled="submitting"
               />
@@ -264,8 +295,13 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
               <legend>
                 {{
                   workspaceType === "long"
-                    ? "长篇题材"
-                    : `${workspaceType === "script" ? "剧本" : "短篇"}分类`
+                    ? t("novelGenre")
+                    : t("valueCategory", {
+                        arg0:
+                          workspaceType === "script"
+                            ? t("screenplay")
+                            : t("shortStory")
+                      })
                 }}
               </legend>
               <div class="create-short-genre-options">
@@ -282,7 +318,7 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
                     :value="option"
                     :disabled="submitting"
                   />
-                  <span>{{ option }}</span>
+                  <span>{{ genreLabel(option) }}</span>
                 </label>
               </div>
             </fieldset>
@@ -306,7 +342,7 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
               class="dialog-action-status"
               aria-live="polite"
             >
-              正在加载素材库和技能库目录…
+              {{ t("loadingMaterialAndSkillLibraries") }}
             </span>
             <button
               class="dialog-secondary-button"
@@ -314,7 +350,7 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
               :disabled="submitting"
               @click="requestClose"
             >
-              取消
+              {{ t("cancel") }}
             </button>
             <button
               class="dialog-primary-button"
@@ -323,12 +359,12 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
             >
               {{
                 submitting
-                  ? "创建中…"
+                  ? t("creating")
                   : workspaceType === "long"
-                    ? "创建长篇"
+                    ? t("createNovel")
                     : workspaceType === "script"
-                      ? "创建剧本"
-                      : "创建书籍"
+                      ? t("createScreenplay")
+                      : t("createBook")
               }}
             </button>
           </div>

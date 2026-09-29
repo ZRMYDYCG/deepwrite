@@ -1,9 +1,12 @@
+import { createScopedTranslator } from "../i18n";
 import type {
   LongBookSummary,
   LongWorkspaceIndexSnapshot
 } from "@deepwrite/contracts";
 import type { ResourceTreeNode } from "../types/workspace";
 import { createLongChapterSelection } from "../types/longWorkspace";
+
+const t = createScopedTranslator("workspace");
 
 type LongNavigationChapter =
   LongBookSummary["navigation"]["chapterCards"][number];
@@ -16,10 +19,11 @@ function chapterStatusBadge(
   const files = index?.chapters.find(
     ({ chapterCardId }) => chapterCardId === chapter.id
   );
-  if (files && files.commitId !== null) return "已完成";
+  if (files && files.commitId !== null)
+    return t("longWorkspaceDraftTree.completed");
   return (files?.bodyStatus ?? chapter.bodyStatus) === "written"
-    ? "待提交"
-    : "待编写";
+    ? t("longWorkspaceDraftTree.pendingCommit")
+    : t("longWorkspaceDraftTree.notWritten");
 }
 
 export function projectLongWorkspaceDraftTree(input: {
@@ -42,7 +46,7 @@ export function projectLongWorkspaceDraftTree(input: {
             title: chapter.title,
             breadcrumbs: [
               input.book.title,
-              "正文",
+              t("catalogWorkspace.manuscript"),
               volume.title,
               chapter.title
             ],
@@ -69,7 +73,9 @@ export function projectLongWorkspaceDraftTree(input: {
       id: input.nodeId(`volume:${volume.id}`),
       label: volume.title,
       icon: "folder",
-      badge: `${chapters.length} 章`,
+      badge: t("longWorkspaceResourceTree.chapters", {
+        length: chapters.length
+      }),
       workspaceType: "long",
       longBookId: input.book.id,
       catalogNodeType: "category",

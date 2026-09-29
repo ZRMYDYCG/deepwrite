@@ -11,11 +11,11 @@ describe("LongContinuityProjectionPanel", () => {
     expect(source).toContain('props.domain === "plot"');
     expect(source).toContain('fact.domain === "foreshadowing"');
     expect(source).toContain("fact.subjectId === props.subjectId");
-    expect(source).toContain("人物");
-    expect(source).toContain("人物关系");
-    expect(source).toContain("世界观");
-    expect(source).toContain("剧情");
-    expect(source).toContain("伏笔");
+    expect(source).toContain("characters");
+    expect(source).toContain("characterRelationships");
+    expect(source).toContain("worldbuilding");
+    expect(source).toContain("plot");
+    expect(source).toContain("foreshadowing");
     expect(source).not.toContain("<textarea");
     expect(source).not.toContain("<input");
   });
@@ -29,8 +29,8 @@ describe("LongContinuityProjectionPanel", () => {
     expect(source).toContain("props.snapshot.worldbuilding.find");
     expect(source).toContain("props.snapshot.plot.storyEvents.find");
     expect(source).toContain("props.snapshot.plot.foreshadowing.find");
-    expect(source).toContain("查看入账记录");
-    expect(source).toContain("来源证据");
+    expect(source).toContain("viewCommittedRecord");
+    expect(source).toContain("sourceEvidence");
     expect(source).toContain("selectCommit: [commitId: string]");
   });
 
@@ -65,7 +65,7 @@ describe("LongContinuityProjectionPanel", () => {
     );
     expect(source).toContain("hideHeading");
     expect(source).toContain('class="projection-card"');
-    expect(source).toContain("来源映射");
-    expect(source).toContain("项");
+    expect(source).toContain("sourceMapping");
+    expect(source).toContain("itemsMessage");
   });
 });

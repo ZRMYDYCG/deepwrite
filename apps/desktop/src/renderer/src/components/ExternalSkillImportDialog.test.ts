@@ -5,15 +5,17 @@ import importCoordinatorSource from "../composables/useExternalLibraryImportCoor
 
 describe("external library import UI", () => {
   it("offers multi-file and recursive directory choices", () => {
-    expect(source).toContain("选择文件夹");
-    expect(source).toContain("选择文件");
-    expect(source).toContain("递归扫描其子目录");
+    expect(source).toContain("chooseFolder");
+    expect(source).toContain("chooseFiles");
+    expect(source).toContain(
+      "supportsTXTMarkdownPDFAndWordDocumentsFoldersAre"
+    );
     expect(source).toContain("emit('choose', 'directory')");
     expect(source).toContain("emit('choose', 'file')");
   });
 
   it("shows the action only for writable skill libraries", () => {
-    expect(treeSource).toContain("从其他 skills 加载");
+    expect(treeSource).toContain("loadFromOtherSkills");
     expect(treeSource).toContain(
       "libraryDomain === 'skill' && !node.readOnly && !node.unavailable"
     );
@@ -26,7 +28,7 @@ describe("external library import UI", () => {
     expect(source).toContain("candidate.title");
     expect(source).not.toContain("candidate.content");
     expect(source).toContain("selectedCandidateIds");
-    expect(source).toContain("无法读取或提取");
+    expect(source).toContain("couldNotReadOrExtract");
     expect(importCoordinatorSource).toContain(
       "api.chooseExternalLibraryEntries(sourceKind)"
     );

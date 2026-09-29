@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import { nextTick, ref, watch } from "vue";
 import type { ModelConfigInput } from "@deepwrite/contracts";
 import {
@@ -8,6 +9,8 @@ import {
 import CreateCustomProviderDialog from "./CreateCustomProviderDialog.vue";
 import type { DraftModel } from "./modelSettingsDraft";
 import PopupSelect from "./PopupSelect.vue";
+
+const t = createScopedTranslator("components.modelEditorPanel");
 
 const props = withDefaults(
   defineProps<{
@@ -81,16 +84,18 @@ watch(fetchHintDialog, (message) => {
 <template>
   <section class="model-editor" :inert="saving">
     <div class="model-editor-heading">
-      <strong>{{ editing ? "编辑模型" : "添加模型" }}</strong>
-      <button type="button" @click="emit('cancel')">取消</button>
+      <strong>{{ editing ? t("editModel") : t("addModel") }}</strong>
+      <button type="button" @click="emit('cancel')">
+        {{ t("cancel") }}
+      </button>
     </div>
     <div class="model-form-grid">
       <label>
-        <span>名称</span>
+        <span>{{ t("name") }}</span>
         <input
           v-model="editor.label"
           type="text"
-          placeholder="例如：DeepSeek 写作，留空则使用模型 ID"
+          :placeholder="t('forExampleDeepSeekWritingLeaveBlankToUseThe')"
         />
       </label>
       <label>
@@ -99,7 +104,7 @@ watch(fetchHintDialog, (message) => {
           ref="providerSelect"
           :model-value="editor.provider"
           :options="providerOptions"
-          accessible-label="选择 Provider"
+          :accessible-label="t('selectProvider')"
           @update:model-value="applyProviderPreset(String($event))"
         >
           <template #footer>
@@ -108,13 +113,13 @@ watch(fetchHintDialog, (message) => {
               type="button"
               @click="openCreateProvider"
             >
-              新建提供商
+              {{ t("newProvider") }}
             </button>
           </template>
         </PopupSelect>
       </label>
       <label>
-        <span>模型 ID</span>
+        <span>{{ t("modelID") }}</span>
         <div class="model-id-field">
           <PopupSelect
             v-if="canSelectRemoteModel"
@@ -122,8 +127,8 @@ watch(fetchHintDialog, (message) => {
             multiple
             :selected-values="selectedRemoteModelIds"
             :options="remoteModelOptions"
-            accessible-label="选择模型 ID"
-            placeholder="请选择要保存的模型"
+            :accessible-label="t('selectModelID')"
+            :placeholder="t('selectModelsToSave')"
             :menu-min-width="280"
             :disabled="listingRemoteModels"
             @update:selected-values="setSelectedRemoteModels"
@@ -134,7 +139,7 @@ watch(fetchHintDialog, (message) => {
                 type="button"
                 @click="clearRemoteModels"
               >
-                手动输入其他模型 ID
+                {{ t("enterAnotherModelID") }}
               </button>
             </template>
           </PopupSelect>
@@ -142,7 +147,7 @@ watch(fetchHintDialog, (message) => {
             v-else
             v-model="editor.modelId"
             type="text"
-            placeholder="服务商提供的模型 ID"
+            :placeholder="t('modelIDSuppliedByTheProvider')"
           />
           <button
             class="model-id-fetch-button"
@@ -150,40 +155,44 @@ watch(fetchHintDialog, (message) => {
             :disabled="listingRemoteModels"
             :title="
               listingRemoteModels
-                ? '拉取中…'
-                : '根据 API 地址和 Key 拉取可用模型'
+                ? t('fetching')
+                : t('fetchAvailableModelsUsingTheAPIEndpointAndKey')
             "
-            :aria-label="listingRemoteModels ? '拉取中' : '拉取可用模型'"
+            :aria-label="
+              listingRemoteModels
+                ? t('fetchingLabel')
+                : t('fetchAvailableModels')
+            "
             @click="fetchRemoteModels"
           >
-            {{ listingRemoteModels ? "拉取中" : "拉取" }}
+            {{ listingRemoteModels ? t("fetchingLabel") : t("fetch") }}
           </button>
         </div>
       </label>
       <label>
-        <span>API 类型</span>
+        <span>{{ t("aPIType") }}</span>
         <PopupSelect
           :model-value="editor.api"
           :options="apiOptions"
-          accessible-label="选择 API 类型"
+          :accessible-label="t('selectAPIType')"
           :menu-min-width="240"
           @update:model-value="setModelApi"
         />
       </label>
       <label>
-        <span>API 地址</span>
+        <span>{{ t("aPIEndpoint") }}</span>
         <input
           v-model="editor.baseUrl"
           type="url"
-          placeholder="内置模型可留空，自定义服务请填写"
+          :placeholder="t('optionalForBuiltInModelsRequiredForCustomServices')"
         />
       </label>
       <label>
-        <span>工具结构</span>
+        <span>{{ t("toolSchema") }}</span>
         <PopupSelect
           :model-value="editor.toolSchemaProfile ?? 'auto'"
           :options="toolSchemaProfileOptions"
-          accessible-label="选择工具结构兼容模式"
+          :accessible-label="t('selectToolSchemaCompatibilityMode')"
           :menu-min-width="300"
           @update:model-value="setToolSchemaProfile"
         />
@@ -195,41 +204,47 @@ watch(fetchHintDialog, (message) => {
           type="password"
           :placeholder="
             editor.hasApiKey
-              ? '已安全保存；留空表示保持不变'
-              : '请输入 API Key（本地服务可留空）'
+              ? t('savedSecurelyLeaveBlankToKeepUnchanged')
+              : t('enterAPIKeyOptionalForLocalServices')
           "
           autocomplete="new-password"
           @input="editor.clearApiKey = false"
         />
       </label>
       <label>
-        <span>模型模式</span>
+        <span>{{ t("modelMode") }}</span>
         <PopupSelect
           :model-value="editor.reasoning ? 'reasoning' : 'temperature'"
           :options="modelModeOptions"
-          accessible-label="选择模型模式"
+          :accessible-label="t('selectModelMode')"
           @update:model-value="
             setModelMode(String($event) as 'reasoning' | 'temperature')
           "
         />
       </label>
       <label v-if="editor.reasoning">
-        <span>默认思考等级</span>
+        <span>{{ t("defaultReasoningLevel") }}</span>
         <PopupSelect
           :model-value="editor.defaultThinkingLevel"
           :options="defaultThinkingOptions"
-          accessible-label="选择默认思考等级"
+          :accessible-label="t('selectDefaultReasoningLevel')"
           @update:model-value="setDefaultThinkingLevel"
         />
       </label>
       <label v-else>
         <span class="model-field-label">
-          温度选项
+          {{ t("temperatureOptions") }}
           <span
             class="model-help-icon"
             tabindex="0"
-            aria-label="温度说明：温度越低，输出越稳定和确定；温度越高，表达越多样和有创造性。可填写 0 到 2。"
-            data-tooltip="温度越低，输出越稳定、确定；温度越高，表达越多样、有创造性。可填写 0–2。"
+            :aria-label="
+              t(
+                'lowerTemperaturesProduceMoreStablePredictableOutputHigherTemperatures'
+              )
+            "
+            :data-tooltip="
+              t('lowerTemperaturesAreMorePredictableHigherTemperaturesAreMore')
+            "
             >!</span
           >
         </span>
@@ -242,12 +257,16 @@ watch(fetchHintDialog, (message) => {
             min="0"
             max="2"
             step="0.1"
-            :aria-label="`温度选项 ${index + 1}`"
+            :aria-label="
+              t('temperatureOptionValue', {
+                arg0: index + 1
+              })
+            "
           />
         </span>
       </label>
       <label v-if="editor.reasoning" class="is-wide">
-        <span>思考等级选项</span>
+        <span>{{ t("reasoningLevelOptions") }}</span>
         <span class="model-thinking-options">
           <label
             v-for="option in reasoningOptions"
@@ -269,13 +288,13 @@ watch(fetchHintDialog, (message) => {
             :title="editor.customThinkingLevel?.trim() || 'custom'"
             :data-tooltip="editor.customThinkingLevel?.trim() || 'custom'"
           >
-            <span>自定义</span>
+            <span>{{ t("custom") }}</span>
             <input
               :value="editor.customThinkingLevel"
               type="text"
               maxlength="64"
-              placeholder="例如 ultra"
-              aria-label="自定义思考等级英文值"
+              :placeholder="t('forExampleUltra')"
+              :aria-label="t('customReasoningLevelValueInEnglish')"
               @input="updateCustomThinkingLevel"
             />
           </span>
@@ -284,7 +303,7 @@ watch(fetchHintDialog, (message) => {
     </div>
 
     <div v-if="editor.hasApiKey" class="model-key-row">
-      <span>已有密钥会保持不变。</span>
+      <span>{{ t("theExistingKeyWillBeKept") }}</span>
       <button
         type="button"
         @click="
@@ -293,7 +312,7 @@ watch(fetchHintDialog, (message) => {
           editor.apiKey = '';
         "
       >
-        清除已保存密钥
+        {{ t("clearSavedKey") }}
       </button>
     </div>
     <div class="dialog-actions">
@@ -303,10 +322,12 @@ watch(fetchHintDialog, (message) => {
         :disabled="testingModelId !== null"
         @click="test"
       >
-        {{ testingModelId === editor.id ? "测试中…" : "测试当前填写" }}
+        {{
+          testingModelId === editor.id ? t("testing") : t("testCurrentValues")
+        }}
       </button>
       <button class="dialog-primary-button" type="button" @click="save">
-        {{ saving ? "保存中…" : "批量应用并保存配置" }}
+        {{ saving ? t("saving") : t("applyAndSaveConfigurations") }}
       </button>
     </div>
   </section>
@@ -329,8 +350,10 @@ watch(fetchHintDialog, (message) => {
       >
         <header>
           <div>
-            <span class="dialog-eyebrow">模型配置</span>
-            <h2 id="model-fetch-hint-title">无法拉取模型</h2>
+            <span class="dialog-eyebrow">{{ t("modelSettings") }}</span>
+            <h2 id="model-fetch-hint-title">
+              {{ t("couldNotFetchModels") }}
+            </h2>
           </div>
         </header>
         <p id="model-fetch-hint-message">{{ fetchHintDialog }}</p>
@@ -341,7 +364,7 @@ watch(fetchHintDialog, (message) => {
             type="button"
             @click="fetchHintDialog = null"
           >
-            知道了
+            {{ t("gotIt") }}
           </button>
         </footer>
       </section>

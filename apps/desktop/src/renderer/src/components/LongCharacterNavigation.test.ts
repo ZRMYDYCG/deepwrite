@@ -14,7 +14,7 @@ describe("LongCharacterNavigation", () => {
     expect(source).toContain(
       'class="long-story-plot-pane long-entry-list-pane"'
     );
-    expect(source).toContain(':aria-label="`${label}列表`"');
+    expect(source).toContain("valueList");
   });
 
   it("emits navigation and mutation intent without owning persistence", () => {

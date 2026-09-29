@@ -1,3 +1,4 @@
+import { createScopedTranslator } from "../i18n";
 import { computed } from "vue";
 import type {
   LongForeshadowingBeatType,
@@ -5,6 +6,8 @@ import type {
   LongWorkspaceIndexSnapshot
 } from "@deepwrite/contracts";
 import type { PopupSelectOption } from "../components/PopupSelect.vue";
+
+const t = createScopedTranslator("workspace.foreshadowingFilters");
 
 export type WorkspaceMode = "overview" | "volume" | "plotPoint";
 export type PlannedSpan = "local" | "within_volume" | "cross_volume";
@@ -26,62 +29,127 @@ export interface ForeshadowingThread extends Omit<SnapshotThread, "beats"> {
 }
 
 export const spanLabels: Record<PlannedSpan, string> = {
-  local: "剧情点内",
-  within_volume: "卷内",
-  cross_volume: "跨卷"
+  get local() {
+    return t("withinAPlotPoint");
+  },
+  get within_volume() {
+    return t("withinAVolume");
+  },
+  get cross_volume() {
+    return t("acrossVolumes");
+  }
 };
 
 export const lifecycleLabels: Record<LongForeshadowingStatus, string> = {
-  planned: "构思中",
-  open: "已埋设",
-  progressing: "发展中",
-  resolved: "已回收",
-  abandoned: "已废弃"
+  get planned() {
+    return t("planned");
+  },
+  get open() {
+    return t("planted");
+  },
+  get progressing() {
+    return t("developing");
+  },
+  get resolved() {
+    return t("resolved");
+  },
+  get abandoned() {
+    return t("abandoned");
+  }
 };
 
 export const beatTypeLabels: Record<LongForeshadowingBeatType, string> = {
-  source: "真相源头",
-  plant: "埋设",
-  reinforce: "强化",
-  misdirect: "误导",
-  partial_reveal: "部分揭示",
-  reveal: "揭示",
-  payoff: "回收",
-  aftermath: "余波"
+  get source() {
+    return t("truthSource");
+  },
+  get plant() {
+    return t("plant");
+  },
+  get reinforce() {
+    return t("reinforce");
+  },
+  get misdirect() {
+    return t("misdirect");
+  },
+  get partial_reveal() {
+    return t("partialReveal");
+  },
+  get reveal() {
+    return t("reveal");
+  },
+  get payoff() {
+    return t("resolve");
+  },
+  get aftermath() {
+    return t("aftermath");
+  }
 };
 
 export const spanOptions: readonly PopupSelectOption[] = (
   Object.entries(spanLabels) as Array<[PlannedSpan, string]>
-).map(([value, label]) => ({ value, label }));
+).map(([value]) => ({
+  value,
+  get label() {
+    return spanLabels[value];
+  }
+}));
 
 export const spanFilterOptions: readonly PopupSelectOption[] = [
-  { value: "all", label: "全部跨度" },
+  {
+    value: "all",
+    get label() {
+      return t("allScopes");
+    }
+  },
   ...spanOptions
 ];
 
 export const lifecycleFilterOptions: readonly PopupSelectOption[] = [
-  { value: "all", label: "全部生命周期" },
+  {
+    value: "all",
+    get label() {
+      return t("allLifecycleStates");
+    }
+  },
   ...(
     Object.entries(lifecycleLabels) as Array<[LongForeshadowingStatus, string]>
-  ).map(([value, label]) => ({ value, label }))
+  ).map(([value]) => ({
+    value,
+    get label() {
+      return lifecycleLabels[value];
+    }
+  }))
 ];
 
 export const editableLifecycleOptions: readonly PopupSelectOption[] = [
   {
     value: "planned",
-    label: lifecycleLabels.planned,
-    description: "尚未由正文提交产生实际触点"
+    get label() {
+      return lifecycleLabels.planned;
+    },
+    get description() {
+      return t("noActualBeatsHaveBeenRecordedByManuscriptCommits");
+    }
   },
   {
     value: "abandoned",
-    label: lifecycleLabels.abandoned,
-    description: "保留记录，但不再继续推进"
+    get label() {
+      return lifecycleLabels.abandoned;
+    },
+    get description() {
+      return t("keepTheRecordWithoutDevelopingItFurther");
+    }
   }
 ];
 
 export const beatTypeOptions: readonly PopupSelectOption[] = (
   Object.entries(beatTypeLabels) as Array<[LongForeshadowingBeatType, string]>
-).map(([value, label]) => ({ value, label }));
+).map(([value]) => ({
+  value,
+  get label() {
+    return beatTypeLabels[value];
+  }
+}));
 
 export function useForeshadowingFilters(props: {
   snapshot: LongWorkspaceIndexSnapshot;
@@ -133,7 +201,7 @@ export function useForeshadowingFilters(props: {
   );
 
   const volumeOptions = computed<PopupSelectOption[]>(() => [
-    { value: "", label: "暂不指定分卷" },
+    { value: "", label: t("noVolumeSelected") },
     ...[...props.snapshot.plot.volumes]
       .sort(
         (left, right) =>
@@ -146,7 +214,10 @@ export function useForeshadowingFilters(props: {
     const scopedVolumeId =
       props.mode === "overview" ? undefined : resolvedContextVolumeId.value;
     return [
-      { value: "", label: "暂不指定剧情点" },
+      {
+        value: "",
+        label: t("noPlotPointSelected")
+      },
       ...[...props.snapshot.plot.arcs]
         .filter((arc) => !scopedVolumeId || arc.volumeId === scopedVolumeId)
         .sort((left, right) => {
@@ -257,11 +328,16 @@ export function useForeshadowingFilters(props: {
   }
 
   function volumeTitle(volumeId: string): string {
-    return volumeById.value.get(volumeId)?.title ?? `缺失分卷（${volumeId}）`;
+    return (
+      volumeById.value.get(volumeId)?.title ??
+      t("missingVolume", { volumeId: volumeId })
+    );
   }
 
   function arcTitle(arcId: string): string {
-    return arcById.value.get(arcId)?.title ?? `缺失剧情点（${arcId}）`;
+    return (
+      arcById.value.get(arcId)?.title ?? t("missingPlotPoint", { arcId: arcId })
+    );
   }
 
   return {

@@ -1,8 +1,11 @@
+import { createScopedTranslator } from "../../i18n";
 import type {
   LongStructureMutationLease,
   LongStructureMutationTargetSnapshot,
   LongStructureTransactionsCoordinatorOptions
 } from "./types";
+
+const t = createScopedTranslator("workspace");
 
 export function createLongStructureLease(
   options: LongStructureTransactionsCoordinatorOptions
@@ -54,7 +57,7 @@ export function createLongStructureLease(
   function assertCurrentLongStructureMutationTarget(
     target: LongStructureMutationTargetSnapshot,
     lease: LongStructureMutationLease,
-    message = "活动长篇或结构已切换，本次修改未保存。"
+    message = t("lease.theActiveLongFormProjectOrStructureChangedThese")
   ): void {
     const current = captureLongStructureMutationTarget(target.bookId);
     if (
@@ -70,9 +73,16 @@ export function createLongStructureLease(
   ): { lease: LongStructureMutationLease } | { message: string } | null {
     if (disposed) return null;
     const target = captureLongStructureMutationTarget(expectedBookId);
-    if (!target) return { message: "当前长篇结构尚未就绪。" };
+    if (!target)
+      return {
+        message: t(
+          "longBookLifecycleCoordinator.theCurrentNovelStructureIsNotReady"
+        )
+      };
     if (activeMutation || longBookActionPending.value) {
-      return { message: "另一项长篇结构修改仍在处理中。" };
+      return {
+        message: t("lease.anotherLongFormStructureChangeIsStillBeingProcessed")
+      };
     }
     const lease: LongStructureMutationLease = {
       requestId: ++mutationRequestEpoch,

@@ -47,7 +47,7 @@ describe("GeneralSettingsStore", () => {
       permissionMode: "auto-approve" as const,
       autoApproveCrossStageOperations: true,
       autoSave: true,
-      language: "zh-CN" as const,
+      language: "en-US" as const,
       showInMenuBar: false,
       showContextUsage: false,
       useNetworkProxy: true,
@@ -68,6 +68,37 @@ describe("GeneralSettingsStore", () => {
         await readFile(join(root, "config", "general-settings.json"), "utf8")
       )
     ).toEqual({ version: 2, ...settings });
+  });
+
+  it("defaults the manual compaction button to hidden for older settings and saves its choice", async () => {
+    const { root, store } = await createStore();
+    const settings = createDefaultGeneralSettings();
+    const { showManualButton: _, ...legacyCompaction } =
+      settings.contextCompaction;
+    await mkdir(join(root, "config"));
+    await writeFile(
+      store.settingsPath,
+      JSON.stringify({
+        version: 2,
+        ...settings,
+        contextCompaction: legacyCompaction
+      })
+    );
+
+    const loaded = await store.list();
+    expect(loaded.settings.contextCompaction.showManualButton).toBe(false);
+    const updated = {
+      ...loaded.settings,
+      contextCompaction: {
+        ...loaded.settings.contextCompaction,
+        showManualButton: true
+      }
+    };
+    await store.save(updated);
+    expect(
+      (await new GeneralSettingsStore(root).list()).settings.contextCompaction
+        .showManualButton
+    ).toBe(true);
   });
 
   it("preserves older view preferences and persists independent body formats across restart", async () => {

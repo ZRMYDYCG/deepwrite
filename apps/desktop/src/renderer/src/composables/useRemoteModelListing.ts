@@ -1,17 +1,20 @@
+import { createScopedTranslator } from "../i18n";
 import { computed, ref, watch, type Ref } from "vue";
 import type { RemoteModelListItem } from "@deepwrite/contracts";
 import { uiMessage } from "../ui-feedback";
 import type { DraftModel } from "../components/modelSettingsDraft";
+
+const t = createScopedTranslator("workspace.remoteModelListing");
 
 function missingCredentials(editor: DraftModel): string | null {
   const missingUrl = !editor.baseUrl.trim();
   const missingKey =
     !editor.apiKey?.trim() && !editor.hasApiKey && editor.provider !== "ollama";
   if (missingUrl && missingKey) {
-    return "请先填写 API 地址和 API Key，再拉取可用模型。";
+    return t("enterTheApiUrlAndApiKeyBeforeFetching");
   }
-  if (missingUrl) return "请先填写 API 地址，再拉取可用模型。";
-  if (missingKey) return "请先填写 API Key，再拉取可用模型。";
+  if (missingUrl) return t("enterTheApiUrlBeforeFetchingAvailableModels");
+  if (missingKey) return t("enterTheApiKeyBeforeFetchingAvailableModels");
   return null;
 }
 
@@ -85,7 +88,7 @@ export function useRemoteModelListing(editor: Ref<DraftModel>) {
       return;
     }
     if (!window.deepwrite) {
-      uiMessage.error("当前环境无法拉取模型列表。");
+      uiMessage.error(t("modelListingIsNotAvailableInThisEnvironment"));
       return;
     }
     const version = ++requestVersion;
@@ -111,15 +114,17 @@ export function useRemoteModelListing(editor: Ref<DraftModel>) {
         ? [editor.value.modelId]
         : [];
       if (result.models.length === 0) {
-        uiMessage.warning("当前接口没有返回可用模型。");
+        uiMessage.warning(t("thisEndpointReturnedNoAvailableModels"));
         return;
       }
       uiMessage.success(
-        `已拉取 ${result.models.length} 个可用模型，请勾选要保存的模型。`
+        t("foundAvailableModelsSelectTheModelsToSave", {
+          length: result.models.length
+        })
       );
     } catch (error: unknown) {
       if (version !== requestVersion) return;
-      uiMessage.error(commandErrorMessage(error, "拉取模型列表失败。"));
+      uiMessage.error(commandErrorMessage(error, t("failedToFetchModelList")));
     } finally {
       if (version === requestVersion) listingRemoteModels.value = false;
     }

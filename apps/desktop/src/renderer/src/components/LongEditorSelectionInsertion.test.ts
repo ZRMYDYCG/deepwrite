@@ -23,7 +23,7 @@ describe("long editor selection insertion", () => {
       "@contextmenu=\"emit('previewContextmenu', $event)\""
     );
     expect(editorSource).not.toContain("<EditorSelectionMenu");
-    expect(menuSource).toContain("插入输入框");
+    expect(menuSource).toContain('nativeText("insertReference")');
     expect(editorSource).toContain('emit("insertSelection", reference)');
   });
 
@@ -44,6 +44,6 @@ describe("long editor selection insertion", () => {
       'input.setSelectionRange(range.start, range.end, "forward")'
     );
     expect(pendingReferencesSource).toContain("PROMPT_ATTACHMENT_MAX_ITEMS");
-    expect(pendingReferencesSource).toContain("这段正文已经插入输入框");
+    expect(pendingReferencesSource).toContain("thisPassageIsAlreadyInTheInput");
   });
 });

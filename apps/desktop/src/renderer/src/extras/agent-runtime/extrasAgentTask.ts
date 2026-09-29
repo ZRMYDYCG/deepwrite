@@ -1,3 +1,5 @@
+import { formatError } from "../../i18n/errors";
+import { createScopedTranslator } from "../../i18n";
 import { createId } from "@deepwrite/shared";
 import type {
   DeepWriteApi,
@@ -5,6 +7,8 @@ import type {
   ExtrasAgentRunRequest,
   SystemEventEnvelope
 } from "@deepwrite/contracts/renderer";
+
+const t = createScopedTranslator("extras.agentRuntime");
 
 export type ExtrasAgentTaskApi = Pick<DeepWriteApi, "extrasAgents" | "session">;
 
@@ -69,8 +73,13 @@ export function startExtrasAgentTask(
     else resolveOutcome(result);
   }
 
-  function failure(cause: unknown, fallback: string): Error {
-    return cause instanceof Error ? cause : new Error(fallback);
+  function failure(cause: unknown, fallback: () => string): Error {
+    if (cause instanceof Error) return cause;
+    // Keep the diagnostic payload intact and resolve the UI message on display.
+    return Object.defineProperty(new Error("", { cause }), "message", {
+      configurable: true,
+      get: () => formatError(cause, fallback())
+    });
   }
 
   async function abortAccepted(): Promise<void> {
@@ -93,12 +102,12 @@ export function startExtrasAgentTask(
         await abortAccepted();
         finish({ status: "stopped" });
       } catch (cause: unknown) {
-        finish(failure(cause, "停止失败，请重试。"));
+        finish(failure(cause, () => t("stopFailed")));
       }
     },
     (cause: unknown) => {
       if (stopping) finish({ status: "stopped" });
-      else finish(failure(cause, "启动分析失败。"));
+      else finish(failure(cause, () => t("startFailed")));
     }
   );
 
@@ -109,7 +118,7 @@ export function startExtrasAgentTask(
         event.type === "system.worker_restarted") &&
       event.payload.worker === "agent"
     ) {
-      finish(new Error("分析进程已重启，请重新分析。"));
+      finish(failure(undefined, () => t("processRestarted")));
       return;
     }
     if (
@@ -187,7 +196,7 @@ export function startExtrasAgentTask(
         // The run may have ended on its own while the abort was in flight.
         if (settled) return;
         stopping = false;
-        throw failure(cause, "停止失败，请重试。");
+        throw failure(cause, () => t("stopFailed"));
       }
     },
     dispose() {

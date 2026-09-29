@@ -13,7 +13,7 @@
     "electron:ensure": "node tools/ensure-electron-runtime.mjs",
     "build": "pnpm --filter @deepwrite/desktop build",
     "typecheck": "vue-tsc --noEmit -p apps/desktop/tsconfig.web.json && tsc --noEmit -p apps/desktop/tsconfig.node.json && tsc --noEmit -p packages/contracts/tsconfig.json && tsc --noEmit -p packages/shared/tsconfig.json && tsc --noEmit -p packages/pi-runtime-adapter/tsconfig.json",
-    "lint": "pnpm lint:eslint && pnpm lint:boundary",
+    "lint": "pnpm lint:eslint && pnpm lint:boundary && pnpm lint:i18n",
     "lint:eslint": "eslint . --max-warnings=0",
     "lint:fix": "eslint . --fix",
     "lint:boundary": "node tools/check-renderer-boundary.mjs",
@@ -30,7 +30,8 @@
     "pack:test:linux": "node tools/run-test-package.mjs linux x64",
     "pack:test:mac:arm64": "node tools/run-test-package.mjs mac arm64",
     "pack:test:mac:x64": "node tools/run-test-package.mjs mac x64",
-    "pack:test:mac": "node tools/run-test-package.mjs mac all"
+    "pack:test:mac": "node tools/run-test-package.mjs mac all",
+    "lint:i18n": "node tools/check-i18n.mjs"
   },
   "devDependencies": {
     "@eslint/js": "catalog:",

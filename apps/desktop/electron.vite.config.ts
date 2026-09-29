@@ -1,3 +1,4 @@
+import { i18nResourcesPlugin } from "./scripts/i18n-resources";
 import { resolve } from "node:path";
 import vue from "@vitejs/plugin-vue";
 import { defineConfig } from "electron-vite";
@@ -58,6 +59,10 @@ export default defineConfig({
             appRoot,
             "src/utilities/core-entry.ts"
           ),
+          "utilities/storage-migration-entry": resolve(
+            appRoot,
+            "src/utilities/storage-migration-entry.ts"
+          ),
           "utilities/agent-entry": resolve(
             appRoot,
             "src/utilities/agent-entry.ts"
@@ -81,8 +86,14 @@ export default defineConfig({
     }
   },
   renderer: {
+    define: {
+      __VUE_I18N_FULL_INSTALL__: false,
+      __VUE_I18N_LEGACY_API__: false,
+      __INTLIFY_PROD_DEVTOOLS__: false
+    },
     root: resolve(appRoot, "src/renderer"),
     plugins: [
+      i18nResourcesPlugin(resolve(appRoot, "src/renderer/src/i18n/messages")),
       keepDevServerUntilElectronExits(),
       vue({
         template: {
@@ -109,6 +120,18 @@ export default defineConfig({
         output: {
           codeSplitting: {
             groups: [
+              {
+                name: "vue-runtime",
+                includeDependenciesRecursively: false,
+                // Shared Vue primitives must initialize before application i18n.
+                test: /node_modules[\\/](?:vue[\\/]|@vue[\\/])/
+              },
+              {
+                name: "i18n-runtime",
+                includeDependenciesRecursively: false,
+                // Keep the new translation dependency measurable on its own.
+                test: /node_modules[\\/](?:vue-i18n[\\/]|@intlify[\\/])/
+              },
               {
                 name: "qr-code",
                 test: /node_modules[\\/](?:qrcode|dijkstrajs)[\\/]/

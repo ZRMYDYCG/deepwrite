@@ -4,7 +4,8 @@ import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   DEFAULT_REVISION_METHOD,
-  DEFAULT_STYLE_COMPARISON_METHOD
+  DEFAULT_STYLE_COMPARISON_METHOD,
+  ExtrasAgentSettingsInputSchema
 } from "@deepwrite/contracts";
 import { ExtrasAgentConfigStore } from "./config-store";
 import { EXTRAS_AGENT_PROFILE_CATALOGS } from "./profile-catalogs";
@@ -92,26 +93,51 @@ describe("extras agent config store", () => {
     );
   });
 
-  it("persists a preset's default target library and resolves it for runs", async () => {
-    const { store } = await createStore();
-    const profiles = (await store.list("long-book-analysis")).profiles.map(
-      ({ builtin: _builtin, ...profile }) =>
-        profile.id === "plot-structure"
-          ? {
-              ...profile,
-              output: { ...profile.output, libraryId: "material-library-1" }
-            }
-          : profile
-    );
-    await store.save({ agentId: "long-book-analysis", profiles });
-    expect(
-      (await store.resolve("long-book-analysis", "plot-structure")).output
-        .libraryId
-    ).toBe("material-library-1");
-    await expect(
-      store.resolve("long-book-analysis", "missing")
-    ).rejects.toThrow("预设已不存在");
-  });
+  it.each(["long-book-analysis", "short-book-analysis"] as const)(
+    "reads legacy %s profiles without restoring default save destinations",
+    async (agentId) => {
+      const { path, store } = await createStore();
+      const { builtin: _builtin, ...profile } = (await store.list(agentId))
+        .profiles[0]!;
+      const configPath = join(
+        path,
+        "config",
+        "extras-agents",
+        `${agentId}.json`
+      );
+      await writeJson(configPath, {
+        version: 1,
+        profiles: [
+          {
+            ...profile,
+            id: "custom-analysis",
+            name: "自定义拆书",
+            output: { ...profile.output, libraryId: "legacy-library" }
+          }
+        ]
+      });
+      const resolved = await store.resolve(agentId, "custom-analysis");
+      expect(resolved.systemPrompt).toBe(profile.systemPrompt);
+      expect(resolved.output).toEqual(profile.output);
+      expect(resolved.output).not.toHaveProperty("libraryId");
+      const current = await store.list(agentId);
+      await store.save(
+        ExtrasAgentSettingsInputSchema.parse({
+          agentId,
+          profiles: current.profiles
+        })
+      );
+      const saved = JSON.parse(await readFile(configPath, "utf8")) as {
+        profiles: { id: string; output: object }[];
+      };
+      expect(
+        saved.profiles.find((item) => item.id === "custom-analysis")?.output
+      ).not.toHaveProperty("libraryId");
+      await expect(store.resolve(agentId, "missing")).rejects.toThrow(
+        "预设已不存在"
+      );
+    }
+  );
 
   it("restores missing built-in profiles without overwriting edited defaults", async () => {
     const { store } = await createStore();

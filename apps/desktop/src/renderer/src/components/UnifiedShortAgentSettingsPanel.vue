@@ -1,5 +1,10 @@
 <script setup lang="ts">
 import {
+  builtinAgentLabel,
+  builtinAgentDescription
+} from "../i18n/builtinLabels";
+import { createScopedTranslator } from "../i18n";
+import {
   DEFAULT_SHORT_WORKSPACE_AGENT_PROFILES,
   SHORT_DEFAULT_PLOT_STAGE_IDS,
   ShortWorkspaceAgentSettingsInputSchema,
@@ -10,6 +15,8 @@ import {
 import { computed, ref, watch } from "vue";
 import { uiMessage } from "../ui-feedback";
 import WorkspaceAgentProfileForm from "./WorkspaceAgentProfileForm.vue";
+
+const t = createScopedTranslator("components.unifiedShortAgentSettingsPanel");
 
 type EditableAgent = ShortWorkspaceAgentSettingsInput["agents"][number];
 
@@ -79,16 +86,12 @@ function patchAccess(
   Object.assign(draft.value.readAccess, { [scope]: [...values] });
 }
 
-function patchShortcut(index: number, value: string): void {
-  if (draft.value) draft.value.welcomeShortcuts[index] = value;
-}
-
 function patchDefaultPlotStage(id: string, enabled: boolean): void {
   const next = new Set(selectedDefaultPlotStageIds.value);
   if (enabled) next.add(id);
   else next.delete(id);
   if (next.size === 0) {
-    uiMessage.warning("至少保留一个默认剧情阶段。");
+    uiMessage.warning(t("keepAtLeastOneDefaultPlotStage"));
     return;
   }
   defaultPlotStageIds.value = props.plotStages
@@ -101,7 +104,7 @@ function reset(): void {
   if (!builtin) return;
   draft.value = cloneAgent(builtin);
   defaultPlotStageIds.value = [...SHORT_DEFAULT_PLOT_STAGE_IDS];
-  uiMessage.info("短篇智能体已恢复内置默认值；点击保存后生效。");
+  uiMessage.info(t("shortStoryAgentResetToBuiltInDefaultsSave"));
 }
 
 function save(): void {
@@ -118,9 +121,7 @@ function save(): void {
     ]
   });
   if (!parsed.success) {
-    uiMessage.warning(
-      parsed.error.issues[0]?.message ?? "短篇智能体设置不完整"
-    );
+    uiMessage.warning(t("shortStoryAgentSettingsAreIncomplete"));
     return;
   }
   emit("save", parsed.data);
@@ -128,22 +129,26 @@ function save(): void {
 </script>
 
 <template>
-  <div v-if="loading" class="panel-state">正在加载短篇智能体设置…</div>
+  <div v-if="loading" class="panel-state">
+    {{ t("loadingShortStoryAgentSettings") }}
+  </div>
   <div v-else-if="!settings || !draft" class="panel-state">
-    暂无可用的短篇智能体设置。
+    {{ t("noShortStoryAgentSettingsAvailable") }}
   </div>
   <WorkspaceAgentProfileForm
     v-else
     :agent="draft"
-    :label="settings.agents[0]?.label ?? '短篇智能体'"
-    :description="settings.agents[0]?.description ?? ''"
-    eyebrow="统一智能体"
+    :label="builtinAgentLabel('short', settings.agents[0]?.label)"
+    :description="
+      builtinAgentDescription('short', settings.agents[0]?.description)
+    "
+    :eyebrow="t('unifiedAgent')"
     :disabled="saving || !runtimeAvailable"
     :saving="saving"
-    save-label="保存短篇智能体设置"
+    :save-label="t('saveShortStoryAgentSettings')"
+    :show-welcome-shortcuts="false"
     :default-plot-stages="defaultPlotStages"
     @prompt="draft.systemPrompt = $event"
-    @shortcut="patchShortcut"
     @access="patchAccess"
     @default-plot-stage="patchDefaultPlotStage"
     @reset="reset"

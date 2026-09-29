@@ -1,6 +1,9 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import { computed } from "vue";
 import type { UpdateState } from "@deepwrite/contracts";
+
+const t = createScopedTranslator("components.versionUpdateDialog");
 
 const props = defineProps<{
   updateState: UpdateState;
@@ -42,12 +45,14 @@ function formatBytes(value: number | undefined): string {
       <header>
         <div>
           <span class="dialog-eyebrow">DeepWrite</span>
-          <h2 id="version-update-dialog-title">版本更新</h2>
+          <h2 id="version-update-dialog-title">
+            {{ t("updates") }}
+          </h2>
         </div>
         <button
           class="dialog-close"
           type="button"
-          aria-label="关闭"
+          :aria-label="t('close')"
           :disabled="updateInstalling"
           @click="close"
         >
@@ -58,25 +63,25 @@ function formatBytes(value: number | undefined): string {
       <div class="dialog-content update-dialog-content">
         <div class="update-version-summary">
           <div>
-            <span>当前版本</span>
+            <span>{{ t("currentVersion") }}</span>
             <strong>v{{ updateState.currentVersion }}</strong>
           </div>
           <div v-if="announcedVersion">
-            <span>公告最新版本</span>
+            <span>{{ t("latestAnnouncedVersion") }}</span>
             <strong>v{{ announcedVersion }}</strong>
           </div>
           <div v-if="updateState.latestVersion">
-            <span>更新源版本</span>
+            <span>{{ t("updateSourceVersion") }}</span>
             <strong>v{{ updateState.latestVersion }}</strong>
           </div>
-          <span v-if="updateState.mandatory" class="update-required-badge"
-            >重要更新</span
-          >
+          <span v-if="updateState.mandatory" class="update-required-badge">{{
+            t("importantUpdate")
+          }}</span>
         </div>
 
         <div v-if="updateChecking" class="update-checking" aria-live="polite">
           <span class="update-spinner" aria-hidden="true" />
-          <span>正在检查更新…</span>
+          <span>{{ t("checkingForUpdates") }}</span>
         </div>
 
         <div
@@ -85,7 +90,7 @@ function formatBytes(value: number | undefined): string {
           aria-live="assertive"
         >
           <span class="update-spinner" aria-hidden="true" />
-          <span>正在安全退出并准备安装…</span>
+          <span>{{ t("savingAndPreparingToInstall") }}</span>
         </div>
 
         <template v-else>
@@ -104,7 +109,7 @@ function formatBytes(value: number | undefined): string {
             aria-live="polite"
           >
             <div class="update-progress-heading">
-              <span>正在后台下载</span>
+              <span>{{ t("downloadingInBackground") }}</span>
               <strong>{{ updateProgressLabel }}</strong>
             </div>
             <div
@@ -130,8 +135,10 @@ function formatBytes(value: number | undefined): string {
           >
             {{
               officialDocsUrl
-                ? "更新源版本低于公告版本，请从官方文档渠道手动下载更新。"
-                : "更新源版本低于公告版本。官方文档链接：没有配置。"
+                ? t("theUpdateSourceIsOlderThanTheAnnouncedVersion")
+                : t(
+                    "theUpdateSourceIsOlderThanTheAnnouncedVersionNoOfficialDocumentationLinkIsConfigured"
+                  )
             }}
           </p>
           <p
@@ -150,7 +157,7 @@ function formatBytes(value: number | undefined): string {
             :href="officialDocsUrl"
             target="_blank"
             rel="noopener noreferrer"
-            >打开官方文档</a
+            >{{ t("openOfficialDocumentation") }}</a
           >
           <button
             v-if="
@@ -164,7 +171,7 @@ function formatBytes(value: number | undefined): string {
             :disabled="updateChecking"
             @click="emit('check')"
           >
-            重新检查
+            {{ t("checkAgain") }}
           </button>
           <button
             v-if="updateState.canDownload && !manualUpdateRequired"
@@ -172,7 +179,7 @@ function formatBytes(value: number | undefined): string {
             type="button"
             @click="emit('download')"
           >
-            后台下载更新
+            {{ t("downloadUpdateInBackground") }}
           </button>
           <button
             v-else-if="updateState.canInstall && !manualUpdateRequired"
@@ -180,7 +187,11 @@ function formatBytes(value: number | undefined): string {
             type="button"
             @click="emit('install')"
           >
-            {{ updateState.status === "error" ? "重试安装" : "重启并安装" }}
+            {{
+              updateState.status === "error"
+                ? t("retryInstallation")
+                : t("restartAndInstall")
+            }}
           </button>
           <button
             v-else-if="updateInstalling"
@@ -188,7 +199,7 @@ function formatBytes(value: number | undefined): string {
             type="button"
             disabled
           >
-            正在安装…
+            {{ t("installing") }}
           </button>
           <button
             v-else-if="
@@ -198,7 +209,7 @@ function formatBytes(value: number | undefined): string {
             type="button"
             @click="close"
           >
-            关闭
+            {{ t("close") }}
           </button>
         </div>
       </div>

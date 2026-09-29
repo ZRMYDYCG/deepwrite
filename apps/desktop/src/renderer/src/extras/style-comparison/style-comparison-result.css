@@ -1,0 +1,209 @@
+.comparison-results {
+  padding: 20px;
+}
+.comparison-empty {
+  padding: 52px 8px 60px;
+  text-align: center;
+}
+.comparison-empty-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 20px;
+  color: var(--text-tertiary);
+}
+.comparison-empty-mark span {
+  font-size: 1.714286rem;
+  font-weight: 300;
+}
+.comparison-empty h3 {
+  margin: 0 0 10px;
+  font-size: 1rem;
+  font-weight: 600;
+}
+.comparison-empty p {
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: 0.857143rem;
+  line-height: 1.9;
+}
+.comparison-dimension-tags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 24px;
+}
+.comparison-dimension-tags span {
+  padding: 5px 9px;
+  border: 1px solid var(--theme-line-soft);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 0.714286rem;
+}
+.comparison-score {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 18px 20px;
+  border: 1px solid var(--theme-line-soft);
+  border-radius: 11px;
+  background: var(--surface-muted);
+}
+.comparison-score p {
+  margin: 0 0 10px;
+  color: var(--text-secondary);
+  font-size: 0.785714rem;
+}
+.comparison-score-number {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.comparison-score-number strong {
+  font-size: 3rem;
+  line-height: 1;
+  letter-spacing: -0.045em;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.comparison-score-number > span {
+  color: var(--text-tertiary);
+  font-size: 0.857143rem;
+}
+.comparison-score-label {
+  padding: 6px 10px;
+  border: 1px solid var(--theme-line-soft);
+  border-radius: 20px;
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+  font-size: 0.785714rem;
+}
+.comparison-summary {
+  margin: 18px 0 24px;
+  font-size: 0.928571rem;
+  line-height: 1.85;
+  overflow-wrap: anywhere;
+}
+.comparison-waiting {
+  color: var(--text-tertiary);
+  font-size: 0.857143rem;
+  line-height: 1.8;
+}
+.comparison-dimensions > h3,
+.comparison-findings > h3 {
+  margin: 0 0 16px;
+  font-size: 0.857143rem;
+  font-weight: 650;
+}
+.comparison-dimension {
+  margin-bottom: 18px;
+}
+.comparison-dimension header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.comparison-dimension h4 {
+  margin: 0;
+  font-size: 0.857143rem;
+  font-weight: 500;
+}
+.comparison-dimension header > span {
+  flex-shrink: 0;
+  font-size: 0.857143rem;
+  font-variant-numeric: tabular-nums;
+}
+.comparison-dimension small {
+  color: var(--text-tertiary);
+  font-size: 0.714286rem;
+}
+.comparison-meter {
+  height: 3px;
+  margin: 8px 0;
+  border-radius: 4px;
+  background: var(--theme-line-soft);
+  overflow: hidden;
+}
+.comparison-meter > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: inherit;
+}
+.comparison-dimension p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.857143rem;
+  line-height: 1.75;
+  overflow-wrap: anywhere;
+}
+.comparison-findings {
+  border-top: 1px solid var(--theme-line-soft);
+  padding-top: 18px;
+  margin-top: 18px;
+}
+.comparison-findings ul {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--text-secondary);
+  font-size: 0.857143rem;
+  line-height: 1.85;
+  overflow-wrap: anywhere;
+}
+.comparison-findings li + li {
+  margin-top: 6px;
+}
+.comparison-result-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-top: 24px;
+}
+.comparison-result-footer small {
+  color: var(--text-tertiary);
+  font-size: 0.714286rem;
+}
+.comparison-text-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  background: transparent;
+  border: 0;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.785714rem;
+  cursor: pointer;
+}
+.comparison-text-button:hover:not(:disabled) {
+  color: var(--text-primary);
+}
+.comparison-result-heading {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.comparison-result-heading h2 {
+  margin: 0;
+  font-size: 1.071429rem;
+}
+.comparison-result-heading p {
+  margin: 8px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.857143rem;
+  line-height: 1.6;
+}
+.comparison-result-heading small {
+  color: var(--text-tertiary);
+  overflow-wrap: anywhere;
+}

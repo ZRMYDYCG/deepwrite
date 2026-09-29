@@ -1,3 +1,6 @@
+import { createScopedTranslator } from "../i18n";
+
+const t = createScopedTranslator("workspace.customModelProvider");
 export const CUSTOM_PROVIDER_NAME_MAX = 120;
 export const OTHER_COMPAT_PROVIDER = "custom";
 
@@ -72,19 +75,22 @@ export function resolveCustomProviderName(
 ): ResolveCustomProviderResult {
   const provider = normalizeProviderId(name);
   if (!provider) {
-    return { status: "invalid", message: "请输入提供商名称" };
+    return {
+      status: "invalid",
+      message: t("enterAProviderName")
+    };
   }
   if (provider.length > CUSTOM_PROVIDER_NAME_MAX) {
     return {
       status: "invalid",
-      message: "提供商名称不能超过 120 个字符"
+      message: t("providerNamesCannotExceedCharacters")
     };
   }
   const { values, labels } = builtinProviderSets(builtin);
   if (values.has(provider) || labels.has(provider)) {
     return {
       status: "invalid",
-      message: "这是内置提供商，请直接从列表选择"
+      message: t("thisIsABuiltInProviderSelectItFrom")
     };
   }
   return { status: "ok", provider };

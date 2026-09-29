@@ -1,3 +1,4 @@
+import { createScopedTranslator } from "../../i18n";
 import type {
   ConversationCheckpoint,
   SessionConversationHistoryMessage
@@ -9,6 +10,8 @@ import {
 } from "@deepwrite/contracts/renderer";
 import type { ChatMessage } from "../../types/conversation";
 import { latestConversationCheckpoint } from "./context-compaction";
+
+const t = createScopedTranslator("workspace.history");
 
 export interface ConversationRestore {
   history: SessionConversationHistoryMessage[];
@@ -45,7 +48,12 @@ export function buildConversationRestore(
     if (!message || message.activityOnly || !message.content.trim()) continue;
     if (!Number.isFinite(Date.parse(message.createdAt))) continue;
     const content = message.attachments?.length
-      ? `${message.content}\n\n【历史附件说明】${message.attachments.map((attachment) => attachment.name).join("、")}。本条只恢复了附件名称，原始附件未在会话记录中保存；需要核对或引用原文、图片时，请用户重新上传。`
+      ? t("historicalAttachmentNoteOnlyAttachmentNamesWereRestoredOriginal", {
+          content: message.content,
+          map: message.attachments
+            .map((attachment) => attachment.name)
+            .join("、")
+        })
       : message.content;
     if (
       history.length >= SESSION_CONVERSATION_HISTORY_MAX_MESSAGES ||
@@ -54,7 +62,7 @@ export function buildConversationRestore(
         SESSION_CONVERSATION_HISTORY_MAX_CONTENT_LENGTH
     ) {
       throw new Error(
-        "会话历史超过恢复传输上限，未截断或发送。请从已有检查点新建会话，原对话仍保留。"
+        t("theConversationHistoryExceedsTheRestorationTransferLimitIt")
       );
     }
 

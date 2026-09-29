@@ -1,3 +1,5 @@
+import { formatError } from "../i18n/errors";
+import { createScopedTranslator } from "../i18n";
 import { computed, ref, shallowRef, type ComputedRef } from "vue";
 import type {
   LongWorkspaceImpactConfirmation,
@@ -6,6 +8,10 @@ import type {
 } from "@deepwrite/contracts";
 import { createLongStructureMutationBuilder } from "../types/longStructureMutations";
 import type { LongStructureMutationCompletion } from "../types/longWorkspace";
+
+const t = createScopedTranslator(
+  "workspace.longForeshadowingDeleteConfirmation"
+);
 
 interface ThreadTarget {
   id: string;
@@ -54,10 +60,10 @@ export function useLongForeshadowingDeleteConfirmation(options: Options) {
   const deleteTitle = computed(() => {
     const target = deleteTarget.value;
     return target?.kind === "thread"
-      ? `删除伏笔线“${target.thread.title}”`
+      ? t("deleteForeshadowingThread", { title: target.thread.title })
       : target
-        ? "删除伏笔触点"
-        : "删除伏笔";
+        ? t("deleteForeshadowingTouchpoint")
+        : t("deleteForeshadowing");
   });
 
   function reset(restoreFocus = true): void {
@@ -99,7 +105,10 @@ export function useLongForeshadowingDeleteConfirmation(options: Options) {
       });
     } catch (error: unknown) {
       options.notify.warning(
-        error instanceof Error ? error.message : "无法读取伏笔删除影响。"
+        formatError(
+          error,
+          t("couldNotReadTheImpactOfDeletingThisForeshadowing")
+        )
       );
       options.restoreFocus();
     }
@@ -108,7 +117,9 @@ export function useLongForeshadowingDeleteConfirmation(options: Options) {
   function requestDeleteThread(thread: ThreadTarget): void {
     if (options.locked()) return;
     if (options.threadLocked(thread)) {
-      options.notify.info("该伏笔线正在处理其它变更，请稍后重试。");
+      options.notify.info(
+        t("thisForeshadowingThreadIsProcessingOtherChangesTryAgain")
+      );
       return;
     }
     options.rememberFocus();
@@ -118,7 +129,9 @@ export function useLongForeshadowingDeleteConfirmation(options: Options) {
   function requestDeleteBeat(thread: ThreadTarget, beat: BeatTarget): void {
     if (options.locked()) return;
     if (options.beatLocked(beat)) {
-      options.notify.info("该触点正在处理其它变更，请稍后重试。");
+      options.notify.info(
+        t("thisTouchpointIsProcessingOtherChangesTryAgainShortly")
+      );
       return;
     }
     options.rememberFocus();

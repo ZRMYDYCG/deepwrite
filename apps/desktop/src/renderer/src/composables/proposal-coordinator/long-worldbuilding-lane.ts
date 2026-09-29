@@ -1,3 +1,5 @@
+import { formatError } from "../../i18n/errors";
+import { createScopedTranslator } from "../../i18n";
 import { nextTick, type Ref } from "vue";
 import {
   LongWorkspaceOperationBatchSchema,
@@ -19,6 +21,8 @@ import {
   previewLongProposalImpact
 } from "./long-impact-approval";
 import { refreshSavedLongProposal } from "./refresh-saved-long-proposal";
+
+const t = createScopedTranslator("workspace");
 
 interface AgentEditReviewRequest {
   runId: string;
@@ -62,7 +66,9 @@ export function createLongWorldbuildingProposalLane(
     const target = proposal.longWorldbuildingTarget;
     const api = resolveLongWorkspaceApi();
     if (!target || !api) {
-      const message = "长篇世界观文件服务当前不可用。";
+      const message = t(
+        "longWorldbuildingLane.theLongFormWorldbuildingFileServiceIsCurrentlyUnavailable"
+      );
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: "error",
         statusMessage: message
@@ -72,8 +78,8 @@ export function createLongWorldbuildingProposalLane(
     }
     if (acceptingAgentEditWorkspaceIds.value.has(proposal.workspaceId)) {
       const message = automatic
-        ? "检测到本书正在保存其他内容，实时自动落盘已暂停，请稍后重试。"
-        : "同一本书正在保存其他修改，请稍候再接受";
+        ? t("proposalCoordinator.otherContentInThisBookIsBeingSavedAutomatic2")
+        : t("proposalCoordinator.otherEditsToThisBookAreBeingSavedWait");
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: automatic ? "error" : "pending",
         statusMessage: message
@@ -87,11 +93,15 @@ export function createLongWorldbuildingProposalLane(
       statusMessage:
         target.file.operation === "create"
           ? automatic
-            ? "正在自动批准并创建世界观文件…"
-            : "正在创建世界观文件…"
+            ? t(
+                "longWorldbuildingLane.automaticallyApprovingAndCreatingTheWorldbuildingFile"
+              )
+            : t("longWorldbuildingLane.creatingTheWorldbuildingFile")
           : automatic
-            ? "正在自动批准并保存世界观文件…"
-            : "正在保存世界观文件…"
+            ? t(
+                "longWorldbuildingLane.automaticallyApprovingAndSavingTheWorldbuildingFile"
+              )
+            : t("longWorldbuildingLane.savingTheWorldbuildingFile")
     });
     setAgentEditWorkspaceAccepting(proposal.workspaceId, true);
     let applied = false;
@@ -100,7 +110,11 @@ export function createLongWorldbuildingProposalLane(
       if (activeLongBookId.value === target.bookId) {
         await nextTick();
         if (!(await saveActiveLongEditorChanges())) {
-          throw new Error("当前长篇编辑内容尚未保存，未覆盖世界观文件。");
+          throw new Error(
+            t(
+              "longWorldbuildingLane.theCurrentLongFormEditsAreUnsavedTheWorldbuilding"
+            )
+          );
         }
       }
       const latest = await api.getWorkspaceIndex({
@@ -112,7 +126,9 @@ export function createLongWorldbuildingProposalLane(
       );
       if (target.file.operation === "create") {
         if (currentFile) {
-          const message = "世界观目录已存在同一文件，未重复创建。";
+          const message = t(
+            "longWorldbuildingLane.thisFileAlreadyExistsInTheWorldbuildingDirectoryNo"
+          );
           conversation.updateEditProposal(request.runId, request.proposalId, {
             status: "conflict",
             statusMessage: message
@@ -121,7 +137,9 @@ export function createLongWorldbuildingProposalLane(
           return;
         }
       } else if (!currentFile) {
-        const message = "目标世界观文件已经不存在，无法保存本次修改。";
+        const message = t(
+          "longWorldbuildingLane.theTargetWorldbuildingFileNoLongerExistsTheseChanges"
+        );
         conversation.updateEditProposal(request.runId, request.proposalId, {
           status: "conflict",
           statusMessage: message
@@ -146,7 +164,9 @@ export function createLongWorldbuildingProposalLane(
                 );
                 if (!category || category.format !== "list") {
                   throw new Error(
-                    "世界观文件的目标分类已不存在或不再是列表型。"
+                    t(
+                      "longWorldbuildingLane.theWorldbuildingFileSTargetCategoryNoLongerExists"
+                    )
                   );
                 }
                 const nextOrder =
@@ -167,7 +187,7 @@ export function createLongWorldbuildingProposalLane(
           api,
           target.bookId,
           batch,
-          "世界观文件"
+          t("longWorldbuildingLane.worldbuildingFile")
         );
       }
       if (
@@ -182,9 +202,12 @@ export function createLongWorldbuildingProposalLane(
           patch: {
             longWorldbuildingTarget: { ...target, batch, expectedImpact }
           },
-          statusMessage:
-            "已读取本次文件与关联影响，请核对下方影响后再次确认保存。",
-          notificationMessage: "请核对世界观文件及关联影响后再次确认保存",
+          statusMessage: t(
+            "longWorldbuildingLane.theFileAndRelationshipImpactHaveBeenLoadedReview"
+          ),
+          notificationMessage: t(
+            "longWorldbuildingLane.reviewTheWorldbuildingFileAndItsRelationshipImpactThen"
+          ),
           removeQueued: removeQueuedAgentEdit,
           notify: uiMessage.info
         })
@@ -206,9 +229,17 @@ export function createLongWorldbuildingProposalLane(
         statusMessage:
           target.file.operation === "create"
             ? automatic
-              ? "已自动批准并创建世界观文件。"
-              : "已创建世界观文件并保存到本地 Markdown。"
-            : `${automatic ? "已自动批准并" : "已接受并"}保存到本地 Markdown。`
+              ? t(
+                  "longWorldbuildingLane.automaticallyApprovedAndCreatedTheWorldbuildingFile"
+                )
+              : t(
+                  "longWorldbuildingLane.createdTheWorldbuildingFileAndSavedItToLocal"
+                )
+            : t("proposalCoordinator.savedToLocalMarkdown", {
+                value: automatic
+                  ? t("proposalCoordinator.automaticallyApprovedAnd")
+                  : t("proposalCoordinator.acceptedAnd")
+              })
       });
       void refreshSavedLongProposal({
         refresh: () => refreshLongProposalWorkspace(target.bookId),
@@ -217,8 +248,8 @@ export function createLongWorldbuildingProposalLane(
       if (!automatic) {
         uiMessage.success(
           target.file.operation === "create"
-            ? "已创建世界观文件"
-            : "已接受并保存世界观文件"
+            ? t("longWorldbuildingLane.worldbuildingFileCreated")
+            : t("longWorldbuildingLane.worldbuildingFileAcceptedAndSaved")
         );
       }
     } catch (error: unknown) {
@@ -234,7 +265,7 @@ export function createLongWorldbuildingProposalLane(
             api,
             target.bookId,
             attemptedBatch,
-            "世界观文件"
+            t("longWorldbuildingLane.worldbuildingFile")
           );
           moveLongProposalToManualReview({
             conversation,
@@ -247,9 +278,12 @@ export function createLongWorldbuildingProposalLane(
                 expectedImpact
               }
             },
-            statusMessage:
-              "关联影响已变化，已更新下方影响；请重新核对并再次确认保存。",
-            notificationMessage: "世界观文件的关联影响已变化，请重新确认",
+            statusMessage: t(
+              "proposalCoordinator.relatedImpactsChangedAndHaveBeenUpdatedBelowReview"
+            ),
+            notificationMessage: t(
+              "longWorldbuildingLane.theWorldbuildingFileSRelationshipImpactHasChangedConfirm"
+            ),
             removeQueued: removeQueuedAgentEdit,
             notify: uiMessage.warning
           });
@@ -258,18 +292,28 @@ export function createLongWorldbuildingProposalLane(
           currentError = previewError;
         }
       }
-      const message =
-        currentError instanceof Error
-          ? currentError.message
-          : "保存世界观文件失败，原文件保持不变。";
+      const message = formatError(
+        currentError,
+        t(
+          "longWorldbuildingLane.couldNotSaveTheWorldbuildingFileTheOriginalFile"
+        )
+      );
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: applied ? "accepted" : "error",
         statusMessage: applied
-          ? `世界观文件已经保存，但刷新失败：${message}`
+          ? t(
+              "longWorldbuildingLane.theWorldbuildingFileWasSavedButTheRefreshFailed",
+              { message: message }
+            )
           : message
       });
       if (applied) {
-        uiMessage.warning(`世界观文件已经保存，但刷新失败：${message}`);
+        uiMessage.warning(
+          t(
+            "longWorldbuildingLane.theWorldbuildingFileWasSavedButTheRefreshFailed",
+            { message: message }
+          )
+        );
       } else {
         uiMessage.error(message);
       }

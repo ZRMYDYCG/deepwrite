@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { formatError } from "../../i18n/errors";
+import { createScopedTranslator, locale } from "../../i18n";
 import { computed, nextTick, ref, watch } from "vue";
 import type {
   LongBookAnalysisChapter,
@@ -12,6 +14,8 @@ import {
   renameAnalysisChapter,
   splitAnalysisChapter
 } from "./chapter-editing";
+
+const t = createScopedTranslator("extras.longBookAnalysis");
 
 const props = defineProps<{
   source: LongBookAnalysisSource;
@@ -52,9 +56,7 @@ function apply(operation: () => LongBookAnalysisChapter[]): void {
   try {
     emit("update", operation());
   } catch (error: unknown) {
-    uiMessage.warning(
-      error instanceof Error ? error.message : "章节校正失败。"
-    );
+    uiMessage.warning(formatError(error, t("chapterCorrectionFailed")));
   }
 }
 
@@ -114,10 +116,16 @@ function merge(direction: "previous" | "next"): void {
   <section class="chapter-editor analysis-card">
     <header class="analysis-card-heading">
       <div>
-        <p class="analysis-eyebrow">导入与校正</p>
+        <p class="analysis-eyebrow">
+          {{ t("importAndCorrect") }}
+        </p>
         <h2>{{ source.name }}</h2>
       </div>
-      <span>{{ source.chapters.length.toLocaleString() }} 章</span>
+      <span>{{
+        t("chapterCount", {
+          count: source.chapters.length.toLocaleString(locale)
+        })
+      }}</span>
     </header>
 
     <div v-if="source.diagnostics.length" class="analysis-diagnostics">
@@ -133,7 +141,7 @@ function merge(direction: "previous" | "next"): void {
       <div class="chapter-list-pane">
         <div class="chapter-page-bar">
           <button type="button" :disabled="page <= 1" @click="page -= 1">
-            上一页
+            {{ t("previousPage") }}
           </button>
           <span>{{ page }} / {{ pageCount }}</span>
           <button
@@ -141,7 +149,7 @@ function merge(direction: "previous" | "next"): void {
             :disabled="page >= pageCount"
             @click="page += 1"
           >
-            下一页
+            {{ t("nextPage") }}
           </button>
         </div>
         <ol class="chapter-list">
@@ -165,14 +173,18 @@ function merge(direction: "previous" | "next"): void {
             <input
               :value="chapter.title"
               :disabled="disabled"
-              aria-label="章节标题"
+              :aria-label="t('chapterTitle')"
               @change="rename(chapter, $event)"
             />
-            <small>{{ chapter.charCount.toLocaleString() }} 字</small>
+            <small>{{
+              t("characterCount", {
+                count: chapter.charCount.toLocaleString(locale)
+              })
+            }}</small>
             <button
               type="button"
               :disabled="disabled || chapter.order <= 1"
-              aria-label="上移章节"
+              :aria-label="t('moveChapterUp')"
               @click="move(chapter.id, -1)"
             >
               ↑
@@ -180,7 +192,7 @@ function merge(direction: "previous" | "next"): void {
             <button
               type="button"
               :disabled="disabled || chapter.order >= source.chapters.length"
-              aria-label="下移章节"
+              :aria-label="t('moveChapterDown')"
               @click="move(chapter.id, 1)"
             >
               ↓
@@ -194,7 +206,7 @@ function merge(direction: "previous" | "next"): void {
           <div>
             <strong>{{ selected.title }}</strong>
             <small
-              >{{ selected.volume || "未归入卷" }} ·
+              >{{ selected.volume || t("unassignedVolume") }} ·
               {{ selected.sourceName }}</small
             >
           </div>
@@ -204,14 +216,14 @@ function merge(direction: "previous" | "next"): void {
               :disabled="disabled || selected.order <= 1"
               @click="merge('previous')"
             >
-              并入上一章
+              {{ t("mergeIntoPrevious") }}
             </button>
             <button
               type="button"
               :disabled="disabled || selected.order >= source.chapters.length"
               @click="merge('next')"
             >
-              合并下一章
+              {{ t("mergeNextChapter") }}
             </button>
             <button
               class="analysis-primary-button"
@@ -219,7 +231,7 @@ function merge(direction: "previous" | "next"): void {
               :disabled="disabled"
               @click="splitSelected"
             >
-              在光标处拆分
+              {{ t("splitAtCursor") }}
             </button>
           </div>
         </div>
@@ -227,10 +239,10 @@ function merge(direction: "previous" | "next"): void {
           ref="preview"
           :value="selected.text"
           readonly
-          aria-label="章节正文预览"
+          :aria-label="t('chapterPreview')"
         />
         <p class="analysis-help">
-          把光标放到正文中的分界位置，再点击“在光标处拆分”。校正只保留在当前页面内存中，不会修改源文件。
+          {{ t("chapterCorrectionHelp") }}
         </p>
       </div>
     </div>

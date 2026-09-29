@@ -1,13 +1,16 @@
 <script setup lang="ts">
+import { formatError } from "../../i18n/errors";
+import { createScopedTranslator } from "../../i18n";
 import { nextTick, ref } from "vue";
 import {
   CHAT_ASSISTANT_PROJECT_PROMPT_MAX_LENGTH,
-  CHAT_ASSISTANT_ROLEPLAY_PROMPT_SUFFIX,
   ChatRoleplayProfileSchema,
   type ChatRoleplayProfile
 } from "@deepwrite/contracts/renderer";
 import { uiMessage } from "../../ui-feedback";
 import type { ChatAssistantModeFeature } from "./useChatAssistantMode";
+
+const t = createScopedTranslator("extras");
 const props = defineProps<{ assistant: ChatAssistantModeFeature }>();
 const opened = ref(false);
 const pending = ref(false);
@@ -26,11 +29,11 @@ function open(config?: ChatRoleplayProfile): void {
 async function save(): Promise<void> {
   if (pending.value || props.assistant.isBusy.value) return;
   if (!name.value.trim()) {
-    uiMessage.warning("请填写人物名称");
+    uiMessage.warning(t("chatAssistant.characterNameRequired"));
     return;
   }
   if (!prompt.value.trim()) {
-    uiMessage.warning("请填写人物提示词");
+    uiMessage.warning(t("chatAssistant.characterPromptRequired"));
     return;
   }
   const config = ChatRoleplayProfileSchema.omit({ builtin: true }).safeParse({
@@ -39,7 +42,7 @@ async function save(): Promise<void> {
     systemPrompt: prompt.value
   });
   if (!config.success) {
-    uiMessage.warning("人物名称最多 120 个字符，提示词最多 60000 个字符");
+    uiMessage.warning(t("chatAssistant.characterLimits"));
     return;
   }
   pending.value = true;
@@ -47,11 +50,9 @@ async function save(): Promise<void> {
     const saved = await props.assistant.saveRole(config.data);
     props.assistant.selectRole(saved.id);
     opened.value = false;
-    uiMessage.success("人物配置已保存");
+    uiMessage.success(t("chatAssistant.characterSaved"));
   } catch (error) {
-    uiMessage.error(
-      error instanceof Error ? error.message : "保存人物配置失败"
-    );
+    uiMessage.error(formatError(error, t("chatAssistant.characterSaveFailed")));
   } finally {
     pending.value = false;
   }
@@ -69,48 +70,62 @@ defineExpose({ open, pending });
       class="chat-assistant-config-dialog"
       role="dialog"
       aria-modal="true"
-      aria-label="人物扮演配置"
+      :aria-label="t('chatAssistant.roleplayConfiguration')"
     >
       <header>
         <div>
-          <strong>{{ editingId ? "编辑扮演配置" : "添加新扮演配置" }}</strong
-          ><span>定义人物的身份、性格、说话方式和背景</span>
+          <strong>{{
+            editingId
+              ? t("chatAssistant.editRoleplay")
+              : t("chatAssistant.addRoleplay")
+          }}</strong
+          ><span>{{ t("chatAssistant.characterDescription") }}</span>
         </div>
         <button
           type="button"
-          aria-label="关闭人物配置"
+          :aria-label="t('chatAssistant.closeCharacterConfiguration')"
           :disabled="pending"
           @click="opened = false"
         >
           ×
         </button>
       </header>
-      <label for="chat-roleplay-name">人物名称</label>
+      <label for="chat-roleplay-name">{{
+        t("chatAssistant.characterName")
+      }}</label>
       <input
         id="chat-roleplay-name"
         ref="nameInput"
         v-model="name"
         :disabled="pending"
         maxlength="120"
-        placeholder="为人物起一个名字"
+        :placeholder="t('chatAssistant.characterNamePlaceholder')"
       />
-      <label for="chat-roleplay-prompt">人物提示词</label>
+      <label for="chat-roleplay-prompt">{{
+        t("chatAssistant.characterPrompt")
+      }}</label>
       <textarea
         id="chat-roleplay-prompt"
         v-model="prompt"
         :disabled="pending"
         :maxlength="CHAT_ASSISTANT_PROJECT_PROMPT_MAX_LENGTH"
         rows="10"
-        placeholder="描述你希望扮演的人物……"
+        :placeholder="t('chatAssistant.characterPromptPlaceholder')"
       />
       <div class="chat-assistant-config-meta">
-        <span>仅使用人物定义和当前聊天记录，不使用工具或其他上下文。</span
+        <span>{{ t("chatAssistant.roleplayBoundaries") }}</span
         ><span
           >{{ prompt.length }} /
           {{ CHAT_ASSISTANT_PROJECT_PROMPT_MAX_LENGTH }}</span
         >
       </div>
-      <p>提示词后会自动追加：{{ CHAT_ASSISTANT_ROLEPLAY_PROMPT_SUFFIX }}</p>
+      <p>
+        {{
+          t("chatAssistant.promptSuffix", {
+            suffix: t("chatAssistant.roleplayBoundary")
+          })
+        }}
+      </p>
       <footer>
         <span /><button
           type="button"
@@ -118,14 +133,14 @@ defineExpose({ open, pending });
           :disabled="pending"
           @click="opened = false"
         >
-          取消</button
+          {{ t("cloudBackup.cancel") }}</button
         ><button
           type="button"
           class="is-primary"
           :disabled="pending || assistant.isBusy.value"
           @click="save"
         >
-          保存并开始聊天
+          {{ t("chatAssistant.saveAndChat") }}
         </button>
       </footer>
     </section>

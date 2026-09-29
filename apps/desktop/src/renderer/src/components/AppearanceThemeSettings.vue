@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { formatError } from "../i18n/errors";
+import { createScopedTranslator } from "../i18n";
 import { computed, ref } from "vue";
 import {
   FONT_SIZE_LIMITS,
@@ -13,6 +15,8 @@ import {
 import { uiMessage } from "../ui-feedback";
 import PopupSelect from "./PopupSelect.vue";
 
+const t = createScopedTranslator("components.appearanceThemeSettings");
+
 const appearance = useAppearance();
 const importInput = ref<HTMLInputElement | null>(null);
 const accentColorInput = ref<HTMLInputElement | null>(null);
@@ -26,19 +30,40 @@ const editingScheme = computed<ColorScheme>(() =>
 );
 const editingTheme = computed(() => appearance.state[editingScheme.value]);
 const themeSectionTitle = computed(() =>
-  editingScheme.value === "light" ? "浅色主题" : "深色主题"
+  editingScheme.value === "light" ? t("lightTheme") : t("darkTheme")
 );
 const themePresetOptions = computed(() => [
   ...(editingTheme.value.preset === "custom"
-    ? [{ value: "custom", label: "自定义", disabled: true }]
+    ? [
+        {
+          value: "custom",
+          label: t("custom"),
+          disabled: true
+        }
+      ]
     : []),
   ...themePresets.map((preset) => ({ value: preset.id, label: preset.label }))
 ]);
 
 const appearanceModes: Array<{ id: AppearanceMode; label: string }> = [
-  { id: "system", label: "系统" },
-  { id: "light", label: "浅色" },
-  { id: "dark", label: "深色" }
+  {
+    id: "system",
+    get label() {
+      return t("system");
+    }
+  },
+  {
+    id: "light",
+    get label() {
+      return t("light");
+    }
+  },
+  {
+    id: "dark",
+    get label() {
+      return t("dark");
+    }
+  }
 ];
 
 function updateTheme<K extends keyof ThemeConfig>(
@@ -77,7 +102,7 @@ function commitColor(key: ThemeColorKey, event: Event): void {
   const input = event.target as HTMLInputElement;
   if (!/^#[\da-f]{6}$/i.test(input.value.trim())) {
     input.value = editingTheme.value[key];
-    uiMessage.warning("请输入 6 位十六进制颜色，例如 #339CFF");
+    uiMessage.warning(t("enterASixDigitHexadecimalColorSuchAs339CFF"));
     return;
   }
   applyColor(key, input.value);
@@ -106,7 +131,12 @@ function commitFontSize(key: ThemeFontSizeKey, event: Event): void {
   const limits = FONT_SIZE_LIMITS[key];
   if (value === null) {
     input.value = String(editingTheme.value[key]);
-    uiMessage.warning(`字号请输入 ${limits.min}–${limits.max} px 之间的数值`);
+    uiMessage.warning(
+      t("enterAFontSizeBetweenValueAndValuePx", {
+        arg0: limits.min,
+        arg1: limits.max
+      })
+    );
     return;
   }
   updateTheme(key, value);
@@ -134,9 +164,13 @@ async function writeClipboard(value: string): Promise<void> {
 async function copyTheme(): Promise<void> {
   try {
     await writeClipboard(serializeTheme(editingScheme.value));
-    uiMessage.success(`${themeSectionTitle.value}配置已复制`);
+    uiMessage.success(
+      t("valueSettingsCopied", {
+        arg0: themeSectionTitle.value
+      })
+    );
   } catch {
-    uiMessage.error("复制失败，请稍后重试");
+    uiMessage.error(t("copyFailedTryAgainLater"));
   }
 }
 
@@ -153,19 +187,27 @@ async function importThemeFile(event: Event): Promise<void> {
     const parsed = parseThemeFile(await file.text());
     const target = parsed.scheme ?? editingScheme.value;
     appearance.importTheme(target, parsed.theme);
-    uiMessage.success(`已导入${target === "light" ? "浅色" : "深色"}主题`);
-  } catch (error: unknown) {
-    uiMessage.error(
-      error instanceof Error ? error.message : "无法读取主题文件"
+    uiMessage.success(
+      t("importedValueTheme", {
+        arg0: target === "light" ? t("light") : t("dark")
+      })
     );
+  } catch (error: unknown) {
+    uiMessage.error(formatError(error, t("couldNotReadTheThemeFile")));
   }
 }
 </script>
 
 <template>
   <section class="appearance-theme-settings" aria-labelledby="theme-heading">
-    <h2 id="theme-heading" class="appearance-heading">主题</h2>
-    <div class="theme-mode-grid" role="radiogroup" aria-label="外观主题">
+    <h2 id="theme-heading" class="appearance-heading">
+      {{ t("theme") }}
+    </h2>
+    <div
+      class="theme-mode-grid"
+      role="radiogroup"
+      :aria-label="t('appearanceTheme')"
+    >
       <button
         v-for="mode in appearanceModes"
         :key="mode.id"
@@ -196,13 +238,17 @@ async function importThemeFile(event: Event): Promise<void> {
             accept="application/json,.json"
             @change="importThemeFile"
           />
-          <button type="button" @click="openImport">导入</button>
-          <button type="button" @click="copyTheme">复制主题</button>
+          <button type="button" @click="openImport">
+            {{ t("import") }}
+          </button>
+          <button type="button" @click="copyTheme">
+            {{ t("copyTheme") }}
+          </button>
           <PopupSelect
             class="preset-select-control"
             :model-value="editingTheme.preset"
             :options="themePresetOptions"
-            accessible-label="主题预设"
+            :accessible-label="t('themePreset')"
             variant="preset"
             align="end"
             :menu-min-width="188"
@@ -216,7 +262,7 @@ async function importThemeFile(event: Event): Promise<void> {
       </div>
 
       <div class="theme-setting-row">
-        <label for="accent-color">强调色</label>
+        <label for="accent-color">{{ t("accentColor") }}</label>
         <div
           class="color-control"
           :style="{ backgroundColor: editingTheme.accent, color: '#fff' }"
@@ -228,7 +274,7 @@ async function importThemeFile(event: Event): Promise<void> {
               ref="accentColorInput"
               type="color"
               :value="editingTheme.accent.toLowerCase()"
-              aria-label="选择强调色"
+              :aria-label="t('selectAccentColor')"
               @click.stop
               @input="
                 applyColor('accent', ($event.target as HTMLInputElement).value)
@@ -237,7 +283,7 @@ async function importThemeFile(event: Event): Promise<void> {
           </span>
           <input
             :value="editingTheme.accent"
-            aria-label="输入强调色"
+            :aria-label="t('enterAccentColor')"
             spellcheck="false"
             @click.stop
             @input="previewColor('accent', $event)"
@@ -246,7 +292,7 @@ async function importThemeFile(event: Event): Promise<void> {
         </div>
       </div>
       <div class="theme-setting-row">
-        <label for="background-color">背景</label>
+        <label for="background-color">{{ t("background") }}</label>
         <div
           class="color-control"
           :class="{ 'is-light': editingScheme === 'light' }"
@@ -262,7 +308,7 @@ async function importThemeFile(event: Event): Promise<void> {
               ref="backgroundColorInput"
               type="color"
               :value="editingTheme.background.toLowerCase()"
-              aria-label="选择背景色"
+              :aria-label="t('selectBackgroundColor')"
               @click.stop
               @input="
                 applyColor(
@@ -274,7 +320,7 @@ async function importThemeFile(event: Event): Promise<void> {
           </span>
           <input
             :value="editingTheme.background"
-            aria-label="输入背景色"
+            :aria-label="t('enterBackgroundColor')"
             spellcheck="false"
             @click.stop
             @input="previewColor('background', $event)"
@@ -283,7 +329,7 @@ async function importThemeFile(event: Event): Promise<void> {
         </div>
       </div>
       <div class="theme-setting-row">
-        <label for="foreground-color">前景</label>
+        <label for="foreground-color">{{ t("foreground") }}</label>
         <div
           class="color-control"
           :class="{ 'is-light': editingScheme === 'light' }"
@@ -299,7 +345,7 @@ async function importThemeFile(event: Event): Promise<void> {
               ref="foregroundColorInput"
               type="color"
               :value="editingTheme.foreground.toLowerCase()"
-              aria-label="选择前景色"
+              :aria-label="t('selectForegroundColor')"
               @click.stop
               @input="
                 applyColor(
@@ -311,7 +357,7 @@ async function importThemeFile(event: Event): Promise<void> {
           </span>
           <input
             :value="editingTheme.foreground"
-            aria-label="输入前景色"
+            :aria-label="t('enterForegroundColor')"
             spellcheck="false"
             @click.stop
             @input="previewColor('foreground', $event)"
@@ -320,7 +366,7 @@ async function importThemeFile(event: Event): Promise<void> {
         </div>
       </div>
       <div class="theme-setting-row">
-        <label for="ui-font-size">UI 字号</label>
+        <label for="ui-font-size">{{ t("interfaceFontSize") }}</label>
         <div class="font-size-control">
           <input
             id="ui-font-size"
@@ -332,7 +378,7 @@ async function importThemeFile(event: Event): Promise<void> {
             :placeholder="String(editingTheme.uiFontSize)"
             inputmode="decimal"
             required
-            aria-label="UI 字号（像素）"
+            :aria-label="t('interfaceFontSizePixels')"
             @input="previewFontSize('uiFontSize', $event)"
             @change="commitFontSize('uiFontSize', $event)"
           />
@@ -340,7 +386,7 @@ async function importThemeFile(event: Event): Promise<void> {
         </div>
       </div>
       <div class="theme-setting-row">
-        <label for="code-font-size">代码字号</label>
+        <label for="code-font-size">{{ t("codeFontSize") }}</label>
         <div class="font-size-control is-code">
           <input
             id="code-font-size"
@@ -352,7 +398,7 @@ async function importThemeFile(event: Event): Promise<void> {
             :placeholder="String(editingTheme.codeFontSize)"
             inputmode="decimal"
             required
-            aria-label="代码字号（像素）"
+            :aria-label="t('codeFontSizePixels')"
             @input="previewFontSize('codeFontSize', $event)"
             @change="commitFontSize('codeFontSize', $event)"
           />
@@ -360,7 +406,7 @@ async function importThemeFile(event: Event): Promise<void> {
         </div>
       </div>
       <label class="theme-setting-row is-toggle">
-        <span>半透明侧边栏</span>
+        <span>{{ t("translucentSidebar") }}</span>
         <span class="theme-toggle">
           <input
             type="checkbox"

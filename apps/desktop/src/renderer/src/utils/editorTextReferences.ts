@@ -1,3 +1,4 @@
+import { t } from "../i18n";
 import {
   PROMPT_TEXT_ATTACHMENT_MAX_CONTENT_LENGTH,
   PromptTextAttachmentSchema,
@@ -96,7 +97,10 @@ export function createConversationTextReference(
     resourceId: `conversation:${input.sessionId}`,
     documentId: `conversation:${input.sessionId}:${input.messageId}`,
     documentTitle: input.messageLabel,
-    documentPath: ["智能体对话", input.messageLabel],
+    documentPath: [
+      t("workspace.agentActivityDescriptors.agentConversation"),
+      input.messageLabel
+    ],
     text: input.text,
     start: 0,
     end: input.text.length,

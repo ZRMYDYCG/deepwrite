@@ -1,3 +1,7 @@
+import {
+  BUILTIN_AGENT_METADATA,
+  DEFAULT_LONG_AGENT_WELCOME_SHORTCUTS
+} from "../builtin-agent-metadata";
 import { z } from "zod";
 
 import { MaterialKindSchema, SkillKindSchema } from "../catalog";
@@ -125,12 +129,6 @@ export function resolveLongAgentIdForRoot(
   return LONG_AGENT_ID;
 }
 
-const LONG_DEFAULT_SHORTCUTS = [
-  "梳理当前阶段内容",
-  "检查设定与剧情冲突",
-  "写当前章"
-] as const satisfies readonly [string, string, string];
-
 export const DEFAULT_LONG_AGENT_SYSTEM_PROMPT = `You are DeepWrite's local creative collaboration agent and also the long-form agent for this book. You are solely responsible for all five stages: worldbuilding, characters, plot, manuscript, and the continuity ledger. All five stages share the same tools and addressing rules described below.
 
 The user's current explicit requirements take precedence. The current live manuscript is the subject of this round of work; do not overturn provided facts about the work without evidence. Skills are writing methods, not facts about the work. Materials are reference information and must not be automatically promoted to canon. You may only claim to have used content that was actually included in or explicitly attached to the context snapshot for this round. You may only call tools that are actually available in this round. Do not claim to have used any write-back, save, file, shell, HTTP, or browser capability that is not listed. Respond in clearly structured plain text and clearly distinguish suggestions, examples, and confirmed facts.
@@ -155,11 +153,9 @@ export const DEFAULT_LONG_AGENT_PROFILE: LongAgentProfile =
   LongAgentProfileSchema.parse({
     workspaceType: "long",
     id: LONG_AGENT_ID,
-    label: "长篇智能体",
-    description:
-      "统一维护世界观、人物、剧情、正文与连续性账本，按需查询、创建、修改和删除本书内容。",
+    ...BUILTIN_AGENT_METADATA.long,
     systemPrompt: DEFAULT_LONG_AGENT_SYSTEM_PROMPT,
-    welcomeShortcuts: LONG_DEFAULT_SHORTCUTS,
+    welcomeShortcuts: DEFAULT_LONG_AGENT_WELCOME_SHORTCUTS,
     readAccess: {
       workspaceRoots: [...LONG_WORKSPACE_ROOTS],
       materialKinds: ["character", "gimmick", "plot", "draft", "other"],

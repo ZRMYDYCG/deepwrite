@@ -1,10 +1,13 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import type { LongWorkspaceImpactConfirmation } from "@deepwrite/contracts";
 import LongImpactConfirmationDetails from "./LongImpactConfirmationDetails.vue";
 import PopupSelect, {
   type PopupSelectOption,
   type PopupSelectValue
 } from "./PopupSelect.vue";
+
+const t = createScopedTranslator("components.longStructureDeleteDialog");
 
 interface DeleteTarget {
   kind: "worldbuilding" | "characterType";
@@ -64,7 +67,13 @@ const emit = defineEmits<{
         <header>
           <div>
             <span>DELETE</span>
-            <h3 id="long-structure-delete-title">删除“{{ target.title }}”</h3>
+            <h3 id="long-structure-delete-title">
+              {{
+                t("deleteMessage", {
+                  arg0: target.title ?? ""
+                })
+              }}
+            </h3>
           </div>
         </header>
         <fieldset :disabled="locked">
@@ -78,7 +87,9 @@ const emit = defineEmits<{
             <LongImpactConfirmationDetails
               v-else
               :confirmation="target.expectedImpact"
-              fallback="该分类没有从属条目；确认后将直接删除分类及其内容文件。"
+              :fallback="
+                t('thisCategoryHasNoChildEntriesConfirmationWillDelete')
+              "
             />
           </template>
           <template v-else>
@@ -94,8 +105,12 @@ const emit = defineEmits<{
                   @change="emit('update:characterDeleteMode', 'move')"
                 />
                 <span>
-                  <strong>迁移人物后删除类型（推荐）</strong>
-                  <small>人物、档案和连续性记录都会保留。</small>
+                  <strong>{{
+                    t("moveCharactersBeforeDeletingTypeRecommended")
+                  }}</strong>
+                  <small>{{
+                    t("charactersProfilesAndContinuityRecordsArePreserved")
+                  }}</small>
                 </span>
               </label>
               <label>
@@ -106,8 +121,10 @@ const emit = defineEmits<{
                   @change="emit('update:characterDeleteMode', 'cascade')"
                 />
                 <span>
-                  <strong>删除类型及关联人物</strong>
-                  <small>会删除人物从属文件并清理连续性关联。</small>
+                  <strong>{{ t("deleteTypeAndItsCharacters") }}</strong>
+                  <small>{{
+                    t("characterFilesWillBeDeletedAndContinuityLinksCleaned")
+                  }}</small>
                 </span>
               </label>
             </div>
@@ -119,11 +136,11 @@ const emit = defineEmits<{
               "
               class="form-field"
             >
-              <span>迁移到</span>
+              <span>{{ t("moveTo") }}</span>
               <PopupSelect
                 :model-value="moveTargetId"
                 :options="moveOptions"
-                accessible-label="选择人物迁移目标类型"
+                :accessible-label="t('selectDestinationCharacterType')"
                 :menu-z-index="2300"
                 @update:model-value="emit('update:moveTargetId', $event)"
               />
@@ -135,10 +152,10 @@ const emit = defineEmits<{
               {{
                 target.previewPending &&
                 (characterDeleteMode === "cascade" || moveTargetId)
-                  ? "正在核对人物迁移与删除影响…"
+                  ? t("checkingCharacterMoveAndDeletionImpact")
                   : characterDeleteMode === "move" && characterCount > 0
-                    ? "请选择迁移目标；随后会展示精确影响。"
-                    : "正在核对删除类型及关联人物的精确影响…"
+                    ? t("selectADestinationToSeeTheExactImpact")
+                    : t("checkingTheExactImpactOfDeletingThisTypeAnd")
               }}
             </p>
             <LongImpactConfirmationDetails
@@ -146,8 +163,8 @@ const emit = defineEmits<{
               :confirmation="target.expectedImpact"
               :fallback="
                 characterDeleteMode === 'move'
-                  ? '人物将迁移到所选类型，人物文档保持不变。'
-                  : '确认后将删除该类型。'
+                  ? t('charactersMoveToTheSelectedTypeTheirDocumentsRemain')
+                  : t('confirmationDeletesThisType')
               "
             />
           </template>
@@ -159,7 +176,7 @@ const emit = defineEmits<{
             autofocus
             @click="emit('close')"
           >
-            取消
+            {{ t("cancel") }}
           </button>
           <button
             class="danger-button"
@@ -179,17 +196,17 @@ const emit = defineEmits<{
             {{
               target.kind === "characterType"
                 ? pending
-                  ? "删除中…"
+                  ? t("deleting")
                   : characterCount > 0 &&
                       !lastCharacterType &&
                       characterDeleteMode === "move"
-                    ? "迁移人物并删除"
+                    ? t("moveCharactersAndDelete")
                     : characterCount > 0
-                      ? "确认删除类型及关联人物"
-                      : "确认删除"
+                      ? t("deleteTypeAndCharacters")
+                      : t("deleteLabel")
                 : pending
-                  ? "删除中…"
-                  : "确认删除分类及从属内容"
+                  ? t("deleting")
+                  : t("deleteCategoryAndItsContent")
             }}
           </button>
         </footer>

@@ -1,3 +1,4 @@
+import { nativeMessages, nativeText } from "../native-i18n";
 import {
   BookSchema,
   CatalogDraftRecoverySaveResultSchema,
@@ -83,12 +84,14 @@ export async function handleCatalogCommands(
         const selection = await ctx.dialog.showOpenDialog({
           title:
             command.type === "catalog.importLegacyLibrary"
-              ? `导入旧版${domain === "material" ? "素材" : "技能"}库压缩包`
+              ? nativeMessages().legacyLibraryTitle(
+                  domain === "material" ? "material" : "skill"
+                )
               : domain === "book"
-                ? "打开已有书籍"
+                ? nativeText("openBook")
                 : domain === "material"
-                  ? "打开已有素材库"
-                  : "打开已有技能库",
+                  ? nativeText("openMaterials")
+                  : nativeText("openSkills"),
           defaultPath,
           ...(command.type === "catalog.importLegacyLibrary"
             ? {
@@ -98,7 +101,9 @@ export async function handleCatalogCommands(
                     : (["openFile"] as const),
                 filters: [
                   {
-                    name: `旧版${domain === "material" ? "素材" : "技能"}库压缩包`,
+                    name: nativeMessages().legacyLibraryArchive(
+                      domain === "material" ? "material" : "skill"
+                    ),
                     extensions: ["zip"]
                   }
                 ]
@@ -247,30 +252,30 @@ export async function handleCatalogCommands(
         command.payload.sourceKind === "directory"
           ? ctx.getMainWindow()
             ? await ctx.dialog.showOpenDialog(ctx.getMainWindow(), {
-                title: "选择包含技能或素材的文件夹",
+                title: nativeText("chooseLibraryFolder"),
                 properties: ["openDirectory"]
               })
             : await ctx.dialog.showOpenDialog({
-                title: "选择包含技能或素材的文件夹",
+                title: nativeText("chooseLibraryFolder"),
                 properties: ["openDirectory"]
               })
           : ctx.getMainWindow()
             ? await ctx.dialog.showOpenDialog(ctx.getMainWindow(), {
-                title: "选择技能或素材文件",
+                title: nativeText("chooseLibraryFile"),
                 properties: ["openFile", "multiSelections"],
                 filters: [
                   {
-                    name: "文本与文档",
+                    name: nativeText("documents"),
                     extensions: ["txt", "md", "markdown", "doc", "docx", "pdf"]
                   }
                 ]
               })
             : await ctx.dialog.showOpenDialog({
-                title: "选择技能或素材文件",
+                title: nativeText("chooseLibraryFile"),
                 properties: ["openFile", "multiSelections"],
                 filters: [
                   {
-                    name: "文本与文档",
+                    name: nativeText("documents"),
                     extensions: ["txt", "md", "markdown", "doc", "docx", "pdf"]
                   }
                 ]

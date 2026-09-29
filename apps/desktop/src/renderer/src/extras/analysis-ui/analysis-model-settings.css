@@ -1,0 +1,59 @@
+.analysis-model-settings {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+.analysis-model-panel {
+  position: fixed;
+  z-index: 900;
+  display: grid;
+  gap: 16px;
+  box-sizing: border-box;
+  width: min(360px, calc(100vw - 16px));
+  max-height: calc(100dvh - 16px);
+  overflow: auto;
+  padding: 18px;
+  border: 1px solid var(--theme-line);
+  border-radius: 12px;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  box-shadow: 0 12px 36px var(--shadow-color);
+}
+.analysis-model-panel > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.analysis-model-panel > header > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  padding: 6px;
+  border: 1px solid var(--theme-line-soft);
+  border-radius: 8px;
+  background: var(--surface-muted);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.analysis-model-panel > header > button:hover {
+  background: var(--surface-hover);
+}
+.analysis-model-panel > label {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+}
+.analysis-model-panel > label > span:first-child {
+  color: var(--text-secondary);
+  font-size: 0.857143rem;
+}
+.analysis-model-panel button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.analysis-model-panel:focus {
+  outline: none;
+}

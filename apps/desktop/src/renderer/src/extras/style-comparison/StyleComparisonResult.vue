@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../../i18n";
 import { computed } from "vue";
 import type {
   StyleComparisonResult,
@@ -8,11 +9,12 @@ import AppIcon from "../../components/AppIcon.vue";
 import { uiMessage } from "../../ui-feedback";
 import { similarityLabel } from "./result";
 
+const t = createScopedTranslator("extras");
+
 const props = defineProps<{
   result: StyleComparisonResult | null;
   preview: { summary: string; dimensions: StyleComparisonDimension[] };
   status: string;
-  activity: string;
   isStale: boolean;
   modelLabel: string;
 }>();
@@ -27,62 +29,93 @@ async function copyResult(): Promise<void> {
   if (!props.result) return;
   const result = props.result;
   const content = [
-    "文风比对",
-    `文风相似度：${result.score}/100 · ${similarityLabel(result.score)}`,
+    t("styleComparison.styleComparison"),
+    t("styleComparison.similaritySummary", {
+      score: result.score,
+      similarity: similarityLabel(result.score)
+    }),
     result.summary,
     "",
     ...result.dimensions.map(
       (item) => `${item.name} ${item.score}/100：${item.reason}`
     ),
     "",
-    "关键共性",
+    t("styleComparison.keySimilarities"),
     ...result.similarities.map((item) => `- ${item}`),
     "",
-    "主要差异",
+    t("styleComparison.mainDifferences"),
     ...result.differences.map((item) => `- ${item}`)
   ].join("\n");
   try {
     await navigator.clipboard.writeText(content);
-    uiMessage.success("已复制比对结果。");
+    uiMessage.success(t("styleComparison.comparisonCopied"));
   } catch {
-    uiMessage.error("复制失败，请重试。");
+    uiMessage.error(t("styleComparison.copyFailed"));
   }
 }
 </script>
 
 <template>
   <div class="comparison-results" :aria-busy="busy">
-    <div v-if="status === 'idle'" class="comparison-empty">
+    <div v-if="status === 'idle' && !result" class="comparison-empty">
       <div class="comparison-empty-mark">
         <AppIcon name="file" :size="24" /><span>≈</span
         ><AppIcon name="file" :size="24" />
       </div>
-      <h3>两段文字，一次细读</h3>
+      <h3>{{ t("styleComparison.comparisonEmptyTitle") }}</h3>
       <p>
-        添加两份文本后开始比对。<br />这里会呈现关键共性、主要差异和最终评分。
+        {{ t("styleComparison.comparisonEmptyHelp") }}<br />{{
+          t("styleComparison.comparisonEmptyResults")
+        }}
       </p>
       <div class="comparison-dimension-tags">
-        <span>措辞</span><span>节奏</span><span>叙述</span><span>修辞</span
-        ><span>语气</span>
+        <span>{{ t("styleComparison.wording") }}</span
+        ><span>{{ t("styleComparison.rhythm") }}</span
+        ><span>{{ t("styleComparison.narration") }}</span
+        ><span>{{ t("styleComparison.rhetoric") }}</span
+        ><span>{{ t("styleComparison.tone") }}</span>
       </div>
     </div>
     <template v-else>
-      <div class="comparison-progress" role="status">
-        <span
-          :class="{ 'is-running': busy }"
-          class="comparison-status-dot"
-        /><span>{{
-          isStale && !busy ? "输入已更新，请重新比对" : activity
-        }}</span
-        ><small v-if="result && !isStale">{{ modelLabel }}</small>
-      </div>
+      <header class="comparison-result-heading">
+        <div>
+          <h2>
+            {{
+              result && isStale
+                ? t("styleComparison.lastCompletedAnalysis")
+                : t("longBookAnalysis.analysisResult")
+            }}
+          </h2>
+          <p v-if="result && isStale">
+            {{
+              busy
+                ? t("styleComparison.resultUpdatesAfterRun")
+                : t("styleComparison.previousAnalysisShown")
+            }}
+          </p>
+          <p v-else-if="!result">
+            {{
+              busy
+                ? t("styleComparison.findingsInProgress")
+                : t("styleComparison.incompleteResultAnalyzeAgain")
+            }}
+          </p>
+        </div>
+        <small v-if="result">{{ modelLabel }}</small>
+      </header>
       <section
         class="comparison-score"
         :class="{ 'is-pending': !result }"
-        aria-label="文风相似度评分"
+        :aria-label="t('styleComparison.similarityScore')"
       >
         <div>
-          <p>{{ isStale ? "上次文风相似度" : "文风相似度" }}</p>
+          <p>
+            {{
+              isStale
+                ? t("styleComparison.previousSimilarity")
+                : t("styleComparison.styleSimilarity")
+            }}
+          </p>
           <div class="comparison-score-number">
             <strong>{{ result ? result.score : "—" }}</strong
             ><span>/ 100</span>
@@ -92,24 +125,24 @@ async function copyResult(): Promise<void> {
           result
             ? similarityLabel(result.score)
             : busy
-              ? "正在评估"
-              : "未完成评分"
+              ? t("styleComparison.evaluating")
+              : t("styleComparison.scoreIncomplete")
         }}</span>
       </section>
       <p v-if="summary" class="comparison-summary">{{ summary }}</p>
       <p v-else class="comparison-waiting">
         {{
           busy
-            ? "智能体正在细读文本，关键发现会陆续显示。"
-            : "本次未生成完整结果，可重新比对。"
+            ? t("styleComparison.readingForFindings")
+            : t("styleComparison.incompleteResultCompareAgain")
         }}
       </p>
       <section
         v-if="dimensions.length"
         class="comparison-dimensions"
-        aria-label="各维度关键发现"
+        :aria-label="t('styleComparison.findingsByDimension')"
       >
-        <h3>关键发现</h3>
+        <h3>{{ t("styleComparison.keyFindings") }}</h3>
         <article
           v-for="(dimension, index) in dimensions"
           :key="index"
@@ -127,28 +160,36 @@ async function copyResult(): Promise<void> {
       </section>
       <template v-if="result">
         <section class="comparison-findings">
-          <h3>关键共性</h3>
+          <h3>{{ t("styleComparison.keySimilarities") }}</h3>
           <ul>
             <li v-for="item in result.similarities" :key="item">{{ item }}</li>
           </ul>
         </section>
         <section class="comparison-findings">
-          <h3>主要差异</h3>
+          <h3>{{ t("styleComparison.mainDifferences") }}</h3>
           <ul>
             <li v-for="item in result.differences" :key="item">{{ item }}</li>
           </ul>
         </section>
         <footer class="comparison-result-footer">
-          <small>基于本次文本的 AI 评估</small
+          <small>{{
+            isStale
+              ? t("styleComparison.previousTextAssessment")
+              : t("styleComparison.currentTextAssessment")
+          }}</small
           ><button
             class="comparison-text-button"
             type="button"
             @click="copyResult"
           >
-            <AppIcon name="copy" :size="14" />复制结果
+            <AppIcon name="copy" :size="14" />{{
+              t("styleComparison.copyResult")
+            }}
           </button>
         </footer>
       </template>
     </template>
   </div>
 </template>
+
+<style scoped src="./style-comparison-result.css"></style>

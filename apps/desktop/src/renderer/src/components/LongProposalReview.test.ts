@@ -14,7 +14,7 @@ describe("LongProposalReview content file cards", () => {
     expect(source).toContain("locate: [eventId: string]");
     expect(source).toContain("v-if=\"item.status === 'accepted'\"");
     expect(source).toContain("approval-target-button");
-    expect(source).toContain("跳转到目标文件");
+    expect(source).toContain("goToTargetFile");
     expect(source).toContain("emit('locate', item.event.id)");
     expect(conversationSource).toContain(
       "@locate=\"emit('locateLongProposal', $event)\""
@@ -67,20 +67,22 @@ describe("LongProposalReview content file cards", () => {
     expect(source).not.toContain("worldbuilding-file-card");
     expect(source).not.toContain("查看提交内容");
     expect(source).toContain("contentProposalDiffStats(item)");
-    expect(source).toContain("已自动批准并保存到本地 Markdown。");
-    expect(source).toContain("接受后将应用到对应 Markdown 并自动保存到本机。");
+    expect(source).toContain("automaticallyApprovedAndSavedToLocalMarkdown");
+    expect(source).toContain("acceptToApplyToTheCorrespondingMarkdownFilesAnd");
     expect(source).not.toContain("重试接受并保存");
-    expect(source).toContain("等待前序文件");
-    expect(source).toContain("正在等待前序文件创建或写入完成，随后继续校验。");
+    expect(source).toContain("waitingForPrerequisiteFiles");
+    expect(source).toContain(
+      "waitingForPrecedingFileOperationsToFinishBeforeResuming"
+    );
   });
 
   it("renders ledger finalization as a durable status card with retry", () => {
     expect(source).toContain("LongLedgerFinalizationCard");
     expect(source).toContain("long.ledger_commit_proposal");
-    expect(ledgerFinalizationSource).toContain("连续性账本归档");
-    expect(ledgerFinalizationSource).toContain("归档失败");
-    expect(ledgerFinalizationSource).toContain("重试归档");
-    expect(ledgerFinalizationSource).toContain("关闭并保留文件");
+    expect(ledgerFinalizationSource).toContain("continuityLedgerArchive");
+    expect(ledgerFinalizationSource).toContain("archiveFailed");
+    expect(ledgerFinalizationSource).toContain("retryArchive");
+    expect(ledgerFinalizationSource).toContain("closeAndKeepFiles");
     expect(ledgerFinalizationSource).toContain(
       'v-if="item.errorRetryable !== false"'
     );
@@ -89,10 +91,10 @@ describe("LongProposalReview content file cards", () => {
 
   it("keeps structure changes separate from worldbuilding file writes", () => {
     expect(source).toContain('case "long.mutation_proposal":');
-    expect(source).toContain('return "结构变更";');
+    expect(source).toContain("structureChanges");
     expect(source).toContain('case "long.worldbuilding_file_proposal":');
     expect(source).toContain('case "long.character_file_proposal":');
-    expect(source).toContain('return "确认写入并保存";');
+    expect(source).toContain("writeAndSave");
   });
 
   it("uses the same approval-card surface for structure proposals", () => {
@@ -103,13 +105,13 @@ describe("LongProposalReview content file cards", () => {
     expect(source).toContain(
       "usesEditProposalSurface(item)\n              ? ['edit-proposal-card'"
     );
-    expect(source).toContain("结构变更已应用并保存到本机。");
+    expect(source).toContain("structureChangesAppliedAndSavedLocally");
   });
 
   it("shows exact relationship and ledger effects before approval", () => {
     expect(source).toContain("<LongProposalImpactDetails");
     expect(impactDetailsSource).toContain("preview.relationshipChanges.length");
-    expect(impactDetailsSource).toContain("关联关系变化");
+    expect(impactDetailsSource).toContain("linkChangesMessage");
     expect(impactDetailsSource).toContain(
       "relationshipActionLabel(change.action)"
     );
@@ -117,17 +119,19 @@ describe("LongProposalReview content file cards", () => {
       "relationshipKindLabels[change.kind]"
     );
     expect(impactDetailsSource).toContain("preview.ledgerRecordEdits.length");
-    expect(impactDetailsSource).toContain("连续性账本记录影响");
+    expect(impactDetailsSource).toContain(
+      "continuityLedgerRecordImpactMessage"
+    );
     expect(impactDetailsSource).toContain("edit.commitId");
     expect(impactDetailsSource).toContain("edit.recordFile.id");
     expect(impactDetailsSource).toContain("ledgerRecordEditCount(edit)");
-    expect(impactDetailsSource).toContain('"character-type": "人物类型"');
+    expect(impactDetailsSource).toContain("characterType");
   });
 
   it("does not present deterministic preview failures as retryable apply failures", () => {
     expect(source).toContain('item.errorPhase === "preview"');
-    expect(source).toContain("校验未通过");
-    expect(source).toContain("尚未应用");
+    expect(source).toContain("validationFailed");
+    expect(source).toContain("couldNotReadStructuralImpactChangesHaveNotBeen");
     expect(source).toContain("item.errorRetryable === false");
     expect(source).not.toContain("需重新生成提案");
   });
@@ -139,7 +143,9 @@ describe("LongProposalReview content file cards", () => {
     expect(source).toContain('item.status === "ready"');
     expect(source).toContain('item.status === "submitting"');
     expect(source).toContain('item.status === "accepted"');
-    expect(source).toContain("文件身份和原文尚未通过校验");
+    expect(source).toContain(
+      "fileIdentityAndSourceContentHaveNotPassedValidation"
+    );
     expect(source).not.toContain("{{ card.file.filePath }}");
   });
 });

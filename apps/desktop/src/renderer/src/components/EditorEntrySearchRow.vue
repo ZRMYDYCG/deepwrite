@@ -1,6 +1,9 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import type { EditorEntrySearchResult } from "../types/editorEntrySearch";
 import AppIcon from "./AppIcon.vue";
+
+const t = createScopedTranslator("components.editorEntrySearchRow");
 
 defineProps<{
   query: string;
@@ -48,8 +51,8 @@ function handleKeydown(event: KeyboardEvent): void {
         <input
           :value="query"
           type="search"
-          aria-label="搜索当前阶段全部条目"
-          placeholder="搜索全部条目"
+          :aria-label="t('searchAllEntriesInThisStage')"
+          :placeholder="t('searchAllEntries')"
           autocomplete="off"
           @input="updateQuery"
           @keydown="handleKeydown"
@@ -64,11 +67,13 @@ function handleKeydown(event: KeyboardEvent): void {
       v-if="query.trim()"
       class="entry-search-results transient-scrollbar"
       role="listbox"
-      aria-label="条目搜索结果"
+      :aria-label="t('entrySearchResults')"
     >
-      <p v-if="pending" class="entry-search-status">正在搜索全部条目…</p>
+      <p v-if="pending" class="entry-search-status">
+        {{ t("searchingAllEntries") }}
+      </p>
       <p v-else-if="!results.length" class="entry-search-status">
-        未找到匹配条目
+        {{ t("noMatchingEntries") }}
       </p>
       <template v-else>
         <button

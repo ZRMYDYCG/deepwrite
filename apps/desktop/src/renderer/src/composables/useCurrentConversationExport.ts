@@ -1,7 +1,11 @@
+import { formatError } from "../i18n/errors";
+import { createScopedTranslator } from "../i18n";
 import { computed, shallowRef } from "vue";
 import { useConversationStore } from "../stores/conversationStore";
 import { uiMessage } from "../ui-feedback";
 import type { CurrentExportOperation } from "../utils/conversation-export/action";
+
+const t = createScopedTranslator("workspace.currentConversationExport");
 const active = shallowRef<CurrentExportOperation>();
 
 export function useCurrentConversationExport(sessionId: () => string) {
@@ -20,7 +24,9 @@ export function useCurrentConversationExport(sessionId: () => string) {
       });
     } catch (error) {
       uiMessage.error(
-        `${error instanceof Error ? error.message : "导出未完成。"} 可重新选择位置重试。`
+        t("chooseAnotherLocationAndTryAgain", {
+          value: formatError(error, t("exportIncomplete"))
+        })
       );
     }
   }

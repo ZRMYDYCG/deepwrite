@@ -118,7 +118,7 @@ describe("conversation view behavior", () => {
       ["free", "免费模型"]
     ]);
     expect(composerSource).toContain(':model-options="modelOptions"');
-    expect(modelConfigSource).toContain('?.label ?? "选择模型"');
+    expect(modelConfigSource).toContain("selectModel");
     expect(`${modelOptionsSource}\n${composerSource}`).not.toContain(
       '{ value: "", label: "DeepWrite Faux" }'
     );

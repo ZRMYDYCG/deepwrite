@@ -1,3 +1,5 @@
+import { formatError } from "../../i18n/errors";
+import { createScopedTranslator } from "../../i18n";
 import type {
   LongArcId,
   LongCharacterId,
@@ -6,6 +8,8 @@ import type {
 import type { LongStructureLease } from "./lease";
 import type { LongStructureSync } from "./sync";
 import { booleanMutationCompletion } from "./types";
+
+const t = createScopedTranslator("workspace");
 
 export function createLongStructureRenameSave(
   host: LongStructureLease,
@@ -41,12 +45,18 @@ export function createLongStructureRenameSave(
         );
         const name = input.name.trim();
         if (!character) {
-          uiMessage.warning("该人物已不存在，请刷新后重试。");
+          uiMessage.warning(
+            t(
+              "navigationDeleteBatch.thisCharacterNoLongerExistsRefreshAndTryAgain"
+            )
+          );
           completion(false);
           return;
         }
         if (!name) {
-          uiMessage.warning("人物姓名不能为空。");
+          uiMessage.warning(
+            t("longEditorStructureSelection.theCharacterNameCannotBeEmpty")
+          );
           completion(false);
           return;
         }
@@ -66,7 +76,7 @@ export function createLongStructureRenameSave(
         } catch (error: unknown) {
           if (isDisposed()) return;
           uiMessage.warning(
-            error instanceof Error ? error.message : "无法修改人物姓名。"
+            formatError(error, t("renameSave.couldNotChangeTheCharacterSName"))
           );
           completion(false);
           return;
@@ -75,7 +85,11 @@ export function createLongStructureRenameSave(
           lease,
           batch,
           booleanMutationCompletion(completion),
-          { successMessage: `已将人物姓名修改为“${name}”` },
+          {
+            successMessage: t("renameSave.characterRenamedTo", {
+              name: name
+            })
+          },
           index
         );
       }
@@ -100,13 +114,13 @@ export function createLongStructureRenameSave(
         const index = lease.target.index;
         const title = input.title.trim();
         if (!title) {
-          uiMessage.warning("标题不能为空。");
+          uiMessage.warning(t("renameSave.theTitleCannotBeEmpty"));
           completion(false);
           return;
         }
         let batch: LongWorkspaceOperationBatch | undefined;
         let currentTitle: string | undefined;
-        let structureLabel = "结构项";
+        let structureLabel = t("renameSave.structureItem");
         try {
           const { createLongStructureMutationBuilder } =
             await loadLongStructureMutationModule();
@@ -118,7 +132,9 @@ export function createLongStructureRenameSave(
                 ({ id }) => id === input.id
               );
               currentTitle = category?.title;
-              structureLabel = "世界观分类";
+              structureLabel = t(
+                "longImpactConfirmation.worldbuildingCategory"
+              );
               if (category)
                 batch = builder.updateWorldbuilding(category.id, { title });
               break;
@@ -128,7 +144,7 @@ export function createLongStructureRenameSave(
                 ({ id }) => id === input.id
               );
               currentTitle = volume?.title;
-              structureLabel = "分卷";
+              structureLabel = t("longImpactConfirmation.volume");
               if (volume) batch = builder.updateVolume(volume.id, { title });
               break;
             }
@@ -137,7 +153,7 @@ export function createLongStructureRenameSave(
                 ({ id }) => id === input.id
               );
               currentTitle = plotPoint?.title;
-              structureLabel = "剧情点";
+              structureLabel = t("longImpactConfirmation.plotPoint");
               if (plotPoint) batch = builder.updateArc(plotPoint.id, { title });
               break;
             }
@@ -146,7 +162,7 @@ export function createLongStructureRenameSave(
                 ({ id }) => id === input.id
               );
               currentTitle = chapter?.title;
-              structureLabel = "章卡";
+              structureLabel = t("longImpactConfirmation.chapterCard");
               if (chapter) batch = builder.updateChapter(chapter.id, { title });
               break;
             }
@@ -154,13 +170,17 @@ export function createLongStructureRenameSave(
         } catch (error: unknown) {
           if (isDisposed()) return;
           uiMessage.warning(
-            error instanceof Error ? error.message : "无法修改标题。"
+            formatError(error, t("renameSave.couldNotChangeTheTitle"))
           );
           completion(false);
           return;
         }
         if (currentTitle === undefined || !batch) {
-          uiMessage.warning(`该${structureLabel}已不存在，请刷新后重试。`);
+          uiMessage.warning(
+            t("renameSave.thisNoLongerExistsRefreshAndTryAgain", {
+              structureLabel: structureLabel
+            })
+          );
           completion(false);
           return;
         }
@@ -172,7 +192,12 @@ export function createLongStructureRenameSave(
           lease,
           batch,
           booleanMutationCompletion(completion),
-          { successMessage: `已将${structureLabel}标题修改为“${title}”` },
+          {
+            successMessage: t("renameSave.renamedTheTo", {
+              structureLabel: structureLabel,
+              title: title
+            })
+          },
           index
         );
       }
@@ -195,7 +220,11 @@ export function createLongStructureRenameSave(
           ({ id }) => id === input.volumeId
         );
         if (!volume) {
-          uiMessage.warning("该分卷已不存在，请刷新后重试。");
+          uiMessage.warning(
+            t(
+              "navigationDeleteBatch.thisVolumeNoLongerExistsRefreshAndTryAgain"
+            )
+          );
           completion(false);
           return;
         }
@@ -213,7 +242,7 @@ export function createLongStructureRenameSave(
         } catch (error: unknown) {
           if (isDisposed()) return;
           uiMessage.warning(
-            error instanceof Error ? error.message : "无法保存分卷卷纲。"
+            formatError(error, t("renameSave.couldNotSaveTheVolumeOutline"))
           );
           completion(false);
           return;
@@ -224,7 +253,9 @@ export function createLongStructureRenameSave(
           booleanMutationCompletion(completion),
           {
             saveEditor: false,
-            successMessage: `已保存“${volume.title}”的卷纲`
+            successMessage: t("renameSave.savedTheOutlineFor", {
+              title: volume.title
+            })
           },
           index
         );
@@ -248,7 +279,9 @@ export function createLongStructureRenameSave(
           ({ id }) => id === input.plotPointId
         );
         if (!plotPoint) {
-          uiMessage.warning("该剧情点已不存在，请刷新后重试。");
+          uiMessage.warning(
+            t("navigationDeleteBatch.thisPlotPointNoLongerExistsRefreshAndTry")
+          );
           completion(false);
           return;
         }
@@ -266,7 +299,7 @@ export function createLongStructureRenameSave(
         } catch (error: unknown) {
           if (isDisposed()) return;
           uiMessage.warning(
-            error instanceof Error ? error.message : "无法保存剧情点内容。"
+            formatError(error, t("renameSave.couldNotSaveThePlotPointContent"))
           );
           completion(false);
           return;
@@ -277,7 +310,9 @@ export function createLongStructureRenameSave(
           booleanMutationCompletion(completion),
           {
             saveEditor: false,
-            successMessage: `已保存“${plotPoint.title}”的概要`
+            successMessage: t("renameSave.savedTheSummaryFor", {
+              title: plotPoint.title
+            })
           },
           index
         );

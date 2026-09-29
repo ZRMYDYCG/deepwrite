@@ -1,3 +1,5 @@
+import { formatError } from "../i18n/errors";
+import { createScopedTranslator } from "../i18n";
 import { ref, shallowRef, type Ref } from "vue";
 import { defineStore } from "pinia";
 import type {
@@ -21,6 +23,8 @@ import {
   DEFAULT_SHORT_WORKSPACE_AGENT_SETTINGS,
   createDefaultGeneralSettings
 } from "@deepwrite/contracts";
+
+const t = createScopedTranslator("workspace.settingsStore");
 
 export type SettingsLoadDomain =
   | "general"
@@ -80,7 +84,7 @@ function cloneDefaultLibraryAgentSettings(): LibraryAgentSettings {
 }
 
 function settingsLoadError(error: unknown): string {
-  return error instanceof Error ? error.message : "加载设置失败。";
+  return formatError(error, t("failedToLoadSettings"));
 }
 
 export const useSettingsStore = defineStore("settings", () => {
@@ -111,7 +115,7 @@ export const useSettingsStore = defineStore("settings", () => {
     maxTokens: number;
   } | null>(null);
   const modelAlertMessages = shallowRef<string[]>([
-    "官方模型已经上线！直连厂商！软件整体用量越多，折扣会越大！"
+    t("officialModelsAreNowAvailableWithDirectProviderAccess")
   ]);
   const startupAlertMessages = shallowRef<string[]>([]);
   const startupAlertRevision = ref("");

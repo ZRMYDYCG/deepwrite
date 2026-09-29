@@ -1,3 +1,8 @@
+import {
+  localizedMessage,
+  type LocalizedText
+} from "../analysis-ui/localized-text";
+import { createScopedTranslator } from "../../i18n";
 import type {
   LongBookAnalysisNote,
   LongBookAnalysisResult
@@ -10,9 +15,11 @@ import {
 import { createAnalysisNote } from "./analysis-pipeline-helpers";
 import type { LongBookAnalysisJob } from "./analysis-pipeline-types";
 
+const t = createScopedTranslator("extras.longBookAnalysis");
+
 interface AnalysisReducerDependencies {
   run(notes: LongBookAnalysisNote[]): Promise<string | LongBookAnalysisResult>;
-  begin(detail: string): void;
+  begin(detail: LocalizedText): void;
   addEstimatedUnits(count: number): void;
   completeUnit(): void;
 }
@@ -31,15 +38,11 @@ export async function reduceAnalysisJob(
       const inputs = splitAnalysisNotesForBudget(job.notes, job.inputBudget);
       const groups = groupAnalysisNotes(inputs, job.inputBudget);
       if (groups.every((group) => group.length === 1)) {
-        throw new Error(
-          "当前模型输入预算不足以归并单条中间笔记，请更换更大上下文模型。"
-        );
+        throw new Error(t("noteExceedsBudget"));
       }
       job.reductionRounds += 1;
       if (job.reductionRounds > 8) {
-        throw new Error(
-          "中间笔记连续归并后仍超过预算，请更换更大上下文模型后重试。"
-        );
+        throw new Error(t("mergedNotesExceedBudget"));
       }
       job.reduction = { groups, groupIndex: 0, output: [] };
       dependencies.addEstimatedUnits(
@@ -54,16 +57,23 @@ export async function reduceAnalysisJob(
         const start = Math.min(...group.map((note) => note.chapterStart));
         const end = Math.max(...group.map((note) => note.chapterEnd));
         dependencies.begin(
-          `归并第 ${start}-${end} 章的 ${group.length} 份分析笔记`
+          localizedMessage("extras.longBookAnalysis.mergingChapterNotes", {
+            start: start,
+            end: end,
+            count: group.length
+          })
         );
         const merged = await dependencies.run(group);
         if (typeof merged !== "string") {
-          throw new Error("归并阶段未返回中间笔记。");
+          throw new Error(t("mergeNoteMissing"));
         }
         reduction.output.push(
           createAnalysisNote(
             merged,
-            `第 ${start}-${end} 章归并笔记`,
+            t("mergedNoteTitle", {
+              start: start,
+              end: end
+            }),
             start,
             end
           )

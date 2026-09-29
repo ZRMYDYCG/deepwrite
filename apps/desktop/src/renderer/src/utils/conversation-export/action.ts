@@ -1,7 +1,10 @@
+import { createScopedTranslator } from "../../i18n";
 import type { ShallowRef } from "vue";
 import type { useConversationStore } from "../../stores/conversationStore";
 import { uiMessage } from "../../ui-feedback";
 import { exportCurrentConversation } from "./write";
+
+const t = createScopedTranslator("workspace.action");
 
 export interface CurrentExportOperation {
   sessionId: string;
@@ -13,7 +16,7 @@ export async function startCurrentConversationExport(options: {
   active: ShallowRef<CurrentExportOperation | undefined>;
 }): Promise<void> {
   if (options.active.value) {
-    uiMessage.info("请先完成或取消正在进行的导出。");
+    uiMessage.info(t("finishOrCancelTheCurrentExportFirst"));
     return;
   }
   const api = window.deepwrite?.conversationExport;
@@ -22,7 +25,9 @@ export async function startCurrentConversationExport(options: {
     (item) => item.sessionId.value === options.sessionId
   );
   if (!controller)
-    throw new Error("当前对话已切换，请重新选择需要导出的对话。");
+    throw new Error(
+      t("theConversationHasChangedSelectTheConversationToExport")
+    );
   const operation = {
     sessionId: options.sessionId,
     abort: new AbortController()
@@ -34,7 +39,7 @@ export async function startCurrentConversationExport(options: {
       api,
       operation.abort.signal
     );
-    if (result) uiMessage.success(`已导出 ${result.fileName}`);
+    if (result) uiMessage.success(t("exported", { fileName: result.fileName }));
   } catch (error) {
     if (!(error instanceof DOMException && error.name === "AbortError"))
       throw error;

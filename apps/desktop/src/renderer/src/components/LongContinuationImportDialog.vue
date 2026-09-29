@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { genreLabel } from "./catalogLabels";
+import { createScopedTranslator } from "../i18n";
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import {
   LONG_BOOK_GENRES,
@@ -7,6 +9,8 @@ import {
 } from "@deepwrite/contracts";
 import { uiMessage } from "../ui-feedback";
 import PopupSelect from "./PopupSelect.vue";
+
+const t = createScopedTranslator("components.longContinuationImportDialog");
 
 const props = defineProps<{
   preview: LongChooseContinuationImportSourceResult | null;
@@ -21,7 +25,12 @@ const emit = defineEmits<{
 const title = ref("");
 const genre = ref("其他");
 const titleInput = ref<HTMLInputElement | null>(null);
-const genreOptions = LONG_BOOK_GENRES.map((value) => ({ value, label: value }));
+const genreOptions = LONG_BOOK_GENRES.map((value) => ({
+  value,
+  get label() {
+    return genreLabel(value);
+  }
+}));
 
 function requestClose(): void {
   if (!props.submitting) emit("close");
@@ -31,7 +40,7 @@ function submit(): void {
   if (!props.preview) return;
   const normalizedTitle = title.value.trim();
   if (!normalizedTitle) {
-    uiMessage.warning("请输入书名");
+    uiMessage.warning(t("enterABookTitle"));
     titleInput.value?.focus();
     return;
   }
@@ -76,13 +85,17 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
       >
         <header>
           <div>
-            <span class="dialog-eyebrow">长篇 · 续写导入</span>
-            <h2 id="continuation-import-title">核对 TXT 章节顺序</h2>
+            <span class="dialog-eyebrow">{{
+              t("novelImportForContinuation")
+            }}</span>
+            <h2 id="continuation-import-title">
+              {{ t("checkTXTChapterOrder") }}
+            </h2>
           </div>
           <button
             class="dialog-close"
             type="button"
-            aria-label="关闭"
+            :aria-label="t('close')"
             :disabled="submitting"
             @click="requestClose"
           >
@@ -96,7 +109,7 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
         >
           <section class="continuation-import-basics">
             <label>
-              <span>书名</span>
+              <span>{{ t("bookTitle") }}</span>
               <input
                 ref="titleInput"
                 v-model="title"
@@ -107,11 +120,11 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
               />
             </label>
             <label>
-              <span>题材</span>
+              <span>{{ t("genre") }}</span>
               <PopupSelect
                 :model-value="genre"
                 :options="genreOptions"
-                accessible-label="长篇题材"
+                :accessible-label="t('novelGenre')"
                 size="large"
                 :disabled="submitting"
                 :menu-min-width="180"
@@ -120,18 +133,25 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
             </label>
           </section>
 
-          <section class="continuation-import-summary" aria-label="导入摘要">
+          <section
+            class="continuation-import-summary"
+            :aria-label="t('importSummary')"
+          >
             <span
-              ><strong>{{ preview.volumeCount }}</strong> 卷</span
+              ><strong>{{ preview.volumeCount }}</strong>
+              {{ t("volumes") }}</span
             >
             <span
-              ><strong>{{ preview.chapterCount }}</strong> 章</span
+              ><strong>{{ preview.chapterCount }}</strong>
+              {{ t("chapters") }}</span
             >
             <span
-              ><strong>{{ preview.checkpointCount }}</strong> 个历史检查点</span
+              ><strong>{{ preview.checkpointCount }}</strong>
+              {{ t("historicalCheckpoints") }}</span
             >
             <span
-              >待核验：<strong
+              >{{ t("toVerify")
+              }}<strong
                 >{{ preview.pendingVolumeTitle }} ·
                 {{ preview.pendingChapterTitle }}</strong
               ></span
@@ -139,30 +159,39 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
           </section>
 
           <p class="continuation-import-note">
-            前
-            {{ preview.checkpointCount }}
-            章只会封存为不可逆的导入检查点，不会生成或推断人物事实、世界观揭露和接续包。最后一章导入后会成为唯一待处理章节。
+            {{
+              t("theFirstChaptersAreSealedAsIrreversibleMessage", {
+                arg0: preview.checkpointCount ?? ""
+              })
+            }}
           </p>
 
           <section
             v-if="preview.warnings.length"
             class="continuation-import-order-notes"
-            aria-label="排序提示"
+            :aria-label="t('orderingNotes')"
           >
-            <strong>排序提示</strong>
+            <strong>{{ t("orderingNotes") }}</strong>
             <span v-for="warning in preview.warnings" :key="warning">{{
               warning
             }}</span>
           </section>
 
-          <section class="continuation-import-tree" aria-label="卷章导入顺序">
+          <section
+            class="continuation-import-tree"
+            :aria-label="t('volumeAndChapterImportOrder')"
+          >
             <article
               v-for="volume in preview.volumes"
               :key="`${volume.order}:${volume.sourceName}`"
             >
               <header>
                 <strong>{{ volume.order }}. {{ volume.title }}</strong>
-                <span>{{ volume.chapters.length }} 章</span>
+                <span>{{
+                  t("chaptersMessage", {
+                    arg0: volume.chapters.length ?? ""
+                  })
+                }}</span>
               </header>
               <ol>
                 <li
@@ -182,14 +211,14 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
 
           <footer class="dialog-actions">
             <button type="button" :disabled="submitting" @click="requestClose">
-              取消
+              {{ t("cancel") }}
             </button>
             <button
               class="dialog-primary-button"
               type="submit"
               :disabled="submitting"
             >
-              {{ submitting ? "导入中…" : "确认导入" }}
+              {{ submitting ? t("importing") : t("import") }}
             </button>
           </footer>
         </form>

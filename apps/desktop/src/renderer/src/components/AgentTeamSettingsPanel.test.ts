@@ -11,15 +11,15 @@ const source = `${componentSource}\n${templateSource}\n${metaSource}`;
 
 describe("AgentTeamSettingsPanel", () => {
   it("explains the isolated subagent prompt and skill boundary", () => {
-    expect(source).toContain("不继承主智能体提示词、会话或技能库");
-    expect(source).toContain("完全由你写的系统提示词决定");
-    expect(source).toContain("从技能库加载");
+    expect(source).toContain("subagentsUseThePrimaryAgentSModelByDefault");
+    expect(source).toContain("subagentsUseThePrimaryAgentSModelByDefault");
+    expect(source).toContain("loadFromSkillLibrary");
   });
 
   it("enables short, script and independent long-form teams", () => {
-    expect(source).toContain("短篇");
-    expect(source).toContain("剧本");
-    expect(source).toContain("长篇");
+    expect(source).toContain("shortStory");
+    expect(source).toContain("screenplay");
+    expect(source).toContain("novel");
     expect(source).not.toContain("尚未接入");
     expect(source).toContain("@click=\"activeWorkspaceType = 'script'\"");
     expect(source).toContain(
@@ -43,21 +43,23 @@ describe("AgentTeamSettingsPanel", () => {
     );
     expect(longSource).not.toContain('id: "setting"');
     expect(longSource).not.toContain("expert_section_writer");
-    expect(longSource).toContain("由长篇智能体按需调用");
-    expect(source).toContain("不能继续创建子智能体");
-    expect(source).toContain("不能绕过用户审批");
+    expect(longSource).toContain(
+      "configureSpecialistAssistantsForWorldbuildingCharactersPlotManuscriptAnd"
+    );
+    expect(source).toContain("subagentsUseThePrimaryAgentSModelByDefault");
+    expect(source).toContain("subagentsUseThePrimaryAgentSModelByDefault");
     expect(longSource).toContain("LongAgentTeamSettingsInputSchema.safeParse");
   });
 
   it("keeps long-form subagent styling and editing features aligned", () => {
     for (const marker of [
-      "从技能库加载",
+      "loadFromSkillLibrary",
       "subagent-summary",
       "subagentModelSummary",
       "editingSubagentId",
       "model-mode-options",
-      "完成编辑",
-      "当前主智能体"
+      "doneEditing",
+      "primaryAgentSubagentsMessage"
     ]) {
       expect(longSource).toContain(marker);
     }
@@ -73,9 +75,9 @@ describe("AgentTeamSettingsPanel", () => {
 
   it("uses one parent team for short and script workspaces", () => {
     expect(source).toContain('id: "short"');
-    expect(source).toContain('label: "短篇智能体"');
+    expect(source).toContain("shortStoryAgent");
     expect(source).toContain('id: "script"');
-    expect(source).toContain('label: "剧本智能体"');
+    expect(source).toContain("screenplayAgent");
     expect(source).toContain('v-if="visibleParentAgents.length > 1"');
     expect(source).toContain("SCRIPT_PARENT_AGENTS");
     expect(source).toContain("SHORT_PARENT_AGENT");
@@ -86,8 +88,8 @@ describe("AgentTeamSettingsPanel", () => {
     expect(source).not.toContain('label: "正文"');
     expect(source).not.toContain('label: "大纲"');
     expect(source).not.toContain('label: "分节"');
-    expect(source).toContain("不能继续创建子智能体");
-    expect(source).toContain("默认跟随所属主智能体的模型");
+    expect(source).toContain("subagentsUseThePrimaryAgentSModelByDefault");
+    expect(source).toContain("subagentsUseThePrimaryAgentSModelByDefault");
   });
 
   it("expands the editor when the single parent navigation is hidden", () => {
@@ -97,8 +99,8 @@ describe("AgentTeamSettingsPanel", () => {
   });
 
   it("supports model mode inherit or custom with PopupSelect", () => {
-    expect(source).toContain("跟随主智能体");
-    expect(source).toContain("单独配置模型");
+    expect(source).toContain("usePrimaryAgentModel");
+    expect(source).toContain("configureModelSeparately");
     expect(source).toContain("setSubagentModelMode(subagent, 'inherit')");
     expect(source).toContain("setSubagentModelMode(subagent, 'custom')");
     expect(source).toContain("PopupSelect");
@@ -106,8 +108,8 @@ describe("AgentTeamSettingsPanel", () => {
     expect(source).toContain("setSubagentThinkingLevel");
     expect(source).toContain("setSubagentTemperature");
     expect(source).toContain("v-if=\"subagent.thinkingLevel === 'off'\"");
-    expect(source.indexOf("模型配置")).toBeLessThan(
-      source.indexOf("<span>名称</span>")
+    expect(source.indexOf("t('modelSettings')")).toBeLessThan(
+      source.indexOf("t('name')")
     );
   });
 

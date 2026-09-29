@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import { computed } from "vue";
+import { createScopedTranslator } from "../i18n";
+
+const t = createScopedTranslator("components.workspaceAgentProfileForm");
 interface EditableProfile {
   systemPrompt: string;
   welcomeShortcuts: readonly string[];
@@ -21,6 +25,7 @@ const props = defineProps<{
   disabled: boolean;
   saving: boolean;
   saveLabel: string;
+  showWelcomeShortcuts?: boolean;
   defaultPlotStages?: readonly DefaultPlotStageOption[];
 }>();
 
@@ -33,20 +38,30 @@ const emit = defineEmits<{
   save: [];
 }>();
 
-const MATERIAL_OPTIONS = [
-  ["character", "人物素材", "人物设定类素材"],
-  ["gimmick", "卖点素材", "题材卖点与创意钩子"],
-  ["plot", "剧情素材", "剧情结构与桥段参考"],
-  ["draft", "正文素材", "正文片段与行文参考"],
-  ["other", "其他素材", "未归入以上分类的素材"]
-] as const;
+const MATERIAL_OPTIONS = computed(
+  () =>
+    [
+      ["character", t("characterMaterials"), t("characterDesignReferences")],
+      ["gimmick", t("hookMaterials"), t("genreHooksAndCreativeIdeas")],
+      ["plot", t("plotMaterials"), t("plotStructuresAndSceneReferences")],
+      [
+        "draft",
+        t("manuscriptMaterials"),
+        t("manuscriptExcerptsAndProseReferences")
+      ],
+      ["other", t("otherMaterials"), t("materialsOutsideTheCategoriesAbove")]
+    ] as const
+);
 
-const SKILL_OPTIONS = [
-  ["general", "通用技能", "跨阶段可复用的通用能力"],
-  ["plot", "剧情技能", "人物、剧情与结构设计能力"],
-  ["style", "文风技能", "正文行文与风格执行能力"],
-  ["other", "其他技能", "未归入以上分类的技能"]
-] as const;
+const SKILL_OPTIONS = computed(
+  () =>
+    [
+      ["general", t("generalSkills"), t("reusableCapabilitiesAcrossStages")],
+      ["plot", t("plotSkills"), t("characterPlotAndStructuralDesign")],
+      ["style", t("styleSkills"), t("proseAndWritingStyleExecution")],
+      ["other", t("otherSkills"), t("skillsOutsideTheCategoriesAbove")]
+    ] as const
+);
 
 function checked(scope: "material" | "skill", id: string): boolean {
   return props.agent.readAccess[scope].includes(id);
@@ -64,30 +79,44 @@ function checked(scope: "material" | "skill", id: string): boolean {
     <section class="profile-card prompt-card">
       <div class="section-heading">
         <div>
-          <h4>系统提示词</h4>
-          <p>作品、当前阶段和工具边界会在每轮运行时自动补充。</p>
+          <h4>{{ t("systemPrompt") }}</h4>
+          <p>
+            {{ t("theWorkCurrentStageAndToolBoundariesAreAdded") }}
+          </p>
         </div>
-        <span>{{ agent.systemPrompt.length }} 字符</span>
+        <span>{{
+          t("charactersMessage", {
+            arg0: agent.systemPrompt.length ?? ""
+          })
+        }}</span>
       </div>
       <textarea
         :value="agent.systemPrompt"
         :disabled="disabled"
         spellcheck="false"
-        aria-label="系统提示词"
+        :aria-label="t('systemPrompt')"
         @input="emit('prompt', ($event.target as HTMLTextAreaElement).value)"
       />
     </section>
 
-    <section class="profile-card">
+    <section v-if="showWelcomeShortcuts !== false" class="profile-card">
       <div class="section-heading">
         <div>
-          <h4>欢迎快捷按钮</h4>
-          <p>空对话欢迎区显示的三个快捷提问。</p>
+          <h4>
+            {{ t("welcomeShortcuts") }}
+          </h4>
+          <p>
+            {{ t("threeQuickPromptsShownWhenAConversationIsEmpty") }}
+          </p>
         </div>
       </div>
       <div class="shortcut-list">
         <label v-for="(shortcut, index) in agent.welcomeShortcuts" :key="index">
-          <span>按钮 {{ index + 1 }}</span>
+          <span>{{
+            t("buttonMessage", {
+              arg0: index + 1
+            })
+          }}</span>
           <input
             :value="shortcut"
             type="text"
@@ -104,12 +133,16 @@ function checked(scope: "material" | "skill", id: string): boolean {
     <section class="profile-card access-card">
       <div class="section-heading">
         <div>
-          <h4>读取范围</h4>
-          <p>已勾选并绑定的素材和技能可在所有阶段按需加载。</p>
+          <h4>{{ t("readAccess") }}</h4>
+          <p>
+            {{ t("selectedAndLinkedMaterialsAndSkillsCanBeLoaded") }}
+          </p>
         </div>
       </div>
       <fieldset>
-        <legend>素材库</legend>
+        <legend>
+          {{ t("materialLibrary") }}
+        </legend>
         <div class="option-grid">
           <label v-for="option in MATERIAL_OPTIONS" :key="option[0]">
             <input
@@ -133,7 +166,9 @@ function checked(scope: "material" | "skill", id: string): boolean {
         </div>
       </fieldset>
       <fieldset>
-        <legend>技能库</legend>
+        <legend>
+          {{ t("skillLibrary") }}
+        </legend>
         <div class="option-grid">
           <label v-for="option in SKILL_OPTIONS" :key="option[0]">
             <input
@@ -164,8 +199,12 @@ function checked(scope: "material" | "skill", id: string): boolean {
     >
       <div class="section-heading">
         <div>
-          <h4>剧情默认阶段配置</h4>
-          <p>设置下一本新建短篇默认创建并打开的剧情阶段。</p>
+          <h4>
+            {{ t("defaultPlotStages") }}
+          </h4>
+          <p>
+            {{ t("choosePlotStagesToCreateAndEnableForThe") }}
+          </p>
         </div>
       </div>
       <div class="default-stage-list">
@@ -178,7 +217,11 @@ function checked(scope: "material" | "skill", id: string): boolean {
             <input
               type="checkbox"
               role="switch"
-              :aria-label="`${stage.title}默认创建`"
+              :aria-label="
+                t('createValueByDefault', {
+                  arg0: stage.title
+                })
+              "
               :checked="stage.enabled"
               :disabled="disabled || stage.locked"
               @change="
@@ -201,7 +244,7 @@ function checked(scope: "material" | "skill", id: string): boolean {
         :disabled="disabled"
         @click="emit('reset')"
       >
-        恢复默认
+        {{ t("restoreDefaults") }}
       </button>
       <button
         type="button"
@@ -209,7 +252,7 @@ function checked(scope: "material" | "skill", id: string): boolean {
         :disabled="disabled"
         @click="emit('save')"
       >
-        {{ saving ? "保存中…" : saveLabel }}
+        {{ saving ? t("saving") : saveLabel }}
       </button>
     </footer>
   </div>

@@ -1,7 +1,10 @@
 <script setup lang="ts">
+import { createScopedTranslator, locale } from "../i18n";
 import { computed, defineAsyncComponent } from "vue";
 import type { WorkspaceDocument } from "../types/workspace";
 import { catalogBodyTextKind } from "../utils/bodyTextTarget";
+
+const t = createScopedTranslator("components.catalogEditorFooterMeta");
 const props = defineProps<{
   document: WorkspaceDocument;
   content: string;
@@ -20,11 +23,11 @@ const CatalogManuscriptCharacterCount = defineAsyncComponent(
 <template>
   <div class="editor-footer-meta">
     <span>
-      {{ characterCount.toLocaleString("zh-CN")
+      {{ characterCount.toLocaleString(locale)
       }}<template v-if="recommendedContentLength">
-        / {{ recommendedContentLength.toLocaleString("zh-CN") }}</template
+        / {{ recommendedContentLength.toLocaleString(locale) }}</template
       >
-      字
+      {{ t("characters") }}
     </span>
     <span
       v-if="isLibraryDocument"
@@ -32,14 +35,14 @@ const CatalogManuscriptCharacterCount = defineAsyncComponent(
       :class="{ 'limit-warning': contentExceedsRecommendedLength }"
       :title="
         isLibraryOverview
-          ? '素材库或技能库介绍建议不超过 40,000 字'
-          : '每个素材库或技能库条目建议不超过 40,000 字，请勿上传过多内容'
+          ? t('keepMaterialOrSkillLibraryIntroductionsUnder40000')
+          : t('keepEachMaterialOrSkillLibraryEntryUnder40')
       "
     >
       {{
         isLibraryOverview
-          ? "建议库介绍不超过 40,000 字"
-          : "建议每个条目不超过 40,000 字，请勿上传过多内容"
+          ? t("recommendedIntroductionLimit40000Characters")
+          : t("recommendedEntryLimit40000CharactersAvoidUploadingExcessive")
       }}
     </span>
     <CatalogManuscriptCharacterCount
@@ -47,8 +50,10 @@ const CatalogManuscriptCharacterCount = defineAsyncComponent(
       :document="document"
       :content="content"
     />
-    <span class="editor-save-status"
-      >· 自动保存{{ autoSaveEnabled ? "开启" : "关闭" }}</span
-    >
+    <span class="editor-save-status">{{
+      t("autosaveMessage", {
+        arg0: (autoSaveEnabled ? t("on") : t("off")) ?? ""
+      })
+    }}</span>
   </div>
 </template>

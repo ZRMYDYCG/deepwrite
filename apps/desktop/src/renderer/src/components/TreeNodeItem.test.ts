@@ -30,8 +30,8 @@ describe("TreeNodeItem actions", () => {
   it("offers adding a manuscript section from each long draft volume", () => {
     expect(source).toContain("Boolean(props.node.longDraftVolumeId)");
     expect(source).toContain("isLongDraftVolume");
-    expect(source).toContain("'新增小节'");
-    expect(source).toContain("`在${node.label}新增小节`");
+    expect(source).toContain("addSection");
+    expect(source).toContain("addSectionToValue");
     expect(source).toContain("createLongDraftSection()");
     expect(source).toContain('emit("createLongDraftSection", props.node)');
     expect(source).not.toContain("<span>新增小节</span>");
@@ -65,12 +65,10 @@ describe("TreeNodeItem actions", () => {
     expect(source).toContain("expertSectionAction('move-down')");
     expect(source).toContain(':disabled="expertSectionMoveUpDisabled"');
     expect(source).toContain(':disabled="expertSectionMoveDownDisabled"');
-    expect(source).toContain(
-      'props.node.workspaceType === "script" ? "剧集" : "小节"'
-    );
+    expect(source).toContain("episode");
     expect(source).toContain("isCharacterDirectory");
-    expect(source).toContain("`新建${draftUnitLabel}`");
-    expect(source).toContain("<span>删除{{ draftUnitLabel }}</span>");
+    expect(source).toContain("newEntry");
+    expect(source).toContain("delete");
   });
 
   it("provides character item creation and ordered item actions", () => {
@@ -94,9 +92,9 @@ describe("TreeNodeItem actions", () => {
     expect(itemMenu).toContain("longTreeItemAction('move-down')");
     expect(itemMenu).toContain("longTreeItemAction('delete')");
     expect(itemMenu).toContain("@click.stop");
-    expect(itemMenu).toContain("<span>上移</span>");
-    expect(itemMenu).toContain("<span>下移</span>");
-    expect(itemMenu).toContain("<span>删除</span>");
+    expect(itemMenu).toContain("moveUp");
+    expect(itemMenu).toContain("moveDown");
+    expect(itemMenu).toContain("delete");
     expect(itemMenu).not.toContain("修改名称");
     expect(source).toContain("isFirstLongTreeItem(child)");
     expect(source).toContain("isLastLongTreeItem(child)");
@@ -117,10 +115,10 @@ describe("TreeNodeItem actions", () => {
       source.indexOf('<template v-else-if="isLongTreeItem">')
     );
     expect(menu).toContain("<span>{{");
-    expect(menu).toContain('"删除记录"');
-    expect(menu).toContain('"删除记录（请先删除最后一条）"');
+    expect(menu).toContain("deleteRecord");
+    expect(menu).toContain("deleteRecordDeleteTheLastOneFirst");
     expect(menu).toContain("!node.longLedgerCommit?.deletable");
-    expect(menu).toContain("请先删除最后一条提交记录");
+    expect(menu).toContain("deleteTheLastCommitRecordFirst");
     expect(menu).toContain("is-danger");
   });
 
@@ -169,22 +167,22 @@ describe("TreeNodeItem actions", () => {
   });
 
   it("opens the manuscript export dialog below material binding without an inline format list", () => {
-    expect(source).toContain("<span>导出正文</span>");
+    expect(source).toContain("exportManuscript");
     expect(source).not.toContain("['docx', 'txt', 'epub'] as const");
     expect(source).toContain('emit("exportBook", props.node)');
-    expect(source.indexOf("<span>导出正文</span>")).toBeGreaterThan(
-      source.indexOf("<span>素材库绑定</span>")
+    expect(source.indexOf("exportManuscript")).toBeGreaterThan(
+      source.indexOf("materialLibraryLinks")
     );
   });
 
   it("offers copy on library entries and paste on writable libraries", () => {
     expect(source).toContain("activateResourceNodeAction('copy-entry')");
-    expect(source).toContain("<span>复制</span>");
+    expect(source).toContain("duplicate");
     expect(source).toContain("activateResourceNodeAction('paste-entry')");
-    expect(source).toContain("<span>粘贴</span>");
+    expect(source).toContain("paste");
     expect(source).toContain("canPasteLibraryEntry");
     expect(source).toContain("libraryEntryClipboardDomain");
-    expect(source).toContain("<span>删除条目文件</span>");
+    expect(source).toContain("deleteEntryFile");
   });
 
   it("offers library and entry rename plus same-domain drag and drop", () => {
@@ -237,13 +235,13 @@ describe("TreeNodeItem actions", () => {
 
   it("keeps reversible catalog actions neutral and marks disk deletion dangerous", () => {
     const longMenu = longMenuSource;
-    expect(longMenu).toContain("<span>结构管理</span>");
-    expect(longMenu).toContain("<span>同步旧版本</span>");
-    expect(longMenu.indexOf("<span>同步旧版本</span>")).toBeGreaterThan(
-      longMenu.indexOf("<span>导出</span>")
+    expect(longMenu).toContain("manageStructure");
+    expect(longMenu).toContain("syncLegacyVersion");
+    expect(longMenu.indexOf("syncLegacyVersion")).toBeGreaterThan(
+      longMenu.indexOf("export")
     );
-    expect(longMenu).toContain("<span>技能库绑定</span>");
-    expect(longMenu).toContain("<span>素材库绑定</span>");
+    expect(longMenu).toContain("skillLibraryLinks");
+    expect(longMenu).toContain("materialLibraryLinks");
     expect(longMenu).not.toContain("导出可迁移项目");
     expect(longMenu).toContain("activateLongBookAction('unregister')");
     expect(longMenu).toContain("activateLongBookAction('delete')");

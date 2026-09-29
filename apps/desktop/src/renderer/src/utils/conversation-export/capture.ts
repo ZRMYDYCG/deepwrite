@@ -1,11 +1,14 @@
+import { createScopedTranslator } from "../../i18n";
 import { toRaw } from "vue";
 import type { AgentConversationController } from "../../composables/useAgentConversation";
+
+const t = createScopedTranslator("workspace.capture");
 
 function emptyClone(value: object): unknown[] | Record<string, unknown> {
   if (Array.isArray(value)) return new Array(value.length);
   const prototype = Object.getPrototypeOf(value);
   if (prototype !== null && prototype !== Object.prototype)
-    throw new Error("会话包含非 JSON 对象，无法完整导出。");
+    throw new Error(t("theConversationContainsNonJsonObjectsAndCannotBe"));
   return Object.create(null);
 }
 function cloneVisibleData(value: unknown): unknown {
@@ -64,8 +67,9 @@ export function captureCurrentConversation(
     scope: "current-controller-session",
     includesUnconfirmedChanges: true,
     unknownDatabaseFieldsIncluded: false,
-    description:
-      "当前客户端已加载的完整会话记录，包括未确认保存的内容；不包含其他会话或未加载的数据库原始字段，不是完整数据库备份。",
+    description: t(
+      "allConversationRecordsCurrentlyLoadedInThisClientIncluding"
+    ),
     runSettings: {
       selectedModelId: controller.selectedModelId.value,
       thinkingLevel: controller.thinkingLevel.value,

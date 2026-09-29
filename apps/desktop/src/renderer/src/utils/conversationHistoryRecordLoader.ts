@@ -1,3 +1,4 @@
+import { createScopedTranslator } from "../i18n";
 import type {
   ConversationHistoryApi,
   ConversationHistoryJson,
@@ -16,6 +17,8 @@ import {
   HistoryReadConflictError
 } from "../composables/conversation-history-reader/types";
 
+const t = createScopedTranslator("workspace.conversationHistoryRecordLoader");
+
 const RECORD_FIELDS = new Set([
   "sessionId",
   "createdAt",
@@ -33,12 +36,12 @@ function setLoadedField(
   let parent: ConversationHistoryJson = target;
   for (const part of path.slice(0, -1)) {
     if (!parent || typeof parent !== "object")
-      throw new Error("历史字段路径无效。");
+      throw new Error(t("invalidHistoryFieldPath"));
     parent = Reflect.get(parent, part) as ConversationHistoryJson;
   }
   const key = path.at(-1);
   if (key === undefined || !parent || typeof parent !== "object")
-    throw new Error("历史字段路径无效。");
+    throw new Error(t("invalidHistoryFieldPath"));
   Object.defineProperty(parent, key, {
     value,
     enumerable: true,
@@ -82,7 +85,7 @@ export async function loadConversationHistoryRecord(
       [options.signal]
     ));
   if (!session || (session.deleted && !options.allowDeleted))
-    throw new Error("此历史对话已不存在或已删除。");
+    throw new Error(t("thisConversationNoLongerExistsOrHasBeenDeleted"));
   // Empty histories need only the lightweight index. Load the page/detail
   // reader after a real session has been found, or on explicit history selection.
   const { createConversationHistoryReader } =
@@ -110,7 +113,7 @@ export async function loadConversationHistoryRecord(
         setLoadedField(metadata, reference.path, value);
       else {
         if (!value || typeof value !== "object" || Array.isArray(value))
-          throw new Error("历史元数据格式无效。");
+          throw new Error(t("invalidHistoryMetadata"));
         for (const field of RECORD_FIELDS) {
           if (Object.hasOwn(value, field))
             setLoadedField(metadata, [field], value[field]!);
@@ -140,17 +143,19 @@ export async function loadConversationHistoryRecord(
             setLoadedField(value, reference.path, detail);
           else {
             if (!detail || typeof detail !== "object" || Array.isArray(detail))
-              throw new Error("历史消息格式无效。");
+              throw new Error(t("invalidHistoryMessageFormat"));
             value = detail;
           }
         }
         if (value.id !== message.messageId)
-          throw new Error("历史消息标识不一致，未替换当前对话。");
+          throw new Error(
+            t("historyMessageIdentifiersDoNotMatchTheCurrentConversation")
+          );
         messages.push(value);
       }
       if (page.nextPosition === null) break;
       if (afterPosition !== undefined && page.nextPosition <= afterPosition)
-        throw new Error("历史分页游标没有向前移动。");
+        throw new Error(t("theHistoryPaginationCursorDidNotAdvance"));
       afterPosition = page.nextPosition;
     }
     const confirmed = await awaitHistoryResponse(
@@ -168,9 +173,12 @@ export async function loadConversationHistoryRecord(
         confirmed?.revision ?? -1
       );
     if (messages.length !== session.messageCount)
-      throw new Error("历史消息数量校验失败，未替换当前对话。");
+      throw new Error(
+        t("historyMessageCountValidationFailedTheCurrentConversationHas")
+      );
     const record = parsePersistenceRecord({ ...metadata, sessionId, messages });
-    if (!record) throw new Error("历史对话格式无法完整读取，原始记录已保留。");
+    if (!record)
+      throw new Error(t("conversationHistoryCouldNotBeFullyReadTheOriginal"));
     return record;
   } finally {
     reader.dispose();

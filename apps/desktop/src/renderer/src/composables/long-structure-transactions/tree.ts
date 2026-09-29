@@ -1,3 +1,5 @@
+import { formatError } from "../../i18n/errors";
+import { createScopedTranslator } from "../../i18n";
 import type {
   LongBookSummary,
   LongWorkspaceIndexSnapshot,
@@ -14,6 +16,8 @@ import type { LongStructureCreate } from "./create";
 import type { LongStructureLease } from "./lease";
 import type { LongStructureSync } from "./sync";
 import { NOOP_COMPLETION, type LongTreeItemDetails } from "./types";
+
+const t = createScopedTranslator("workspace");
 
 type MutationModule = typeof import("../../types/longStructureMutations");
 
@@ -35,9 +39,11 @@ export function resolveLongTreeItemDetails(
       .sort((left, right) => left.order - right.order)
       .map(({ id }) => id);
     return {
-      label: "世界观条目",
+      label: t("longImpactConfirmation.worldbuildingEntry"),
       title: item.title,
-      description: "将永久删除该世界观条目及其正文文件。",
+      description: t(
+        "tree.thisWillPermanentlyDeleteTheWorldbuildingEntryAndIts"
+      ),
       orderedIds,
       parentResourceId: longNavigationNodeId(
         bookId,
@@ -55,7 +61,7 @@ export function resolveLongTreeItemDetails(
       .sort((left, right) => left.order - right.order)
       .map(({ id }) => id);
     return {
-      label: "人物",
+      label: t("catalogWorkspace.characters"),
       title: character.name,
       description: longDeletionDescription(index, "character", character.id),
       orderedIds,
@@ -70,7 +76,7 @@ export function resolveLongTreeItemDetails(
     const volume = index.plot.volumes.find(({ id }) => id === target.id);
     if (!volume) return null;
     return {
-      label: "分卷",
+      label: t("longImpactConfirmation.volume"),
       title: volume.title,
       description: longDeletionDescription(index, "volume", volume.id),
       orderedIds: [...index.plot.volumes]
@@ -85,7 +91,7 @@ export function resolveLongTreeItemDetails(
     const plotPoint = index.plot.arcs.find(({ id }) => id === target.id);
     if (!plotPoint) return null;
     return {
-      label: "剧情点",
+      label: t("longImpactConfirmation.plotPoint"),
       title: plotPoint.title,
       description: longDeletionDescription(index, "plotPoint", plotPoint.id),
       orderedIds: index.plot.arcs
@@ -103,7 +109,7 @@ export function resolveLongTreeItemDetails(
   const chapter = index.plot.chapterCards.find(({ id }) => id === target.id);
   if (!chapter) return null;
   return {
-    label: "章卡",
+    label: t("longImpactConfirmation.chapterCard"),
     title: chapter.title,
     description: longDeletionDescription(index, "chapterCard", chapter.id),
     orderedIds: index.plot.chapterCards
@@ -193,7 +199,11 @@ export function createLongStructureTree(
   } | null> {
     const bookId = node.longBookId;
     if (!bookId || node.workspaceType !== "long") {
-      uiMessage.warning(`当前长篇尚未准备好${actionLabel}。`);
+      uiMessage.warning(
+        t("tree.theCurrentLongFormProjectIsNotReadyFor", {
+          actionLabel: actionLabel
+        })
+      );
       return null;
     }
     if (activeLongBookId.value !== bookId) {
@@ -205,7 +215,11 @@ export function createLongStructureTree(
     const summary = activeLongBookSummary.value;
     const index = activeLongWorkspaceIndex.value;
     if (!summary || !index || summary.id !== bookId) {
-      uiMessage.warning(`当前长篇尚未准备好${actionLabel}。`);
+      uiMessage.warning(
+        t("tree.theCurrentLongFormProjectIsNotReadyFor", {
+          actionLabel: actionLabel
+        })
+      );
       return null;
     }
     return { bookId, summary, index };
@@ -222,7 +236,7 @@ export function createLongStructureTree(
       if (target.kind === "worldbuilding-item" && target.parentId) {
         const prepared = await ensureLongTreeTargetBook(
           node,
-          "新增世界观条目",
+          t("tree.addWorldbuildingEntry"),
           requestId
         );
         if (!prepared || !dialogRequestIsCurrent(requestId)) return;
@@ -236,7 +250,7 @@ export function createLongStructureTree(
       if (target.kind === "volume") {
         const bookId = node.longBookId;
         if (!bookId || node.workspaceType !== "long") {
-          uiMessage.warning("当前长篇尚未准备好新建分卷。");
+          uiMessage.warning(t("tree.theCurrentLongFormProjectIsNotReadyTo"));
           return;
         }
         await openLongVolumeCreateInternal(requestId, {
@@ -250,7 +264,7 @@ export function createLongStructureTree(
       }
       const prepared = await ensureLongTreeTargetBook(
         node,
-        "新增条目",
+        t("tree.addEntry"),
         requestId
       );
       if (!prepared || !dialogRequestIsCurrent(requestId)) return;
@@ -259,7 +273,9 @@ export function createLongStructureTree(
           ({ id }) => id === target.parentId
         );
         if (!group) {
-          uiMessage.warning("当前人物类型已不存在，请刷新后重试。");
+          uiMessage.warning(
+            t("tree.thisCharacterTypeNoLongerExistsRefreshAndTry")
+          );
           return;
         }
         longCharacterCreate.value = {
@@ -298,7 +314,7 @@ export function createLongStructureTree(
       if (!target) return;
       const prepared = await ensureLongTreeTargetBook(
         node,
-        action === "delete" ? "删除条目" : "调整条目顺序",
+        action === "delete" ? t("tree.deleteEntry") : t("tree.reorderEntry"),
         requestId
       );
       if (!prepared || !dialogRequestIsCurrent(requestId)) return;
@@ -308,7 +324,9 @@ export function createLongStructureTree(
         node
       );
       if (!details) {
-        uiMessage.warning("该条目已不存在，请刷新后重试。");
+        uiMessage.warning(
+          t("delete.thisEntryNoLongerExistsRefreshAndTryAgain")
+        );
         return;
       }
       if (action === "delete") {
@@ -318,7 +336,8 @@ export function createLongStructureTree(
             await loadLongStructureMutationModule();
           const builder = createLongStructureMutationBuilder(prepared.index);
           if (target.kind === "worldbuilding-item") {
-            if (!target.parentId) throw new Error("缺少世界观分类 ID。");
+            if (!target.parentId)
+              throw new Error(t("delete.theWorldbuildingCategoryIdIsMissing"));
             batch = builder.deleteWorldbuildingItem(target.parentId, target.id);
           } else if (target.kind === "character") {
             batch = builder.deleteCharacter(target.id);
@@ -349,7 +368,7 @@ export function createLongStructureTree(
         } catch (error: unknown) {
           if (isDisposed()) return;
           uiMessage.warning(
-            error instanceof Error ? error.message : "无法预览删除影响。"
+            formatError(error, t("tree.couldNotPreviewTheDeletionImpact"))
           );
         }
         return;
@@ -367,7 +386,10 @@ export function createLongStructureTree(
             const builder = createLongStructureMutationBuilder(prepared.index);
             const direction = action === "move-up" ? "up" : "down";
             if (target.kind === "worldbuilding-item") {
-              if (!target.parentId) throw new Error("缺少世界观分类 ID。");
+              if (!target.parentId)
+                throw new Error(
+                  t("delete.theWorldbuildingCategoryIdIsMissing")
+                );
               batch = builder.reorderWorldbuildingItem(
                 target.parentId,
                 target.id,
@@ -385,7 +407,7 @@ export function createLongStructureTree(
           } catch (error: unknown) {
             if (isDisposed()) return;
             uiMessage.warning(
-              error instanceof Error ? error.message : "无法调整条目顺序。"
+              formatError(error, t("tree.couldNotReorderTheEntry"))
             );
             return;
           }
@@ -394,9 +416,14 @@ export function createLongStructureTree(
             batch,
             NOOP_COMPLETION,
             {
-              successMessage: `已${
-                action === "move-up" ? "上移" : "下移"
-              }${details.label}“${details.title}”`
+              successMessage: t("tree.message", {
+                value:
+                  action === "move-up"
+                    ? t("proposalCoordinator.moveUp")
+                    : t("proposalCoordinator.moveDown"),
+                label: details.label,
+                title: details.title
+              })
             },
             prepared.index
           );

@@ -1,3 +1,4 @@
+import { t } from "../i18n";
 import { markRaw, shallowRef, type ShallowRef } from "vue";
 import type { AgentConversationController } from "../composables/useAgentConversation";
 import type {
@@ -76,7 +77,12 @@ export function createConversationPreferenceState(
     options: PreferenceUpdateOptions = {}
   ): void {
     const normalizedScope = scope.trim();
-    if (!normalizedScope) throw new Error("会话 scope 不能为空。");
+    if (!normalizedScope)
+      throw new Error(
+        t(
+          "workspace.conversationPreferenceState.conversationScopeCannotBeEmpty"
+        )
+      );
     agentRunPreferences.value = rawValue({
       ...agentRunPreferences.value,
       [normalizedScope]: { ...preferences }

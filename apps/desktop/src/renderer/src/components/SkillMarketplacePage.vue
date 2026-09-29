@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { formatError } from "../i18n/errors";
+import { createScopedTranslator } from "../i18n";
 import { computed, onMounted, ref, watch } from "vue";
 import {
   MARKETPLACE_CONTENT_MAX_CHARACTERS,
@@ -37,6 +39,8 @@ import {
   type MarketplacePublishDocumentReader
 } from "../utils/marketplacePublishContent";
 
+const t = createScopedTranslator("components.skillMarketplacePage");
+
 const props = defineProps<{
   active: boolean;
   catalogSnapshot: CatalogSnapshot | null;
@@ -58,57 +62,165 @@ type DetailSkillSection = {
 };
 
 const CONTENT_TYPE_LABELS: Record<MarketplaceContentType, string> = {
-  group: "技能组",
-  library: "技能库",
-  skill: "单技能"
+  get group() {
+    return t("skillGroup");
+  },
+  get library() {
+    return t("skillLibrary");
+  },
+  get skill() {
+    return t("singleSkill");
+  }
 };
 const KIND_LABELS: Record<MarketplaceSkillKind, string> = {
-  style: "文风",
-  general: "通用",
-  plot: "剧情",
-  other: "其他"
+  get style() {
+    return t("writingStyle");
+  },
+  get general() {
+    return t("general");
+  },
+  get plot() {
+    return t("plot");
+  },
+  get other() {
+    return t("other");
+  }
 };
 const LIBRARY_TYPE_LABELS: Record<MarketplaceLibraryType, string> = {
-  short: "短篇",
-  long: "长篇",
-  script: "剧本"
+  get short() {
+    return t("shortStory");
+  },
+  get long() {
+    return t("novel");
+  },
+  get script() {
+    return t("screenplay");
+  }
 };
 const STATUS_LABELS: Record<string, string> = {
-  draft: "草稿",
-  pending: "待审核",
-  published: "已发布",
-  rejected: "已驳回",
-  archived: "已归档",
-  deleted: "已删除"
+  get draft() {
+    return t("draft");
+  },
+  get pending() {
+    return t("pendingReview");
+  },
+  get published() {
+    return t("published");
+  },
+  get rejected() {
+    return t("rejected");
+  },
+  get archived() {
+    return t("archived");
+  },
+  get deleted() {
+    return t("deleted");
+  }
 };
 
 const contentTypeOptions: PopupSelectOption[] = [
-  { value: "", label: "全部内容" },
-  { value: "group", label: "技能组" },
-  { value: "library", label: "技能库" },
-  { value: "skill", label: "单技能" }
+  {
+    value: "",
+    get label() {
+      return t("allContent");
+    }
+  },
+  {
+    value: "group",
+    get label() {
+      return t("skillGroup");
+    }
+  },
+  {
+    value: "library",
+    get label() {
+      return t("skillLibrary");
+    }
+  },
+  {
+    value: "skill",
+    get label() {
+      return t("singleSkill");
+    }
+  }
 ];
 const kindOptions: PopupSelectOption[] = [
-  { value: "", label: "全部分类" },
-  ...Object.entries(KIND_LABELS).map(([value, label]) => ({ value, label }))
+  {
+    value: "",
+    get label() {
+      return t("allCategories");
+    }
+  },
+  ...(Object.keys(KIND_LABELS) as Array<keyof typeof KIND_LABELS>).map(
+    (value) => ({
+      value,
+      get label() {
+        return KIND_LABELS[value];
+      }
+    })
+  )
 ];
 const libraryTypeOptions: PopupSelectOption[] = [
-  { value: "", label: "全部创作类型" },
-  ...Object.entries(LIBRARY_TYPE_LABELS).map(([value, label]) => ({
+  {
+    value: "",
+    get label() {
+      return t("allWritingTypes");
+    }
+  },
+  ...(
+    Object.keys(LIBRARY_TYPE_LABELS) as Array<keyof typeof LIBRARY_TYPE_LABELS>
+  ).map((value) => ({
     value,
-    label
+    get label() {
+      return LIBRARY_TYPE_LABELS[value];
+    }
   }))
 ];
 const sortOptions: PopupSelectOption[] = [
-  { value: "latest", label: "最新发布" },
-  { value: "popular", label: "综合热门" },
-  { value: "downloads", label: "下载最多" },
-  { value: "likes", label: "点赞最多" }
+  {
+    value: "latest",
+    get label() {
+      return t("newest");
+    }
+  },
+  {
+    value: "popular",
+    get label() {
+      return t("popular");
+    }
+  },
+  {
+    value: "downloads",
+    get label() {
+      return t("mostDownloaded");
+    }
+  },
+  {
+    value: "likes",
+    get label() {
+      return t("mostLiked");
+    }
+  }
 ];
 const publishTypeOptions: PopupSelectOption[] = [
-  { value: "skill", label: "发布单技能" },
-  { value: "library", label: "发布技能库" },
-  { value: "group", label: "发布技能组" }
+  {
+    value: "skill",
+    get label() {
+      return t("publishSkill");
+    }
+  },
+  {
+    value: "library",
+    get label() {
+      return t("publishSkillLibrary");
+    }
+  },
+  {
+    value: "group",
+    get label() {
+      return t("publishSkillGroup");
+    }
+  }
 ];
 
 const session = ref<MarketplaceSession | null>(props.initialSession ?? null);
@@ -190,7 +302,11 @@ const installTargetLibraryOptions = computed<PopupSelectOption[]>(() => {
     .map((library) => ({
       value: library.id,
       label: library.title,
-      description: `${KIND_LABELS[library.skillKind]} · ${LIBRARY_TYPE_LABELS[library.skillType]} · ${library.entries.length} 条技能`
+      description: t("valueValueValueSkills", {
+        arg0: KIND_LABELS[library.skillKind],
+        arg1: LIBRARY_TYPE_LABELS[library.skillType],
+        arg2: library.entries.length
+      })
     }));
 });
 
@@ -212,7 +328,11 @@ const localSkillLibraryOptions = computed<PopupSelectOption[]>(() =>
     .map((library) => ({
       value: library.id,
       label: library.title,
-      description: `${KIND_LABELS[library.skillKind]} · ${LIBRARY_TYPE_LABELS[library.skillType]} · ${library.entries.length} 条技能`
+      description: t("valueValueValueSkills", {
+        arg0: KIND_LABELS[library.skillKind],
+        arg1: LIBRARY_TYPE_LABELS[library.skillType],
+        arg2: library.entries.length
+      })
     }))
 );
 
@@ -242,7 +362,13 @@ const localSkillGroupOptions = computed<PopupSelectOption[]>(() =>
       {
         value: group.id,
         label: group.title,
-        description: `${libraries.length} 个技能库 · ${libraries.reduce((total, library) => total + library.entries.length, 0)} 条技能`
+        description: t("valueSkillLibrariesValueSkills", {
+          arg0: libraries.length,
+          arg1: libraries.reduce(
+            (total, library) => total + library.entries.length,
+            0
+          )
+        })
       }
     ];
   })
@@ -284,7 +410,7 @@ function selectDetailSection(section: DetailSkillSection): void {
 }
 
 function errorMessage(error: unknown, fallback: string): string {
-  if (!(error instanceof Error)) return fallback;
+  if (!(error instanceof Error)) return formatError(error, fallback);
   const cleaned = error.message
     .replace(
       /^Error invoking remote method '[^']+': (?:[A-Za-z_$][\w$]*Error|Error):\s*/u,
@@ -324,7 +450,9 @@ async function restoreSession(): Promise<void> {
       await Promise.all([loadBrowse(), loadMine()]);
     }
   } catch (error: unknown) {
-    uiMessage.error(errorMessage(error, "技能广场会话恢复失败。"));
+    uiMessage.error(
+      errorMessage(error, t("couldNotRestoreMarketplaceSession"))
+    );
   } finally {
     loading.value = false;
   }
@@ -348,9 +476,9 @@ async function logout(): Promise<void> {
     minePage.value = 1;
     mineTotal.value = 0;
     mineTotalPages.value = 0;
-    uiMessage.success("已退出技能广场");
+    uiMessage.success(t("signedOutOfTheMarketplace"));
   } catch (error: unknown) {
-    uiMessage.error(errorMessage(error, "退出登录失败。"));
+    uiMessage.error(errorMessage(error, t("couldNotSignOut")));
   }
 }
 
@@ -381,7 +509,7 @@ async function loadBrowse(page = browsePage.value): Promise<void> {
     browseTotalPages.value = result.totalPages;
   } catch (error: unknown) {
     await refreshSessionAfterError();
-    uiMessage.error(errorMessage(error, "加载技能广场失败。"));
+    uiMessage.error(errorMessage(error, t("couldNotLoadTheMarketplace")));
   } finally {
     loading.value = false;
   }
@@ -401,7 +529,7 @@ async function loadMine(page = minePage.value): Promise<void> {
     mineTotalPages.value = result.totalPages;
   } catch (error: unknown) {
     await refreshSessionAfterError();
-    uiMessage.error(errorMessage(error, "加载我的发布失败。"));
+    uiMessage.error(errorMessage(error, t("couldNotLoadYourPublications")));
   } finally {
     mineLoading.value = false;
   }
@@ -495,7 +623,7 @@ async function openDetail(
     detailSkillSections.value = [];
     selectedDetailSectionId.value = "";
     selectedDetailSkillId.value = "";
-    uiMessage.error(errorMessage(error, "加载内容详情失败。"));
+    uiMessage.error(errorMessage(error, t("couldNotLoadContentDetails")));
   } finally {
     detailPending.value = false;
   }
@@ -545,7 +673,9 @@ async function toggleLike(item: MarketplaceContentSummary): Promise<void> {
   } catch (error: unknown) {
     applyLikeLocally(ref, previousLiked, previousCount);
     await refreshSessionAfterError();
-    uiMessage.error(errorMessage(error, "点赞操作失败，已恢复原状态。"));
+    uiMessage.error(
+      errorMessage(error, t("likeFailedThePreviousStateWasRestored"))
+    );
   }
 }
 
@@ -576,23 +706,27 @@ async function togglePublicationEnabled(
     if (updated.enabled) {
       uiMessage.success(
         updated.status === "published"
-          ? "已启用，该内容会在技能广场显示。"
-          : "已启用；审核通过后会在技能广场显示。"
+          ? t("enabledThisContentWillAppearInTheMarketplace")
+          : t("enabledThisContentWillAppearAfterReviewApproval")
       );
     } else {
-      uiMessage.success("已停用，该内容不会在技能广场显示。");
+      uiMessage.success(t("disabledThisContentWillNotAppearInTheMarketplace"));
     }
   } catch (error: unknown) {
     await refreshSessionAfterError();
-    uiMessage.error(errorMessage(error, "更新广场展示状态失败。"));
+    uiMessage.error(
+      errorMessage(error, t("couldNotUpdateMarketplaceVisibility"))
+    );
   } finally {
     enabledPendingKey.value = "";
   }
 }
 
 function deletedRetentionText(item: MarketplaceContentSummary): string {
-  if (!item.purgeAt) return "已删除，服务端将保留约 10 天";
-  return `保留至 ${new Date(item.purgeAt).toLocaleString()}`;
+  if (!item.purgeAt) return t("deletedTheServerRetainsItForAbout10Days");
+  return t("retainedUntilValue", {
+    arg0: new Date(item.purgeAt).toLocaleString()
+  });
 }
 
 async function prepareInstall(item: MarketplaceContentSummary): Promise<void> {
@@ -609,7 +743,7 @@ async function prepareInstall(item: MarketplaceContentSummary): Promise<void> {
       preview.buckets.map((bucket) => [bucket.kind, bucket.libraryType])
     );
   } catch (error: unknown) {
-    uiMessage.error(errorMessage(error, "读取安装预览失败。"));
+    uiMessage.error(errorMessage(error, t("couldNotLoadInstallationPreview")));
   } finally {
     installPending.value = false;
   }
@@ -631,7 +765,7 @@ async function confirmInstall(): Promise<void> {
     installPreview.value.ref.contentType === "skill" &&
     !installTargetLibraryId.value
   ) {
-    uiMessage.warning("请选择要安装到的本地技能库。");
+    uiMessage.warning(t("selectALocalSkillLibraryToInstallInto"));
     return;
   }
   installPending.value = true;
@@ -655,16 +789,22 @@ async function confirmInstall(): Promise<void> {
       }
     });
     if (result.alreadyInstalled) {
-      uiMessage.info("相同版本已经安装，无需重复安装。");
+      uiMessage.info(t("thisVersionIsAlreadyInstalled"));
     } else if (!result.downloadCounted) {
-      uiMessage.warning("技能已安装到本地，但远程下载计数更新失败。");
+      uiMessage.warning(
+        t("skillsWereInstalledLocallyButTheRemoteDownloadCount")
+      );
     } else {
-      uiMessage.success(`已安装“${result.title}”`);
+      uiMessage.success(
+        t("installedValue", {
+          arg0: result.title
+        })
+      );
     }
     installPreview.value = null;
     emit("refreshCatalog");
   } catch (error: unknown) {
-    uiMessage.error(errorMessage(error, "安装技能内容失败。"));
+    uiMessage.error(errorMessage(error, t("couldNotInstallSkillContent")));
   } finally {
     installPending.value = false;
   }
@@ -699,7 +839,7 @@ async function applyPublishSource(value: PopupSelectValue): Promise<void> {
   const token = ++publishSourceLoadToken;
   const reader = catalogDocumentReader();
   if (!reader) {
-    uiMessage.warning("当前环境无法读取本地技能正文。");
+    uiMessage.warning(t("thisEnvironmentCannotReadLocalSkillContent"));
     return;
   }
   publishSourceLoading.value = true;
@@ -783,7 +923,7 @@ async function applyPublishSource(value: PopupSelectValue): Promise<void> {
     }
   } catch (error: unknown) {
     if (token !== publishSourceLoadToken) return;
-    uiMessage.error(errorMessage(error, "读取本地技能正文失败。"));
+    uiMessage.error(errorMessage(error, t("couldNotReadLocalSkillContent")));
   } finally {
     if (token === publishSourceLoadToken) {
       publishSourceLoading.value = false;
@@ -798,12 +938,12 @@ function groupItemLabel(ref: MarketplaceContentRef): string {
 function buildPublishInput(): MarketplacePublishInput | null {
   const title = publishTitle.value.trim();
   if (!title) {
-    uiMessage.warning("请输入发布标题。");
+    uiMessage.warning(t("enterAPublicationTitle"));
     return null;
   }
   if (publishType.value === "skill") {
     if (!publishBody.value.trim()) {
-      uiMessage.warning("请选择并确认要发布的本地技能内容。");
+      uiMessage.warning(t("selectAndConfirmTheLocalSkillContentToPublish"));
       return null;
     }
     return {
@@ -818,7 +958,7 @@ function buildPublishInput(): MarketplacePublishInput | null {
   }
   if (publishType.value === "library") {
     if (publishEntries.value.length === 0) {
-      uiMessage.warning("请选择一个非内置本地技能库。");
+      uiMessage.warning(t("selectALocalLibraryThatIsNotBuiltIn"));
       return null;
     }
     const emptyTitles = publishEntries.value
@@ -849,7 +989,7 @@ function buildPublishInput(): MarketplacePublishInput | null {
     publishGroupLibraries.value.length === 0 &&
     publishGroupItems.value.length === 0
   ) {
-    uiMessage.warning("请选择一个包含非内置技能库的本地技能分组。");
+    uiMessage.warning(t("selectALocalSkillGroupContainingLibrariesThatAre"));
     return null;
   }
   if (publishGroupLibraries.value.length > 0) {
@@ -869,7 +1009,7 @@ function buildPublishInput(): MarketplacePublishInput | null {
         (library) => library.entries.length === 0
       )
     ) {
-      uiMessage.warning("技能组内存在没有可发布正文的技能库。");
+      uiMessage.warning(t("aLibraryInThisGroupHasNoPublishableContent"));
       return null;
     }
     return {
@@ -900,14 +1040,14 @@ async function hydrateLocalPublishContents(): Promise<boolean> {
   if (editingRef.value) return true;
   const reader = catalogDocumentReader();
   if (!reader) {
-    uiMessage.warning("当前环境无法读取本地技能正文。");
+    uiMessage.warning(t("thisEnvironmentCannotReadLocalSkillContent"));
     return false;
   }
   if (publishType.value === "skill") {
     if (publishBody.value.trim()) return true;
     const [libraryId, entryId] = publishSourceId.value.split("\u0000");
     if (!libraryId || !entryId) {
-      uiMessage.warning("请选择并确认要发布的本地技能内容。");
+      uiMessage.warning(t("selectAndConfirmTheLocalSkillContentToPublish"));
       return false;
     }
     publishBody.value = await loadMarketplacePublishSkillContent(
@@ -928,7 +1068,7 @@ async function hydrateLocalPublishContents(): Promise<boolean> {
       ({ id }) => id === publishSourceId.value
     );
     if (!library) {
-      uiMessage.warning("请选择一个非内置本地技能库。");
+      uiMessage.warning(t("selectALocalLibraryThatIsNotBuiltIn"));
       return false;
     }
     const needsReload =
@@ -953,7 +1093,7 @@ async function hydrateLocalPublishContents(): Promise<boolean> {
   if (publishGroupItems.value.length > 0) return true;
   const libraries = localLibrariesForGroup(publishSourceId.value);
   if (libraries.length === 0) {
-    uiMessage.warning("请选择一个包含非内置技能库的本地技能分组。");
+    uiMessage.warning(t("selectALocalSkillGroupContainingLibrariesThatAre"));
     return false;
   }
   const loaded = await Promise.all(
@@ -1000,17 +1140,17 @@ async function submitPublish(): Promise<void> {
         id: editingRef.value.id,
         content: input
       });
-      uiMessage.success("修改已提交，内容重新进入待审核状态。");
+      uiMessage.success(t("changesSubmittedTheContentIsPendingReviewAgain"));
     } else {
       await window.deepwrite!.marketplace.publish(input);
-      uiMessage.success("发布内容已提交审核。");
+      uiMessage.success(t("contentSubmittedForReview"));
     }
     resetPublishForm(input.contentType);
     await loadMine(1);
     pageTab.value = "mine";
   } catch (error: unknown) {
     await refreshSessionAfterError();
-    uiMessage.error(errorMessage(error, "提交发布内容失败。"));
+    uiMessage.error(errorMessage(error, t("couldNotSubmitContent")));
   } finally {
     publishPending.value = false;
   }
@@ -1058,7 +1198,7 @@ async function editPublished(item: MarketplaceContentSummary): Promise<void> {
     pageTab.value = "publish";
   } catch (error: unknown) {
     await refreshSessionAfterError();
-    uiMessage.error(errorMessage(error, "读取待编辑内容失败。"));
+    uiMessage.error(errorMessage(error, t("couldNotLoadContentForEditing")));
   }
 }
 
@@ -1070,13 +1210,13 @@ async function confirmDelete(): Promise<void> {
       contentType: deleteTarget.value.contentType,
       id: deleteTarget.value.id
     });
-    uiMessage.success("内容已标记为已删除，服务端将保留 10 天后再清理。");
+    uiMessage.success(t("contentMarkedAsDeletedTheServerWillRetainIt"));
     deleteTarget.value = null;
     detail.value = null;
     await loadMine();
   } catch (error: unknown) {
     await refreshSessionAfterError();
-    uiMessage.error(errorMessage(error, "删除发布内容失败。"));
+    uiMessage.error(errorMessage(error, t("couldNotDeletePublishedContent")));
   } finally {
     deletePending.value = false;
   }
@@ -1095,12 +1235,14 @@ onMounted(() => {
 </script>
 
 <template>
-  <section class="marketplace-page" aria-label="技能广场">
+  <section class="marketplace-page" :aria-label="t('skillMarketplace')">
     <header class="marketplace-header">
       <div>
-        <span class="marketplace-eyebrow">更多功能</span>
-        <h1>技能广场</h1>
-        <p>发现、安装并发布 DeepWrite 写作技能。</p>
+        <span class="marketplace-eyebrow">{{ t("moreFeatures") }}</span>
+        <h1>{{ t("skillMarketplace") }}</h1>
+        <p>
+          {{ t("discoverInstallAndPublishDeepWriteWritingSkills") }}
+        </p>
       </div>
       <div v-if="authenticated" class="marketplace-account">
         <span>{{ session?.user?.displayName }}</span>
@@ -1111,7 +1253,7 @@ onMounted(() => {
           @updated="updateSession"
         />
         <button type="button" class="secondary-button" @click="logout">
-          退出登录
+          {{ t("signOut") }}
         </button>
       </div>
     </header>
@@ -1119,21 +1261,20 @@ onMounted(() => {
     <div v-if="insecureTransport" class="insecure-warning" role="note">
       <AppIcon name="globe" :size="17" />
       <div>
-        <strong>连接未加密</strong>
-        <span
-          >当前技能广场使用
-          HTTP。用户名、密码和会话令牌在传输中可能被窃听，请只在可信网络中使用。</span
-        >
+        <strong>{{ t("unencryptedConnection") }}</strong>
+        <span>{{
+          t("theMarketplaceCurrentlyUsesHTTPUsernamesPasswordsAndSession")
+        }}</span>
       </div>
     </div>
 
     <div v-if="!apiAvailable" class="marketplace-empty-state">
-      <strong>当前环境未连接桌面端能力</strong>
-      <span>请在 DeepWrite 桌面客户端中打开技能广场。</span>
+      <strong>{{ t("desktopCapabilitiesAreUnavailable") }}</strong>
+      <span>{{ t("openTheSkillMarketplaceInTheDeepWriteDesktopApp") }}</span>
     </div>
 
     <div v-else-if="session === null" class="marketplace-empty-state">
-      <span>正在恢复登录状态…</span>
+      <span>{{ t("restoringSignIn") }}</span>
     </div>
 
     <MarketplaceAuthForm
@@ -1142,27 +1283,27 @@ onMounted(() => {
     />
 
     <template v-else>
-      <nav class="marketplace-tabs" aria-label="技能广场页面">
+      <nav class="marketplace-tabs" :aria-label="t('skillMarketplacePage')">
         <button
           type="button"
           :class="{ active: pageTab === 'browse' }"
           @click="selectTab('browse')"
         >
-          广场
+          {{ t("marketplace") }}
         </button>
         <button
           type="button"
           :class="{ active: pageTab === 'mine' }"
           @click="selectTab('mine')"
         >
-          我的发布
+          {{ t("myPublications") }}
         </button>
         <button
           type="button"
           :class="{ active: pageTab === 'publish' }"
           @click="selectTab('publish')"
         >
-          发布内容
+          {{ t("publishContent") }}
         </button>
       </nav>
 
@@ -1172,32 +1313,32 @@ onMounted(() => {
             <AppIcon name="search" :size="16" />
             <input
               v-model="query"
-              placeholder="搜索名称、简介或作者"
+              :placeholder="t('searchNamesDescriptionsOrAuthors')"
               maxlength="256"
             />
           </label>
           <PopupSelect
             v-model="contentType"
             :options="contentTypeOptions"
-            accessible-label="内容类型"
+            :accessible-label="t('contentType')"
             variant="compact"
           />
           <PopupSelect
             v-model="kind"
             :options="kindOptions"
-            accessible-label="技能分类"
+            :accessible-label="t('skillCategory')"
             variant="compact"
           />
           <PopupSelect
             v-model="libraryType"
             :options="libraryTypeOptions"
-            accessible-label="创作类型"
+            :accessible-label="t('writingType')"
             variant="compact"
           />
           <PopupSelect
             v-model="sort"
             :options="sortOptions"
-            accessible-label="排序方式"
+            :accessible-label="t('sortBy')"
             variant="compact"
           />
           <button
@@ -1206,26 +1347,26 @@ onMounted(() => {
             :disabled="loading"
             @click="loadBrowse()"
           >
-            {{ loading ? "刷新中…" : "刷新" }}
+            {{ loading ? t("refreshing") : t("refresh") }}
           </button>
           <button
             class="primary-button compact"
             type="submit"
             :disabled="loading"
           >
-            搜索
+            {{ t("search") }}
           </button>
         </form>
 
         <div v-if="loading" class="marketplace-empty-state">
-          <span>正在加载技能内容…</span>
+          <span>{{ t("loadingSkills") }}</span>
         </div>
         <div
           v-else-if="browseItems.length === 0"
           class="marketplace-empty-state"
         >
-          <strong>没有找到匹配内容</strong>
-          <span>可以调整关键词或筛选条件后重试。</span>
+          <strong>{{ t("noMatchingContent") }}</strong>
+          <span>{{ t("tryDifferentKeywordsOrFilters") }}</span>
         </div>
         <div v-else class="content-grid">
           <article
@@ -1244,7 +1385,9 @@ onMounted(() => {
             <button class="card-title" type="button" @click="openDetail(item)">
               {{ item.title }}
             </button>
-            <p>{{ item.overview || "作者暂未填写简介。" }}</p>
+            <p>
+              {{ item.overview || t("theAuthorHasNotProvidedADescription") }}
+            </p>
             <div class="card-meta">
               <span>{{ item.ownerName || item.ownerUsername }}</span
               ><span>v{{ item.version }}</span>
@@ -1258,13 +1401,17 @@ onMounted(() => {
                 <span :class="{ liked: item.likedByMe }">♥</span>
                 {{ item.likeCount }}
               </button>
-              <span>下载 {{ item.downloadCount }}</span>
+              <span>{{
+                t("downloadsMessage", {
+                  arg0: item.downloadCount ?? ""
+                })
+              }}</span>
               <button
                 type="button"
                 class="secondary-button"
                 @click="openDetail(item)"
               >
-                详情
+                {{ t("details") }}
               </button>
               <button
                 type="button"
@@ -1272,7 +1419,7 @@ onMounted(() => {
                 :disabled="installPending"
                 @click="prepareInstall(item)"
               >
-                安装
+                {{ t("install") }}
               </button>
             </div>
           </article>
@@ -1280,9 +1427,14 @@ onMounted(() => {
         <nav
           v-if="browseTotal > 0"
           class="marketplace-pagination"
-          aria-label="技能广场分页"
+          :aria-label="t('marketplacePagination')"
         >
-          <span>共 {{ browseTotal }} 条 · 每页 {{ PAGE_SIZE }} 条</span>
+          <span>{{
+            t("totalPerPageMessage", {
+              arg0: browseTotal ?? "",
+              arg1: PAGE_SIZE ?? ""
+            })
+          }}</span>
           <div>
             <button
               type="button"
@@ -1290,7 +1442,7 @@ onMounted(() => {
               :disabled="loading || browsePage <= 1"
               @click="changeBrowsePage(1)"
             >
-              首页
+              {{ t("first") }}
             </button>
             <button
               type="button"
@@ -1298,18 +1450,21 @@ onMounted(() => {
               :disabled="loading || browsePage <= 1"
               @click="changeBrowsePage(browsePage - 1)"
             >
-              上一页
+              {{ t("previous") }}
             </button>
-            <strong
-              >第 {{ browsePage }} / {{ browseDisplayTotalPages }} 页</strong
-            >
+            <strong>{{
+              t("pageMessage", {
+                arg0: browsePage ?? "",
+                arg1: browseDisplayTotalPages ?? ""
+              })
+            }}</strong>
             <button
               type="button"
               class="secondary-button compact"
               :disabled="loading || browsePage >= browseDisplayTotalPages"
               @click="changeBrowsePage(browsePage + 1)"
             >
-              下一页
+              {{ t("next") }}
             </button>
             <button
               type="button"
@@ -1317,7 +1472,7 @@ onMounted(() => {
               :disabled="loading || browsePage >= browseDisplayTotalPages"
               @click="changeBrowsePage(browseDisplayTotalPages)"
             >
-              末页
+              {{ t("last") }}
             </button>
           </div>
         </nav>
@@ -1326,9 +1481,11 @@ onMounted(() => {
       <section v-else-if="pageTab === 'mine'" class="marketplace-content">
         <div class="section-heading">
           <div>
-            <h2>我的发布</h2>
+            <h2>{{ t("myPublications") }}</h2>
             <p>
-              只有启用且审核通过的内容才会显示在广场；已删除内容会保留 10 天。
+              {{
+                t("onlyEnabledApprovedContentAppearsInTheMarketplaceDeleted")
+              }}
             </p>
           </div>
           <button
@@ -1337,26 +1494,26 @@ onMounted(() => {
             :disabled="mineLoading"
             @click="loadMine()"
           >
-            {{ mineLoading ? "刷新中…" : "刷新" }}
+            {{ mineLoading ? t("refreshing") : t("refresh") }}
           </button>
         </div>
         <div
           v-if="mineLoading && mineItems.length === 0"
           class="marketplace-empty-state"
         >
-          <span>正在加载发布内容…</span>
+          <span>{{ t("loadingPublications") }}</span>
         </div>
         <div
           v-else-if="visibleMineItems.length === 0"
           class="marketplace-empty-state"
         >
-          <strong>还没有发布内容</strong>
+          <strong>{{ t("noPublicationsYet") }}</strong>
           <button
             type="button"
             class="primary-button compact"
             @click="selectTab('publish')"
           >
-            发布第一个技能
+            {{ t("publishYourFirstSkill") }}
           </button>
         </div>
         <div v-else class="mine-list">
@@ -1379,11 +1536,13 @@ onMounted(() => {
                 <small v-if="item.status === 'deleted'">{{
                   deletedRetentionText(item)
                 }}</small>
-                <small v-else
-                  >v{{ item.version }} ·
-                  {{ item.enabled ? "已启用展示" : "未启用展示" }} · 更新于
-                  {{ new Date(item.updatedAt).toLocaleString() }}</small
-                >
+                <small v-else>{{
+                  t("vUpdatedMessage", {
+                    arg0: item.version ?? "",
+                    arg1: (item.enabled ? t("visible") : t("hidden")) ?? "",
+                    arg2: new Date(item.updatedAt).toLocaleString() ?? ""
+                  })
+                }}</small>
               </span>
             </button>
             <span class="status-badge" :data-status="item.status">{{
@@ -1400,10 +1559,10 @@ onMounted(() => {
               >
                 {{
                   enabledPendingKey === `${item.contentType}:${item.id}`
-                    ? "更新中…"
+                    ? t("updating")
                     : item.enabled
-                      ? "停用"
-                      : "启用"
+                      ? t("disable")
+                      : t("enable")
                 }}
               </button>
               <button
@@ -1411,14 +1570,14 @@ onMounted(() => {
                 type="button"
                 @click="editPublished(item)"
               >
-                编辑
+                {{ t("edit") }}
               </button>
               <button
                 class="danger-outline-button"
                 type="button"
                 @click="deleteTarget = item"
               >
-                删除
+                {{ t("delete") }}
               </button>
             </div>
           </article>
@@ -1426,9 +1585,14 @@ onMounted(() => {
         <nav
           v-if="mineTotal > 0"
           class="marketplace-pagination"
-          aria-label="我的发布分页"
+          :aria-label="t('myPublicationsPagination')"
         >
-          <span>共 {{ mineTotal }} 条 · 每页 {{ PAGE_SIZE }} 条</span>
+          <span>{{
+            t("totalPerPageMessage", {
+              arg0: mineTotal ?? "",
+              arg1: PAGE_SIZE ?? ""
+            })
+          }}</span>
           <div>
             <button
               type="button"
@@ -1436,7 +1600,7 @@ onMounted(() => {
               :disabled="mineLoading || minePage <= 1"
               @click="changeMinePage(1)"
             >
-              首页
+              {{ t("first") }}
             </button>
             <button
               type="button"
@@ -1444,16 +1608,21 @@ onMounted(() => {
               :disabled="mineLoading || minePage <= 1"
               @click="changeMinePage(minePage - 1)"
             >
-              上一页
+              {{ t("previous") }}
             </button>
-            <strong>第 {{ minePage }} / {{ mineDisplayTotalPages }} 页</strong>
+            <strong>{{
+              t("pageMessage", {
+                arg0: minePage ?? "",
+                arg1: mineDisplayTotalPages ?? ""
+              })
+            }}</strong>
             <button
               type="button"
               class="secondary-button compact"
               :disabled="mineLoading || minePage >= mineDisplayTotalPages"
               @click="changeMinePage(minePage + 1)"
             >
-              下一页
+              {{ t("next") }}
             </button>
             <button
               type="button"
@@ -1461,7 +1630,7 @@ onMounted(() => {
               :disabled="mineLoading || minePage >= mineDisplayTotalPages"
               @click="changeMinePage(mineDisplayTotalPages)"
             >
-              末页
+              {{ t("last") }}
             </button>
           </div>
         </nav>
@@ -1470,8 +1639,12 @@ onMounted(() => {
       <section v-else class="marketplace-content publish-content">
         <div class="section-heading">
           <div>
-            <h2>{{ editingRef ? "编辑发布内容" : "发布内容" }}</h2>
-            <p>所有新建和修改内容都会进入 public + pending，等待审核。</p>
+            <h2>
+              {{ editingRef ? t("editPublication") : t("publishContent") }}
+            </h2>
+            <p>
+              {{ t("newAndEditedContentEntersPublicVisibilityWithPending") }}
+            </p>
           </div>
           <button
             v-if="editingRef"
@@ -1479,16 +1652,16 @@ onMounted(() => {
             type="button"
             @click="resetPublishForm()"
           >
-            取消编辑
+            {{ t("cancelEditing") }}
           </button>
         </div>
         <form class="publish-form" @submit.prevent="submitPublish">
           <label>
-            <span>内容类型</span>
+            <span>{{ t("contentType") }}</span>
             <PopupSelect
               :model-value="publishType"
               :options="publishTypeOptions"
-              accessible-label="发布内容类型"
+              :accessible-label="t('publicationType')"
               :disabled="Boolean(editingRef)"
               @update:model-value="changePublishType"
             />
@@ -1497,32 +1670,32 @@ onMounted(() => {
           <label v-if="!editingRef">
             <span>{{
               publishType === "skill"
-                ? "本地技能"
+                ? t("localSkill")
                 : publishType === "library"
-                  ? "本地技能库"
-                  : "本地技能分组"
+                  ? t("localSkillLibrary")
+                  : t("localSkillGroup")
             }}</span>
             <PopupSelect
               :model-value="publishSourceId"
               :options="currentSourceOptions"
               :accessible-label="
                 publishType === 'skill'
-                  ? '选择本地技能'
+                  ? t('selectLocalSkill')
                   : publishType === 'library'
-                    ? '选择本地技能库'
-                    : '选择本地技能分组'
+                    ? t('selectLocalSkillLibrary')
+                    : t('selectLocalSkillGroup')
               "
-              placeholder="请选择非内置本地内容"
+              :placeholder="t('selectLocalContentThatIsNotBuiltIn')"
               @update:model-value="applyPublishSource"
             />
           </label>
 
           <label>
-            <span>标题</span>
+            <span>{{ t("title") }}</span>
             <input v-model="publishTitle" maxlength="256" />
           </label>
           <label class="full-field">
-            <span>简介</span>
+            <span>{{ t("description") }}</span>
             <textarea
               v-model="publishOverview"
               rows="3"
@@ -1537,7 +1710,7 @@ onMounted(() => {
               <span>{{ publishStageId }}</span>
             </div>
             <label class="full-field">
-              <span>技能正文</span>
+              <span>{{ t("skillContent") }}</span>
               <textarea
                 v-model="publishBody"
                 rows="12"
@@ -1550,7 +1723,7 @@ onMounted(() => {
             v-else-if="publishType === 'library'"
             class="full-field publish-entry-list"
           >
-            <span>技能条目（保持本地顺序）</span>
+            <span>{{ t("skillEntriesLocalOrder") }}</span>
             <article v-for="(entry, index) in publishEntries" :key="index">
               <strong>{{ index + 1 }}. {{ entry.title }}</strong>
               <textarea
@@ -1564,14 +1737,14 @@ onMounted(() => {
           <div v-else class="full-field group-publisher">
             <span>{{
               editingRef
-                ? "当前远程分组成员"
-                : "本地分组内的技能库（按分类顺序发布）"
+                ? t("currentRemoteGroupMembers")
+                : t("librariesInTheLocalGroupPublishedInCategoryOrder")
             }}</span>
             <div
               v-if="!editingRef && publishGroupLibraries.length === 0"
               class="stable-help"
             >
-              请选择“我的技能库”下已有且成员完整的技能分组。
+              {{ t("selectACompleteExistingSkillGroupUnderMySkill") }}
             </div>
             <ol v-if="publishGroupLibraries.length" class="group-order-list">
               <li
@@ -1579,11 +1752,13 @@ onMounted(() => {
                 :key="`${library.kind}:${library.title}`"
               >
                 <span>{{ index + 1 }}. {{ library.title }}</span>
-                <small
-                  >{{ KIND_LABELS[library.kind] }} ·
-                  {{ LIBRARY_TYPE_LABELS[library.libraryType] }} ·
-                  {{ library.entries.length }} 条技能</small
-                >
+                <small>{{
+                  t("skillsMessage", {
+                    arg0: KIND_LABELS[library.kind] ?? "",
+                    arg1: LIBRARY_TYPE_LABELS[library.libraryType] ?? "",
+                    arg2: library.entries.length ?? ""
+                  })
+                }}</small>
               </li>
             </ol>
             <ol v-else-if="publishGroupItems.length" class="group-order-list">
@@ -1598,9 +1773,9 @@ onMounted(() => {
           </div>
 
           <div class="publish-actions full-field">
-            <span
-              >文件上传入口不在本轮桌面端 UI 中；当前仅发布现有本地技能。</span
-            >
+            <span>{{
+              t("fileUploadsAreNotAvailableInThisDesktopInterface")
+            }}</span>
             <button
               class="primary-button"
               type="submit"
@@ -1608,12 +1783,12 @@ onMounted(() => {
             >
               {{
                 publishPending
-                  ? "正在提交…"
+                  ? t("submitting")
                   : publishSourceLoading
-                    ? "正在读取正文…"
+                    ? t("readingContent")
                     : editingRef
-                      ? "保存并重新审核"
-                      : "提交审核"
+                      ? t("saveAndResubmitForReview")
+                      : t("submitForReview")
               }}
             </button>
           </div>
@@ -1631,7 +1806,7 @@ onMounted(() => {
           class="marketplace-modal detail-modal"
           role="dialog"
           aria-modal="true"
-          aria-label="技能详情"
+          :aria-label="t('skillDetails')"
         >
           <header>
             <div>
@@ -1642,13 +1817,17 @@ onMounted(() => {
               >
               <h2>{{ detail.title }}</h2>
             </div>
-            <button type="button" aria-label="关闭详情" @click="detail = null">
+            <button
+              type="button"
+              :aria-label="t('closeDetails')"
+              @click="detail = null"
+            >
               ×
             </button>
           </header>
           <div class="modal-scroll">
             <p class="detail-overview">
-              {{ detail.overview || "作者暂未填写简介。" }}
+              {{ detail.overview || t("theAuthorHasNotProvidedADescription") }}
             </p>
             <div
               v-if="
@@ -1656,7 +1835,7 @@ onMounted(() => {
               "
               class="detail-category-tabs"
               role="tablist"
-              aria-label="选择技能组分类"
+              :aria-label="t('selectSkillGroupCategory')"
             >
               <button
                 v-for="section in detailSkillSections"
@@ -1679,7 +1858,7 @@ onMounted(() => {
               "
               class="detail-skill-tabs"
               role="tablist"
-              aria-label="选择要查看的技能"
+              :aria-label="t('selectASkillToView')"
             >
               <button
                 v-for="skill in visibleDetailSkills"
@@ -1709,7 +1888,9 @@ onMounted(() => {
               <h3>{{ selectedDetailSkill.title }}</h3>
               <MarkdownContent :content="selectedDetailSkill.content" />
             </article>
-            <p v-else class="detail-empty">当前内容中没有可查看的技能。</p>
+            <p v-else class="detail-empty">
+              {{ t("noSkillsAvailableToViewInThisContent") }}
+            </p>
           </div>
           <footer>
             <button
@@ -1725,7 +1906,7 @@ onMounted(() => {
               class="secondary-button"
               @click="detail = null"
             >
-              关闭
+              {{ t("close") }}
             </button>
             <button
               v-if="detailSummary?.status === 'published'"
@@ -1736,7 +1917,7 @@ onMounted(() => {
                 detail = null;
               "
             >
-              安装
+              {{ t("install") }}
             </button>
           </footer>
         </section>
@@ -1751,16 +1932,16 @@ onMounted(() => {
           class="marketplace-modal install-modal"
           role="dialog"
           aria-modal="true"
-          aria-label="安装技能内容"
+          :aria-label="t('installSkillContent')"
         >
           <header>
             <div>
-              <span>安装预览</span>
+              <span>{{ t("installationPreview") }}</span>
               <h2>{{ installPreview.title }}</h2>
             </div>
             <button
               type="button"
-              aria-label="关闭"
+              :aria-label="t('close')"
               @click="installPreview = null"
             >
               ×
@@ -1768,19 +1949,22 @@ onMounted(() => {
           </header>
           <div class="modal-scroll">
             <p v-if="installPreview.alreadyInstalled" class="stable-help">
-              当前 v{{ installPreview.version }}
-              已安装。远程更新后的新版本会作为独立副本安装。
+              {{
+                t("versionIsInstalledNewRemoteVersionsAreMessage", {
+                  arg0: installPreview.version ?? ""
+                })
+              }}
             </p>
             <p v-if="installPreview.orderNotice" class="stable-help">
               {{ installPreview.orderNotice }}
             </p>
             <label v-if="installPreview.ref.contentType === 'skill'">
-              <span>安装到技能库</span>
+              <span>{{ t("installIntoSkillLibrary") }}</span>
               <PopupSelect
                 v-model="installTargetLibraryId"
                 :options="installTargetLibraryOptions"
-                accessible-label="选择单技能的目标技能库"
-                placeholder="请选择技能库"
+                :accessible-label="t('selectTargetLibraryForTheSkill')"
+                :placeholder="t('selectASkillLibrary')"
                 :disabled="installTargetLibraryOptions.length === 0"
                 :menu-z-index="2200"
               />
@@ -1792,7 +1976,7 @@ onMounted(() => {
               "
               class="stable-help"
             >
-              当前没有可写技能库，请先在左侧新建技能库。
+              {{ t("noWritableSkillLibrariesCreateOneInTheSidebar") }}
             </p>
             <article
               v-for="bucket in installPreview.buckets"
@@ -1801,7 +1985,11 @@ onMounted(() => {
             >
               <div>
                 <strong>{{ KIND_LABELS[bucket.kind] }}</strong
-                ><span>{{ bucket.entries.length }} 条技能</span>
+                ><span>{{
+                  t("skillsMessageDetail", {
+                    arg0: bucket.entries.length ?? ""
+                  })
+                }}</span>
               </div>
               <label
                 v-if="
@@ -1809,13 +1997,17 @@ onMounted(() => {
                   bucket.availableLibraryTypes.length > 1
                 "
               >
-                <span>本地目标类型</span>
+                <span>{{ t("localTargetType") }}</span>
                 <PopupSelect
                   :model-value="
                     installTypeSelections[bucket.kind] ?? bucket.libraryType
                   "
                   :options="installTypeOptions(bucket)"
-                  :accessible-label="`${KIND_LABELS[bucket.kind]}本地目标类型`"
+                  :accessible-label="
+                    t('valueLocalTargetType', {
+                      arg0: KIND_LABELS[bucket.kind]
+                    })
+                  "
                   :menu-z-index="2200"
                   @update:model-value="
                     installTypeSelections[bucket.kind] =
@@ -1840,7 +2032,7 @@ onMounted(() => {
               :disabled="installPending"
               @click="installPreview = null"
             >
-              取消</button
+              {{ t("cancel") }}</button
             ><button
               class="primary-button"
               type="button"
@@ -1854,10 +2046,10 @@ onMounted(() => {
             >
               {{
                 installPending
-                  ? "正在安装…"
+                  ? t("installing")
                   : installPreview.alreadyInstalled
-                    ? "已安装"
-                    : "确认安装"
+                    ? t("installed")
+                    : t("installLabel")
               }}
             </button>
           </footer>
@@ -1873,17 +2065,22 @@ onMounted(() => {
           class="marketplace-modal delete-modal"
           role="dialog"
           aria-modal="true"
-          aria-label="删除远程发布内容"
+          :aria-label="t('deleteRemotePublication')"
         >
           <header>
             <div>
-              <span>危险操作</span>
-              <h2>确认删除“{{ deleteTarget.title }}”？</h2>
+              <span>{{ t("destructiveAction") }}</span>
+              <h2>
+                {{
+                  t("deleteMessageDetail", {
+                    arg0: deleteTarget.title ?? ""
+                  })
+                }}
+              </h2>
             </div>
           </header>
           <p>
-            该内容会立即从技能广场隐藏并进入“已删除”状态，服务端保留 10
-            天后再永久清理；已经安装到本地的副本不会被移除。
+            {{ t("thisImmediatelyHidesTheContentFromTheMarketplaceAnd") }}
           </p>
           <footer>
             <button
@@ -1892,14 +2089,14 @@ onMounted(() => {
               :disabled="deletePending"
               @click="deleteTarget = null"
             >
-              取消</button
+              {{ t("cancel") }}</button
             ><button
               class="danger-button"
               type="button"
               :disabled="deletePending"
               @click="confirmDelete"
             >
-              {{ deletePending ? "正在删除…" : "确认删除" }}
+              {{ deletePending ? t("deleting") : t("deleteMessage") }}
             </button>
           </footer>
         </section>

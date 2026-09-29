@@ -1,3 +1,4 @@
+import { syncIssueMessage } from "../localization/sync-display-text";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import {
@@ -82,10 +83,14 @@ export async function desktopSyncInventory(userDataPath: string) {
       issues.push({
         key,
         title,
-        message:
+        ...syncIssueMessage(
           error instanceof SyncItemValidationError
-            ? error.message
-            : "此作品目录不可读或结构不兼容，本次不参与同步。"
+            ? "validationFailed"
+            : "localInvalid"
+        ),
+        ...(error instanceof SyncItemValidationError
+          ? { message: error.message }
+          : {})
       });
     }
   }

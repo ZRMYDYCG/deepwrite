@@ -1,3 +1,4 @@
+import { createScopedTranslator } from "../i18n";
 import { createId } from "@deepwrite/shared";
 import {
   conversationHistoryJsonBytes,
@@ -15,6 +16,8 @@ import {
   type HistoryWriteStep,
   type HistoryWriteCursor
 } from "./conversationHistoryWriterSteps";
+
+const t = createScopedTranslator("workspace.conversationHistoryWriter");
 
 const COMMIT_BUDGET = 1024 * 1024;
 const savedCursors = new WeakMap<
@@ -155,7 +158,7 @@ export function createConversationHistoryWrite(
         (result as ConversationHistoryCommitResult).batchId !==
           request.payload.batchId
       )
-        throw new Error("会话保存确认编号不匹配。");
+        throw new Error(t("conversationSaveAcknowledgmentDoesNotMatch"));
       if (request.method === "stage") {
         const receipt = result as {
           stageId: string;
@@ -167,7 +170,7 @@ export function createConversationHistoryWrite(
           receipt.chunkId !== request.payload.chunkId ||
           receipt.sequence !== request.payload.sequence
         )
-          throw new Error("会话分块保存确认编号不匹配。");
+          throw new Error(t("conversationChunkSaveAcknowledgmentDoesNotMatch"));
       }
       try {
         step = iterator.next(result);

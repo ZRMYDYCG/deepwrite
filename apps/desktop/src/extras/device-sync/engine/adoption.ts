@@ -1,3 +1,4 @@
+import { syncIssueMessage } from "../../../localization/sync-display-text";
 import {
   sameSyncContent,
   type SyncAdoptionSide,
@@ -43,12 +44,13 @@ export function adoptSyncItem(input: {
       reason: "conflict",
       paths: [],
       local,
-      message:
+      ...syncIssueMessage(
         side === "local"
-          ? "本机没有可采用的版本，未将缺失内容作为删除同步。"
+          ? "noLocalVersion"
           : remote
-            ? "多台远端设备的版本仍不一致，请先在来源设备同步，或采用本地版本。"
-            : "远端没有可采用的版本，请先在另一端上传后重试。",
+            ? "remoteDiverged"
+            : "noRemoteVersion"
+      ),
       versions: versions.map((entry) => ({
         deviceName: entry.deviceName,
         item: entry.item,

@@ -1,3 +1,4 @@
+import { syncIssueMessage } from "../../../localization/sync-display-text";
 import {
   syncDependencies,
   syncKey,
@@ -33,7 +34,7 @@ export function syncDependencyIssue(input: {
     return missing.length
       ? {
           ...issue,
-          message: "绑定的资料尚未就绪，请加入对应资料库并处理其同步事项。",
+          ...syncIssueMessage("missingDependencies"),
           paths: missing
         }
       : null;
@@ -47,18 +48,10 @@ export function syncDependencyIssue(input: {
     (item) => syncKey(item) !== key && syncDependencies(item).includes(key)
   );
   if (!dependents.length) return null;
-  const sources = dependents.map((item) => {
-    const kind =
-      item.kind === "skill-group"
-        ? "技能组"
-        : item.kind === "material-group"
-          ? "素材组"
-          : "作品";
-    return `${kind}「${item.title}」`;
-  });
+  const sources = dependents.map((item) => `「${item.title}」`);
   return {
     ...issue,
-    message: `此资料仍被${sources.join("、")}引用，请先解除引用，或将引用方一并确认同步删除。`,
+    ...syncIssueMessage("referencedResource", { sources: sources.join(", ") }),
     paths: []
   };
 }

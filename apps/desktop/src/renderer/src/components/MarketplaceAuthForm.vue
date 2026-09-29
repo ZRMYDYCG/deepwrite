@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import { onUnmounted, ref } from "vue";
 import {
   MarketplaceLoginInputSchema,
@@ -8,6 +9,8 @@ import {
 import { uiMessage } from "../ui-feedback";
 import { marketplaceAccountError } from "../utils/marketplaceAccountError";
 import MarketplaceEmailFields from "./MarketplaceEmailFields.vue";
+
+const t = createScopedTranslator("components.marketplaceAuthForm");
 const emit = defineEmits<{ authenticated: [session: MarketplaceSession] }>();
 const authMode = ref<"login" | "register">("login");
 const pending = ref(false);
@@ -38,8 +41,8 @@ async function submitAuth(): Promise<void> {
   if (authMode.value === "login" ? !login.success : !registration.success) {
     uiMessage.warning(
       authMode.value === "login"
-        ? "请输入有效的用户名和密码。"
-        : "请填写用户名、至少 8 位密码、有效邮箱和 6 位验证码。"
+        ? t("enterAValidUsernameAndPassword")
+        : t("enterAUsernameAPasswordOfAtLeast8")
     );
     return;
   }
@@ -55,13 +58,16 @@ async function submitAuth(): Promise<void> {
     password.value = "";
     emailCode.value = "";
     uiMessage.success(
-      authMode.value === "login" ? "登录成功" : "注册并登录成功"
+      authMode.value === "login" ? t("signedIn") : t("registeredAndSignedIn")
     );
     emit("authenticated", session);
   } catch (error: unknown) {
     if (alive)
       uiMessage.error(
-        marketplaceAccountError(error, "登录或注册失败，请稍后重试。")
+        marketplaceAccountError(
+          error,
+          t("couldNotSignInOrRegisterTryAgainLater")
+        )
       );
   } finally {
     if (alive) pending.value = false;
@@ -71,7 +77,7 @@ async function submitAuth(): Promise<void> {
 <template>
   <section class="auth-shell">
     <div class="auth-card">
-      <div class="auth-tabs" role="tablist" aria-label="登录或注册">
+      <div class="auth-tabs" role="tablist" :aria-label="t('signInOrRegister')">
         <button
           v-for="mode in ['login', 'register'] as const"
           :key="mode"
@@ -82,12 +88,12 @@ async function submitAuth(): Promise<void> {
           :disabled="pending || sending"
           @click="authMode = mode"
         >
-          {{ mode === "login" ? "登录" : "注册" }}
+          {{ mode === "login" ? t("signIn") : t("register") }}
         </button>
       </div>
       <form class="auth-form" @submit.prevent="submitAuth">
         <label
-          ><span>用户名</span
+          ><span>{{ t("username") }}</span
           ><input
             v-model="username"
             autocomplete="username"
@@ -96,7 +102,7 @@ async function submitAuth(): Promise<void> {
             :disabled="pending"
         /></label>
         <label
-          ><span>密码</span
+          ><span>{{ t("password") }}</span
           ><input
             v-model="password"
             type="password"
@@ -109,7 +115,7 @@ async function submitAuth(): Promise<void> {
         /></label>
         <template v-if="authMode === 'register'">
           <label
-            ><span>显示名（可选）</span
+            ><span>{{ t("displayNameOptional") }}</span
             ><input
               v-model="displayName"
               autocomplete="nickname"
@@ -130,13 +136,14 @@ async function submitAuth(): Promise<void> {
           :disabled="pending || sending"
         >
           {{
-            pending ? "请稍候…" : authMode === "login" ? "登录" : "注册并登录"
+            pending
+              ? t("pleaseWait")
+              : authMode === "login"
+                ? t("signIn")
+                : t("registerAndSignIn")
           }}
         </button>
-        <small
-          >老用户可直接登录，邮箱绑定为可选操作。登录会话有效期为 30
-          天；安全存储不可用时仅保留到本次运行结束。</small
-        >
+        <small>{{ t("existingUsersCanSignInDirectlyEmailLinkingIs") }}</small>
       </form>
     </div>
   </section>

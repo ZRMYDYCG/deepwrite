@@ -1,3 +1,5 @@
+import { formatError } from "../i18n/errors";
+import { createScopedTranslator } from "../i18n";
 import { ref } from "vue";
 import {
   BuiltinSubagentSettingsSchema,
@@ -5,6 +7,8 @@ import {
 } from "@deepwrite/contracts/renderer";
 import { useSettingsStore } from "../stores/settingsStore";
 import { uiMessage } from "../ui-feedback";
+
+const t = createScopedTranslator("workspace.builtinSubagentSettings");
 
 export function useBuiltinSubagentSettings() {
   const saving = ref(false);
@@ -14,7 +18,7 @@ export function useBuiltinSubagentSettings() {
     if (!api || saving.value || settings.agentTeamSaving) return false;
     const parsed = BuiltinSubagentSettingsSchema.safeParse(input);
     if (!parsed.success) {
-      uiMessage.warning("请输入调用描述，长度不超过 1,000 字。");
+      uiMessage.warning(t("enterACallingDescriptionOfUpToCharacters"));
       return false;
     }
     saving.value = true;
@@ -24,12 +28,10 @@ export function useBuiltinSubagentSettings() {
         "agentTeams",
         await api.agentTeams.saveBuiltins(parsed.data)
       );
-      uiMessage.success("已保存内置管理子智能体设置");
+      uiMessage.success(t("builtInManagementSubagentSettingsSaved"));
       return true;
     } catch (error) {
-      uiMessage.error(
-        error instanceof Error ? error.message : "保存失败，请重试。"
-      );
+      uiMessage.error(formatError(error, t("failedToSavePleaseTryAgain")));
       return false;
     } finally {
       saving.value = false;

@@ -23,7 +23,7 @@ import {
   ContextCompactionRequestSchema,
   ContextCompactionRunSettingsSchema,
   ConversationCheckpointSchema
-} from "./context-compaction";
+} from "./context-compaction-state";
 import {
   SessionUserInputResponsePayloadSchema,
   type SessionUserInputResponsePayload

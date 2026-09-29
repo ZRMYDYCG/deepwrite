@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import type {
   AgentTeamRunMode,
   LibraryAgentDomain,
@@ -22,6 +23,7 @@ import {
   formatFileSize
 } from "../composables/useConversationAttachments";
 import { useConversationComposer } from "../composables/useConversationComposer";
+import { useVoiceInput } from "../composables/useVoiceInput";
 import { useSettingsStore } from "../stores/settingsStore";
 import AppIcon from "./AppIcon.vue";
 import AgentTeamModeSelect from "./AgentTeamModeSelect.vue";
@@ -31,6 +33,9 @@ import ConversationModelConfigSelect from "./ConversationModelConfigSelect.vue";
 import PopupSelect from "./PopupSelect.vue";
 import ComposerContextBar from "./ComposerContextBar.vue";
 import ComposerMoreSettings from "./ComposerMoreSettings.vue";
+import VoiceInputBar from "./VoiceInputBar.vue";
+
+const t = createScopedTranslator("components.conversationComposer");
 
 const settingsStore = useSettingsStore();
 
@@ -140,12 +145,32 @@ const {
 });
 closeReferenceMenuHolder.run = closeReferenceMenu;
 
+const voice = useVoiceInput({
+  sessionKey: () => props.currentSessionId,
+  draft: () => props.draft,
+  input: composerInput,
+  updateDraft: (value) => emit("update:draft", value),
+  canStart: () => !props.responding && props.runtimeAvailable,
+  canSend: () => canSubmit.value && !props.responding && props.runtimeAvailable,
+  send: submitMessage
+});
+
+function startVoice(): void {
+  closeReferenceMenu();
+  void voice.start();
+}
+
 function editorReferenceTooltip(reference: EditorTextReference): string {
   const preview =
     reference.text.length > 1_000
       ? `${reference.text.slice(0, 1_000)}…`
       : reference.text;
-  return `${reference.documentPath.join(" / ")}\n第 ${reference.startLine}-${reference.endLine} 行\n\n${preview}`;
+  return t("valueLinesValueValueValue", {
+    arg0: reference.documentPath.join(" / "),
+    arg1: reference.startLine,
+    arg2: reference.endLine,
+    arg3: preview
+  });
 }
 function handleApprovalChange(value: string | number): void {
   if (value === "request-approval" || value === "auto-approve")
@@ -208,15 +233,15 @@ defineExpose({ focusInput });
         <div v-else class="composer-reference-empty">
           {{
             referenceOptions.length
-              ? "没有匹配的内容"
+              ? t("noMatchingContent")
               : activeReference.trigger === "/"
-                ? "当前智能体没有可调用的技能"
-                : "当前智能体没有可用素材"
+                ? t("thisAgentHasNoAvailableSkills")
+                : t("thisAgentHasNoAvailableMaterials")
           }}
         </div>
         <div class="composer-reference-footer">
-          <span><kbd>↑</kbd><kbd>↓</kbd> 选择</span>
-          <span><kbd>Enter</kbd> 插入</span>
+          <span><kbd>↑</kbd><kbd>↓</kbd> {{ t("select") }}</span>
+          <span><kbd>Enter</kbd> {{ t("insert") }}</span>
         </div>
       </div>
 
@@ -241,7 +266,7 @@ defineExpose({ focusInput });
           <div
             v-if="editorReferences.length"
             class="composer-editor-reference-list"
-            aria-label="已引用正文选区列表"
+            :aria-label="t('referencedManuscriptSelections')"
           >
             <div
               v-for="editorReference in editorReferences"
@@ -252,7 +277,11 @@ defineExpose({ focusInput });
                 class="composer-editor-reference-main"
                 type="button"
                 :title="editorReferenceTooltip(editorReference)"
-                :aria-label="`定位到 ${editorReference.label}`"
+                :aria-label="
+                  t('goToValue', {
+                    arg0: editorReference.label
+                  })
+                "
                 @click="emit('locateEditorReference', editorReference)"
               >
                 <AppIcon name="quote" :size="13" />
@@ -261,7 +290,11 @@ defineExpose({ focusInput });
               <button
                 class="composer-editor-reference-remove"
                 type="button"
-                :aria-label="`移除正文引用 ${editorReference.label}`"
+                :aria-label="
+                  t('removeManuscriptReferenceValue', {
+                    arg0: editorReference.label
+                  })
+                "
                 :disabled="responding"
                 @click="emit('removeEditorReference', editorReference.id)"
               >
@@ -272,7 +305,7 @@ defineExpose({ focusInput });
           <div
             v-if="pendingAttachments.length || readingAttachments"
             class="composer-attachment-list"
-            aria-label="待发送附件"
+            :aria-label="t('attachmentsToSend')"
           >
             <article
               v-for="attachment in pendingAttachments"
@@ -292,22 +325,26 @@ defineExpose({ focusInput });
                 <small>
                   {{
                     attachment.kind === "image"
-                      ? "图片"
+                      ? t("image")
                       : attachment.mediaType === "application/pdf"
-                        ? "PDF 文本"
-                        : "文本"
+                        ? t("pDFText")
+                        : t("text")
                   }}
                   · {{ formatFileSize(attachment.size) }}
                   <template
                     v-if="attachment.kind === 'text' && attachment.truncated"
                   >
-                    · 已截断</template
+                    {{ t("truncated") }}</template
                   >
                 </small>
               </span>
               <button
                 type="button"
-                :aria-label="`移除附件 ${attachment.name}`"
+                :aria-label="
+                  t('removeAttachmentValue', {
+                    arg0: attachment.name
+                  })
+                "
                 :disabled="responding"
                 @click="removePendingAttachment(attachment.id)"
               >
@@ -315,7 +352,7 @@ defineExpose({ focusInput });
               </button>
             </article>
             <span v-if="readingAttachments" class="composer-attachment-loading">
-              正在读取附件…
+              {{ t("readingAttachments") }}
             </span>
           </div>
           <textarea
@@ -323,7 +360,7 @@ defineExpose({ focusInput });
             :value="draft"
             rows="1"
             :placeholder="composerPlaceholder"
-            aria-label="智能体消息"
+            :aria-label="t('agentMessage')"
             aria-autocomplete="list"
             :aria-expanded="Boolean(activeReference)"
             :aria-controls="
@@ -334,20 +371,31 @@ defineExpose({ focusInput });
                 ? `composer-reference-option-${activeReferenceIndex}`
                 : undefined
             "
-            :disabled="responding || !runtimeAvailable"
+            :disabled="responding || !runtimeAvailable || voice.active.value"
             @blur="closeReferenceMenu"
             @click="updateActiveReference($event.target as HTMLTextAreaElement)"
             @input="handleInput"
             @keydown="handleKeydown"
             @paste="handleComposerPaste"
           />
-          <div class="composer-toolbar">
+          <VoiceInputBar
+            v-if="voice.active.value"
+            :state="voice.state.value"
+            :elapsed-ms="voice.elapsedMs.value"
+            :levels="voice.levels.value"
+            :send-disabled="responding || !runtimeAvailable"
+            @cancel="voice.cancel"
+            @stop="voice.stop"
+            @send="voice.stopAndSend"
+            @retry="voice.retry"
+          />
+          <div v-else class="composer-toolbar">
             <div class="composer-tools">
               <button
                 class="round-tool-button"
                 type="button"
-                aria-label="上传附件"
-                title="上传 TXT、MD、PDF、Word（.docx）或图片"
+                :aria-label="t('uploadAttachment')"
+                :title="t('uploadTXTMDPDFWordDocxOrImages')"
                 :disabled="
                   responding || !runtimeAvailable || readingAttachments
                 "
@@ -381,7 +429,10 @@ defineExpose({ focusInput });
                   :model="selectedModel"
                 />
                 <ContextCompactionButton
-                  v-if="!messagesEmpty"
+                  v-if="
+                    settingsStore.generalSettings.contextCompaction
+                      .showManualButton && !messagesEmpty
+                  "
                   :session-id="currentSessionId"
                   :disabled="responding"
                 />
@@ -395,7 +446,7 @@ defineExpose({ focusInput });
                 <PopupSelect
                   :model-value="approvalMode"
                   :options="approvalOptions"
-                  accessible-label="选择正文修改权限"
+                  :accessible-label="t('selectManuscriptEditingPermission')"
                   variant="compact"
                   align="end"
                   :menu-min-width="300"
@@ -409,7 +460,10 @@ defineExpose({ focusInput });
               <button
                 class="round-tool-button"
                 type="button"
-                aria-label="语音输入"
+                :aria-label="t('voiceInput')"
+                :title="t('voiceInput')"
+                :disabled="responding || !runtimeAvailable"
+                @click="startVoice"
               >
                 <AppIcon name="mic" :size="18" />
               </button>
@@ -417,7 +471,7 @@ defineExpose({ focusInput });
                 v-if="!responding"
                 class="send-button"
                 type="button"
-                aria-label="发送消息"
+                :aria-label="t('sendMessage')"
                 :disabled="!canSubmit"
                 @click="submitMessage"
               >
@@ -427,8 +481,8 @@ defineExpose({ focusInput });
                 v-else
                 class="send-button stop-button"
                 type="button"
-                aria-label="停止生成"
-                title="停止生成"
+                :aria-label="t('stopGeneration')"
+                :title="t('stopGeneration')"
                 :disabled="!canStop"
                 @click="emit('stop')"
               >

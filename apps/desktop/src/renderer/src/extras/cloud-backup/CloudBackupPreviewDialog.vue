@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../../i18n";
 import { computed } from "vue";
 import type {
   CloudBackupChange,
@@ -8,6 +9,8 @@ import {
   CLOUD_BACKUP_CHANGE_LABELS,
   summarizeCloudBackupPreview
 } from "./cloudBackupPreviewSummary";
+
+const t = createScopedTranslator("extras.cloudBackup");
 
 const props = defineProps<{
   preview: CloudBackupPreview;
@@ -20,12 +23,24 @@ const emit = defineEmits<{
 }>();
 
 const KIND_LABELS: Record<CloudBackupChange["kind"], string> = {
-  book: "创作空间",
-  "long-book": "长篇创作空间",
-  "material-library": "素材库",
-  "material-group": "素材分组",
-  "skill-library": "技能库",
-  "skill-group": "技能分组"
+  get book() {
+    return t("workspace");
+  },
+  get "long-book"() {
+    return t("longWorkspace");
+  },
+  get "material-library"() {
+    return t("materialLibrary");
+  },
+  get "material-group"() {
+    return t("materialGroup");
+  },
+  get "skill-library"() {
+    return t("skillLibrary");
+  },
+  get "skill-group"() {
+    return t("skillGroup");
+  }
 };
 
 const summary = computed(() =>
@@ -66,24 +81,26 @@ function formatBytes(bytes: number): string {
         class="backup-modal"
         role="dialog"
         aria-modal="true"
-        aria-label="确认同步内容"
+        :aria-label="t('confirmContents')"
       >
         <header>
           <div>
             <span>{{
-              preview.direction === "upload" ? "备份预览" : "同步预览"
+              preview.direction === "upload"
+                ? t("backupPreview")
+                : t("syncPreview")
             }}</span>
             <h2>
               {{
                 preview.direction === "upload"
-                  ? "确认上传到云端"
-                  : "确认写入本机"
+                  ? t("confirmUpload")
+                  : t("confirmDownload")
               }}
             </h2>
           </div>
           <button
             type="button"
-            aria-label="关闭"
+            :aria-label="t('close')"
             :disabled="pending"
             @click="emit('close')"
           >
@@ -93,13 +110,17 @@ function formatBytes(bytes: number): string {
 
         <div class="preview-meta">
           <p class="modal-summary">
-            密钥 {{ preview.machineKey }} ·
-            {{ formatBytes(preview.totalBytes) }} /
-            {{ formatBytes(preview.quotaBytes) }}
+            {{
+              t("keyUsage", {
+                key: preview.machineKey,
+                used: formatBytes(preview.totalBytes),
+                total: formatBytes(preview.quotaBytes)
+              })
+            }}
           </p>
-          <section class="file-overview" aria-label="文件列表概览">
+          <section class="file-overview" :aria-label="t('fileOverview')">
             <div class="file-total">
-              <span>文件总数</span>
+              <span>{{ t("totalFiles") }}</span>
               <strong>{{ summary.total }}</strong>
             </div>
             <dl>
@@ -141,7 +162,7 @@ function formatBytes(bytes: number): string {
             :disabled="pending"
             @click="emit('close')"
           >
-            取消
+            {{ t("cancel") }}
           </button>
           <button
             type="button"
@@ -151,10 +172,10 @@ function formatBytes(bytes: number): string {
           >
             {{
               pending
-                ? "正在同步…"
+                ? t("syncing")
                 : preview.direction === "upload"
-                  ? "确认备份"
-                  : "确认同步"
+                  ? t("confirmBackup")
+                  : t("confirmSync")
             }}
           </button>
         </footer>

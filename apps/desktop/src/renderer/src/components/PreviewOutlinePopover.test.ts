@@ -10,8 +10,8 @@ import rightEditorSource from "./RightEditorPane.vue?raw";
 describe("preview document outline", () => {
   it("uses a themed, teleported, keyboard-accessible outline card", () => {
     expect(outlineSource).toContain('<Teleport to="body">');
-    expect(outlineSource).toContain('aria-label="打开文档目录"');
-    expect(outlineSource).toContain('aria-label="文档目录"');
+    expect(outlineSource).toContain("openDocumentOutline");
+    expect(outlineSource).toContain("documentOutline");
     expect(outlineSource).toContain('event.key === "Escape"');
     expect(outlineSource).toContain('event.key === "ArrowDown"');
     expect(outlineSource).toContain("handleDocumentPointerdown");
@@ -25,7 +25,7 @@ describe("preview document outline", () => {
     expect(outlineSource).toContain("data-markdown-heading-index");
     expect(outlineSource).toContain('behavior: "smooth"');
     expect(outlineSource).toContain("target.focus({ preventScroll: true })");
-    expect(outlineSource).toContain("正文中暂无 Markdown 标题");
+    expect(outlineSource).toContain("noMarkdownHeadingsInThisManuscript");
   });
 
   it("keeps the outline control exclusive to preview mode", () => {
@@ -42,6 +42,6 @@ describe("preview document outline", () => {
     expect(longManuscriptSource).toContain("annotate-headings");
     expect(longWorkspaceSource.match(/<DocumentMetaRow/g)).toHaveLength(2);
     expect(longWorkspaceSource.match(/annotate-headings/g)).toHaveLength(2);
-    expect(longWorkspaceSource).toContain("故事情节正文");
+    expect(longWorkspaceSource).toContain("storyEventManuscript");
   });
 });

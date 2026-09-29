@@ -1,3 +1,4 @@
+import { BUILTIN_AGENT_METADATA } from "./builtin-agent-metadata";
 import {
   ShortAgentReadAccessSchema,
   DEFAULT_SHORT_AGENT_READ_ACCESS
@@ -618,9 +619,7 @@ export const DEFAULT_SHORT_WORKSPACE_AGENT_PROFILES: readonly ShortWorkspaceAgen
   [
     {
       id: "short",
-      label: "短篇智能体",
-      description:
-        "统一负责人物、动态剧情阶段和正文创作，并按当前阶段加载上下文。",
+      ...BUILTIN_AGENT_METADATA.short,
       systemPrompt: DEFAULT_SHORT_SYSTEM_PROMPT,
       welcomeShortcuts: [...DEFAULT_SHORT_AGENT_WELCOME_SHORTCUTS.short],
       readAccess: DEFAULT_SHORT_AGENT_READ_ACCESS.short

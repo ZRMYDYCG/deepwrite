@@ -1,3 +1,6 @@
+import { createScopedTranslator } from "../i18n";
+
+const t = createScopedTranslator("workspace.docxDocumentText");
 export const DOCX_MEDIA_TYPE =
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
@@ -37,7 +40,7 @@ function findZipEntry(
       offset + 46 > bytes.length ||
       view.getUint32(offset, true) !== ZIP_CENTRAL_DIRECTORY_HEADER
     ) {
-      throw new Error("Word 文档 ZIP 目录损坏。");
+      throw new Error(t("theWordDocumentZipDirectoryIsCorrupt"));
     }
     const flags = view.getUint16(offset + 8, true);
     const compressionMethod = view.getUint16(offset + 10, true);
@@ -49,7 +52,8 @@ function findZipEntry(
     const localHeaderOffset = view.getUint32(offset + 42, true);
     const nameStart = offset + 46;
     const nameEnd = nameStart + nameLength;
-    if (nameEnd > bytes.length) throw new Error("Word 文档 ZIP 文件名损坏。");
+    if (nameEnd > bytes.length)
+      throw new Error(t("aZipFilenameInTheWordDocumentIsCorrupt"));
     const name = decoder.decode(bytes.subarray(nameStart, nameEnd));
     if (name === expectedName) {
       return {
@@ -85,7 +89,7 @@ async function inflateRawWithLimit(
     total += value.byteLength;
     if (total > maximumBytes) {
       await reader.cancel();
-      throw new Error("Word 文档正文 XML 过大，无法安全读取。");
+      throw new Error(t("theWordDocumentXmlIsTooLargeToRead"));
     }
     chunks.push(value);
   }
@@ -102,9 +106,10 @@ async function readZipEntry(
   bytes: Uint8Array,
   entry: ZipEntry
 ): Promise<Uint8Array> {
-  if (entry.encrypted) throw new Error("受密码保护的 Word 文档暂时无法读取。");
+  if (entry.encrypted)
+    throw new Error(t("passwordProtectedWordDocumentsAreNotSupported"));
   if (entry.uncompressedSize > WORD_DOCUMENT_XML_MAX_BYTES) {
-    throw new Error("Word 文档正文 XML 过大，无法安全读取。");
+    throw new Error(t("theWordDocumentXmlIsTooLargeToRead"));
   }
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const offset = entry.localHeaderOffset;
@@ -112,17 +117,18 @@ async function readZipEntry(
     offset + 30 > bytes.length ||
     view.getUint32(offset, true) !== ZIP_LOCAL_FILE_HEADER
   ) {
-    throw new Error("Word 文档 ZIP 内容损坏。");
+    throw new Error(t("theWordDocumentZipContentsAreCorrupt"));
   }
   const nameLength = view.getUint16(offset + 26, true);
   const extraLength = view.getUint16(offset + 28, true);
   const dataStart = offset + 30 + nameLength + extraLength;
   const dataEnd = dataStart + entry.compressedSize;
-  if (dataEnd > bytes.length) throw new Error("Word 文档 ZIP 数据不完整。");
+  if (dataEnd > bytes.length)
+    throw new Error(t("theWordDocumentZipDataIsIncomplete"));
   const compressed = bytes.subarray(dataStart, dataEnd);
   if (entry.compressionMethod === 0) {
     if (compressed.byteLength > WORD_DOCUMENT_XML_MAX_BYTES) {
-      throw new Error("Word 文档正文 XML 过大，无法安全读取。");
+      throw new Error(t("theWordDocumentXmlIsTooLargeToRead"));
     }
     return compressed.slice();
   }
@@ -130,7 +136,9 @@ async function readZipEntry(
     return inflateRawWithLimit(compressed, WORD_DOCUMENT_XML_MAX_BYTES);
   }
   throw new Error(
-    `暂不支持 Word 文档使用的 ZIP 压缩方式 ${entry.compressionMethod}。`
+    t("zipCompressionMethodInThisWordDocumentIsNot", {
+      compressionMethod: entry.compressionMethod
+    })
   );
 }
 
@@ -182,7 +190,7 @@ function extractDocxXmlText(xml: string): string {
 export async function extractDocxText(buffer: ArrayBuffer): Promise<string> {
   const bytes = new Uint8Array(buffer);
   const entry = findZipEntry(bytes, "word/document.xml");
-  if (!entry) throw new Error("Word 文档中缺少 word/document.xml。");
+  if (!entry) throw new Error(t("theWordDocumentIsMissingWordDocumentXml"));
   const xmlBytes = await readZipEntry(bytes, entry);
   return extractDocxXmlText(new TextDecoder().decode(xmlBytes));
 }

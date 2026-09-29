@@ -37,8 +37,7 @@ const profile = {
   output: {
     domain: "material" as const,
     kind: "plot" as const,
-    stageId: "pacing" as const,
-    libraryId: "material-library-1"
+    stageId: "pacing" as const
   }
 };
 
@@ -90,12 +89,33 @@ describe("long-book analysis contracts", () => {
       output: profile.output
     });
     expect(() =>
-      settings([{ ...profile, output: { ...profile.output, libraryId: " " } }])
-    ).toThrow();
-    expect(() =>
       settings([profile, { ...profile, id: "another", name: "剧情结构 " }])
     ).toThrow("预设名称和标识不能重复。");
   });
+
+  it.each(["long-book-analysis", "short-book-analysis"])(
+    "ignores legacy default libraries while keeping %s profiles usable",
+    (agentId) => {
+      const parsed = ExtrasAgentSettingsInputSchema.parse({
+        agentId,
+        profiles: [
+          {
+            ...profile,
+            ...(agentId === "short-book-analysis"
+              ? { selectionMode: "single" }
+              : {}),
+            output: { ...profile.output, libraryId: "legacy-library" }
+          }
+        ]
+      });
+      expect(parsed.profiles[0]).toMatchObject({
+        id: profile.id,
+        systemPrompt: profile.systemPrompt,
+        output: profile.output
+      });
+      expect(parsed.profiles[0]).not.toHaveProperty("output.libraryId");
+    }
+  );
 
   it("allows exactly 50 continuous chapters and rejects 51", () => {
     expect(

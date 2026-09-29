@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import {
   computed,
   nextTick,
@@ -14,6 +15,8 @@ import type {
   AgentUserInputRequestedPayload
 } from "@deepwrite/contracts";
 import AppIcon from "./AppIcon.vue";
+
+const t = createScopedTranslator("components.agentUserInputCard");
 
 const props = defineProps<{
   request: AgentUserInputRequestedPayload;
@@ -209,7 +212,7 @@ function skip(): void {
     "submit",
     props.request.questions.map((question) => ({
       id: question.id,
-      text: "跳过"
+      text: t("skip")
     }))
   );
 }
@@ -249,7 +252,9 @@ function recommended(label: string): boolean {
   <section
     class="agent-user-input-card"
     :aria-label="
-      request.source === 'cross_stage_write' ? '跨阶段操作确认' : '智能体提问'
+      request.source === 'cross_stage_write'
+        ? t('confirmOperationAcrossStages')
+        : t('agentQuestion')
     "
   >
     <header class="agent-user-input-heading">
@@ -257,7 +262,7 @@ function recommended(label: string): boolean {
       <button
         class="agent-user-input-close"
         type="button"
-        aria-label="跳过问题"
+        :aria-label="t('skipQuestion')"
         :disabled="submitting"
         @click="skip"
       >
@@ -303,7 +308,9 @@ function recommended(label: string): boolean {
             <span class="agent-user-input-option-copy">
               <span class="agent-user-input-option-title">
                 <strong>{{ optionLabel(option.label) }}</strong>
-                <small v-if="recommended(option.label)">推荐</small>
+                <small v-if="recommended(option.label)">{{
+                  t("recommended")
+                }}</small>
               </span>
               <span
                 v-if="option.description"
@@ -329,7 +336,7 @@ function recommended(label: string): boolean {
             @click="showCustomAnswer(question)"
           >
             <span><AppIcon name="edit" :size="15" /></span>
-            输入自己的回答
+            {{ t("writeYourOwnAnswer") }}
           </button>
         </div>
 
@@ -339,9 +346,15 @@ function recommended(label: string): boolean {
           v-model="textByQuestion[question.id]"
           class="agent-user-input-text"
           rows="2"
-          :placeholder="question.options ? '输入自己的回答' : '请输入回答'"
+          :placeholder="
+            question.options ? t('writeYourOwnAnswer') : t('enterAnAnswer')
+          "
           :disabled="submitting"
-          :aria-label="`${question.question}的文本回答`"
+          :aria-label="
+            t('textAnswerForValue', {
+              arg0: question.question
+            })
+          "
           @keydown.meta.enter.prevent="submit"
           @keydown.ctrl.enter.prevent="submit"
         />
@@ -349,9 +362,11 @@ function recommended(label: string): boolean {
     </div>
 
     <footer class="agent-user-input-actions">
-      <span v-if="submitting">正在提交…</span>
-      <span v-else-if="requiresConfirmation">选择完成后确认继续</span>
-      <span v-else>选择一项，或输入自己的回答</span>
+      <span v-if="submitting">{{ t("submitting") }}</span>
+      <span v-else-if="requiresConfirmation">{{
+        t("confirmYourSelectionsToContinue")
+      }}</span>
+      <span v-else>{{ t("chooseAnOptionOrWriteYourOwnAnswer") }}</span>
       <div>
         <button
           v-if="showsSubmitButton"
@@ -360,7 +375,13 @@ function recommended(label: string): boolean {
           :disabled="!canSubmit || submitting"
           @click="submit"
         >
-          {{ submitting ? "提交中…" : isLastQuestion ? "确认" : "下一题" }}
+          {{
+            submitting
+              ? t("submittingLabel")
+              : isLastQuestion
+                ? t("confirm")
+                : t("nextQuestion")
+          }}
         </button>
         <button
           class="agent-user-input-skip"
@@ -368,7 +389,7 @@ function recommended(label: string): boolean {
           :disabled="submitting"
           @click="skip"
         >
-          跳过
+          {{ t("skip") }}
         </button>
       </div>
     </footer>

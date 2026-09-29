@@ -1,3 +1,4 @@
+import { createScopedTranslator } from "../i18n";
 import {
   APPEARANCE_FONT_SIZE_LIMITS,
   createDefaultAppearanceTheme,
@@ -8,6 +9,8 @@ import {
   type AppearanceThemeConfig,
   type AppearanceUiFontSelection
 } from "@deepwrite/contracts/renderer";
+
+const t = createScopedTranslator("workspace.appearanceThemeRuntime");
 
 export interface ThemePreset {
   id: string;
@@ -27,13 +30,17 @@ export const themePresets: ThemePreset[] = [
   },
   {
     id: "paper",
-    label: "暖纸",
+    get label() {
+      return t("warmPaper");
+    },
     light: { accent: "#B5683B", background: "#FBF7EF", foreground: "#2E2823" },
     dark: { accent: "#E49B66", background: "#201C19", foreground: "#F7EFE5" }
   },
   {
     id: "ocean",
-    label: "海雾",
+    get label() {
+      return t("seaMist");
+    },
     light: { accent: "#257F8B", background: "#F4FAFA", foreground: "#193135" },
     dark: { accent: "#5CC3CF", background: "#102124", foreground: "#E5F3F4" }
   }
@@ -242,7 +249,7 @@ export function parseAppearanceThemeFile(value: string): {
 } {
   const parsed: unknown = JSON.parse(value);
   if (!parsed || typeof parsed !== "object") {
-    throw new Error("主题文件格式无效");
+    throw new Error(t("invalidThemeFileFormat"));
   }
   const record = parsed as { scheme?: unknown; theme?: unknown };
   const scheme =

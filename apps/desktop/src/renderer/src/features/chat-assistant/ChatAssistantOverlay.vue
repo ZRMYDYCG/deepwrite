@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../../i18n";
 import { computed, nextTick, ref, toRef, watch } from "vue";
 import type {
   CatalogIndexSnapshot,
@@ -23,6 +24,8 @@ import ChatAssistantComposer from "./ChatAssistantComposer.vue";
 import { useChatAssistantMode } from "./useChatAssistantMode";
 import { useChatAssistantHistoryActions } from "./useChatAssistantHistoryActions";
 import { useChatAssistantWebSearch } from "./useChatAssistantWebSearch";
+
+const t = createScopedTranslator("extras");
 
 const props = defineProps<{
   active: boolean;
@@ -59,7 +62,9 @@ const history = computed(() => controller.value!.history.value);
 const currentHistory = computed(() =>
   history.value.find((item) => item.current)
 );
-const title = computed(() => currentHistory.value?.title || "新聊天");
+const title = computed(
+  () => currentHistory.value?.title || t("chatAssistant.newChat")
+);
 const lastAssistantMessage = computed(() =>
   findLastAssistantMessage(messages.value, true)
 );
@@ -71,33 +76,46 @@ const selectedModel = computed(() =>
 const webSearch = useChatAssistantWebSearch({
   selectedModel,
   onAutomaticallyDisabled: () => {
-    uiMessage.info(
-      "智能搜索已关闭：仅 DeepSeek 的 Responses 或 Anthropic API 模型支持此功能"
-    );
+    uiMessage.info(t("chatAssistant.smartSearchDisabled"));
   }
 });
-const webSearchDisabledReason =
-  "仅支持 Provider 为 DeepSeek，且 API 类型为 OpenAI Responses 或 Anthropic Messages 的模型";
+const webSearchDisabledReason = computed(() =>
+  t("chatAssistant.smartSearchSupport")
+);
 const modelOptions = computed(() =>
   controller.value!.configuredModels.value.map((model) => ({
     value: model.id,
     label: model.label,
     ...(model.id === controller.value!.selectedModelId.value
-      ? { description: "当前模型" }
+      ? { description: t("chatAssistant.currentModel") }
       : {})
   }))
 );
 const thinkingLabels: Record<string, string> = {
-  off: "关闭",
-  minimal: "最低",
-  low: "较低",
-  medium: "标准",
-  high: "深度",
-  xhigh: "极高",
-  max: "最高"
+  get off() {
+    return t("longBookAnalysis.thinkingOff");
+  },
+  get minimal() {
+    return t("longBookAnalysis.minimalThinking");
+  },
+  get low() {
+    return t("longBookAnalysis.lowThinking");
+  },
+  get medium() {
+    return t("longBookAnalysis.mediumThinking");
+  },
+  get high() {
+    return t("longBookAnalysis.highThinking");
+  },
+  get xhigh() {
+    return t("longBookAnalysis.extraHighThinking");
+  },
+  get max() {
+    return t("longBookAnalysis.maxThinking");
+  }
 };
 const thinkingOptions = computed(() => [
-  { value: "off", label: "关闭" },
+  { value: "off", label: t("longBookAnalysis.thinkingOff") },
   ...(
     selectedModel.value?.thinkingLevelOptions ?? [
       "minimal",
@@ -123,20 +141,23 @@ const activeContextKey = computed(() =>
 );
 const contextOptions = computed<PopupSelectOption[]>(() => {
   const options: PopupSelectOption[] = [
-    { value: "context:normal", label: "普通模式" },
-    { value: "context:add-roleplay", label: "+ 添加新扮演配置" },
+    { value: "context:normal", label: t("chatAssistant.normalMode") },
+    {
+      value: "context:add-roleplay",
+      label: t("chatAssistant.addRoleplayOption")
+    },
     ...assistant.roleplays.value.map((role) => ({
       value: `context:roleplay:${role.id}`,
       label: role.name,
-      description: "人物扮演",
+      description: t("chatAssistant.roleplay"),
       actionIcon: "edit" as const,
-      actionLabel: `编辑人物：${role.name}`
+      actionLabel: t("chatAssistant.editCharacter", { name: role.name })
     }))
   ];
   if (assistant.configuredProjectOptions.value.length) {
     options.push({
       value: "context:projects",
-      label: "项目",
+      label: t("chatAssistant.project"),
       disabled: true,
       style: { fontWeight: "600", color: "var(--text-tertiary)" }
     });
@@ -146,11 +167,13 @@ const contextOptions = computed<PopupSelectOption[]>(() => {
         label: option.label,
         description: option.available
           ? projectTypeLabels[option.project.projectType]
-          : "关联书籍不可用",
+          : t("chatAssistant.linkedBookUnavailable"),
         ...(option.available
           ? {
               actionIcon: "edit" as const,
-              actionLabel: `编辑项目：${option.label}`
+              actionLabel: t("chatAssistant.editProjectNamed", {
+                name: option.label
+              })
             }
           : {}),
         style: { paddingLeft: "22px" }
@@ -159,23 +182,28 @@ const contextOptions = computed<PopupSelectOption[]>(() => {
   }
   options.push({
     value: "context:add-project",
-    label: "+ 添加新项目配置"
+    label: t("chatAssistant.addProjectOption")
   });
   return options;
 });
 const emptyHint = computed(() => {
   if (assistant.mode.value === "roleplay")
     return assistant.selectedRole.value
-      ? `正在与${assistant.selectedRole.value.name}聊天，仅使用人物定义和当前聊天记录。`
-      : "请添加或选择人物配置后开始聊天。";
+      ? t("chatAssistant.roleplayContext", {
+          name: assistant.selectedRole.value.name
+        })
+      : t("chatAssistant.chooseRoleplayFirst");
   if (assistant.mode.value === "normal") {
-    return "可查询创作空间目录、资料库、技能库、模型配置和用量，不读取正文。";
+    return t("chatAssistant.normalContext");
   }
-  if (!assistant.selectedProject.value)
-    return "请添加项目并关联一本书籍后开始聊天。";
+  if (!assistant.selectedProject.value) return t("chatAssistant.linkBookFirst");
   if (!assistant.projectAvailable.value)
-    return "所选项目已不存在或暂时不可用，当前无法发送。";
-  return `当前只读查询：${assistant.selectedProjectOption.value?.label ?? "所选项目"}`;
+    return t("chatAssistant.projectNotUsable");
+  return t("chatAssistant.readOnlyProject", {
+    project:
+      assistant.selectedProjectOption.value?.label ??
+      t("chatAssistant.selectedProject")
+  });
 });
 
 function focusInput(): void {
@@ -209,7 +237,7 @@ function updateContext(value: PopupSelectValue): void {
   }
   if (key === "context:normal") {
     if (!assistant.setMode("normal")) {
-      uiMessage.info("当前回复完成或停止后，才能切换聊天上下文");
+      uiMessage.info(t("chatAssistant.waitBeforeContextChange"));
     }
     return;
   }
@@ -217,7 +245,7 @@ function updateContext(value: PopupSelectValue): void {
   if (!key.startsWith(prefix)) return;
   const projectKey = key.slice(prefix.length);
   if (!assistant.selectProject(projectKey) || !assistant.setMode("project")) {
-    uiMessage.info("当前回复完成或停止后，才能切换聊天上下文");
+    uiMessage.info(t("chatAssistant.waitBeforeContextChange"));
   }
 }
 
@@ -243,9 +271,9 @@ async function copyLastReply(): Promise<void> {
   if (!content) return;
   try {
     await navigator.clipboard.writeText(content);
-    uiMessage.success("已复制最后一条回复");
+    uiMessage.success(t("chatAssistant.lastReplyCopied"));
   } catch {
-    uiMessage.error("复制失败，请稍后重试");
+    uiMessage.error(t("chatAssistant.copyRetryLater"));
   }
 }
 
@@ -266,7 +294,7 @@ watch(
   () => assistant.projectAvailable.value,
   (available, previous) => {
     if (previous && !available && assistant.mode.value === "project") {
-      uiMessage.error("所选项目已删除或不可用，请重新选择项目");
+      uiMessage.error(t("chatAssistant.reselectProject"));
     }
   }
 );
@@ -278,13 +306,13 @@ watch(
     :style="windowStyle"
     role="dialog"
     aria-modal="false"
-    aria-label="独立聊天助手"
+    :aria-label="t('chatAssistant.standaloneAssistant')"
     @keydown.esc.stop.prevent="emit('minimize')"
   >
     <div
       class="chat-assistant-resize-edge is-left"
       role="separator"
-      aria-label="调整聊天窗口宽度"
+      :aria-label="t('chatAssistant.resizeChatWidth')"
       aria-orientation="vertical"
       tabindex="0"
       @pointerdown="startResize($event, 'width')"
@@ -293,7 +321,7 @@ watch(
     <div
       class="chat-assistant-resize-edge is-top"
       role="separator"
-      aria-label="调整聊天窗口高度"
+      :aria-label="t('chatAssistant.resizeChatHeight')"
       aria-orientation="horizontal"
       tabindex="0"
       @pointerdown="startResize($event, 'height')"
@@ -302,7 +330,7 @@ watch(
     <div
       class="chat-assistant-resize-edge is-top-left"
       role="separator"
-      aria-label="同时调整聊天窗口宽高"
+      :aria-label="t('chatAssistant.resizeChatBoth')"
       tabindex="0"
       @pointerdown="startResize($event, 'both')"
       @keydown="handleResizeKeydown($event, 'both')"

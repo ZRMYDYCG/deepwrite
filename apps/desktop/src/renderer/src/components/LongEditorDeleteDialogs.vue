@@ -1,5 +1,8 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import type { LongNavigationDeleteTarget } from "../composables/useLongEditorDeleteDialogs";
+
+const t = createScopedTranslator("components.longEditorDeleteDialogs");
 
 defineProps<{
   pendingStoryPlotDelete: {
@@ -60,9 +63,13 @@ const navigationDeleteCancelButton = defineModel<HTMLButtonElement | undefined>(
         aria-describedby="long-story-plot-delete-description"
         tabindex="-1"
       >
-        <span>删除故事情节</span>
+        <span>{{ t("deleteStoryEvent") }}</span>
         <h3 id="long-story-plot-delete-title">
-          确认删除“{{ pendingStoryPlotDelete.title }}”？
+          {{
+            t("deleteMessageDetail", {
+              arg0: pendingStoryPlotDelete.title ?? ""
+            })
+          }}
         </h3>
         <p
           id="long-story-plot-delete-description"
@@ -71,7 +78,7 @@ const navigationDeleteCancelButton = defineModel<HTMLButtonElement | undefined>(
         >
           {{
             pendingStoryPlotDelete.previewPending
-              ? "正在核对关联关系与删除影响…"
+              ? t("checkingLinksAndDeletionImpact")
               : pendingStoryPlotDelete.description
           }}
         </p>
@@ -81,7 +88,7 @@ const navigationDeleteCancelButton = defineModel<HTMLButtonElement | undefined>(
             :disabled="pendingStoryPlotDelete.pending"
             @click="$emit('cancelStoryPlotDelete')"
           >
-            取消
+            {{ t("cancel") }}
           </button>
           <button
             class="is-danger"
@@ -95,10 +102,10 @@ const navigationDeleteCancelButton = defineModel<HTMLButtonElement | undefined>(
           >
             {{
               pendingStoryPlotDelete.pending
-                ? "删除中…"
+                ? t("deleting")
                 : pendingStoryPlotDelete.previewPending
-                  ? "核对中…"
-                  : "确认删除"
+                  ? t("checking")
+                  : t("deleteLabel")
             }}
           </button>
         </footer>
@@ -119,9 +126,13 @@ const navigationDeleteCancelButton = defineModel<HTMLButtonElement | undefined>(
         aria-describedby="long-worldbuilding-delete-description"
         tabindex="-1"
       >
-        <span>删除世界观条目</span>
+        <span>{{ t("deleteWorldbuildingEntry") }}</span>
         <h3 id="long-worldbuilding-delete-title">
-          确认删除“{{ pendingWorldbuildingDeleteItem.title }}”？
+          {{
+            t("deleteMessageDetail", {
+              arg0: pendingWorldbuildingDeleteItem.title ?? ""
+            })
+          }}
         </h3>
         <p
           id="long-worldbuilding-delete-description"
@@ -130,7 +141,7 @@ const navigationDeleteCancelButton = defineModel<HTMLButtonElement | undefined>(
         >
           {{
             pendingWorldbuildingDeleteItem.previewPending
-              ? "正在核对关联关系与删除影响…"
+              ? t("checkingLinksAndDeletionImpact")
               : pendingWorldbuildingDeleteItem.description
           }}
         </p>
@@ -141,7 +152,7 @@ const navigationDeleteCancelButton = defineModel<HTMLButtonElement | undefined>(
             :disabled="pendingWorldbuildingDeleteItem.pending"
             @click="$emit('closeWorldbuildingItemDelete')"
           >
-            取消
+            {{ t("cancel") }}
           </button>
           <button
             class="is-danger"
@@ -155,10 +166,10 @@ const navigationDeleteCancelButton = defineModel<HTMLButtonElement | undefined>(
           >
             {{
               pendingWorldbuildingDeleteItem.pending
-                ? "删除中…"
+                ? t("deleting")
                 : pendingWorldbuildingDeleteItem.previewPending
-                  ? "核对中…"
-                  : "确认删除"
+                  ? t("checking")
+                  : t("deleteLabel")
             }}
           </button>
         </footer>
@@ -179,9 +190,17 @@ const navigationDeleteCancelButton = defineModel<HTMLButtonElement | undefined>(
         aria-describedby="long-navigation-delete-description"
         tabindex="-1"
       >
-        <span>删除{{ navigationDeleteTarget.label }}</span>
+        <span>{{
+          t("deleteMessageDetailDetail", {
+            arg0: navigationDeleteTarget.label ?? ""
+          })
+        }}</span>
         <h3 id="long-navigation-delete-title">
-          确认删除“{{ navigationDeleteTarget.title }}”？
+          {{
+            t("deleteMessageDetail", {
+              arg0: navigationDeleteTarget.title ?? ""
+            })
+          }}
         </h3>
         <p
           id="long-navigation-delete-description"
@@ -190,7 +209,7 @@ const navigationDeleteCancelButton = defineModel<HTMLButtonElement | undefined>(
         >
           {{
             navigationDeleteTarget.previewPending
-              ? "正在核对关联关系与删除影响…"
+              ? t("checkingLinksAndDeletionImpact")
               : navigationDeleteTarget.description
           }}
         </p>
@@ -203,7 +222,7 @@ const navigationDeleteCancelButton = defineModel<HTMLButtonElement | undefined>(
             "
             @click="$emit('closeNavigationDelete')"
           >
-            取消
+            {{ t("cancel") }}
           </button>
           <button
             class="is-danger"
@@ -217,10 +236,10 @@ const navigationDeleteCancelButton = defineModel<HTMLButtonElement | undefined>(
           >
             {{
               navigationDeletePending
-                ? "删除中…"
+                ? t("deleting")
                 : navigationDeleteTarget.previewPending
-                  ? "核对中…"
-                  : "确认删除"
+                  ? t("checking")
+                  : t("deleteLabel")
             }}
           </button>
         </footer>

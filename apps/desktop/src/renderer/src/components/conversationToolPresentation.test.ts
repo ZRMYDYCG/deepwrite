@@ -124,18 +124,33 @@ describe("conversation tool presentation", () => {
         .map((item) => item.content)
     ).toEqual(["阶段回答 A", "阶段回答 B"]);
     expect(visibleResponse(message)).toBe("最终回复");
-    expect(processingLabel(message, Date.parse(startedAt))).toBe("已处理 6s");
+    expect(processingLabel(message, Date.parse(startedAt))).toBe("已处理 6秒");
     expect(
       processingLabel(
         orderedMessage("streaming"),
         Date.parse(startedAt) + 3_000
       )
-    ).toBe("已处理 3s");
+    ).toBe("已处理 3秒");
     expect(
       processingDisplayItems(message)
         .filter((item) => item.type === "work-group")
         .every((item) => item.type === "work-group" && !item.running)
     ).toBe(true);
+  });
+
+  it("advances processed time from seconds to minutes and seconds", () => {
+    const message = orderedMessage("completed");
+    for (const [durationSeconds, label] of [
+      [59, "已处理 59秒"],
+      [60, "已处理 1分0秒"],
+      [61, "已处理 1分1秒"],
+      [125, "已处理 2分5秒"]
+    ] as const) {
+      message.processingCompletedAt = new Date(
+        Date.parse(startedAt) + durationSeconds * 1_000
+      ).toISOString();
+      expect(processingLabel(message, Date.parse(startedAt))).toBe(label);
+    }
   });
 
   it("supports legacy thinking and tool fields", () => {

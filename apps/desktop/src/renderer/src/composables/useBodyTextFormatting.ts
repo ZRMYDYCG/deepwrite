@@ -1,3 +1,4 @@
+import { t } from "../i18n";
 import { computed, ref, getCurrentScope, onScopeDispose } from "vue";
 import type { BodyTextKind } from "@deepwrite/contracts";
 import type { TextSelectionRange } from "../utils/boundedTextHistory";
@@ -50,7 +51,9 @@ export function useBodyTextFormatting(options: BodyTextFormattingOptions) {
         settings.generalSettings.bodyTextFormats[kind]
       );
     } catch {
-      uiMessage.error("规范正文格式失败，请重试");
+      uiMessage.error(
+        t("workspace.bodyTextFormatting.couldNotFormatTheManuscriptTryAgain")
+      );
     } finally {
       pending.value = false;
     }

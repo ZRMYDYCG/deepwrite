@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import type {
   LongWorkspaceIndexSnapshot,
@@ -11,6 +12,8 @@ import type {
 } from "../types/longWorkspace";
 import AppIcon from "./AppIcon.vue";
 import LongStructureManager from "./LongStructureManager.vue";
+
+const t = createScopedTranslator("components.longStructureDialog");
 
 const props = defineProps<{
   open: boolean;
@@ -162,15 +165,19 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
       >
         <header class="long-structure-dialog-header">
           <div>
-            <span>长篇设置</span>
+            <span>{{ t("novelSettings") }}</span>
             <strong id="long-structure-dialog-title">
-              {{ bookTitle }} · 结构管理
+              {{
+                t("structureManagementMessage", {
+                  arg0: bookTitle ?? ""
+                })
+              }}
             </strong>
           </div>
           <button
             ref="closeButton"
             type="button"
-            aria-label="关闭结构管理"
+            :aria-label="t('closeStructureManagement')"
             :disabled="pending"
             @click="close"
           >

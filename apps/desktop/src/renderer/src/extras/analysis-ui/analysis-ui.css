@@ -1,0 +1,211 @@
+.analysis-workbench {
+  --analysis-gap: 16px;
+  container-name: analysis-page;
+  container-type: inline-size;
+  box-sizing: border-box;
+  height: 100%;
+  min-width: 0;
+  overflow: auto;
+  padding: 28px clamp(18px, 4%, 56px) 64px;
+  color: var(--text-primary);
+  background: var(--surface-main);
+}
+.analysis-workbench .analysis-page-header,
+.analysis-workbench .analysis-card-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.analysis-workbench .analysis-page-header {
+  max-width: 1080px;
+  margin: 0 auto 24px;
+}
+.analysis-workbench .analysis-page-intro {
+  min-width: 0;
+  flex: 1 1 260px;
+}
+.analysis-workbench .analysis-page-header h1 {
+  margin: 5px 0 7px;
+  font-size: 1.714286rem;
+  line-height: 1.35;
+  font-weight: 650;
+}
+.analysis-workbench .analysis-page-intro > p:last-child {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.928571rem;
+  line-height: 1.6;
+}
+.analysis-workbench .analysis-eyebrow {
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: 0.785714rem;
+}
+.analysis-workbench .analysis-content {
+  display: grid;
+  gap: var(--analysis-gap);
+  max-width: 1080px;
+  min-width: 0;
+  margin: 0 auto;
+}
+.analysis-workbench .analysis-content > * {
+  min-width: 0;
+}
+.analysis-workbench .analysis-card,
+.analysis-workbench .analysis-setup-panel {
+  box-sizing: border-box;
+  min-width: 0;
+  border: 1px solid var(--theme-line-soft);
+  border-radius: 12px;
+  padding: 18px;
+  background: var(--surface-raised);
+}
+.analysis-workbench .analysis-card-heading {
+  margin-bottom: 14px;
+}
+.analysis-workbench .analysis-card-heading h2 {
+  margin: 0;
+  font-size: 1.142857rem;
+  font-weight: 600;
+}
+.analysis-workbench :where(button, input, textarea) {
+  font: inherit;
+}
+.analysis-workbench :where(button) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 7px 11px;
+  border: 1px solid var(--theme-line-soft);
+  border-radius: 8px;
+  background: var(--surface-muted);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.analysis-workbench :where(button:hover:not(:disabled)) {
+  background: var(--surface-hover);
+}
+.analysis-workbench :where(button:disabled) {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.analysis-workbench :where(button, input, textarea, summary):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.analysis-workbench .analysis-primary-button {
+  border-color: var(--text-primary);
+  background: var(--text-primary);
+  color: var(--surface-main);
+}
+.analysis-workbench .analysis-primary-button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--text-primary) 88%, var(--surface-main));
+}
+.analysis-workbench .analysis-page-actions,
+.analysis-workbench .analysis-run-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.analysis-workbench .analysis-run-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 16px;
+  padding-top: 15px;
+  border-top: 1px solid var(--theme-line-soft);
+}
+.analysis-workbench .analysis-run-progress {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  flex: 1 1 300px;
+}
+.analysis-workbench .analysis-run-bar > .analysis-run-status {
+  flex: 1 1 320px;
+  width: auto;
+}
+.analysis-workbench .analysis-run-progress strong {
+  font-size: 0.928571rem;
+}
+.analysis-workbench .analysis-run-progress span {
+  color: var(--text-secondary);
+  font-size: 0.857143rem;
+  overflow-wrap: anywhere;
+}
+.analysis-workbench .analysis-run-actions {
+  margin-left: auto;
+}
+.analysis-workbench .analysis-result-anchor {
+  min-width: 0;
+  scroll-margin-top: 18px;
+}
+.analysis-workbench .setup-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.analysis-workbench .setup-field {
+  display: grid;
+  min-width: 0;
+  gap: 7px;
+}
+.analysis-workbench .setup-field-label {
+  color: var(--text-secondary);
+  font-size: 0.857143rem;
+}
+.analysis-workbench .setup-field-label small {
+  margin-left: 5px;
+  color: var(--text-tertiary);
+  font-size: 0.785714rem;
+}
+.analysis-workbench .analysis-materials > summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  cursor: pointer;
+  list-style: none;
+}
+.analysis-workbench .analysis-materials > summary::-webkit-details-marker {
+  display: none;
+}
+.analysis-workbench .analysis-materials > summary > span {
+  flex: 1 1 250px;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+.analysis-workbench .analysis-materials > summary::after {
+  content: "展开正文";
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+.analysis-workbench .analysis-materials[open] > summary::after {
+  content: "收起正文";
+}
+@container analysis-page (max-width: 600px) {
+  .analysis-workbench .setup-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .analysis-workbench .analysis-run-bar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .analysis-workbench
+    .analysis-run-bar
+    > :is(.analysis-run-status, .analysis-run-progress) {
+    flex: none;
+    width: 100%;
+  }
+  .analysis-workbench .analysis-page-intro {
+    flex-basis: auto;
+  }
+}

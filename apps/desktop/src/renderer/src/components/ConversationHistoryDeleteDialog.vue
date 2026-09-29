@@ -1,5 +1,8 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import { onBeforeUnmount, onMounted, ref, useId } from "vue";
+
+const t = createScopedTranslator("components.conversationHistoryDeleteDialog");
 const props = defineProps<{ title: string; busy: boolean }>();
 const emit = defineEmits<{ close: []; confirm: [] }>();
 const titleId = useId();
@@ -47,9 +50,15 @@ onBeforeUnmount(() => {
         :aria-labelledby="titleId"
         :aria-describedby="descriptionId"
       >
-        <h2 :id="titleId">删除“{{ title }}”？</h2>
+        <h2 :id="titleId">
+          {{
+            t("deleteMessage", {
+              arg0: title ?? ""
+            })
+          }}
+        </h2>
         <p :id="descriptionId">
-          对话会移入“已删除”，可从历史对话中恢复。正在运行或有待处理提案的对话需要先完成处理。
+          {{ t("theConversationWillMoveToDeletedAndCanBe") }}
         </p>
         <footer>
           <button
@@ -58,7 +67,7 @@ onBeforeUnmount(() => {
             :disabled="busy"
             @click="close"
           >
-            取消
+            {{ t("cancel") }}
           </button>
           <button
             ref="confirmButton"
@@ -67,7 +76,7 @@ onBeforeUnmount(() => {
             :disabled="busy"
             @click="emit('confirm')"
           >
-            {{ busy ? "正在删除…" : "确认删除" }}
+            {{ busy ? t("deleting") : t("deleteLabel") }}
           </button>
         </footer>
       </section>

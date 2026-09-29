@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import {
   computed,
   nextTick,
@@ -8,6 +9,8 @@ import {
   watch
 } from "vue";
 import AppIcon from "./AppIcon.vue";
+
+const t = createScopedTranslator("components.longBookRemovalDialog");
 
 const props = defineProps<{
   open: boolean;
@@ -23,13 +26,15 @@ const emit = defineEmits<{
 
 const isDelete = computed(() => props.action === "delete");
 const dialogTitle = computed(() =>
-  isDelete.value ? "永久删除长篇项目？" : "从创作空间移除长篇？"
+  isDelete.value
+    ? t("permanentlyDeleteThisNovelProject")
+    : t("removeThisNovelFromTheWorkspace")
 );
 const confirmLabel = computed(() => {
   if (props.pending) {
-    return isDelete.value ? "正在删除…" : "正在移除…";
+    return isDelete.value ? t("deleting") : t("removing");
   }
-  return isDelete.value ? "永久删除" : "确认移除";
+  return isDelete.value ? t("deletePermanently") : t("confirmRemoval");
 });
 
 const dialogElement = ref<HTMLElement | null>(null);
@@ -126,7 +131,7 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
             <AppIcon :name="isDelete ? 'trash' : 'archive'" :size="20" />
           </span>
           <div>
-            <span>长篇创作空间</span>
+            <span>{{ t("novelWorkspace") }}</span>
             <h2 id="long-removal-dialog-title">{{ dialogTitle }}</h2>
           </div>
         </header>
@@ -135,18 +140,18 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
           <strong :title="title">“{{ title }}”</strong>
           <template v-if="isDelete">
             <p>
-              将永久删除整个长篇项目文件夹，包括世界观、人物、情节结构、全部章节正文与连续性账本。
+              {{ t("theEntireNovelProjectFolderWillBePermanentlyDeleted") }}
             </p>
             <p class="long-removal-warning is-danger">
-              此操作不可恢复。请确认项目文件夹已在其他位置完成备份。
+              {{ t("thisCannotBeUndoneMakeSureYouHaveBacked") }}
             </p>
           </template>
           <template v-else>
             <p>
-              只会取消该长篇在当前创作空间中的登记，不会删除磁盘上的项目文件夹或其中任何内容。
+              {{ t("thisOnlyUnregistersTheNovelFromTheWorkspaceThe") }}
             </p>
             <p class="long-removal-warning">
-              稍后仍可通过“打开已有作品”选择长篇，重新登记并继续创作。
+              {{ t("useOpenExistingWorkLaterToRegisterTheNovel") }}
             </p>
           </template>
         </div>
@@ -159,7 +164,7 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
             :disabled="pending"
             @click="close"
           >
-            取消
+            {{ t("cancel") }}
           </button>
           <button
             class="long-removal-primary"

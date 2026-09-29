@@ -206,7 +206,13 @@ export function createConversationPersistenceAdapter(
   return {
     ...(api.history ? { history: api.history } : {}),
     ...(api.onBeforeClose
-      ? { onBeforeClose: api.onBeforeClose.bind(api) }
+      ? {
+          onBeforeClose: (handler: () => Promise<void>) =>
+            api.onBeforeClose!(async () => {
+              await handler();
+              await options.beforeClose?.();
+            })
+        }
       : {}),
     prepareHistory: preparation.prepareHistory,
     async load(key) {

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { t } from "../i18n";
 import type { LongWorkspaceIndexSnapshot } from "@deepwrite/contracts";
 import type { LongWorkspaceProposalItem } from "../composables/useLongWorkspaceProposals";
 import type { ChatMessage } from "../types/conversation";
@@ -54,7 +55,7 @@ const emit = defineEmits<{
       message.status === 'streaming'
     "
     class="processing-live-list"
-    aria-label="运行过程"
+    :aria-label="t('components.conversationProcessingTimeline.execution')"
   >
     <div class="processing-live-status" aria-live="off">
       <ConversationRunClock

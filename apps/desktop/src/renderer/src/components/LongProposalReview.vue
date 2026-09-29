@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import { computed } from "vue";
 import type {
   LongContinuityFileChange,
@@ -10,6 +11,8 @@ import { buildAgentTextDiff } from "../utils/agentTextDiff";
 import AppIcon from "./AppIcon.vue";
 import LongLedgerFinalizationCard from "./LongLedgerFinalizationCard.vue";
 import LongProposalImpactDetails from "./LongProposalImpactDetails.vue";
+
+const t = createScopedTranslator("components.longProposalReview");
 
 const props = withDefaults(
   defineProps<{
@@ -91,12 +94,24 @@ const contentFileCards = computed(() => {
 });
 
 const continuityRoleLabels: Record<LongContinuityFileRole, string> = {
-  foreshadowing_changes: "伏笔变化",
-  world_reveals: "世界观揭露",
-  character_current_state: "人物当前状态",
-  character_history: "人物历史轨迹",
-  chapter_end_state: "章末状态",
-  handoff: "接续包"
+  get foreshadowing_changes() {
+    return t("foreshadowingChanges");
+  },
+  get world_reveals() {
+    return t("worldbuildingReveals");
+  },
+  get character_current_state() {
+    return t("currentCharacterState");
+  },
+  get character_history() {
+    return t("characterHistory");
+  },
+  get chapter_end_state() {
+    return t("endOfChapterState");
+  },
+  get handoff() {
+    return t("handoffPackage");
+  }
 };
 
 function trustedContinuityIdentity(fileId: string): {
@@ -170,7 +185,7 @@ function continuityFileTitle(
           characterId: file.characterId
         }
       : null);
-  if (!index || !trusted) return "连续性文件（待校验）";
+  if (!index || !trusted) return t("continuityFilesPendingValidation");
   const chapter = index.plot.chapterCards.find(
     ({ id }) => id === trusted.chapterCardId
   );
@@ -179,7 +194,7 @@ function continuityFileTitle(
       ? null
       : index.characters.find(({ id }) => id === trusted.characterId);
   if (!chapter || (trusted.characterId !== null && !character)) {
-    return "连续性文件（待校验）";
+    return t("continuityFilesPendingValidation");
   }
   return `${chapter.title} / ${
     character ? `${character.name} / ` : ""
@@ -208,69 +223,82 @@ function canDisplayContentFileDiff(item: LongWorkspaceProposalItem): boolean {
 function proposalTitle(item: LongWorkspaceProposalItem): string {
   switch (item.event.type) {
     case "long.mutation_proposal":
-      return "结构变更";
+      return t("structureChanges");
     case "long.worldbuilding_file_proposal":
       return item.event.payload.files.length === 1
         ? item.event.payload.files[0]!.title
-        : `${item.event.payload.files.length} 个世界观文件`;
+        : t("valueWorldbuildingFiles", {
+            arg0: item.event.payload.files.length
+          });
     case "long.character_file_proposal":
       return item.event.payload.files.length === 1
         ? item.event.payload.files[0]!.title
-        : `${item.event.payload.files[0]?.characterName ?? "人物"}的 ${item.event.payload.files.length} 个文件`;
+        : t("valueFilesForValue", {
+            arg0: item.event.payload.files[0]?.characterName ?? t("characters"),
+            arg1: item.event.payload.files.length
+          });
     case "long.continuity_file_proposal":
       return item.event.payload.files.length === 1
         ? contentFileTitle(item, item.event.payload.files[0]!)
-        : `${item.event.payload.files.length} 个连续性文件`;
+        : t("valueContinuityFiles", {
+            arg0: item.event.payload.files.length
+          });
     case "long.ledger_commit_proposal":
-      return "连续性账本归档";
+      return t("continuityLedgerArchive");
   }
 }
 
 function proposalAction(item: LongWorkspaceProposalItem): string {
-  if (item.status === "submitting") return "处理中…";
+  if (item.status === "submitting") return t("processing");
   if (item.approvalMode === "auto-approve" && item.status === "error") {
-    return "重试自动保存";
+    return t("retryAutosave");
   }
   if (item.status === "error" && item.event.type !== "long.mutation_proposal") {
-    return "重试";
+    return t("retry");
   }
   switch (item.event.type) {
     case "long.mutation_proposal":
-      return "确认应用";
+      return t("apply");
     case "long.worldbuilding_file_proposal":
     case "long.character_file_proposal":
     case "long.continuity_file_proposal":
-      return "确认写入并保存";
+      return t("writeAndSave");
     case "long.ledger_commit_proposal":
-      return item.status === "error" ? "重试归档" : "立即归档";
+      return item.status === "error" ? t("retryArchive") : t("archiveNow");
   }
 }
 
 function proposalStatusText(item: LongWorkspaceProposalItem): string {
   if (item.event.type === "long.ledger_commit_proposal") {
-    if (item.status === "accepted") return "已归档";
-    if (item.status === "waiting") return "等待前序文件";
-    if (item.status === "submitting") return "正在归档";
-    if (item.status === "error") return "归档失败";
-    return "等待归档";
+    if (item.status === "accepted") return t("archived");
+    if (item.status === "waiting") return t("waitingForPrerequisiteFiles");
+    if (item.status === "submitting") return t("archiving");
+    if (item.status === "error") return t("archiveFailed");
+    return t("awaitingArchive");
   }
-  if (item.status === "accepted") return "已接受";
-  if (item.status === "waiting") return "等待前序文件";
+  if (item.status === "accepted") return t("accepted");
+  if (item.status === "waiting") return t("waitingForPrerequisiteFiles");
   if (item.status === "previewing") {
-    return item.approvalMode === "auto-approve" ? "自动预览中" : "正在预览";
+    return item.approvalMode === "auto-approve"
+      ? t("automaticPreview")
+      : t("previewing");
   }
   if (item.status === "submitting") {
-    return item.approvalMode === "auto-approve" ? "自动保存中" : "正在处理";
+    return item.approvalMode === "auto-approve"
+      ? t("autosaving")
+      : t("processingLabel");
   }
   if (item.status === "error") {
-    if (item.errorPhase === "preview") return "校验未通过";
+    if (item.errorPhase === "preview") return t("validationFailed");
     return item.approvalMode === "auto-approve"
-      ? "自动保存失败"
+      ? t("autosaveFailed")
       : item.errorRetryable === false
-        ? "无法应用"
-        : "应用失败";
+        ? t("cannotApply")
+        : t("failedToApply");
   }
-  return item.approvalMode === "auto-approve" ? "等待自动保存" : "等待确认";
+  return item.approvalMode === "auto-approve"
+    ? t("awaitingAutosave")
+    : t("awaitingConfirmation");
 }
 
 function contentProposalVisualStatus(
@@ -285,14 +313,18 @@ function contentProposalVisualStatus(
 }
 
 function contentProposalStatusLabel(item: LongWorkspaceProposalItem): string {
-  if (item.status === "accepted") return "已接受";
+  if (item.status === "accepted") return t("accepted");
   if (item.status === "error") {
-    return item.errorPhase === "preview" ? "校验未通过" : "应用失败";
+    return item.errorPhase === "preview"
+      ? t("validationFailed")
+      : t("failedToApply");
   }
-  if (item.status === "waiting") return "等待前序文件";
-  if (item.status === "previewing") return "正在校验";
-  if (item.status === "submitting") return "正在应用";
-  return item.approvalMode === "auto-approve" ? "待自动保存" : "待审阅";
+  if (item.status === "waiting") return t("waitingForPrerequisiteFiles");
+  if (item.status === "previewing") return t("validating");
+  if (item.status === "submitting") return t("applying");
+  return item.approvalMode === "auto-approve"
+    ? t("awaitingAutosaveLabel")
+    : t("awaitingReview");
 }
 
 function contentProposalDiffStats(item: LongWorkspaceProposalItem): {
@@ -313,27 +345,27 @@ function contentProposalDiffStats(item: LongWorkspaceProposalItem): {
 function contentProposalStatusMessage(item: LongWorkspaceProposalItem): string {
   if (item.status === "accepted") {
     return item.approvalMode === "auto-approve"
-      ? "已自动批准并保存到本地 Markdown。"
-      : "变更已应用并保存到本机。";
+      ? t("automaticallyApprovedAndSavedToLocalMarkdown")
+      : t("changesAppliedAndSavedLocally");
   }
   if (item.status === "error") {
     if (item.errorPhase === "preview") {
-      return item.error ?? "暂时无法读取变更影响，内容尚未保存。";
+      return item.error ?? t("couldNotReadTheChangeImpactContentHasNot");
     }
-    return item.error ?? "变更未能保存，可再次保存或拒绝。";
+    return item.error ?? t("changesCouldNotBeSavedSaveAgainOrReject");
   }
   if (item.status === "waiting") {
-    return "正在等待前序文件创建或写入完成，随后继续校验。";
+    return t("waitingForPrecedingFileOperationsToFinishBeforeResuming");
   }
   if (item.status === "previewing") {
-    return "正在读取文件与变更影响……";
+    return t("readingFilesAndChangeImpact");
   }
   if (item.status === "submitting") {
-    return "正在应用变更并保存……";
+    return t("applyingAndSavingChanges");
   }
   return item.approvalMode === "auto-approve"
-    ? "已加入实时自动保存队列。"
-    : "接受后将应用到对应 Markdown 并自动保存到本机。";
+    ? t("addedToTheAutosaveQueue")
+    : t("acceptToApplyToTheCorrespondingMarkdownFilesAnd");
 }
 
 function showContentProposalActions(item: LongWorkspaceProposalItem): boolean {
@@ -356,15 +388,15 @@ function contentProposalAcceptDisabled(
 }
 
 function contentProposalAcceptLabel(item: LongWorkspaceProposalItem): string {
-  if (item.status === "submitting") return "保存中…";
+  if (item.status === "submitting") return t("saving");
   if (item.status === "error" && item.errorRetryable === false) {
-    return "无法保存";
+    return t("cannotSave");
   }
   return item.status === "error"
     ? item.errorPhase === "preview"
-      ? "重新读取并保存"
-      : "再次保存"
-    : "接受并保存";
+      ? t("reloadAndSave")
+      : t("saveAgain")
+    : t("acceptAndSave");
 }
 
 function isStructureProposalItem(item: LongWorkspaceProposalItem): boolean {
@@ -384,22 +416,23 @@ function proposalVisualStatus(
 function structureProposalStatusMessage(
   item: LongWorkspaceProposalItem
 ): string {
-  if (item.status === "accepted") return "结构变更已应用并保存到本机。";
+  if (item.status === "accepted")
+    return t("structureChangesAppliedAndSavedLocally");
   if (item.status === "error") {
     if (item.errorPhase === "preview") {
-      return item.error ?? "暂时无法读取结构影响，变更尚未应用。";
+      return item.error ?? t("couldNotReadStructuralImpactChangesHaveNotBeen");
     }
-    return item.error ?? "结构变更未能应用，可重新预览后重试或拒绝。";
+    return item.error ?? t("structureChangesCouldNotBeAppliedPreviewAgainTo");
   }
   if (item.status === "previewing") {
-    return "正在读取当前结构与影响范围……";
+    return t("readingCurrentStructureAndImpact");
   }
   if (item.status === "submitting") {
-    return "正在应用结构变更……";
+    return t("applyingStructureChanges");
   }
   return item.approvalMode === "auto-approve"
-    ? "已加入实时自动保存队列。"
-    : "接受后将应用到当前书籍的结构并自动保存到本机。";
+    ? t("addedToTheAutosaveQueue")
+    : t("acceptToApplyToThisBookSStructureAnd");
 }
 
 function structureProposalAcceptDisabled(
@@ -415,15 +448,15 @@ function structureProposalAcceptDisabled(
 }
 
 function structureProposalAcceptLabel(item: LongWorkspaceProposalItem): string {
-  if (item.status === "submitting") return "应用中…";
+  if (item.status === "submitting") return t("applyingLabel");
   if (item.status === "error" && item.errorRetryable === false) {
-    return "无法应用";
+    return t("cannotApply");
   }
   return item.status === "error"
     ? item.errorPhase === "preview"
-      ? "重新校验并应用"
-      : "重试应用"
-    : "接受并应用";
+      ? t("revalidateAndApply")
+      : t("retryApplying")
+    : t("acceptAndApply");
 }
 
 function diffLineMark(type: "context" | "addition" | "deletion"): string {
@@ -442,15 +475,23 @@ function diffLineMark(type: "context" | "addition" | "deletion"): string {
       'is-conversation-card': conversationCard,
       'has-edit-proposal-surface-items': hasEditProposalSurfaceItems
     }"
-    aria-label="长篇待审批提案"
+    :aria-label="t('novelProposalsAwaitingApproval')"
   >
     <header v-if="!embedded">
       <div>
-        <span>智能体写入</span>
-        <strong v-if="pendingCount">{{ pendingCount }} 项处理中</strong>
-        <strong v-else>{{ completedCount }} 项已保存</strong>
+        <span>{{ t("agentWrites") }}</span>
+        <strong v-if="pendingCount">{{
+          t("processingMessage", {
+            arg0: pendingCount ?? ""
+          })
+        }}</strong>
+        <strong v-else>{{
+          t("savedMessage", {
+            arg0: completedCount ?? ""
+          })
+        }}</strong>
       </div>
-      <small>所有变更均按当前书籍隔离</small>
+      <small>{{ t("allChangesAreScopedToTheCurrentBook") }}</small>
     </header>
 
     <div class="long-proposal-list">
@@ -504,11 +545,11 @@ function diffLineMark(type: "context" | "addition" | "deletion"): string {
               v-if="item.status === 'accepted'"
               class="approval-target-button"
               type="button"
-              title="跳转到目标文件"
-              aria-label="跳转到目标文件"
+              :title="t('goToTargetFile')"
+              :aria-label="t('goToTargetFile')"
               @click.stop="emit('locate', item.event.id)"
             >
-              跳转到目标文件
+              {{ t("goToTargetFile") }}
             </button>
           </div>
         </div>
@@ -547,11 +588,11 @@ function diffLineMark(type: "context" | "addition" | "deletion"): string {
                   v-if="item.status === 'accepted'"
                   class="approval-target-button"
                   type="button"
-                  title="跳转到目标文件"
-                  aria-label="跳转到目标文件"
+                  :title="t('goToTargetFile')"
+                  :aria-label="t('goToTargetFile')"
                   @click.stop="emit('locate', item.event.id)"
                 >
-                  跳转到目标文件
+                  {{ t("goToTargetFile") }}
                 </button>
               </div>
               <p>{{ item.event.payload.summary }}</p>
@@ -562,7 +603,12 @@ function diffLineMark(type: "context" | "addition" | "deletion"): string {
                 canDisplayContentFileDiff(item)
               "
               class="edit-proposal-stats"
-              :aria-label="`增加 ${contentProposalDiffStats(item).additions} 行，删除 ${contentProposalDiffStats(item).deletions} 行`"
+              :aria-label="
+                t('valueLinesAddedValueLinesRemoved', {
+                  arg0: contentProposalDiffStats(item).additions,
+                  arg1: contentProposalDiffStats(item).deletions
+                })
+              "
             >
               <span class="is-addition">
                 +{{ contentProposalDiffStats(item).additions }}
@@ -582,9 +628,13 @@ function diffLineMark(type: "context" | "addition" | "deletion"): string {
             class="edit-proposal-diff"
           >
             <summary>
-              <span>查看差异</span>
+              <span>{{ t("viewChanges") }}</span>
               <small>
-                {{ contentProposalDiffStats(item).hunks }} 个变更块
+                {{
+                  t("changeBlocksMessage", {
+                    arg0: contentProposalDiffStats(item).hunks ?? ""
+                  })
+                }}
               </small>
               <AppIcon name="chevron" :size="13" />
             </summary>
@@ -630,7 +680,7 @@ function diffLineMark(type: "context" | "addition" | "deletion"): string {
                   </div>
                 </div>
                 <p v-if="card.diff.truncated" class="edit-diff-truncated">
-                  差异较大，仅显示部分变更；行数统计包含完整提案。
+                  {{ t("thisDiffIsLargeSoOnlySomeChangesAre") }}
                 </p>
               </section>
             </div>
@@ -642,13 +692,13 @@ function diffLineMark(type: "context" | "addition" | "deletion"): string {
             "
             class="edit-proposal-empty"
           >
-            文件身份和原文尚未通过校验，暂不显示差异。
+            {{ t("fileIdentityAndSourceContentHaveNotPassedValidation") }}
           </p>
           <p
             v-else-if="isContentFileProposalItem(item)"
             class="edit-proposal-empty"
           >
-            已创建空白 Markdown 文件，没有正文行级差异。
+            {{ t("aBlankMarkdownFileWasCreatedNoManuscriptLine") }}
           </p>
 
           <footer class="edit-proposal-footer">
@@ -675,7 +725,7 @@ function diffLineMark(type: "context" | "addition" | "deletion"): string {
                 :disabled="item.status === 'submitting'"
                 @click="emit('reject', item.event.id)"
               >
-                拒绝
+                {{ t("reject") }}
               </button>
               <button
                 class="edit-review-button is-accept"
@@ -717,7 +767,7 @@ function diffLineMark(type: "context" | "addition" | "deletion"): string {
             :disabled="item.status === 'submitting'"
             @click="emit('reject', item.event.id)"
           >
-            拒绝
+            {{ t("reject") }}
           </button>
           <button
             v-if="
@@ -731,7 +781,7 @@ function diffLineMark(type: "context" | "addition" | "deletion"): string {
             type="button"
             @click="emit('retryPreview', item.event.id)"
           >
-            重新预览
+            {{ t("previewAgain") }}
           </button>
           <button
             class="long-proposal-primary"

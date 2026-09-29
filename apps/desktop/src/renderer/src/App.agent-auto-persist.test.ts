@@ -28,7 +28,9 @@ describe("App agent realtime auto persistence", () => {
     expect(source).toContain("useLongWorkspacePresentationCoordinator({");
     expect(source).not.toContain("function agentRunScopeHasWriteBarrier");
     expect(autoSaveSource).toContain("options.isWriteBlocked(document)");
-    expect(presentationCoordinatorSource).toContain("请先接受或拒绝待审阅变更");
+    expect(presentationCoordinatorSource).toContain(
+      "acceptOrRejectThePendingChangesFirst"
+    );
   });
 
   it("allows every short, script, library, and long content proposal to commit during a run", () => {

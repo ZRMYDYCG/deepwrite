@@ -1,3 +1,4 @@
+import { t } from "../i18n";
 import { computed, ref, watch } from "vue";
 import type {
   CreationBookDragPayload,
@@ -59,7 +60,11 @@ export function useCreationResourceOrder(
     } catch {
       if (!storageWarningActive) {
         storageWarningActive = true;
-        options.warning("作品顺序暂时无法保存，但本次操作仍然有效");
+        options.warning(
+          t(
+            "workspace.creationResourceOrder.theProjectOrderCouldNotBeSavedButIt"
+          )
+        );
       }
     }
   }

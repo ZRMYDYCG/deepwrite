@@ -3,11 +3,13 @@ import source from "./LongBookRemovalDialog.vue?raw";
 
 describe("LongBookRemovalDialog", () => {
   it("clearly distinguishes unregister from permanent folder deletion", () => {
-    expect(source).toContain("只会取消该长篇在当前创作空间中的登记");
-    expect(source).toContain("不会删除磁盘上的项目文件夹");
-    expect(source).toContain("永久删除整个长篇项目文件夹");
-    expect(source).toContain("此操作不可恢复");
-    expect(source).toContain("打开已有作品");
+    expect(source).toContain("thisOnlyUnregistersTheNovelFromTheWorkspaceThe");
+    expect(source).toContain("thisOnlyUnregistersTheNovelFromTheWorkspaceThe");
+    expect(source).toContain(
+      "theEntireNovelProjectFolderWillBePermanentlyDeleted"
+    );
+    expect(source).toContain("thisCannotBeUndoneMakeSureYouHaveBacked");
+    expect(source).toContain("useOpenExistingWorkLaterToRegisterTheNovel");
   });
 
   it("uses danger styling only when the action is delete", () => {

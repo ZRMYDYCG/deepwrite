@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import {
   computed,
   nextTick,
@@ -23,6 +24,8 @@ import {
   LONG_MATERIAL_BINDING_KINDS,
   LONG_SKILL_BINDING_KINDS
 } from "./longBookBindingOptions";
+
+const t = createScopedTranslator("components.longBookBindingsDialog");
 
 type LongBindingDomain = "skill" | "material";
 
@@ -87,15 +90,15 @@ const skillCandidates = reactive<Record<SkillKind, string>>({
 const dialog = ref<HTMLElement | null>(null);
 
 const title = computed(() =>
-  props.mode === "skill" ? "技能库绑定" : "素材库绑定"
+  props.mode === "skill" ? t("skillLibraryLinks") : t("materialLibraryLinks")
 );
 const heading = computed(() =>
-  props.mode === "skill" ? "绑定技能库" : "关联素材库"
+  props.mode === "skill" ? t("linkSkillLibraries") : t("linkMaterialLibraries")
 );
 const description = computed(() =>
   props.mode === "skill"
-    ? "已绑定技能可在所有阶段按需加载；每类可绑定多个技能库。"
-    : "已关联素材可在所有阶段按需加载；每类可关联多个素材库。"
+    ? t("linkedSkillsCanBeLoadedAtAnyStageLink")
+    : t("linkedMaterialsCanBeLoadedAtAnyStageLink")
 );
 
 function materialOptions(kind: MaterialKind): Array<{
@@ -104,7 +107,10 @@ function materialOptions(kind: MaterialKind): Array<{
 }> {
   const selected = new Set(selectedMaterials[kind]);
   return [
-    { value: "", label: "添加一个素材库…" },
+    {
+      value: "",
+      label: t("addAMaterialLibrary")
+    },
     ...props.materials
       .filter(
         (library) =>
@@ -124,14 +130,21 @@ function skillOptions(kind: SkillKind): Array<{
 }> {
   const selected = new Set(selectedSkills[kind]);
   return [
-    { value: "", label: "添加一个技能库…" },
+    {
+      value: "",
+      label: t("addASkillLibrary")
+    },
     ...props.skills
       .filter(
         (library) => library.skillKind === kind && !selected.has(library.id)
       )
       .map((library) => ({
         value: library.id,
-        label: library.isBuiltin ? `${library.title} · 官方` : library.title
+        label: library.isBuiltin
+          ? t("valueOfficial", {
+              arg0: library.title
+            })
+          : library.title
       }))
   ];
 }
@@ -176,14 +189,21 @@ function addSkill(kind: SkillKind, value: unknown): void {
 function materialLabel(id: string): string {
   return (
     props.materials.find((candidate) => candidate.id === id)?.title ??
-    `${id} · Catalog 中缺失`
+    t("valueMissingFromCatalog", { arg0: id })
   );
 }
 
 function skillLabel(id: string): string {
   const library = props.skills.find((candidate) => candidate.id === id);
-  if (!library) return `${id} · Catalog 中缺失`;
-  return library.isBuiltin ? `${library.title} · 官方` : library.title;
+  if (!library)
+    return t("valueMissingFromCatalog", {
+      arg0: id
+    });
+  return library.isBuiltin
+    ? t("valueOfficial", {
+        arg0: library.title
+      })
+    : library.title;
 }
 
 function requestClose(): void {
@@ -234,7 +254,7 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
           <button
             class="dialog-close"
             type="button"
-            aria-label="关闭"
+            :aria-label="t('close')"
             :disabled="submitting"
             @click="requestClose"
           >
@@ -285,7 +305,12 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
                     {{ materialLabel(id) }}
                     <button
                       type="button"
-                      :aria-label="`解除${kind.label}绑定：${materialLabel(id)}`"
+                      :aria-label="
+                        t('unlinkValueValue', {
+                          arg0: kind.label,
+                          arg1: materialLabel(id)
+                        })
+                      "
                       :disabled="submitting"
                       @click="
                         selectedMaterials[kind.id] = selectedMaterials[
@@ -297,11 +322,17 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
                     </button>
                   </span>
                 </div>
-                <small v-else class="long-binding-empty">当前未关联</small>
+                <small v-else class="long-binding-empty">{{
+                  t("noLinks")
+                }}</small>
                 <PopupSelect
                   :model-value="materialCandidates[kind.id]"
                   :options="materialOptions(kind.id)"
-                  :accessible-label="`添加${kind.label}`"
+                  :accessible-label="
+                    t('addValue', {
+                      arg0: kind.label
+                    })
+                  "
                   size="large"
                   :disabled="submitting || materialOptions(kind.id).length <= 1"
                   :menu-min-width="260"
@@ -333,7 +364,12 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
                     {{ skillLabel(id) }}
                     <button
                       type="button"
-                      :aria-label="`解除${kind.label}绑定：${skillLabel(id)}`"
+                      :aria-label="
+                        t('unlinkValueValue', {
+                          arg0: kind.label,
+                          arg1: skillLabel(id)
+                        })
+                      "
                       :disabled="submitting"
                       @click="
                         selectedSkills[kind.id] = selectedSkills[
@@ -345,11 +381,17 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
                     </button>
                   </span>
                 </div>
-                <small v-else class="long-binding-empty">当前未绑定</small>
+                <small v-else class="long-binding-empty">{{
+                  t("notLinked")
+                }}</small>
                 <PopupSelect
                   :model-value="skillCandidates[kind.id]"
                   :options="skillOptions(kind.id)"
-                  :accessible-label="`添加${kind.label}`"
+                  :accessible-label="
+                    t('addValue', {
+                      arg0: kind.label
+                    })
+                  "
                   size="large"
                   :disabled="submitting || skillOptions(kind.id).length <= 1"
                   :menu-min-width="260"
@@ -359,8 +401,9 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
               </div>
             </div>
             <p class="create-short-stable-hint">
-              Catalog
-              中暂时缺失的已有绑定仍会保留，只有点击移除才会解除已有绑定。
+              {{
+                t("existingLinksToLibrariesTemporarilyMissingFromTheCatalog")
+              }}
             </p>
           </section>
 
@@ -371,14 +414,14 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
               :disabled="submitting"
               @click="requestClose"
             >
-              取消
+              {{ t("cancel") }}
             </button>
             <button
               class="dialog-primary-button"
               type="submit"
               :disabled="submitting"
             >
-              {{ submitting ? "保存中…" : "保存绑定" }}
+              {{ submitting ? t("saving") : t("saveLinks") }}
             </button>
           </div>
         </form>

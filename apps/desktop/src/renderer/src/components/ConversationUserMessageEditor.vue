@@ -1,8 +1,12 @@
 <script setup lang="ts">
+import { formatError } from "../i18n/errors";
+import { createScopedTranslator } from "../i18n";
 import { computed, nextTick, onMounted, ref } from "vue";
 import type { ConversationMessageRewriteRequest } from "../types/conversation";
 import { uiMessage } from "../ui-feedback";
 import { CONVERSATION_MESSAGE_MAX_LENGTH } from "../composables/agent-conversation/history-rewrite";
+
+const t = createScopedTranslator("components.conversationUserMessageEditor");
 
 const props = defineProps<{
   messageId: string;
@@ -54,9 +58,7 @@ async function submit(): Promise<void> {
     }
   } catch (error: unknown) {
     submitting.value = false;
-    uiMessage.error(
-      error instanceof Error ? error.message : "重新发送失败，请稍后重试。"
-    );
+    uiMessage.error(formatError(error, t("couldNotResendTryAgainLater")));
     await nextTick();
     textarea.value?.focus();
   }
@@ -96,15 +98,17 @@ onMounted(async () => {
       v-model="content"
       :maxlength="CONVERSATION_MESSAGE_MAX_LENGTH"
       :disabled="submitting || disabled"
-      aria-label="修改历史问题"
+      :aria-label="t('editPreviousQuestion')"
       rows="2"
       @input="resizeTextarea"
       @keydown="handleKeydown"
     />
     <div class="conversation-message-editor-actions">
-      <button type="button" :disabled="submitting" @click="cancel">取消</button>
+      <button type="button" :disabled="submitting" @click="cancel">
+        {{ t("cancel") }}
+      </button>
       <button class="is-primary" type="submit" :disabled="!canSubmit">
-        {{ submitting ? "发送中…" : "发送" }}
+        {{ submitting ? t("sending") : t("send") }}
       </button>
     </div>
   </form>

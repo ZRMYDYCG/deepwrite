@@ -35,14 +35,15 @@ test("unknown totals and preparation do not display fabricated progress", () => 
   expect(view.determinate).toBe(false);
 });
 
-test.each(["上传到远端", "下载到本机"])(
+test.each(["uploading", "downloading"] as const)(
   "separates %s stages from unbounded work titles",
   (prefix) => {
     const longTitle = "很长的作品名称".repeat(30);
     const view = syncProgressPresentation(
       status({
         phase: "transferring",
-        title: `${prefix}：${longTitle}`,
+        title: longTitle,
+        titleText: { code: prefix, params: { title: longTitle } },
         completed: 2,
         total: 3,
         filesCompleted: 10,
@@ -51,7 +52,7 @@ test.each(["上传到远端", "下载到本机"])(
       true
     );
     expect(view.stage).toBe(
-      prefix === "上传到远端" ? "正在上传本机修改" : "正在下载远端更新"
+      prefix === "uploading" ? "正在上传本机修改" : "正在下载远端更新"
     );
     expect(view.detail).toContain(longTitle);
     expect(view.count).toBe("2 / 3 项");

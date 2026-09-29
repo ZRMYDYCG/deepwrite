@@ -1,8 +1,11 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../../i18n";
 import { CHAT_ASSISTANT_PROJECT_PROMPT_MAX_LENGTH } from "@deepwrite/contracts/renderer";
 import PopupSelect from "../../components/PopupSelect.vue";
 import type { ChatAssistantModeFeature } from "./useChatAssistantMode";
 import { useChatAssistantProjectConfig } from "./useChatAssistantProjectConfig";
+
+const t = createScopedTranslator("extras");
 const props = defineProps<{ assistant: ChatAssistantModeFeature }>();
 const {
   projectConfigOpen,
@@ -39,29 +42,31 @@ defineExpose({
       class="chat-assistant-config-dialog"
       role="dialog"
       aria-modal="true"
-      aria-label="项目配置"
+      :aria-label="t('chatAssistant.projectConfiguration')"
     >
       <header>
         <div>
           <strong>{{ projectConfigTitle }}</strong>
-          <span>配置项目提示词和关联书籍</span>
+          <span>{{ t("chatAssistant.projectConfigurationDescription") }}</span>
         </div>
         <button
           type="button"
-          aria-label="关闭项目配置"
+          :aria-label="t('chatAssistant.closeProjectConfiguration')"
           :disabled="projectConfigPending"
           @click="projectConfigOpen = false"
         >
           ×
         </button>
       </header>
-      <label for="chat-assistant-project-book">关联书籍</label>
+      <label for="chat-assistant-project-book">{{
+        t("chatAssistant.linkedBook")
+      }}</label>
       <PopupSelect
         id="chat-assistant-project-book"
         :model-value="projectConfigProjectKey"
         :options="projectBookOptions"
-        accessible-label="关联书籍"
-        placeholder="选择短篇、剧本或长篇书籍"
+        :accessible-label="t('chatAssistant.linkedBook')"
+        :placeholder="t('chatAssistant.chooseBookType')"
         :disabled="projectConfigMode === 'edit' || projectConfigPending"
         :menu-min-width="320"
         :menu-z-index="130"
@@ -70,11 +75,13 @@ defineExpose({
       <p class="chat-assistant-project-lock-hint">
         {{
           projectConfigMode === "edit"
-            ? "关联书籍已锁定，不可更换；后续项目记忆将始终归属这本书。"
-            : "书籍关联在项目保存后锁定，后续不可更换。"
+            ? t("chatAssistant.bookLinkLocked")
+            : t("chatAssistant.bookLinkLocksOnSave")
         }}
       </p>
-      <label for="chat-assistant-project-prompt">项目提示词</label>
+      <label for="chat-assistant-project-prompt">{{
+        t("chatAssistant.projectPrompt")
+      }}</label>
       <textarea
         id="chat-assistant-project-prompt"
         v-model="projectConfigPrompt"
@@ -85,15 +92,15 @@ defineExpose({
       <div class="chat-assistant-config-meta">
         <span>{{
           projectConfigCustomized
-            ? "当前使用自定义提示词"
-            : "当前使用默认提示词"
+            ? t("chatAssistant.usingCustomPrompt")
+            : t("chatAssistant.usingDefaultPrompt")
         }}</span>
         <span
           >{{ projectConfigPrompt.length }} /
           {{ CHAT_ASSISTANT_PROJECT_PROMPT_MAX_LENGTH }}</span
         >
       </div>
-      <p>此内容会追加到固定系统底座，不能覆盖只读、脱敏或工具边界。</p>
+      <p>{{ t("chatAssistant.projectPromptBoundaries") }}</p>
       <footer>
         <button
           type="button"
@@ -101,7 +108,7 @@ defineExpose({
           :disabled="projectConfigPending || !projectConfigOption"
           @click="resetProjectConfig"
         >
-          恢复默认
+          {{ t("longBookAnalysis.restoreDefault") }}
         </button>
         <span />
         <button
@@ -110,7 +117,7 @@ defineExpose({
           :disabled="projectConfigPending"
           @click="projectConfigOpen = false"
         >
-          取消
+          {{ t("cloudBackup.cancel") }}
         </button>
         <button
           type="button"
@@ -118,7 +125,7 @@ defineExpose({
           :disabled="projectConfigPending || !projectConfigOption"
           @click="saveProjectConfig"
         >
-          保存
+          {{ t("chatAssistant.save") }}
         </button>
       </footer>
     </section>

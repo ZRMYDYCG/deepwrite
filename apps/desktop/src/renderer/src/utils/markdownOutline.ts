@@ -1,3 +1,4 @@
+import { t } from "../i18n";
 export type MarkdownHeadingLevel = 1 | 2 | 3 | 4 | 5 | 6;
 
 export interface ParsedMarkdownHeading {
@@ -31,7 +32,10 @@ function readableHeadingLabel(source: string): string {
     label = label.replace(`\u0000CODE${index}\u0000`, code);
   }
 
-  return label.replace(/\s+/g, " ").trim() || "未命名标题";
+  return (
+    label.replace(/\s+/g, " ").trim() ||
+    t("workspace.markdownOutline.untitledHeading")
+  );
 }
 
 export function parseMarkdownHeadingLine(

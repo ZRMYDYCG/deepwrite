@@ -1,3 +1,4 @@
+import { createScopedTranslator } from "../../i18n";
 import {
   MATERIAL_KINDS,
   SKILL_KINDS,
@@ -14,6 +15,8 @@ import {
   type LibraryAttachmentBindingTarget,
   type LibraryAttachmentDiagnostic
 } from "./shared";
+
+const t = createScopedTranslator("workspace.candidates");
 
 export function collectMaterialCandidates(
   snapshot: CatalogSnapshot,
@@ -34,7 +37,10 @@ export function collectMaterialCandidates(
         diagnostics.push({
           code: "duplicate-library-binding",
           domain: "material",
-          message: `素材库“${libraryId}”在 ${selectedKind} 分类下重复绑定，已只读取一次。`,
+          message: t("materialLibraryIsLinkedMoreThanOnceUnderAnd", {
+            libraryId: libraryId,
+            selectedKind: selectedKind
+          }),
           bookId: book.id,
           libraryId,
           expectedKind: selectedKind
@@ -47,7 +53,9 @@ export function collectMaterialCandidates(
         diagnostics.push({
           code: "library-not-found",
           domain: "material",
-          message: `绑定的素材库“${libraryId}”不存在。`,
+          message: t("linkedMaterialLibraryDoesNotExist", {
+            libraryId: libraryId
+          }),
           bookId: book.id,
           libraryId,
           expectedKind: selectedKind
@@ -61,7 +69,11 @@ export function collectMaterialCandidates(
         diagnostics.push({
           code: "library-kind-mismatch",
           domain: "material",
-          message: `素材库“${library.title}”的用途为 ${library.materialKind}，但书籍将其绑定在 ${selectedKind}。`,
+          message: t("materialLibraryIsCategorizedAsButThisBookLinks", {
+            title: library.title,
+            materialKind: library.materialKind,
+            selectedKind: selectedKind
+          }),
           bookId: book.id,
           libraryId,
           expectedKind: selectedKind,
@@ -113,7 +125,12 @@ export function collectSkillCandidates(
         diagnostics.push({
           code: "duplicate-library-binding",
           domain: "skill",
-          message: `技能库“${libraryId}”同时绑定在 ${previousKind} 与 ${selectedKind}，已按 ${previousKind} 读取一次。`,
+          message: t("skillLibraryIsLinkedUnderBothAndItWas", {
+            libraryId: libraryId,
+            previousKind: previousKind,
+            selectedKind: selectedKind,
+            previousKind2: previousKind
+          }),
           bookId: book.id,
           libraryId,
           expectedKind: selectedKind,
@@ -127,7 +144,9 @@ export function collectSkillCandidates(
         diagnostics.push({
           code: "library-not-found",
           domain: "skill",
-          message: `绑定的技能库“${libraryId}”不存在。`,
+          message: t("linkedSkillLibraryDoesNotExist", {
+            libraryId: libraryId
+          }),
           bookId: book.id,
           libraryId,
           expectedKind: selectedKind
@@ -138,7 +157,11 @@ export function collectSkillCandidates(
         diagnostics.push({
           code: "library-kind-mismatch",
           domain: "skill",
-          message: `技能库“${library.title}”的分类为 ${library.skillKind}，但书籍将其绑定在 ${selectedKind}。`,
+          message: t("skillLibraryIsCategorizedAsButThisBookLinks", {
+            title: library.title,
+            skillKind: library.skillKind,
+            selectedKind: selectedKind
+          }),
           bookId: book.id,
           libraryId,
           expectedKind: selectedKind,

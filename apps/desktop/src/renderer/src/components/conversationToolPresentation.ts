@@ -1,3 +1,4 @@
+import { createScopedTranslator } from "../i18n";
 import type {
   AgentEditProposal,
   AgentToolTrace,
@@ -15,6 +16,8 @@ import {
   foldWorkGroups,
   type WorkGroupDisplayItem
 } from "./conversationWorkGroups";
+
+const t = createScopedTranslator("components.conversationToolPresentation");
 export {
   processingItems,
   type ProcessingItem
@@ -255,13 +258,22 @@ export function retryStatusLabel(
   const retry = message.retry;
   const progress = retryProgress(message);
   if (!retry || !progress) return undefined;
-  const suffix = `（第 ${progress.current}/${progress.total} 次）`;
-  if (retry.state === "trying") return `正在重试${suffix}`;
+  const suffix = t("attemptValueValue", {
+    arg0: progress.current,
+    arg1: progress.total
+  });
+  if (retry.state === "trying")
+    return t("retryingValue", {
+      arg0: suffix
+    });
   const retryAt = retry.retryAt ? Date.parse(retry.retryAt) : Number.NaN;
   const remainingSeconds = Number.isFinite(retryAt)
     ? Math.max(0, Math.ceil((retryAt - now) / 1_000))
     : Math.max(0, Math.ceil((retry.delayMs ?? 0) / 1_000));
-  return `网络波动，${remainingSeconds}s 后重试${suffix}`;
+  return t("connectionInterruptedRetryingValueInValueS", {
+    arg0: remainingSeconds,
+    arg1: suffix
+  });
 }
 
 export function hasFirstModelOutput(message: ChatMessage): boolean {
@@ -289,7 +301,7 @@ export function processingLabel(message: ChatMessage, now: number): string {
       ? now
       : start + 1_000;
   if (!Number.isFinite(start) || !Number.isFinite(end)) {
-    return "已处理";
+    return t("processed");
   }
   const seconds = Math.max(1, Math.ceil((end - start) / 1_000));
   if (
@@ -297,7 +309,13 @@ export function processingLabel(message: ChatMessage, now: number): string {
     end - start >= MODEL_QUEUE_LABEL_DELAY_MS &&
     !hasFirstModelOutput(message)
   ) {
-    return `模型排队中 · 已等待 ${seconds}s`;
+    return t("modelQueuedWaitedValueS", { arg0: seconds });
   }
-  return `已处理 ${seconds}s`;
+  if (seconds < 60) {
+    return t("processedForValueSeconds", { arg0: seconds });
+  }
+  return t("processedForValueMinutesValueSeconds", {
+    arg0: Math.floor(seconds / 60),
+    arg1: seconds % 60
+  });
 }

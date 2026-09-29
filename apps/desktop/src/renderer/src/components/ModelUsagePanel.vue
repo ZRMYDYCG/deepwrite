@@ -1,10 +1,13 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import type {
   ModelUsageDashboard,
   ModelUsageQueryInput
 } from "@deepwrite/contracts";
 import AppIcon from "./AppIcon.vue";
 import { useModelUsagePanel } from "../composables/useModelUsagePanel";
+
+const t = createScopedTranslator("components.modelUsagePanel");
 
 const props = defineProps<{
   dashboard: ModelUsageDashboard | null;
@@ -53,12 +56,14 @@ const {
     <header class="usage-header">
       <div class="usage-heading">
         <span class="usage-kicker"
-          ><AppIcon name="ledger" :size="15" /> 本地用量账本</span
+          ><AppIcon name="ledger" :size="15" />
+          {{ t("localUsageLedger") }}</span
         >
-        <h2 id="model-usage-title">模型用量</h2>
+        <h2 id="model-usage-title">
+          {{ t("modelUsage") }}
+        </h2>
         <p>
-          查看此设备上各模型和模块的 Token 使用情况。逐次明细仅保留最近 100
-          条，更早调用只保留聚合统计。
+          {{ t("viewTokenUsageByModelAndModuleOnThis") }}
         </p>
       </div>
       <button
@@ -66,7 +71,7 @@ const {
         class="usage-refresh"
         :disabled="loading"
         :aria-busy="loading"
-        :aria-label="loading ? '正在刷新用量' : '刷新用量'"
+        :aria-label="loading ? t('refreshingUsage') : t('refreshUsage')"
         @click="refresh"
       >
         <AppIcon
@@ -75,13 +80,17 @@ const {
           class="usage-refresh-icon"
           :class="{ 'is-loading': loading }"
         />
-        刷新
+        {{ t("refresh") }}
       </button>
     </header>
 
-    <div class="usage-toolbar" role="toolbar" aria-label="用量时间范围">
-      <span>时间范围</span>
-      <div class="usage-range-options" role="group" aria-label="选择时间范围">
+    <div class="usage-toolbar" role="toolbar" :aria-label="t('usageDateRange')">
+      <span>{{ t("dateRange") }}</span>
+      <div
+        class="usage-range-options"
+        role="group"
+        :aria-label="t('selectDateRange')"
+      >
         <button
           v-for="option in RANGE_OPTIONS"
           :key="option.id"
@@ -95,7 +104,11 @@ const {
         </button>
       </div>
       <span v-if="dashboard" class="usage-updated-at">
-        更新于 {{ formatDateTime(dashboard.generatedAt) }}
+        {{
+          t("updatedMessage", {
+            arg0: formatDateTime(dashboard.generatedAt) ?? ""
+          })
+        }}
       </span>
     </div>
 
@@ -105,56 +118,64 @@ const {
       aria-live="polite"
     >
       <span class="usage-spinner" aria-hidden="true" />
-      <strong>正在读取本地用量…</strong>
-      <p>正在汇总模型与模块的使用记录。</p>
+      <strong>{{ t("readingLocalUsage") }}</strong>
+      <p>
+        {{ t("summarizingModelAndModuleUsage") }}
+      </p>
     </div>
 
     <div v-else-if="!dashboard" class="usage-state">
       <AppIcon name="ledger" :size="24" />
-      <strong>尚未加载用量数据</strong>
-      <p>请刷新后重试。</p>
+      <strong>{{ t("usageDataHasNotLoaded") }}</strong>
+      <p>{{ t("refreshAndTryAgain") }}</p>
       <button type="button" class="usage-refresh" @click="refresh">
-        刷新用量
+        {{ t("refreshUsage") }}
       </button>
     </div>
 
     <div v-else-if="isEmpty && !hasModels" class="usage-state">
       <AppIcon name="sparkles" :size="24" />
-      <strong>还没有模型用量</strong>
-      <p>之后的模型调用会自动统计并仅保存在此设备中。</p>
+      <strong>{{ t("noModelUsageYet") }}</strong>
+      <p>
+        {{ t("futureModelCallsWillBeTrackedAutomaticallyAndStored") }}
+      </p>
     </div>
 
     <div v-else-if="showDashboard && dashboard" class="usage-dashboard">
-      <section class="usage-summary-grid" aria-label="用量汇总">
+      <section class="usage-summary-grid" :aria-label="t('usageSummary')">
         <article class="usage-summary-card is-total">
-          <span>总 Token</span>
+          <span>{{ t("totalTokens") }}</span>
           <strong>{{ formatTokens(dashboard.totals.totalTokens) }}</strong>
-          <small
-            >{{ formatTokens(dashboard.totals.requestCount) }} 次模型请求</small
-          >
+          <small>{{
+            t("modelRequestsMessage", {
+              arg0: formatTokens(dashboard.totals.requestCount) ?? ""
+            })
+          }}</small>
         </article>
         <article class="usage-summary-card">
-          <span>输入 Token</span>
+          <span>{{ t("inputTokens") }}</span>
           <strong>{{ formatTokens(dashboard.totals.inputTokens) }}</strong>
-          <small>发送给模型的上下文</small>
+          <small>{{ t("contextSentToTheModel") }}</small>
         </article>
         <article class="usage-summary-card">
-          <span>输出 Token</span>
+          <span>{{ t("outputTokens") }}</span>
           <strong>{{ formatTokens(dashboard.totals.outputTokens) }}</strong>
-          <small>模型生成的内容</small>
+          <small>{{ t("contentGeneratedByTheModel") }}</small>
         </article>
         <article class="usage-summary-card">
-          <span>缓存 Token</span>
+          <span>{{ t("cacheTokens") }}</span>
           <strong>{{
             formatTokens(
               dashboard.totals.cacheReadTokens +
                 dashboard.totals.cacheWriteTokens
             )
           }}</strong>
-          <small
-            >读取 {{ formatTokens(dashboard.totals.cacheReadTokens) }} · 写入
-            {{ formatTokens(dashboard.totals.cacheWriteTokens) }}</small
-          >
+          <small>{{
+            t("readWriteMessage", {
+              arg0: formatTokens(dashboard.totals.cacheReadTokens) ?? "",
+              arg1: formatTokens(dashboard.totals.cacheWriteTokens) ?? ""
+            })
+          }}</small>
         </article>
       </section>
 
@@ -164,8 +185,14 @@ const {
       >
         <header class="usage-card-header">
           <div>
-            <span>趋势</span>
-            <h3 id="usage-trend-title">{{ rangeLabel }}总 Token</h3>
+            <span>{{ t("trend") }}</span>
+            <h3 id="usage-trend-title">
+              {{
+                t("totalTokensMessage", {
+                  arg0: rangeLabel ?? ""
+                })
+              }}
+            </h3>
           </div>
           <strong>{{ formatTokens(dashboard.totals.totalTokens) }}</strong>
         </header>
@@ -217,7 +244,7 @@ const {
           </div>
         </div>
         <div v-else class="usage-chart-empty">
-          这个时间范围内没有可展示的趋势数据。
+          {{ t("noTrendDataForThisDateRange") }}
         </div>
       </section>
 
@@ -228,8 +255,10 @@ const {
         >
           <header class="usage-card-header">
             <div>
-              <span>模块</span>
-              <h3 id="usage-module-title">模块分布</h3>
+              <span>{{ t("module") }}</span>
+              <h3 id="usage-module-title">
+                {{ t("usageByModule") }}
+              </h3>
             </div>
             <AppIcon name="sparkles" :size="17" />
           </header>
@@ -245,9 +274,11 @@ const {
               </div>
               <div class="usage-module-value">
                 <strong>{{ formatTokens(item.totals.totalTokens) }}</strong>
-                <small
-                  >{{ formatTokens(item.totals.requestCount) }} 次请求</small
-                >
+                <small>{{
+                  t("requestsMessage", {
+                    arg0: formatTokens(item.totals.requestCount) ?? ""
+                  })
+                }}</small>
               </div>
               <div class="usage-module-track" aria-hidden="true">
                 <span
@@ -256,7 +287,9 @@ const {
               </div>
             </div>
           </div>
-          <p v-else class="usage-inline-empty">这个时间范围内尚无模块用量。</p>
+          <p v-else class="usage-inline-empty">
+            {{ t("noModuleUsageInThisDateRange") }}
+          </p>
         </section>
 
         <section
@@ -265,8 +298,10 @@ const {
         >
           <header class="usage-card-header">
             <div>
-              <span>模型</span>
-              <h3 id="usage-model-title">模型状态</h3>
+              <span>{{ t("model") }}</span>
+              <h3 id="usage-model-title">
+                {{ t("modelStatus") }}
+              </h3>
             </div>
             <AppIcon name="model" :size="17" />
           </header>
@@ -274,11 +309,21 @@ const {
             <table class="usage-model-table">
               <thead>
                 <tr>
-                  <th scope="col">模型</th>
-                  <th scope="col">状态</th>
-                  <th scope="col">总 Token</th>
-                  <th scope="col">调用</th>
-                  <th scope="col">最近使用</th>
+                  <th scope="col">
+                    {{ t("model") }}
+                  </th>
+                  <th scope="col">
+                    {{ t("status") }}
+                  </th>
+                  <th scope="col">
+                    {{ t("totalTokens") }}
+                  </th>
+                  <th scope="col">
+                    {{ t("calls") }}
+                  </th>
+                  <th scope="col">
+                    {{ t("lastUsed") }}
+                  </th>
                 </tr>
               </thead>
               <tbody v-if="dashboard.models.length">
@@ -312,24 +357,28 @@ const {
                   </td>
                   <td>
                     <strong>{{ formatTokens(item.totals.totalTokens) }}</strong>
-                    <small
-                      >入 {{ formatTokens(item.totals.inputTokens) }} · 出
-                      {{ formatTokens(item.totals.outputTokens) }}</small
-                    >
+                    <small>{{
+                      t("inOutMessage", {
+                        arg0: formatTokens(item.totals.inputTokens) ?? "",
+                        arg1: formatTokens(item.totals.outputTokens) ?? ""
+                      })
+                    }}</small>
                   </td>
                   <td>{{ formatTokens(item.totals.requestCount) }}</td>
                   <td>
                     <time v-if="item.lastUsedAt" :datetime="item.lastUsedAt">
                       {{ formatDateTime(item.lastUsedAt) }}
                     </time>
-                    <span v-else class="usage-model-unused">未使用</span>
+                    <span v-else class="usage-model-unused">{{
+                      t("unused")
+                    }}</span>
                   </td>
                 </tr>
               </tbody>
               <tbody v-else>
                 <tr>
                   <td colspan="5" class="usage-table-empty">
-                    这个时间范围内尚无模型记录。
+                    {{ t("noModelRecordsInThisDateRange") }}
                   </td>
                 </tr>
               </tbody>
@@ -344,23 +393,32 @@ const {
       >
         <header class="usage-card-header">
           <div>
-            <span>调用明细</span>
-            <h3 id="usage-recent-title">最近实际调用</h3>
+            <span>{{ t("callDetails") }}</span>
+            <h3 id="usage-recent-title">
+              {{ t("recentCalls") }}
+            </h3>
           </div>
-          <small
-            >显示 {{ dashboard.recentCalls.length }} 条 · 本地最多保留 100
-            条</small
-          >
+          <small>{{
+            t("showingEntriesUpToRetainedLocallyMessage", {
+              arg0: dashboard.recentCalls.length ?? ""
+            })
+          }}</small>
         </header>
         <div class="usage-model-table-wrap">
           <table class="usage-model-table usage-recent-table">
             <thead>
               <tr>
-                <th scope="col">时间</th>
-                <th scope="col">模型</th>
-                <th scope="col">模块</th>
-                <th scope="col">调用方</th>
-                <th scope="col">状态</th>
+                <th scope="col">{{ t("time") }}</th>
+                <th scope="col">{{ t("model") }}</th>
+                <th scope="col">
+                  {{ t("module") }}
+                </th>
+                <th scope="col">
+                  {{ t("caller") }}
+                </th>
+                <th scope="col">
+                  {{ t("status") }}
+                </th>
                 <th scope="col">Token</th>
               </tr>
             </thead>
@@ -391,12 +449,16 @@ const {
                 <td>
                   <strong>{{ formatTokens(call.usage.totalTokens) }}</strong>
                   <small>
-                    入 {{ formatTokens(call.usage.inputTokens) }} · 出
-                    {{ formatTokens(call.usage.outputTokens) }} · 缓存
                     {{
-                      formatTokens(
-                        call.usage.cacheReadTokens + call.usage.cacheWriteTokens
-                      )
+                      t("inOutCacheMessage", {
+                        arg0: formatTokens(call.usage.inputTokens) ?? "",
+                        arg1: formatTokens(call.usage.outputTokens) ?? "",
+                        arg2:
+                          formatTokens(
+                            call.usage.cacheReadTokens +
+                              call.usage.cacheWriteTokens
+                          ) ?? ""
+                      })
                     }}
                   </small>
                 </td>
@@ -405,7 +467,7 @@ const {
             <tbody v-else>
               <tr>
                 <td colspan="6" class="usage-table-empty">
-                  尚无实际模型调用明细。
+                  {{ t("noModelCallDetailsYet") }}
                 </td>
               </tr>
             </tbody>

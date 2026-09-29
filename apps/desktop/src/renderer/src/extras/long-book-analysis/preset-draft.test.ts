@@ -13,8 +13,7 @@ describe("long-book analysis preset drafts", () => {
       output: {
         domain: "material",
         kind: "plot",
-        stageId: "pacing",
-        libraryId: "plot-library"
+        stageId: "pacing"
       }
     });
 
@@ -23,7 +22,7 @@ describe("long-book analysis preset drafts", () => {
     expect(draft).not.toBe(preset);
     expect(draft.output).not.toBe(preset.output);
 
-    draft.output.libraryId = "other-library";
-    expect(preset.output.libraryId).toBe("plot-library");
+    draft.output.stageId = "intro";
+    expect(preset.output.stageId).toBe("pacing");
   });
 });

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { t } from "../i18n";
 import type {
   AgentTeamRunMode,
   ThinkingLevel,
@@ -191,7 +192,7 @@ const emit = defineEmits<{
     v-if="!rightPane.collapsed"
     class="pane-resizer pane-resizer-right"
     role="separator"
-    aria-label="调整右侧栏宽度"
+    :aria-label="t('components.writingWorkspaceModule.resizeRightPane')"
     aria-orientation="vertical"
     :aria-valuemin="rightPane.minWidth"
     :aria-valuemax="rightPane.maxWidth"

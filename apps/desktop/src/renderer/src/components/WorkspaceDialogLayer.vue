@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import CreateBookFromTemplateDialog from "./CreateBookFromTemplateDialog.vue";
 import DialogHost from "./DialogHost.vue";
 import {
@@ -35,6 +36,8 @@ import type {
   WorkspaceDialogLayerEmits,
   WorkspaceDialogModule
 } from "./WorkspaceDialogLayer.types";
+
+const t = createScopedTranslator("components.workspaceDialogLayer");
 
 defineProps<{
   module: WorkspaceDialogModule | null;
@@ -245,7 +248,7 @@ const emit = defineEmits<WorkspaceDialogLayerEmits>();
       v-else-if="module.kind === 'delete-long-tree'"
       open
       :section-title="module.sectionTitle"
-      eyebrow="长篇结构"
+      :eyebrow="t('novelStructure')"
       :item-label="module.itemLabel"
       :description="module.description"
       :pending="module.pending"
@@ -257,14 +260,14 @@ const emit = defineEmits<WorkspaceDialogLayerEmits>();
       v-else-if="module.kind === 'delete-long-ledger-commit'"
       open
       :section-title="module.title"
-      eyebrow="连续性账本"
-      item-label="提交记录"
+      :eyebrow="t('continuityLedger')"
+      :item-label="t('commitRecord')"
       :description="
         module.chapterCount === 1
-          ? '删除后，该章节将重新回到待提交状态。正文和连续性 Markdown 文件保持不变；本条提交记录本身不可恢复，重新提交会生成新记录。'
-          : '删除后，本次涉及的 ' +
+          ? t('afterDeletionThisChapterReturnsToPendingCommitManuscript')
+          : t('afterDeletionThe') +
             module.chapterCount +
-            ' 个章节将重新回到待提交状态。正文和连续性 Markdown 文件保持不变；本条提交记录本身不可恢复，重新提交会生成新记录。'
+            t('affectedChaptersReturnToPendingCommitManuscriptAndContinuity')
       "
       :pending="module.pending"
       @close="emit('closeDeleteLongLedgerCommit')"

@@ -1,3 +1,6 @@
+import { syncProgressText } from "./displayText";
+import { formatError } from "../../i18n/errors";
+import { createScopedTranslator } from "../../i18n";
 import { onBeforeUnmount, onMounted, ref } from "vue";
 import {
   syncRequestSchema,
@@ -6,6 +9,8 @@ import {
   type SyncStatus
 } from "@deepwrite/contracts/renderer";
 import { uiMessage } from "../../ui-feedback";
+
+const t = createScopedTranslator("extras.deviceSync");
 
 export function useDeviceSync(
   changed: () => Promise<void>,
@@ -20,12 +25,11 @@ export function useDeviceSync(
   const request = async (input: SyncRequest): Promise<SyncResponse> => {
     const started = epoch;
     const api = window.deepwrite?.deviceSync;
-    if (!api) throw new Error("请在支持双端同步的桌面客户端中打开。");
+    if (!api) throw new Error(t("desktopSyncRequired"));
     // Clone nested reactive values before contextBridge copies the arguments.
     // Preload validation runs too late to remove proxies from this boundary.
     const parsed = syncRequestSchema.safeParse(input);
-    if (!parsed.success)
-      throw new Error("请填写有效的 HTTPS 地址、账号和同步目录。");
+    if (!parsed.success) throw new Error(t("validConnectionRequired"));
     const result = await api.request(parsed.data);
     if (!disposed && started === epoch && result.kind === "status")
       status.value = result.status;
@@ -52,7 +56,7 @@ export function useDeviceSync(
         (changesWorkspace || input.operation === "preview-initialization") &&
         !(await prepareSync())
       ) {
-        uiMessage.info("请先保存正文并处理保存冲突。");
+        uiMessage.info(t("saveBeforeSync"));
         return null;
       }
       const response = await request(input);
@@ -71,21 +75,19 @@ export function useDeviceSync(
       }
       if (changesWorkspace) await changed();
       if (input.operation === "restore")
-        uiMessage.success("已恢复到本机，下次手动同步时上传。");
+        uiMessage.success(t("restoredLocally"));
       if (
         ["sync", "initialize"].includes(input.operation) &&
         response.kind === "status"
       ) {
         if (response.status.progress.phase === "complete")
-          uiMessage.success(response.status.progress.title);
+          uiMessage.success(syncProgressText(response.status.progress));
         else if (response.status.progress.phase === "partial")
-          uiMessage.info(response.status.progress.title);
+          uiMessage.info(syncProgressText(response.status.progress));
       }
       return response;
     } catch (error) {
-      uiMessage.error(
-        error instanceof Error ? error.message : "同步未完成，请重试。"
-      );
+      uiMessage.error(formatError(error, t("syncIncompleteRetry")));
       return null;
     } finally {
       if (mutation) {
@@ -109,10 +111,7 @@ export function useDeviceSync(
       )
         void run({ operation: "check" });
     } catch (error) {
-      if (!disposed)
-        uiMessage.error(
-          error instanceof Error ? error.message : "读取同步状态失败。"
-        );
+      if (!disposed) uiMessage.error(formatError(error, t("readStatusFailed")));
     } finally {
       if (!disposed) initialLoading.value = false;
     }

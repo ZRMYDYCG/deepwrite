@@ -1,3 +1,4 @@
+import { createScopedTranslator } from "../../i18n";
 import { unwrapMessageValue } from "./message-mutations";
 import type {
   ConversationHistoryJson,
@@ -5,6 +6,8 @@ import type {
   ConversationHistoryRecord
 } from "@deepwrite/contracts";
 import type { AgentConversationPersistenceRecord } from "./types";
+
+const t = createScopedTranslator("workspace.persistenceChanges");
 
 export interface ConversationPersistenceChanges {
   revision: number;
@@ -31,27 +34,37 @@ export function clonePersistenceValue(value: unknown): ConversationHistoryJson {
       return input;
     if (typeof input === "number") {
       if (!Number.isFinite(input))
-        throw new TypeError("会话记录包含无法保存的非有限数值。");
+        throw new TypeError(
+          t("theConversationContainsNonFiniteNumbersThatCannotBe")
+        );
       return input;
     }
     if (typeof input !== "object")
-      throw new TypeError("会话记录包含 JSON 无法保存的数据类型。");
+      throw new TypeError(
+        t("theConversationContainsDataTypesThatJsonCannotSave")
+      );
     const current = unwrapMessageValue(input);
     if (ancestors.has(current))
-      throw new TypeError("会话记录包含循环引用，无法保存。");
+      throw new TypeError(
+        t("theConversationContainsCircularReferencesAndCannotBeSaved")
+      );
     if (
       !Array.isArray(current) &&
       Object.getPrototypeOf(current) !== Object.prototype &&
       Object.getPrototypeOf(current) !== null
     )
-      throw new TypeError("会话记录只能包含 JSON 数组和普通对象。");
+      throw new TypeError(
+        t("conversationsCanContainOnlyJsonArraysAndPlainObjects")
+      );
     ancestors.add(current);
     try {
       if (Array.isArray(current)) {
         const result: ConversationHistoryJson[] = [];
         for (let index = 0; index < current.length; index += 1) {
           if (!(index in current))
-            throw new TypeError("会话记录数组含缺失项，无法保存。");
+            throw new TypeError(
+              t("aConversationArrayContainsMissingEntriesAndCannotBe")
+            );
           result.push(copy(current[index]));
         }
         return result;

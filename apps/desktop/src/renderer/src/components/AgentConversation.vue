@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import { computed, inject, ref } from "vue";
 import {
   type AgentTeamRunMode,
@@ -38,6 +39,8 @@ import ConversationTurnNavigator from "./ConversationTurnNavigator.vue";
 import { AGENT_ACTIVITY_CONTEXT_KEY } from "../composables/agentActivityContext";
 import { WORKSPACE_WEB_SEARCH_DISABLED_REASON } from "../composables/agent-conversation/web-search";
 
+const t = createScopedTranslator("components.agentConversation");
+
 const props = withDefaults(
   defineProps<{
     messages: ChatMessage[];
@@ -70,7 +73,7 @@ const props = withDefaults(
     allowLiveEditReview?: boolean;
     libraryDomain: LibraryAgentDomain | undefined;
     librarySkills: readonly Pick<LibraryAgentSkill, "name">[] | undefined;
-    welcomeShortcuts: readonly [string, string, string] | undefined;
+    welcomeShortcuts?: readonly [string, string, string] | undefined;
     availableSkills: ComposerReferenceOption[];
     availableMaterials: ComposerReferenceOption[];
     editorReferences: EditorTextReference[];
@@ -97,7 +100,11 @@ const props = withDefaults(
 const agentActivity = inject(AGENT_ACTIVITY_CONTEXT_KEY, null);
 const conversationTitle = computed(() => {
   if (props.libraryDomain || !props.agentWorkspaceType) return props.agentLabel;
-  const workspaceLabels = { short: "短篇", script: "剧本", long: "长篇" };
+  const workspaceLabels = {
+    short: t("shortStory"),
+    script: t("screenplay"),
+    long: t("novel")
+  };
   return `${workspaceLabels[props.agentWorkspaceType]} · ${props.bookTitle}`;
 });
 const agentActivityItems = computed(() => agentActivity?.items.value ?? []);
@@ -228,14 +235,14 @@ const {
 </script>
 
 <template>
-  <main class="conversation-pane" aria-label="智能体对话">
+  <main class="conversation-pane" :aria-label="t('agentConversation')">
     <header class="conversation-header">
       <div class="conversation-heading-start">
         <button
           v-if="leftCollapsed"
           class="icon-button"
           type="button"
-          aria-label="展开左侧栏"
+          :aria-label="t('expandSidebar')"
           @click="emit('toggleLeft')"
         >
           <AppIcon name="panel-left" :size="18" />
@@ -246,7 +253,9 @@ const {
           :class="{ 'is-collapsed': agentActivityCollapsed }"
           type="button"
           :aria-label="
-            agentActivityCollapsed ? '展开智能体执行列表' : '收起智能体执行列表'
+            agentActivityCollapsed
+              ? t('expandAgentActivityList')
+              : t('collapseAgentActivityList')
           "
           :aria-expanded="!agentActivityCollapsed"
           aria-controls="agent-activity-panel"
@@ -291,13 +300,13 @@ const {
           @click="emit('newConversation')"
         >
           <AppIcon name="plus" :size="16" />
-          新建对话
+          {{ t("newConversation") }}
         </button>
         <button
           v-if="rightCollapsed && !rightPane"
           class="icon-button"
           type="button"
-          aria-label="展开文本内容栏"
+          :aria-label="t('expandTextPane')"
           @click="emit('toggleRight')"
         >
           <AppIcon name="panel-right" :size="18" />
@@ -306,7 +315,7 @@ const {
           v-if="rightPane"
           class="icon-button"
           type="button"
-          aria-label="收起智能体栏"
+          :aria-label="t('collapseAgentPane')"
           @click="emit('toggleRight')"
         >
           <AppIcon name="panel-right" :size="18" />
@@ -314,110 +323,172 @@ const {
       </div>
     </header>
 
-    <div class="conversation-scroll-shell">
-      <AgentActivityFloatPanel
-        v-if="agentActivity && !agentActivityCollapsed"
-        id="agent-activity-panel"
-        :items="agentActivityItems"
-        @select="selectAgentActivity"
-      />
-      <ConversationMessageList
-        :messages="messages"
-        :responding="responding"
-        :conversation-session-id="currentSessionId"
-        :runtime-available="runtimeAvailable"
-        :defer-history-rendering="deferHistoryRendering"
-        :can-rewrite-history="canRewriteHistory"
-        :submit-edited-message="submitEditedMessage"
-        :allow-live-edit-review="allowLiveEditReview"
-        :long-proposal-items="longProposalItems"
-        :long-workspace-index="longWorkspaceIndex"
-        :welcome-content="welcomeContent"
-        :handle-conversation-wheel="handleConversationWheel"
-        :handle-conversation-scroll="handleConversationScroll"
-        :set-scroller="setConversationScroller"
-        :set-message-list="setConversationMessageList"
-        @suggestion="applySuggestion"
-        @review-edit="emit('reviewEdit', $event)"
-        @locate-edit-proposal="emit('locateEditProposal', $event)"
-        @discard-edit-proposal="emit('discardEditProposal', $event)"
-        @approve-long-proposal="emit('approveLongProposal', $event)"
-        @reject-long-proposal="emit('rejectLongProposal', $event)"
-        @retry-long-proposal-preview="emit('retryLongProposalPreview', $event)"
-        @locate-long-proposal="emit('locateLongProposal', $event)"
-        @insert-selection="insertConversationReference"
-      />
+    <div
+      class="conversation-body"
+      :class="{ 'is-welcome': messages.length === 0 && !userInputRequest }"
+    >
+      <div class="conversation-scroll-shell">
+        <AgentActivityFloatPanel
+          v-if="agentActivity && !agentActivityCollapsed"
+          id="agent-activity-panel"
+          :items="agentActivityItems"
+          @select="selectAgentActivity"
+        />
+        <ConversationMessageList
+          :messages="messages"
+          :responding="responding"
+          :conversation-session-id="currentSessionId"
+          :runtime-available="runtimeAvailable"
+          :defer-history-rendering="deferHistoryRendering"
+          :can-rewrite-history="canRewriteHistory"
+          :submit-edited-message="submitEditedMessage"
+          :allow-live-edit-review="allowLiveEditReview"
+          :long-proposal-items="longProposalItems"
+          :long-workspace-index="longWorkspaceIndex"
+          :welcome-content="welcomeContent"
+          :show-welcome-details="
+            agentWorkspaceType !== 'short' && agentWorkspaceType !== 'long'
+          "
+          :handle-conversation-wheel="handleConversationWheel"
+          :handle-conversation-scroll="handleConversationScroll"
+          :set-scroller="setConversationScroller"
+          :set-message-list="setConversationMessageList"
+          @suggestion="applySuggestion"
+          @review-edit="emit('reviewEdit', $event)"
+          @locate-edit-proposal="emit('locateEditProposal', $event)"
+          @discard-edit-proposal="emit('discardEditProposal', $event)"
+          @approve-long-proposal="emit('approveLongProposal', $event)"
+          @reject-long-proposal="emit('rejectLongProposal', $event)"
+          @retry-long-proposal-preview="
+            emit('retryLongProposalPreview', $event)
+          "
+          @locate-long-proposal="emit('locateLongProposal', $event)"
+          @insert-selection="insertConversationReference"
+        />
 
-      <ConversationTurnNavigator
-        v-if="conversationTurns.length"
-        :turns="conversationTurns"
-        :active-turn-id="activeConversationTurnId"
-        @select="scrollToConversationTurn"
-      />
-    </div>
-
-    <footer v-if="userInputRequest" class="composer-wrap">
-      <div class="composer-stack">
-        <AgentUserInputCard
-          :request="userInputRequest"
-          :submitting="userInputSubmitting"
-          @submit="emit('submitUserInput', $event)"
+        <ConversationTurnNavigator
+          v-if="conversationTurns.length"
+          :turns="conversationTurns"
+          :active-turn-id="activeConversationTurnId"
+          @select="scrollToConversationTurn"
         />
       </div>
-    </footer>
 
-    <ConversationComposer
-      v-else
-      ref="composer"
-      :draft="draft"
-      :responding="responding"
-      :can-send="canSend"
-      :can-send-attachments="canSendAttachments"
-      :can-stop="canStop"
-      :runtime-available="runtimeAvailable"
-      :current-session-id="currentSessionId"
-      :messages="messages"
-      :messages-empty="messages.length === 0"
-      :book-title="bookTitle"
-      :stage-label="stageLabel"
-      :selected-model-id="selectedModelId"
-      :selected-model="selectedModel"
-      :thinking-level="thinkingLevel"
-      :web-search-enabled="webSearchEnabled"
-      :web-search-available="webSearchAvailable"
-      :web-search-disabled-reason="WORKSPACE_WEB_SEARCH_DISABLED_REASON"
-      :temperature="temperature"
-      :approval-mode="approvalMode"
-      :agent-team-mode="agentTeamMode"
-      :agent-id="agentId"
-      :agent-workspace-type="agentWorkspaceType"
-      :library-domain="libraryDomain"
-      :available-skills="availableSkills"
-      :available-materials="availableMaterials"
-      :editor-references="composerReferences"
-      :model-options="modelOptions"
-      :available-thinking-options="availableThinkingOptions"
-      :shows-temperature="showsTemperature"
-      :temperature-select-options="temperatureSelectOptions"
-      :approval-options="approvalOptions"
-      :approval-mode-icon="approvalModeIcon"
-      @update:draft="emit('update:draft', $event)"
-      @send="emit('send', $event)"
-      @stop="emit('stop')"
-      @clear-editor-references="clearComposerReferences"
-      @remove-editor-reference="removeComposerReference"
-      @locate-editor-reference="locateComposerReference"
-      @select-model="emit('selectModel', $event)"
-      @select-thinking="emit('selectThinking', $event)"
-      @toggle-web-search="emit('toggleWebSearch', $event)"
-      @select-temperature="emit('selectTemperature', $event)"
-      @select-approval="emit('selectApproval', $event)"
-      @select-agent-team-mode="emit('selectAgentTeamMode', $event)"
-    />
+      <footer v-if="userInputRequest" class="composer-wrap">
+        <div class="composer-stack">
+          <AgentUserInputCard
+            :request="userInputRequest"
+            :submitting="userInputSubmitting"
+            @submit="emit('submitUserInput', $event)"
+          />
+        </div>
+      </footer>
+
+      <ConversationComposer
+        v-else
+        ref="composer"
+        :draft="draft"
+        :responding="responding"
+        :can-send="canSend"
+        :can-send-attachments="canSendAttachments"
+        :can-stop="canStop"
+        :runtime-available="runtimeAvailable"
+        :current-session-id="currentSessionId"
+        :messages="messages"
+        :messages-empty="messages.length === 0"
+        :book-title="bookTitle"
+        :stage-label="stageLabel"
+        :selected-model-id="selectedModelId"
+        :selected-model="selectedModel"
+        :thinking-level="thinkingLevel"
+        :web-search-enabled="webSearchEnabled"
+        :web-search-available="webSearchAvailable"
+        :web-search-disabled-reason="WORKSPACE_WEB_SEARCH_DISABLED_REASON"
+        :temperature="temperature"
+        :approval-mode="approvalMode"
+        :agent-team-mode="agentTeamMode"
+        :agent-id="agentId"
+        :agent-workspace-type="agentWorkspaceType"
+        :library-domain="libraryDomain"
+        :available-skills="availableSkills"
+        :available-materials="availableMaterials"
+        :editor-references="composerReferences"
+        :model-options="modelOptions"
+        :available-thinking-options="availableThinkingOptions"
+        :shows-temperature="showsTemperature"
+        :temperature-select-options="temperatureSelectOptions"
+        :approval-options="approvalOptions"
+        :approval-mode-icon="approvalModeIcon"
+        @update:draft="emit('update:draft', $event)"
+        @send="emit('send', $event)"
+        @stop="emit('stop')"
+        @clear-editor-references="clearComposerReferences"
+        @remove-editor-reference="removeComposerReference"
+        @locate-editor-reference="locateComposerReference"
+        @select-model="emit('selectModel', $event)"
+        @select-thinking="emit('selectThinking', $event)"
+        @toggle-web-search="emit('toggleWebSearch', $event)"
+        @select-temperature="emit('selectTemperature', $event)"
+        @select-approval="emit('selectApproval', $event)"
+        @select-agent-team-mode="emit('selectAgentTeamMode', $event)"
+      />
+    </div>
   </main>
 </template>
 
 <style scoped>
+.conversation-pane {
+  grid-template-rows: 50px minmax(0, 1fr);
+}
+
+html[data-platform="darwin"] .conversation-pane {
+  grid-template-rows: 52px minmax(0, 1fr);
+}
+
+.conversation-body {
+  position: relative;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.conversation-body.is-welcome {
+  grid-template-rows: minmax(max-content, 1fr) auto minmax(0, 1fr);
+  row-gap: 36px;
+  overflow-y: auto;
+  padding-top: 72px;
+}
+
+.is-welcome .conversation-scroll-shell {
+  position: static;
+  align-self: end;
+  width: 100%;
+  overflow: visible;
+}
+
+.is-welcome :deep(.conversation-scroll) {
+  height: auto;
+  overflow: visible;
+}
+
+.is-welcome :deep(.conversation-empty) {
+  min-height: 0;
+  padding: 0;
+}
+
+.is-welcome :deep(.composer-wrap) {
+  width: 100%;
+  padding-top: 0;
+  padding-bottom: 0;
+  background: none;
+}
+
+.is-welcome :deep(.composer textarea) {
+  min-height: 74px;
+}
+
 .conversation-heading-start .conversation-title {
   flex: 1 1 auto;
   min-width: 0;

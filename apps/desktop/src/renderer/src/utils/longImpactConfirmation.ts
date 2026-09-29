@@ -1,48 +1,129 @@
+import { createScopedTranslator } from "../i18n";
 import type { LongWorkspaceImpactConfirmation } from "@deepwrite/contracts";
 
+const t = createScopedTranslator("workspace");
+
 const ENTITY_LABELS: Record<string, string> = {
-  "worldbuilding-category": "世界观分类",
-  "worldbuilding-item": "世界观条目",
-  "character-type": "人物类型",
-  character: "人物",
-  volume: "分卷",
-  arc: "剧情点",
-  "chapter-card": "章卡",
-  "story-event": "故事事件",
-  "story-plot": "故事情节",
-  "event-connection": "事件连接",
-  "narrative-placement": "叙事落点",
-  "foreshadowing-thread": "伏笔线",
-  "foreshadowing-beat": "伏笔触点"
+  get "worldbuilding-category"() {
+    return t("longImpactConfirmation.worldbuildingCategory");
+  },
+  get "worldbuilding-item"() {
+    return t("longImpactConfirmation.worldbuildingEntry");
+  },
+  get "character-type"() {
+    return t("longImpactConfirmation.characterType");
+  },
+  get character() {
+    return t("catalogWorkspace.characters");
+  },
+  get volume() {
+    return t("longImpactConfirmation.volume");
+  },
+  get arc() {
+    return t("longImpactConfirmation.plotPoint");
+  },
+  get "chapter-card"() {
+    return t("longImpactConfirmation.chapterCard");
+  },
+  get "story-event"() {
+    return t("longImpactConfirmation.storyEvent");
+  },
+  get "story-plot"() {
+    return t("longImpactConfirmation.storyPlot");
+  },
+  get "event-connection"() {
+    return t("longImpactConfirmation.eventConnection");
+  },
+  get "narrative-placement"() {
+    return t("longImpactConfirmation.narrativeAnchor");
+  },
+  get "foreshadowing-thread"() {
+    return t("longImpactConfirmation.foreshadowingThread");
+  },
+  get "foreshadowing-beat"() {
+    return t("longImpactConfirmation.foreshadowingBeat");
+  }
 };
 
 const RELATIONSHIP_LABELS: Record<string, string> = {
-  "worldbuilding-category-item": "世界观分类与条目",
-  "character-type-member": "人物类型归属",
-  "arc-volume": "剧情点与分卷",
-  "chapter-volume": "章卡与分卷",
-  "chapter-primary-arc": "章卡与主剧情点",
-  "story-plot-arc": "故事情节与剧情点",
-  "story-event-arc": "故事事件与剧情点",
-  "story-event-character": "故事事件与人物",
-  "event-connection-source": "事件连接的起点",
-  "event-connection-target": "事件连接的终点",
-  "narrative-placement-event": "叙事落点与事件",
-  "narrative-placement-chapter": "叙事落点与章卡",
-  "narrative-placement-commit": "叙事落点与连续性记录",
-  "foreshadowing-truth-event": "伏笔线与真相事件",
-  "foreshadowing-thread-beat": "伏笔线与触点",
-  "foreshadowing-beat-volume": "伏笔触点与分卷",
-  "foreshadowing-beat-arc": "伏笔触点与剧情点",
-  "foreshadowing-beat-event": "伏笔触点与事件",
-  "foreshadowing-beat-placement": "伏笔触点与叙事落点",
-  "foreshadowing-beat-chapter": "伏笔触点与章卡",
-  "foreshadowing-beat-commit": "伏笔触点与连续性记录",
-  "character-files": "人物档案映射",
-  "chapter-files": "章节文件映射",
-  "ledger-commit": "连续性提交记录",
-  "ledger-state": "连续性状态",
-  "continuity-projection": "连续性投影"
+  get "worldbuilding-category-item"() {
+    return t("longImpactConfirmation.worldbuildingCategoriesAndEntries");
+  },
+  get "character-type-member"() {
+    return t("longImpactConfirmation.characterTypeAssignments");
+  },
+  get "arc-volume"() {
+    return t("longImpactConfirmation.plotPointsAndVolumes");
+  },
+  get "chapter-volume"() {
+    return t("longImpactConfirmation.chapterCardsAndVolumes");
+  },
+  get "chapter-primary-arc"() {
+    return t("longImpactConfirmation.chapterCardsAndMainPlotPoints");
+  },
+  get "story-plot-arc"() {
+    return t("longImpactConfirmation.storyPlotsAndPlotPoints");
+  },
+  get "story-event-arc"() {
+    return t("longImpactConfirmation.storyEventsAndPlotPoints");
+  },
+  get "story-event-character"() {
+    return t("longImpactConfirmation.storyEventsAndCharacters");
+  },
+  get "event-connection-source"() {
+    return t("longImpactConfirmation.eventConnectionSources");
+  },
+  get "event-connection-target"() {
+    return t("longImpactConfirmation.eventConnectionTargets");
+  },
+  get "narrative-placement-event"() {
+    return t("longImpactConfirmation.narrativeAnchorsAndEvents");
+  },
+  get "narrative-placement-chapter"() {
+    return t("longImpactConfirmation.narrativeAnchorsAndChapterCards");
+  },
+  get "narrative-placement-commit"() {
+    return t("longImpactConfirmation.narrativeAnchorsAndContinuityRecords");
+  },
+  get "foreshadowing-truth-event"() {
+    return t("longImpactConfirmation.foreshadowingThreadsAndTruthEvents");
+  },
+  get "foreshadowing-thread-beat"() {
+    return t("longImpactConfirmation.foreshadowingThreadsAndBeats");
+  },
+  get "foreshadowing-beat-volume"() {
+    return t("longImpactConfirmation.foreshadowingBeatsAndVolumes");
+  },
+  get "foreshadowing-beat-arc"() {
+    return t("longImpactConfirmation.foreshadowingBeatsAndPlotPoints");
+  },
+  get "foreshadowing-beat-event"() {
+    return t("longImpactConfirmation.foreshadowingBeatsAndEvents");
+  },
+  get "foreshadowing-beat-placement"() {
+    return t("longImpactConfirmation.foreshadowingBeatsAndNarrativeAnchors");
+  },
+  get "foreshadowing-beat-chapter"() {
+    return t("longImpactConfirmation.foreshadowingBeatsAndChapterCards");
+  },
+  get "foreshadowing-beat-commit"() {
+    return t("longImpactConfirmation.foreshadowingBeatsAndContinuityRecords");
+  },
+  get "character-files"() {
+    return t("longImpactConfirmation.characterProfileMappings");
+  },
+  get "chapter-files"() {
+    return t("longImpactConfirmation.chapterFileMappings");
+  },
+  get "ledger-commit"() {
+    return t("longImpactConfirmation.continuityCommitRecords");
+  },
+  get "ledger-state"() {
+    return t("longImpactConfirmation.continuityState");
+  },
+  get "continuity-projection"() {
+    return t("longImpactConfirmation.continuityProjections");
+  }
 };
 
 function snapshotTitle(value: unknown): string | undefined {
@@ -70,60 +151,91 @@ export function longImpactConfirmationLines(
     const title = quotedTitle(change.before ?? change.after);
     const action =
       change.action === "delete"
-        ? "删除"
+        ? t("longImpactConfirmation.delete")
         : change.action === "create"
-          ? "新增"
-          : "更新";
+          ? t("longImpactConfirmation.add")
+          : t("longImpactConfirmation.update");
     lines.push(`${action}${label}${title}（${change.id}）`);
   }
   for (const change of confirmation.relationshipChanges) {
     const label = RELATIONSHIP_LABELS[change.kind] ?? change.kind;
     const action =
       change.action === "delete"
-        ? "解除"
+        ? t("longImpactConfirmation.unlink")
         : change.action === "create"
-          ? "新增"
-          : "更新";
+          ? t("longImpactConfirmation.add")
+          : t("longImpactConfirmation.update");
     lines.push(`${action}${label}（${change.id}）`);
   }
   for (const intent of confirmation.fileIntents) {
     lines.push(
-      `${intent.action === "delete" ? "删除" : "创建"}文件 ${intent.file.path}`
+      t("longImpactConfirmation.file", {
+        value:
+          intent.action === "delete"
+            ? t("longImpactConfirmation.delete")
+            : t("longImpactConfirmation.create"),
+        path: intent.file.path
+      })
     );
   }
   for (const edit of confirmation.ledgerRecordEdits) {
     const parts = [
       edit.removePlacementIds.length
-        ? `解除 ${edit.removePlacementIds.length} 个叙事落点`
+        ? t("longImpactConfirmation.unlinkNarrativeAnchors", {
+            length: edit.removePlacementIds.length
+          })
         : "",
       edit.removeForeshadowingBeatIds.length
-        ? `解除 ${edit.removeForeshadowingBeatIds.length} 个伏笔触点记录`
+        ? t("longImpactConfirmation.unlinkForeshadowingBeatRecords", {
+            length: edit.removeForeshadowingBeatIds.length
+          })
         : "",
       edit.removeSubjectIds.length
-        ? `清理 ${edit.removeSubjectIds.length} 个主体引用`
+        ? t("longImpactConfirmation.removeSubjectReferences", {
+            length: edit.removeSubjectIds.length
+          })
         : "",
       edit.removeKnowledgeAudienceIds.length
-        ? `清理 ${edit.removeKnowledgeAudienceIds.length} 个认知受众`
+        ? t("longImpactConfirmation.removeKnowledgeAudiences", {
+            length: edit.removeKnowledgeAudienceIds.length
+          })
         : "",
       edit.removeFactIds.length
-        ? `清理 ${edit.removeFactIds.length} 条事实`
+        ? t("longImpactConfirmation.removeFacts", {
+            length: edit.removeFactIds.length
+          })
         : "",
       edit.removeFactKeys.length
-        ? `清理 ${edit.removeFactKeys.length} 个事实键`
+        ? t("longImpactConfirmation.removeFactKeys", {
+            length: edit.removeFactKeys.length
+          })
         : "",
       edit.removeKnowledgeKeys.length
-        ? `清理 ${edit.removeKnowledgeKeys.length} 个认知键`
+        ? t("longImpactConfirmation.removeKnowledgeKeys", {
+            length: edit.removeKnowledgeKeys.length
+          })
         : "",
       edit.removeOpenLoopIds.length
-        ? `清理 ${edit.removeOpenLoopIds.length} 个未闭环项`
+        ? t("longImpactConfirmation.removeOpenThreads", {
+            length: edit.removeOpenLoopIds.length
+          })
         : "",
       edit.reconcileForeshadowingThreadIds.length
-        ? `重算 ${edit.reconcileForeshadowingThreadIds.length} 条伏笔线`
+        ? t("longImpactConfirmation.recalculateForeshadowingThreads", {
+            length: edit.reconcileForeshadowingThreadIds.length
+          })
         : "",
-      edit.replaceHandoff ? "重建接续包" : ""
+      edit.replaceHandoff
+        ? t("longImpactConfirmation.rebuildTheContinuationPack")
+        : ""
     ].filter(Boolean);
     lines.push(
-      `更新连续性记录 ${edit.recordFile.path}：${parts.join("、") || "同步关联清理结果"}`
+      t("longImpactConfirmation.updateContinuityRecord", {
+        path: edit.recordFile.path,
+        join:
+          parts.join("、") ||
+          t("longImpactConfirmation.syncRelatedCleanupResults")
+      })
     );
   }
   return lines;
@@ -131,7 +243,7 @@ export function longImpactConfirmationLines(
 
 export function longImpactConfirmationDescription(
   confirmation: LongWorkspaceImpactConfirmation,
-  fallback = "删除后该内容将从本机移除。"
+  fallback = t("longImpactConfirmation.thisContentWillBeRemovedFromYourDevice")
 ): string {
   const lines = longImpactConfirmationLines(confirmation);
   return lines.length ? lines.join("；") + "。" : fallback;

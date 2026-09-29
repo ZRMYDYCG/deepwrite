@@ -1,3 +1,4 @@
+import { createScopedTranslator } from "../i18n";
 import { computed } from "vue";
 import {
   BUILT_IN_REASONING_LEVELS,
@@ -11,10 +12,27 @@ import type { AgentApprovalMode } from "../types/conversation";
 import type { IconName } from "../types/workspace";
 import { isWorkspaceWebSearchAvailable } from "./agent-conversation/web-search";
 
+const t = createScopedTranslator("workspace.conversationModelOptions");
+
 const MODEL_GROUPS = [
-  { provider: "official", providerLabel: "官方小站" },
-  { provider: "custom", providerLabel: "自定义模型" },
-  { provider: "free", providerLabel: "免费模型" }
+  {
+    provider: "official",
+    get providerLabel() {
+      return t("officialSite");
+    }
+  },
+  {
+    provider: "custom",
+    get providerLabel() {
+      return t("customModels");
+    }
+  },
+  {
+    provider: "free",
+    get providerLabel() {
+      return t("freeModels");
+    }
+  }
 ] as const;
 
 function modelGroup(model: ModelConfig): string {
@@ -40,31 +58,50 @@ export function useConversationModelOptions(options: {
     isWorkspaceWebSearchAvailable(selectedModel.value)
   );
   const builtInThinkingLabels: Record<BuiltInReasoningLevel, string> = {
-    minimal: "最低",
-    low: "较低",
-    medium: "标准",
-    high: "深度",
-    xhigh: "极高",
-    max: "最高"
+    get minimal() {
+      return t("minimal");
+    },
+    get low() {
+      return t("low");
+    },
+    get medium() {
+      return t("medium");
+    },
+    get high() {
+      return t("high");
+    },
+    get xhigh() {
+      return t("extraHigh");
+    },
+    get max() {
+      return t("maximum");
+    }
   };
   const fallbackThinkingOptions: Array<{
     value: ThinkingLevel;
     label: string;
   }> = [
-    { value: "off", label: "关闭" },
+    {
+      value: "off",
+      get label() {
+        return t("off");
+      }
+    },
     ...BUILT_IN_REASONING_LEVELS.map((value) => ({
       value,
-      label: builtInThinkingLabels[value]
+      get label() {
+        return builtInThinkingLabels[value];
+      }
     }))
   ];
 
   function thinkingLabel(level: ThinkingLevel): string {
     if (level === "off") {
-      return "关闭";
+      return t("off");
     }
     return BUILT_IN_REASONING_LEVELS.includes(level as BuiltInReasoningLevel)
       ? builtInThinkingLabels[level as BuiltInReasoningLevel]
-      : `自定义（${level}）`;
+      : t("custom", { level: level });
   }
 
   const availableThinkingOptions = computed(() =>
@@ -109,13 +146,21 @@ export function useConversationModelOptions(options: {
   const approvalOptions = [
     {
       value: "request-approval" as const,
-      label: "请求批准",
-      description: "修改或写入正文前均需你的批准"
+      get label() {
+        return t("requestApproval");
+      },
+      get description() {
+        return t("askForYourApprovalBeforeEditingOrWritingThe");
+      }
     },
     {
       value: "auto-approve" as const,
-      label: "替我审批",
-      description: "自动批准修改并写入正文"
+      get label() {
+        return t("approveAutomatically");
+      },
+      get description() {
+        return t("automaticallyApproveEditsAndSaveThemToTheManuscript");
+      }
     }
   ];
   const approvalModeIcon = computed<IconName>(() =>

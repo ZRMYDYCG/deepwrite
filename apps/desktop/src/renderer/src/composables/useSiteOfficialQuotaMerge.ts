@@ -1,8 +1,12 @@
+import { formatError } from "../i18n/errors";
+import { createScopedTranslator } from "../i18n";
 import { computed, ref } from "vue";
 import type { DeepWriteApi } from "@deepwrite/contracts";
 import { isDeepWriteSiteOfficialModel } from "@deepwrite/contracts/renderer";
 import type { useSettingsStore } from "../stores/settingsStore";
 import { beginSiteOfficialQuotaRequest } from "./siteOfficialQuotaRequests";
+
+const t = createScopedTranslator("workspace.siteOfficialQuotaMerge");
 
 interface QuotaMergeContext {
   api(): DeepWriteApi | undefined;
@@ -22,18 +26,19 @@ export function useSiteOfficialQuotaMerge(context: QuotaMergeContext) {
   let targetRevision = "";
   const disabledReason = computed(() => {
     if (store.siteOfficialModelsSaving || store.siteOfficialModelsRefreshing) {
-      return "请等待当前操作完成。";
+      return t("waitForTheCurrentOperationToFinish");
     }
     if (
       !store.modelSettings?.models.some(
         (model) => isDeepWriteSiteOfficialModel(model) && model.hasApiKey
       )
     ) {
-      return "请先添加当前密钥。";
+      return t("addTheCurrentKeyFirst");
     }
-    if (store.siteOfficialQuota?.unlimited) return "无限额度密钥无需增加额度。";
+    if (store.siteOfficialQuota?.unlimited)
+      return t("unlimitedKeysDoNotNeedAdditionalQuota");
     if (!store.siteOfficialQuota?.targetRevision)
-      return "请先刷新当前密钥额度。";
+      return t("refreshTheCurrentKeySQuotaFirst");
     return "";
   });
 
@@ -55,7 +60,7 @@ export function useSiteOfficialQuotaMerge(context: QuotaMergeContext) {
     if (pending.value || !open.value) return;
     const source = sourceKey.value.trim();
     if (!source || source.length > 1_024) {
-      notifications.warning("请输入有效的来源 Key。");
+      notifications.warning(t("enterAValidSourceKey"));
       return;
     }
     if (
@@ -63,14 +68,17 @@ export function useSiteOfficialQuotaMerge(context: QuotaMergeContext) {
       store.siteOfficialQuota?.targetRevision !== targetRevision
     ) {
       notifications.warning(
-        disabledReason.value || "当前密钥配置已变化，请刷新额度后重新确认。"
+        disabledReason.value ||
+          t("theCurrentKeyConfigurationChangedRefreshTheQuotaAnd")
       );
       close();
       return;
     }
     const api = context.api();
     if (!api) {
-      notifications.error("桌面服务暂不可用，请稍后重试。");
+      notifications.error(
+        t("theDesktopServiceIsTemporarilyUnavailablePleaseTryAgain")
+      );
       return;
     }
     pending.value = true;
@@ -86,20 +94,22 @@ export function useSiteOfficialQuotaMerge(context: QuotaMergeContext) {
       targetRevision = "";
       if (current()) store.siteOfficialQuota = result.quota;
       notifications.success(
-        `已转入 ¥${result.transferred}，来源 Key 已永久注销。`
+        t("transferredTheSourceKeyHasBeenPermanentlyDeactivated", {
+          transferred: result.transferred
+        })
       );
       try {
         const quota = await api.models.querySiteOfficialQuota();
         if (current()) store.siteOfficialQuota = quota;
       } catch {
         // The merge result already contains the authoritative post-merge quota.
-        notifications.warning("额度已转入，暂未刷新最新用量，请稍后刷新页面。");
+        notifications.warning(
+          t("quotaTransferredUsageHasNotRefreshedYetRefreshThe")
+        );
       }
     } catch (error: unknown) {
       notifications.error(
-        error instanceof Error
-          ? error.message
-          : "额度转入失败，请刷新额度确认结果后再试。"
+        formatError(error, t("quotaTransferFailedRefreshTheQuotaToCheckThe"))
       );
     } finally {
       sourceKey.value = "";

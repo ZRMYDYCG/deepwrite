@@ -1,3 +1,4 @@
+import { createScopedTranslator } from "../i18n";
 import {
   computed,
   nextTick,
@@ -9,6 +10,8 @@ import {
 } from "vue";
 import type { ChatMessage } from "../types/conversation";
 import { createConversationViewportAnchor } from "./conversationViewportAnchor";
+
+const t = createScopedTranslator("workspace");
 
 export interface ConversationTurn {
   id: string;
@@ -33,8 +36,8 @@ function compactConversationText(
 ): string {
   const compact = content
     .slice(0, 2_400)
-    .replace(/```[\s\S]*?```/g, " 代码片段 ")
-    .replace(/!\[[^\]]*]\([^)]*\)/g, " 图片 ")
+    .replace(/```[\s\S]*?```/g, t("builtins.codeExcerpt"))
+    .replace(/!\[[^\]]*]\([^)]*\)/g, t("builtins.image"))
     .replace(/\[([^\]]+)]\([^)]*\)/g, "$1")
     .replace(/[`*_~>#]+/g, " ")
     .replace(/\s+/g, " ")
@@ -48,7 +51,11 @@ function promptFallback(message: ChatMessage): string {
     ?.map((attachment) => attachment.name)
     .filter(Boolean)
     .join("、");
-  return attachmentNames ? `附件：${attachmentNames}` : "无文字消息";
+  return attachmentNames
+    ? t("conversationTurnNavigator.attachments", {
+        attachmentNames: attachmentNames
+      })
+    : t("conversationTurnNavigator.noText");
 }
 
 export function buildConversationTurns(

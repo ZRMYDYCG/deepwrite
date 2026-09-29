@@ -1,11 +1,16 @@
+import { setAppLanguage, t } from "../i18n";
+import { useCatalogDocumentLoader } from "../composables/useCatalogDocumentLoader";
+import { useCatalogWorkspaceProjectionCoordinator } from "../composables/useCatalogWorkspaceProjectionCoordinator";
+import type { EditorDraftState } from "../types/workspace";
 import {
   CatalogIndexSnapshotSchema,
   createDefaultCreativePlotStages,
+  type CatalogReadDocumentResult,
   type CatalogIndexSnapshot
 } from "@deepwrite/contracts";
-import { createPinia, setActivePinia } from "pinia";
-import { isReactive } from "vue";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createPinia, setActivePinia, storeToRefs } from "pinia";
+import { computed, isReactive, ref, shallowRef } from "vue";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const projectCatalogWorkspaceSpy = vi.hoisted(() => vi.fn());
 
@@ -90,7 +95,98 @@ beforeEach(() => {
   projectCatalogWorkspaceSpy.mockClear();
 });
 
+afterEach(() => setAppLanguage("zh-CN", "zh-CN"));
+
 describe("catalog index store", () => {
+  it("changes display language without replacing reconciled projections or interrupting reads and drafts", async () => {
+    const store = useCatalogIndexStore();
+    const source = fixture();
+    const index = vi.fn(async () => source);
+    const pending = deferred<CatalogReadDocumentResult>();
+    const readDocument = vi.fn(() => pending.promise);
+    const loader = useCatalogDocumentLoader({
+      catalogIndex: store,
+      reader: () => ({ readDocument })
+    });
+    const refs = storeToRefs(store);
+    const drafts = shallowRef<Record<string, EditorDraftState>>({});
+    const selectedResourceId = ref("");
+    const coordinator = useCatalogWorkspaceProjectionCoordinator({
+      api: () => ({ index, snapshot: vi.fn() }),
+      index: {
+        snapshot: refs.snapshot,
+        projection: refs.projection,
+        ensureSnapshot: store.ensureSnapshot
+      },
+      documents: {
+        values: loader.documents,
+        reconcileProjection: loader.reconcileProjection
+      },
+      state: { drafts, selectedResourceId, activeCreationResourceId: ref("") },
+      proposals: { all: () => [], resume: vi.fn() },
+      scheduler: { queueMicrotask: vi.fn() },
+      notifications: { error: vi.fn(), warning: vi.fn(), info: vi.fn() }
+    });
+    await coordinator.loadSnapshot();
+    const projection = store.projection;
+    const document = loader.documents.value.find(
+      (item) => item.catalogEntryId === "material-entry"
+    )!;
+    selectedResourceId.value = document.id;
+    const draft = {
+      title: document.title,
+      content: "unsaved writing",
+      dirty: true
+    };
+    drafts.value = { [document.id]: draft };
+    const sectionLabel = computed(
+      () =>
+        store.resourceSections.find((section) => section.id === "material")
+          ?.label
+    );
+    const eyebrow = computed(
+      () => loader.documentsById.value.get(document.id)?.eyebrow
+    );
+    const chineseLabel = sectionLabel.value;
+    const chineseEyebrow = eyebrow.value;
+    const loading = loader.ensureOne(document.id);
+    setAppLanguage("en-US", "zh-CN");
+    expect(sectionLabel.value).toBe(
+      t("workspace.catalogWorkspace.materialLibrary")
+    );
+    expect(sectionLabel.value).not.toBe(chineseLabel);
+    expect(eyebrow.value).not.toBe(chineseEyebrow);
+    expect(store.projection).toBe(projection);
+    expect(coordinator.reconciledProjection.value).toBe(projection);
+    expect(store.snapshot).toBe(source);
+    expect(selectedResourceId.value).toBe(document.id);
+    expect(drafts.value[document.id]).toBe(draft);
+    pending.resolve({
+      projectId: "material-library",
+      target: "document",
+      documentId: "material-entry",
+      title: "测试条目",
+      content: "saved text",
+      contentBytes: 10,
+      revision: "v1:10:00000000",
+      projectRevision: 1,
+      updatedAt: NOW
+    });
+    expect((await loading).ok).toBe(true);
+    expect(readDocument).toHaveBeenCalledTimes(1);
+    expect(index).toHaveBeenCalledTimes(1);
+    expect(projectCatalogWorkspaceSpy).toHaveBeenCalledTimes(1);
+    const hydrated = loader.documentsById.value.get(document.id)!;
+    expect(hydrated.content).toBe("saved text");
+    setAppLanguage("zh-CN", "en-US");
+    expect(eyebrow.value).toBe(chineseEyebrow);
+    expect(loader.documentsById.value.get(document.id)).toBe(hydrated);
+    expect(drafts.value[document.id]).toBe(draft);
+    expect(readDocument).toHaveBeenCalledTimes(1);
+    coordinator.dispose();
+    loader.dispose();
+    store.dispose();
+  });
   it("projects once and publishes the matching shallow snapshot and indexes", () => {
     const store = useCatalogIndexStore();
     const source = fixture();

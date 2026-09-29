@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import type {
   BookResourceDialogMode,
@@ -16,6 +17,8 @@ import type {
 import AppIcon from "./AppIcon.vue";
 import TreeNodeItem from "./TreeNodeItem.vue";
 import { useCreationBookDrag } from "../composables/useCreationBookDrag";
+
+const t = createScopedTranslator("components.treeSection");
 
 const props = defineProps<{
   section: ResourceTreeSection;
@@ -73,43 +76,57 @@ const actionItems = computed<
 >(() => {
   const resourceName =
     props.section.id === "creation"
-      ? "书籍"
+      ? t("book")
       : props.section.id === "skill"
-        ? "技能库"
-        : "素材库";
+        ? t("skillLibrary")
+        : t("materialLibrary");
   return [
     {
       id: "create",
       label:
-        props.section.id === "creation" ? "新建作品" : `新建${resourceName}`,
+        props.section.id === "creation"
+          ? t("newWork")
+          : t("newValue", { arg0: resourceName }),
       icon: "plus"
     },
     ...(props.section.id === "creation"
       ? ([
-          { id: "create-from-template", label: "按模板新建", icon: "plus" }
+          {
+            id: "create-from-template",
+            label: t("createFromTemplate"),
+            icon: "plus"
+          }
         ] as const)
       : []),
     ...(props.section.id === "creation"
       ? []
-      : ([{ id: "create-group", label: "新建分组", icon: "folder" }] as const)),
+      : ([
+          {
+            id: "create-group",
+            label: t("newGroup"),
+            icon: "folder"
+          }
+        ] as const)),
     {
       id: props.section.id === "creation" ? "choose-open-book" : "import",
       label:
         props.section.id === "creation"
-          ? "打开已有作品"
-          : `打开已存在${resourceName}`,
+          ? t("openExistingWork")
+          : t("openExistingValue", {
+              arg0: resourceName
+            }),
       icon: "folder"
     },
     ...(props.section.id === "creation"
       ? ([
           {
             id: "choose-import-book",
-            label: "导入已有作品",
+            label: t("importExistingWork"),
             icon: "archive"
           },
           {
             id: "refresh-long-books",
-            label: "刷新长篇列表",
+            label: t("refreshNovels"),
             icon: "history"
           }
         ] as const)
@@ -119,14 +136,16 @@ const actionItems = computed<
       : ([
           {
             id: "import-legacy-library",
-            label: `导入旧版${resourceName}`,
+            label: t("importLegacyValue", {
+              arg0: resourceName
+            }),
             icon: "archive"
           },
           {
             id: "import-external-library",
-            label: `从文件或文件夹导入${
-              props.section.id === "skill" ? "技能" : "素材"
-            }`,
+            label: t("importValueFromFilesOrFolders", {
+              arg0: props.section.id === "skill" ? t("skill") : t("material")
+            }),
             icon: "download"
           }
         ] as const))
@@ -170,7 +189,9 @@ onBeforeUnmount(() => {
         type="button"
         :aria-expanded="!collapsed"
         :aria-label="
-          collapsed ? `展开${section.label}` : `折叠${section.label}`
+          collapsed
+            ? t('expandValue', { arg0: section.label })
+            : t('collapseValue', { arg0: section.label })
         "
         @click="collapsed = !collapsed"
       >
@@ -183,7 +204,11 @@ onBeforeUnmount(() => {
           class="section-action"
           :class="{ 'is-active': actionMenuOpen }"
           type="button"
-          :aria-label="`${section.label}新建或导入`"
+          :aria-label="
+            t('createOrImportValue', {
+              arg0: section.label
+            })
+          "
           :aria-expanded="actionMenuOpen"
           aria-haspopup="menu"
           @click="actionMenuOpen = !actionMenuOpen"
@@ -211,7 +236,7 @@ onBeforeUnmount(() => {
     <ul
       v-if="!collapsed"
       class="resource-tree"
-      :aria-label="`${section.label}下的内容`"
+      :aria-label="t('contentUnderValue', { arg0: section.label })"
     >
       <TreeNodeItem
         v-for="node in section.nodes"

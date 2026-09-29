@@ -1,3 +1,4 @@
+import { createScopedTranslator, locale } from "../i18n";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 import {
   PROMPT_ATTACHMENT_MAX_ITEMS,
@@ -16,6 +17,8 @@ import {
   type ComposerReferenceMatch
 } from "../utils/composerReferences";
 import { createEditorReferenceAttachment } from "../utils/editorTextReferences";
+
+const t = createScopedTranslator("workspace.conversationComposer");
 
 export function useConversationComposer(options: {
   draft: () => string;
@@ -66,28 +69,28 @@ export function useConversationComposer(options: {
   });
   const referenceMenuTitle = computed(() =>
     activeReference.value?.trigger === "/"
-      ? "调用技能"
+      ? t("useSkill")
       : options.libraryDomain() === "skill"
-        ? "引用技能"
-        : "引用素材"
+        ? t("referenceSkill")
+        : t("referenceMaterial")
   );
   const referenceMenuHint = computed(() =>
     activeReference.value?.trigger === "/"
-      ? "输入名称搜索技能"
+      ? t("searchSkillsByName")
       : options.libraryDomain() === "skill"
-        ? "输入名称搜索技能条目"
-        : "输入名称搜索素材条目"
+        ? t("searchSkillEntriesByName")
+        : t("searchMaterialEntriesByName")
   );
   const composerPlaceholder = computed(() => {
     if (!options.runtimeAvailable())
-      return "浏览器预览不可发送，请启动桌面客户端";
+      return t("sendingIsUnavailableInTheBrowserPreviewStartThe");
     if (options.libraryDomain() === "skill") {
-      return "描述资料库任务，输入 / 加载方法技能，输入 @ 引用当前库或同分组其它库的技能……";
+      return t("describeALibraryTaskTypeToLoadAMethod");
     }
     if (options.libraryDomain() === "material") {
-      return "描述资料库任务，输入 / 加载方法技能，输入 @ 引用当前库或同分组其它库的素材……";
+      return t("describeALibraryTaskTypeToLoadAMethod2");
     }
-    return "随心输入，输入 / 调用技能，输入 @ 引用素材……";
+    return t("writeAnythingTypeToUseSkillsOrToReference");
   });
 
   watch(
@@ -184,7 +187,9 @@ export function useConversationComposer(options: {
     );
     if (attachments.length > PROMPT_ATTACHMENT_MAX_ITEMS) {
       uiMessage.warning(
-        `每条消息最多携带 ${PROMPT_ATTACHMENT_MAX_ITEMS} 项附件或正文引用。`
+        t("eachMessageCanIncludeUpToAttachmentsOrManuscript", {
+          PROMPT_ATTACHMENT_MAX_ITEMS: PROMPT_ATTACHMENT_MAX_ITEMS
+        })
       );
       return;
     }
@@ -195,7 +200,12 @@ export function useConversationComposer(options: {
     );
     if (textLength > PROMPT_TEXT_ATTACHMENTS_MAX_CONTENT_LENGTH) {
       uiMessage.warning(
-        `文本附件与正文引用合计最多携带 ${PROMPT_TEXT_ATTACHMENTS_MAX_CONTENT_LENGTH.toLocaleString("zh-CN")} 个字符。`
+        t("textAttachmentsAndManuscriptReferencesCanContainUpTo", {
+          toLocaleString:
+            PROMPT_TEXT_ATTACHMENTS_MAX_CONTENT_LENGTH.toLocaleString(
+              locale.value
+            )
+        })
       );
       return;
     }

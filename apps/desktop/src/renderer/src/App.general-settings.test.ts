@@ -49,7 +49,7 @@ describe("App general settings integration", () => {
   it("applies language and menu-bar setting changes", () => {
     expect(source).toContain("documentRoot: document.documentElement");
     expect(coordinatorSource).toContain(
-      "options.documentRoot.lang = resolvedLanguage"
+      "options.documentRoot.lang = locale.value"
     );
     expect(coordinatorSource).toContain(
       "function updateUseNetworkProxy(enabled: boolean)"

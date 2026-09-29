@@ -4,10 +4,8 @@ import {
   createDefaultBodyTextFormats
 } from "./body-text-format";
 import { EnvelopeBaseSchema } from "./envelope";
-import {
-  ContextCompactionSettingsSchema,
-  createDefaultContextCompactionSettings
-} from "./session/context-compaction";
+import { ContextCompactionSettingsSchema } from "./session/context-compaction-state";
+import { createDefaultContextCompactionSettings } from "./session/context-compaction-defaults";
 
 export const GeneralPermissionModeSchema = z.enum([
   "request-approval",
@@ -15,7 +13,7 @@ export const GeneralPermissionModeSchema = z.enum([
 ]);
 export type GeneralPermissionMode = z.infer<typeof GeneralPermissionModeSchema>;
 
-export const AppLanguageSchema = z.enum(["auto", "zh-CN"]);
+export const AppLanguageSchema = z.enum(["auto", "zh-CN", "en-US"]);
 export type AppLanguage = z.infer<typeof AppLanguageSchema>;
 
 export const WorkspacePaneLayoutSchema = z.enum([

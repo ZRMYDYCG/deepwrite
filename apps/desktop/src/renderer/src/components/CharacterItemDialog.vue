@@ -1,6 +1,9 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import { nextTick, ref, watch } from "vue";
 import { uiMessage } from "../ui-feedback";
+
+const t = createScopedTranslator("components.characterItemDialog");
 
 const props = defineProps<{
   open: boolean;
@@ -40,7 +43,7 @@ function submit(): void {
   }
   const title = value.value.trim();
   if (!title) {
-    uiMessage.warning("请输入人物条目名称。");
+    uiMessage.warning(t("enterACharacterEntryName"));
     return;
   }
   emit("submit", title);
@@ -73,19 +76,21 @@ function submit(): void {
             <h3 id="character-item-dialog-title">
               {{
                 mode === "create"
-                  ? "新建人物条目"
+                  ? t("newCharacterEntry")
                   : mode === "rename"
-                    ? "修改人物条目名称"
-                    : `删除“${title}”`
+                    ? t("renameCharacterEntry")
+                    : t("deleteValue", {
+                        arg0: title
+                      })
               }}
             </h3>
           </header>
           <div class="dialog-body">
             <p v-if="mode === 'delete'">
-              该人物条目及其 Markdown 内容会被永久删除。
+              {{ t("thisCharacterEntryAndItsMarkdownContentWillBe") }}
             </p>
             <label v-else>
-              <span>名称</span>
+              <span>{{ t("name") }}</span>
               <input
                 ref="input"
                 v-model="value"
@@ -97,7 +102,7 @@ function submit(): void {
           </div>
           <footer>
             <button type="button" :disabled="pending" @click="close">
-              取消
+              {{ t("cancel") }}
             </button>
             <button
               :class="mode === 'delete' ? 'danger-button' : 'primary-button'"
@@ -106,12 +111,12 @@ function submit(): void {
             >
               {{
                 pending
-                  ? "处理中…"
+                  ? t("processing")
                   : mode === "create"
-                    ? "创建"
+                    ? t("create")
                     : mode === "rename"
-                      ? "保存修改"
-                      : "确认删除"
+                      ? t("saveChanges")
+                      : t("delete")
               }}
             </button>
           </footer>

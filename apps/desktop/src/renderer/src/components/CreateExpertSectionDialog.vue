@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import {
   computed,
   nextTick,
@@ -10,6 +11,8 @@ import {
 import { DraftSectionTitleSchema } from "@deepwrite/contracts";
 import { uiMessage } from "../ui-feedback";
 import AppIcon from "./AppIcon.vue";
+
+const t = createScopedTranslator("components.createExpertSectionDialog");
 
 const props = defineProps<{
   open: boolean;
@@ -29,7 +32,7 @@ const title = ref("");
 let previousFocus: HTMLElement | null = null;
 
 const unitLabel = computed(() =>
-  props.workspaceType === "script" ? "剧集" : "小节"
+  props.workspaceType === "script" ? t("episode") : t("section")
 );
 
 function close(): void {
@@ -40,7 +43,11 @@ function submit(): void {
   if (props.pending) return;
   const parsed = DraftSectionTitleSchema.safeParse(title.value);
   if (!parsed.success) {
-    uiMessage.warning(`请输入${unitLabel.value}名称。`);
+    uiMessage.warning(
+      t("enterAValueName", {
+        arg0: unitLabel.value
+      })
+    );
     titleInput.value?.focus({ preventScroll: true });
     return;
   }
@@ -130,13 +137,19 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
         <form @submit.prevent="submit">
           <header>
             <div>
-              <span>正文编写</span>
-              <h2 id="create-expert-section-title">新建{{ unitLabel }}</h2>
+              <span>{{ t("manuscriptWriting") }}</span>
+              <h2 id="create-expert-section-title">
+                {{
+                  t("newMessage", {
+                    arg0: unitLabel ?? ""
+                  })
+                }}
+              </h2>
             </div>
             <button
               class="close-button"
               type="button"
-              aria-label="关闭新建弹窗"
+              :aria-label="t('closeCreationDialog')"
               :disabled="pending"
               @click="close"
             >
@@ -146,29 +159,43 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
 
           <fieldset :disabled="pending">
             <label>
-              <span>{{ unitLabel }}名称</span>
+              <span>{{
+                t("nameMessage", {
+                  arg0: unitLabel ?? ""
+                })
+              }}</span>
               <input
                 ref="titleInput"
                 v-model="title"
                 maxlength="240"
                 autocomplete="off"
-                :placeholder="`例如：${suggestedTitle || `新${unitLabel}`}`"
+                :placeholder="
+                  t('forExampleValue', {
+                    arg0:
+                      suggestedTitle ||
+                      t('newValue', {
+                        arg0: unitLabel
+                      })
+                  })
+                "
                 required
               />
             </label>
             <p>
-              确认后将在正文末尾新增一个空{{
-                unitLabel
-              }}，并立即保存到正文文件夹。
+              {{
+                t("confirmationAddsABlankAtTheEndMessage", {
+                  arg0: unitLabel ?? ""
+                })
+              }}
             </p>
           </fieldset>
 
           <footer>
             <button type="button" :disabled="pending" @click="close">
-              取消
+              {{ t("cancel") }}
             </button>
             <button class="primary-button" type="submit" :disabled="pending">
-              {{ pending ? "创建中…" : `确认新建` }}
+              {{ pending ? t("creating") : t("create") }}
             </button>
           </footer>
         </form>

@@ -1,3 +1,4 @@
+import { createScopedTranslator } from "../i18n";
 import {
   computed,
   nextTick,
@@ -16,6 +17,8 @@ import {
 } from "@deepwrite/contracts/renderer";
 import { uiMessage } from "../ui-feedback";
 import type { PopupSelectValue } from "./PopupSelect.vue";
+
+const t = createScopedTranslator("components.usePlotStructureDialog");
 
 export interface PlotStructureMutationCompletion {
   succeed(): void;
@@ -96,7 +99,7 @@ export function usePlotStructureDialog(
   );
   const characterTextPreview = computed(() => {
     const text = characterOverview.value?.content.trim() ?? "";
-    if (!text) return "（当前人物文本为空，将转换为空条目列表）";
+    if (!text) return t("theCurrentCharacterTextIsEmptyAndWillBecome");
     return text.length > 500 ? `${text.slice(0, 500)}\n……` : text;
   });
   const activeSubdialog = computed<
@@ -208,11 +211,11 @@ export function usePlotStructureDialog(
     const title = form.title.trim();
     const description = form.description.trim();
     if (!title) {
-      uiMessage.warning("请输入剧情结构名称。");
+      uiMessage.warning(t("enterAPlotStructureName"));
       return;
     }
     if (!description) {
-      uiMessage.warning("请输入结构说明；该说明会作为智能体阶段边界。");
+      uiMessage.warning(t("enterStructureNotesToDefineTheAgentSStage"));
       return;
     }
     if (
@@ -222,7 +225,11 @@ export function usePlotStructureDialog(
           stage.title.toLocaleLowerCase() === title.toLocaleLowerCase()
       )
     ) {
-      uiMessage.warning(`剧情结构名称“${title}”已存在。`);
+      uiMessage.warning(
+        t("plotStructureValueAlreadyExists", {
+          arg0: title
+        })
+      );
       return;
     }
     if (formMode.value === "create") {
@@ -248,7 +255,7 @@ export function usePlotStructureDialog(
       !enabled &&
       !rows.value.some((stage) => stage.id !== stageId && stage.enabled)
     ) {
-      uiMessage.warning("至少需要保留一个启用的剧情结构项。");
+      uiMessage.warning(t("keepAtLeastOneEnabledPlotStructureItem"));
       return;
     }
     beginMutation({ type: "setEnabled", stageId, enabled });
@@ -257,11 +264,11 @@ export function usePlotStructureDialog(
   function openDelete(stageId: string): void {
     if (locked.value) return;
     if (isBuiltinCreativePlotStageId(stageId)) {
-      uiMessage.warning("默认剧情结构不可删除，可关闭开关隐藏。");
+      uiMessage.warning(t("defaultPlotStructuresCannotBeDeletedDisableThemTo"));
       return;
     }
     if (rows.value.length <= 1) {
-      uiMessage.warning("至少需要保留一个剧情结构项。");
+      uiMessage.warning(t("keepAtLeastOnePlotStructureItem"));
       return;
     }
     formOpen.value = false;
@@ -272,7 +279,7 @@ export function usePlotStructureDialog(
     const stage = deletingStage.value;
     if (!stage) return;
     if (isBuiltinCreativePlotStageId(stage.id)) {
-      uiMessage.warning("默认剧情结构不可删除。");
+      uiMessage.warning(t("defaultPlotStructuresCannotBeDeleted"));
       return;
     }
     beginMutation({ type: "delete", stageId: stage.id, deleteContent: true });

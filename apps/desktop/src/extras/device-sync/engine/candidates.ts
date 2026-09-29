@@ -1,3 +1,4 @@
+import { syncIssueMessage } from "../../../localization/sync-display-text";
 import {
   clockIncludes,
   type LoadedSyncDevice,
@@ -59,7 +60,7 @@ export async function readSyncCandidates(
         title: revision.title,
         token: "",
         reason: "failed",
-        message: "网盘中的作品未通过完整性校验，本次未改动该作品。",
+        ...syncIssueMessage("remoteInvalid"),
         paths: [],
         local: null,
         versions: []

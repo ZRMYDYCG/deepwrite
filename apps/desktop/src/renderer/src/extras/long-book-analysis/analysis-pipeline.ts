@@ -1,3 +1,6 @@
+import { presetLabel } from "../analysis-ui/preset-labels";
+import { localizedMessage } from "../analysis-ui/localized-text";
+import { createScopedTranslator } from "../../i18n";
 import type { ShallowRef } from "vue";
 import {
   LONG_BOOK_ANALYSIS_MAX_SELECTED_CHAPTERS,
@@ -30,6 +33,8 @@ import {
 } from "../agent-runtime/extrasAgentTask";
 import { LongBookAnalysisProcessTracker } from "./analysis-process";
 import { reduceAnalysisJob } from "./analysis-reducer";
+
+const t = createScopedTranslator("extras.longBookAnalysis");
 export type { LongBookAnalysisPhase } from "./analysis-pipeline-types";
 
 export class LongBookAnalysisPipeline {
@@ -55,13 +60,9 @@ export class LongBookAnalysisPipeline {
     return this.job?.preset ?? null;
   }
 
-  get targetLibraryId(): string {
-    return this.job?.libraryId ?? "";
-  }
-
   reset(): void {
     if (["running", "stopping"].includes(this.state.status.value)) {
-      throw new Error("分析运行中，不能修改来源或预设。");
+      throw new Error(t("analysisInputsLocked"));
     }
     this.job = null;
     this.state.result.value = null;
@@ -80,29 +81,29 @@ export class LongBookAnalysisPipeline {
   ): void {
     const modelId = input.modelId ?? "";
     const model = this.models.value.find((item) => item.id === modelId);
-    if (!modelId || !model) throw new Error("请选择可用模型。");
+    if (!modelId || !model) throw new Error(t("selectAvailableModel"));
     const thinkingLevel = input.thinkingLevel ?? model.defaultThinkingLevel;
     if (
       thinkingLevel !== "off" &&
       !model.thinkingLevelOptions.includes(thinkingLevel)
     ) {
-      throw new Error("所选思考等级不在当前模型配置中，请重新选择。");
+      throw new Error(t("unsupportedThinking"));
     }
     if (input.endOrder < input.startOrder) {
-      throw new Error("结束章节不能早于起始章节。");
+      throw new Error(t("invalidChapterOrder"));
     }
     if (
       input.endOrder - input.startOrder + 1 >
       LONG_BOOK_ANALYSIS_MAX_SELECTED_CHAPTERS
     ) {
-      throw new Error("单次最多分析连续 50 章。");
+      throw new Error(t("consecutiveChapterLimit"));
     }
     const chapters = source.chapters.filter(
       (chapter) =>
         chapter.order >= input.startOrder && chapter.order <= input.endOrder
     );
     if (chapters.length !== input.endOrder - input.startOrder + 1) {
-      throw new Error("选择范围与当前章节列表不一致，请重新选择。");
+      throw new Error(t("chapterRangeChanged"));
     }
     const inputBudget = resolveAnalysisInputBudget(model, preset.systemPrompt);
     const batches = groupAnalysisSegments(
@@ -115,7 +116,6 @@ export class LongBookAnalysisPipeline {
       preset,
       modelId,
       thinkingLevel,
-      libraryId: input.libraryId?.trim() ?? "",
       selectionStart: input.startOrder,
       selectionEnd: input.endOrder,
       inputBudget,
@@ -129,7 +129,7 @@ export class LongBookAnalysisPipeline {
     this.state.completedUnits.value = 0;
     this.state.estimatedUnits.value = batches.length + 1;
     this.process.start(
-      preset.name,
+      () => presetLabel(preset),
       input.startOrder,
       input.endOrder,
       batches.length
@@ -175,7 +175,7 @@ export class LongBookAnalysisPipeline {
   }
 
   private base(unitId: string) {
-    if (!this.job) throw new Error("拆书任务尚未准备。");
+    if (!this.job) throw new Error(t("analysisNotReady"));
     return {
       jobId: this.job.id,
       unitId,
@@ -189,7 +189,7 @@ export class LongBookAnalysisPipeline {
     context: LongBookAnalysisRuntimeContext
   ): Promise<string | LongBookAnalysisResult> {
     const job = this.job;
-    if (!job) throw new Error("拆书任务尚未准备。");
+    if (!job) throw new Error(t("analysisNotReady"));
     let note: string | undefined;
     let result: LongBookAnalysisResult | undefined;
     const task = startExtrasAgentTask(
@@ -225,16 +225,16 @@ export class LongBookAnalysisPipeline {
     if (this.stopRequested) void task.stop().catch(() => undefined);
     try {
       const outcome = await task.outcome.catch((cause: unknown) => {
-        throw new Error(analysisErrorMessage(cause, "拆书分析阶段失败。"));
+        throw new Error(analysisErrorMessage(cause, t("phaseFailed")));
       });
-      if (outcome.status === "stopped") throw new Error("拆书分析已停止。");
+      if (outcome.status === "stopped") throw new Error(t("analysisStopped"));
       this.process.completeMessage(outcome.content);
       if (context.phase === "final") {
         if (result) return result;
-        throw new Error("模型未调用 write_analysis_result，请重试当前阶段。");
+        throw new Error(t("resultToolMissing"));
       }
       if (note) return note;
-      throw new Error("模型未调用 write_analysis_note，请重试当前阶段。");
+      throw new Error(t("noteToolMissing"));
     } finally {
       if (this.pending === task) this.pending = null;
     }
@@ -254,7 +254,12 @@ export class LongBookAnalysisPipeline {
         const end = Math.max(...batch.map((item) => item.chapterOrder));
         this.process.beginUnit(
           "batch",
-          `第 ${start}-${end} 章 · 批次 ${job.batchIndex + 1}/${job.batches.length}`
+          localizedMessage("extras.longBookAnalysis.batchProgress", {
+            start: start,
+            end: end,
+            batch: job.batchIndex + 1,
+            total: job.batches.length
+          })
         );
         const text = await this.runUnit({
           ...this.base(createId("analysis_batch")),
@@ -262,10 +267,18 @@ export class LongBookAnalysisPipeline {
           segments: batch
         });
         if (typeof text !== "string") {
-          throw new Error("分批阶段未返回中间笔记。");
+          throw new Error(t("batchNoteMissing"));
         }
         job.notes.push(
-          createAnalysisNote(text, `第 ${start}-${end} 章批次笔记`, start, end)
+          createAnalysisNote(
+            text,
+            t("batchNoteTitle", {
+              start: start,
+              end: end
+            }),
+            start,
+            end
+          )
         );
         job.batchIndex += 1;
         this.state.completedUnits.value += 1;
@@ -291,14 +304,17 @@ export class LongBookAnalysisPipeline {
         this.state.estimatedUnits.value,
         this.state.completedUnits.value + 1
       );
-      this.process.beginUnit("final", "根据全部分析笔记生成 Markdown 结果");
+      this.process.beginUnit(
+        "final",
+        localizedMessage("extras.longBookAnalysis.generateFinalResult")
+      );
       const finalResult = await this.runUnit({
         ...this.base(createId("analysis_final")),
         phase: "final",
         notes: job.notes
       });
       if (typeof finalResult === "string") {
-        throw new Error("最终阶段未返回拆书结果。");
+        throw new Error(t("finalResultMissing"));
       }
       this.state.result.value = finalResult;
       this.state.completedUnits.value += 1;
@@ -310,11 +326,10 @@ export class LongBookAnalysisPipeline {
         this.process.stopped();
       } else {
         this.state.status.value = "error";
-        this.state.error.value = analysisErrorMessage(
-          cause,
-          "长篇拆书分析失败。"
-        );
-        this.process.fail(this.state.error.value);
+        const message = () =>
+          analysisErrorMessage(cause, t("novelAnalysisFailed"));
+        this.state.error.value = message;
+        this.process.fail(message);
       }
     } finally {
       this.pending = null;

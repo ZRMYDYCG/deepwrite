@@ -29,7 +29,9 @@ describe("main window startup gate", () => {
 
   it("marks the gate ready only after IPC registration and initial window creation", () => {
     const source = readFileSync(new URL("./index.ts", import.meta.url), "utf8");
-    const startup = source.slice(source.indexOf("const hasSingleInstanceLock"));
+    const startup = source.slice(
+      source.indexOf("void desktopStartup.run(async () => {")
+    );
     const registerIpcIndex = startup.indexOf("registerIpc();");
     const createWindowIndex = startup.indexOf(
       "mainWindow = createMainWindow();"
@@ -38,7 +40,7 @@ describe("main window startup gate", () => {
       "mainWindowStartupGate.markReady();"
     );
 
-    expect(startup).toContain(
+    expect(source).toContain(
       'app.on("second-instance", () => {\n    mainWindowStartupGate.requestShow();'
     );
     expect(registerIpcIndex).toBeGreaterThanOrEqual(0);

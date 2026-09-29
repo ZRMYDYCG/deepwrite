@@ -1,18 +1,45 @@
+import { createScopedTranslator } from "../i18n";
 import type { AgentSubagentRun } from "../types/conversation";
 
+const t = createScopedTranslator("components.conversationActivityLabel");
+
 const TOOL_ACTIVITY: Readonly<Record<string, string>> = {
-  read: "读取文件",
-  list: "列出范围",
-  create: "创建文件",
-  edit: "修改内容",
-  delete: "删除对象",
-  load_skill: "加载技能",
-  query_linked_material_entries: "查询素材",
-  ask_user_question: "询问用户",
-  propose_continuity_commit: "提交连续性",
-  web_search: "智能搜索",
-  switch_storyline_stage: "切换阶段",
-  spawn_subagent: "安排任务中"
+  get read() {
+    return t("readFile");
+  },
+  get list() {
+    return t("listScope");
+  },
+  get create() {
+    return t("createFile");
+  },
+  get edit() {
+    return t("editContent");
+  },
+  get delete() {
+    return t("deleteObject");
+  },
+  get load_skill() {
+    return t("loadSkill");
+  },
+  get query_linked_material_entries() {
+    return t("queryMaterials");
+  },
+  get ask_user_question() {
+    return t("askUser");
+  },
+  get propose_continuity_commit() {
+    return t("commitContinuity");
+  },
+  get web_search() {
+    return t("smartSearch");
+  },
+  get switch_storyline_stage() {
+    return t("switchStage");
+  },
+  get spawn_subagent() {
+    return t("assigningTask");
+  }
 };
 
 type WorkActivityItem =
@@ -26,13 +53,13 @@ export function toolActivityLabel(toolName: string): string {
   const known = TOOL_ACTIVITY[toolName];
   if (known) return known;
   if (toolName.startsWith("read_") || toolName.startsWith("get_")) {
-    return "读取文件";
+    return t("readFile");
   }
-  if (toolName.startsWith("list_")) return "列出范围";
-  if (toolName.startsWith("search_")) return "搜索内容";
-  if (toolName.startsWith("query_")) return "查询资料";
-  if (toolName.startsWith("create_")) return "创建文件";
-  if (toolName.startsWith("delete_")) return "删除对象";
+  if (toolName.startsWith("list_")) return t("listScope");
+  if (toolName.startsWith("search_")) return t("searchContent");
+  if (toolName.startsWith("query_")) return t("queryReferences");
+  if (toolName.startsWith("create_")) return t("createFile");
+  if (toolName.startsWith("delete_")) return t("deleteObject");
   if (
     toolName.startsWith("write_") ||
     toolName.startsWith("edit_") ||
@@ -40,9 +67,9 @@ export function toolActivityLabel(toolName: string): string {
     toolName.startsWith("rename_") ||
     toolName.startsWith("move_")
   ) {
-    return "修改内容";
+    return t("editContent");
   }
-  return "执行工具";
+  return t("runTool");
 }
 
 /** Running groups name their latest member; finished groups stay summarized. */
@@ -50,9 +77,9 @@ export function workGroupActivityLabel(group: {
   running: boolean;
   items: readonly WorkActivityItem[];
 }): string {
-  if (!group.running) return "处理完成";
+  if (!group.running) return t("finished");
   const last = group.items.at(-1);
-  if (last?.type === "thinking") return "思考中";
+  if (last?.type === "thinking") return t("thinking");
   if (last?.type === "tool" && "tool" in last) {
     return toolActivityLabel(last.tool.name);
   }
@@ -60,7 +87,7 @@ export function workGroupActivityLabel(group: {
     const tool = last.tools.at(-1);
     if (tool) return toolActivityLabel(tool.name);
   }
-  return "处理完成";
+  return t("finished");
 }
 
 /** Parent badge while a child run is still open. */
@@ -69,7 +96,7 @@ export function subagentPhaseLabel(
     AgentSubagentRun,
     "thinking" | "output" | "toolCalls" | "processingSteps"
   >
-): "安排任务中" | "子智能体执行中" {
+): string {
   const working =
     Boolean(
       run.thinking?.length || run.output?.length || run.toolCalls.length
@@ -80,5 +107,5 @@ export function subagentPhaseLabel(
         ((step.type === "thinking" || step.type === "response") &&
           step.content.length > 0)
     );
-  return working ? "子智能体执行中" : "安排任务中";
+  return working ? t("subagentRunning") : t("assigningTask");
 }

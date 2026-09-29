@@ -1,3 +1,4 @@
+import { createScopedTranslator } from "../i18n";
 import {
   beginSiteOfficialQuotaRequest,
   invalidateSiteOfficialQuota
@@ -5,6 +6,8 @@ import {
 import type { DeepWriteApi, ModelSettings } from "@deepwrite/contracts";
 import { isDeepWriteSiteOfficialModel } from "@deepwrite/contracts/renderer";
 import { useSettingsStore } from "../stores/settingsStore";
+
+const t = createScopedTranslator("workspace");
 
 interface SiteOfficialNotifications {
   error(message: string): void;
@@ -42,7 +45,14 @@ export function useSiteOfficialModelSettings(
     } catch (error: unknown) {
       if (current()) {
         settingsStore.siteOfficialQuota = null;
-        uiMessage.warning(errorMessage(error, "查询新官方小站额度失败。"));
+        uiMessage.warning(
+          errorMessage(
+            error,
+            t(
+              "siteOfficialModelSettings.couldNotRetrieveTheNewOfficialSiteSBalance"
+            )
+          )
+        );
       }
       return false;
     }
@@ -87,11 +97,13 @@ export function useSiteOfficialModelSettings(
       const settings = await api.models.saveSiteOfficialToken(apiKey);
       context.applyLoadedModelSettings(settings);
       await queryQuota(api);
-      uiMessage.success("新官方小站模型密钥已安全保存，模型现在可以直接使用。");
+      uiMessage.success(
+        t("siteOfficialModelSettings.theNewOfficialSiteSModelKeyHasBeen")
+      );
     } catch (error: unknown) {
       settingsStore.modelError = errorMessage(
         error,
-        "保存新官方小站模型密钥失败。"
+        t("siteOfficialModelSettings.couldNotSaveTheNewOfficialSiteSModel")
       );
       uiMessage.error(settingsStore.modelError);
     } finally {
@@ -115,11 +127,13 @@ export function useSiteOfficialModelSettings(
       const settings = await api.models.clearSiteOfficialToken();
       context.applyLoadedModelSettings(settings);
       settingsStore.siteOfficialQuota = null;
-      uiMessage.info("新官方小站模型密钥已移除，历史用量仍保留在本机账本中。");
+      uiMessage.info(
+        t("siteOfficialModelSettings.theNewOfficialSiteSModelKeyWasRemoved")
+      );
     } catch (error: unknown) {
       settingsStore.modelError = errorMessage(
         error,
-        "移除新官方小站模型密钥失败。"
+        t("siteOfficialModelSettings.couldNotRemoveTheNewOfficialSiteSModel")
       );
       uiMessage.error(settingsStore.modelError);
     } finally {
@@ -144,7 +158,14 @@ export function useSiteOfficialModelSettings(
         context.applyLoadedModelSettings(settings);
         catalogRefreshed = true;
       } catch (error: unknown) {
-        uiMessage.error(errorMessage(error, "刷新新官方小站模型失败。"));
+        uiMessage.error(
+          errorMessage(
+            error,
+            t(
+              "siteOfficialModelSettings.couldNotRefreshTheNewOfficialSiteSModels"
+            )
+          )
+        );
       }
       // A catalog failure must not prevent querying the saved key's quota.
       // Wait for the catalog operation to release the Main process key lock.
@@ -152,7 +173,9 @@ export function useSiteOfficialModelSettings(
         (model) => isDeepWriteSiteOfficialModel(model) && model.hasApiKey
       );
       if (configured && (await queryQuota(api)) && catalogRefreshed) {
-        uiMessage.success("新官方小站模型页面已刷新。");
+        uiMessage.success(
+          t("siteOfficialModelSettings.theNewOfficialSiteSModelPageHasBeen")
+        );
       }
     } finally {
       settingsStore.siteOfficialModelsRefreshing = false;
@@ -182,11 +205,20 @@ export function useSiteOfficialModelSettings(
       await queryQuota(api);
       uiMessage.success(
         enabled
-          ? "模型已启用，并显示在模型选择中。"
-          : "模型已停用，并从模型选择中隐藏。"
+          ? t(
+              "siteOfficialModelSettings.modelEnabledAndAddedToTheModelSelector"
+            )
+          : t(
+              "siteOfficialModelSettings.modelDisabledAndHiddenFromTheModelSelector"
+            )
       );
     } catch (error: unknown) {
-      uiMessage.error(errorMessage(error, "更新模型启用状态失败。"));
+      uiMessage.error(
+        errorMessage(
+          error,
+          t("modelSettingsCoordinator.failedToUpdateModelStatus")
+        )
+      );
     } finally {
       settingsStore.siteOfficialModelsSaving = false;
     }

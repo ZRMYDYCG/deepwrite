@@ -1,7 +1,10 @@
+import { createScopedTranslator } from "../i18n";
 import type { TextViewMode } from "@deepwrite/contracts";
 import { computed, nextTick, ref, type ComputedRef, type Ref } from "vue";
 import { uiMessage } from "../ui-feedback";
 import type { TextSelectionRange } from "../utils/boundedTextHistory";
+
+const t = createScopedTranslator("workspace.longEditorFindReplace");
 
 export interface LongEditorSearchMatch {
   start: number;
@@ -74,7 +77,7 @@ export function useLongEditorFindReplace(options: {
   });
   const searchResultLabel = computed(() => {
     if (!searchQuery.value) return "0/0";
-    if (!searchMatches.value.length) return "无结果";
+    if (!searchMatches.value.length) return t("noResults");
     const current =
       currentMatchIndex.value >= 0 ? currentMatchIndex.value + 1 : 0;
     return `${current}/${searchMatches.value.length}`;
@@ -151,12 +154,12 @@ export function useLongEditorFindReplace(options: {
 
   function findMatch(direction: 1 | -1, quiet = false): void {
     if (!searchQuery.value) {
-      if (!quiet) uiMessage.info("请输入要查找的文字");
+      if (!quiet) uiMessage.info(t("enterTextToFind"));
       return;
     }
     if (!searchMatches.value.length) {
       currentMatchIndex.value = -1;
-      if (!quiet) uiMessage.info("未找到匹配文字");
+      if (!quiet) uiMessage.info(t("noMatchingTextFound"));
       return;
     }
     const nextIndex =
@@ -181,7 +184,7 @@ export function useLongEditorFindReplace(options: {
     const match = searchMatches.value[index];
     if (!match) {
       uiMessage.info(
-        searchQuery.value ? "未找到可替换的文字" : "请输入要替换的文字"
+        searchQuery.value ? t("noTextToReplace") : t("enterTextToReplace")
       );
       return;
     }
@@ -209,7 +212,7 @@ export function useLongEditorFindReplace(options: {
     const matches = searchMatches.value;
     if (!searchQuery.value || !matches.length) {
       uiMessage.info(
-        searchQuery.value ? "未找到可替换的文字" : "请输入要替换的文字"
+        searchQuery.value ? t("noTextToReplace") : t("enterTextToReplace")
       );
       return;
     }
@@ -222,7 +225,7 @@ export function useLongEditorFindReplace(options: {
     }
     nextContent += content.slice(cursor);
     if (nextContent === content) {
-      uiMessage.info("查找文字与替换文字相同");
+      uiMessage.info(t("findAndReplacementTextAreTheSame"));
       return;
     }
     const nonWhitespaceDelta = options.recordProgrammaticChange(nextContent, {
@@ -232,7 +235,11 @@ export function useLongEditorFindReplace(options: {
     options.updateVisibleContent(nextContent);
     options.updateVisibleCharacterCount(nextContent, nonWhitespaceDelta);
     searchAnchor.value = 0;
-    uiMessage.success(`已替换 ${matches.length} 处文字`);
+    uiMessage.success(
+      t("replacedMatches", {
+        length: matches.length
+      })
+    );
   }
 
   function handleEditorKeydown(event: KeyboardEvent): void {

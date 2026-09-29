@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import BuiltinSubagentSettings from "./BuiltinSubagentSettings.vue";
 import {
   AGENT_TEAM_PROFILE_NAME_MAX_LENGTH,
@@ -18,6 +19,8 @@ import { uiMessage } from "../ui-feedback";
 import AgentTeamSettingsPanel from "./AgentTeamSettingsPanel.vue";
 import AppIcon from "./AppIcon.vue";
 import PopupSelect, { type PopupSelectOption } from "./PopupSelect.vue";
+
+const t = createScopedTranslator("components.agentTeamCatalogFeature");
 
 const props = defineProps<{
   catalog: AgentTeamCatalogSnapshot | null;
@@ -75,9 +78,24 @@ const editorLongSettings = computed<LongAgentTeamSettings | null>(() =>
     : null
 );
 const workspaceTypeOptions: PopupSelectOption[] = [
-  { value: "short", label: "短篇" },
-  { value: "script", label: "剧本" },
-  { value: "long", label: "长篇" }
+  {
+    value: "short",
+    get label() {
+      return t("shortStory");
+    }
+  },
+  {
+    value: "script",
+    get label() {
+      return t("screenplay");
+    }
+  },
+  {
+    value: "long",
+    get label() {
+      return t("novel");
+    }
+  }
 ];
 const catalogTeams = computed(() => props.catalog?.teams ?? []);
 
@@ -123,10 +141,10 @@ function subagentCount(team: AgentTeamProfile): number {
 
 function workspaceTypeLabel(workspaceType: AgentTeamWorkspaceType): string {
   return workspaceType === "short"
-    ? "短篇"
+    ? t("shortStory")
     : workspaceType === "script"
-      ? "剧本"
-      : "长篇";
+      ? t("screenplay")
+      : t("novel");
 }
 
 function isEnabled(team: AgentTeamProfile): boolean {
@@ -161,7 +179,7 @@ function closeDialog(): void {
 function submitName(): void {
   const name = nameDraft.value.trim();
   if (!name) {
-    uiMessage.warning("请输入团队名称。");
+    uiMessage.warning(t("enterATeamName"));
     return;
   }
   if (dialogMode.value === "create") {
@@ -193,13 +211,15 @@ function leaveEditor(): void {
     <header class="detail-navigation">
       <button type="button" class="back-button" @click="leaveEditor">
         <AppIcon name="chevron" :size="14" />
-        <span>返回团队列表</span>
+        <span>{{ t("backToTeams") }}</span>
       </button>
       <strong>{{ selectedTeam.name }}</strong>
       <span class="type-badge">{{
         workspaceTypeLabel(selectedTeam.workspaceType)
       }}</span>
-      <span v-if="isEnabled(selectedTeam)" class="active-badge">已启用</span>
+      <span v-if="isEnabled(selectedTeam)" class="active-badge">{{
+        t("enabled")
+      }}</span>
     </header>
     <AgentTeamSettingsPanel
       :workspace-type="selectedTeam.workspaceType"
@@ -231,10 +251,12 @@ function leaveEditor(): void {
   <section v-else class="team-catalog" aria-labelledby="team-catalog-title">
     <header class="catalog-header">
       <div>
-        <span>学习仿写 · 智能体团队</span>
-        <h2 id="team-catalog-title">智能体团队</h2>
+        <span>{{ t("learnAndImitateAgentTeams") }}</span>
+        <h2 id="team-catalog-title">
+          {{ t("agentTeams") }}
+        </h2>
         <p>
-          每个团队只服务一种创作类型；每种类型最多启用一个，也可以全部关闭。
+          {{ t("eachTeamServesOneWritingTypeEnableAtMost") }}
         </p>
       </div>
       <div class="catalog-header-actions">
@@ -245,7 +267,7 @@ function leaveEditor(): void {
           @click="emit('install')"
         >
           <AppIcon name="archive" :size="16" />
-          安装团队
+          {{ t("installTeam") }}
         </button>
         <button
           type="button"
@@ -254,7 +276,7 @@ function leaveEditor(): void {
           @click="openCreate"
         >
           <AppIcon name="plus" :size="16" />
-          新建团队
+          {{ t("newTeam") }}
         </button>
       </div>
     </header>
@@ -264,13 +286,17 @@ function leaveEditor(): void {
       :settings="catalog.builtinSubagents"
       :disabled="loading || saving || !runtimeAvailable"
     />
-    <h2 id="creative-teams-title" class="team-section-title">创作团队</h2>
-    <div v-if="loading" class="catalog-state">正在加载智能体团队…</div>
+    <h2 id="creative-teams-title" class="team-section-title">
+      {{ t("writingTeams") }}
+    </h2>
+    <div v-if="loading" class="catalog-state">
+      {{ t("loadingAgentTeams") }}
+    </div>
     <div v-else-if="loadError && !catalog" class="catalog-state" role="alert">
-      <strong>智能体团队未加载</strong>
+      <strong>{{ t("agentTeamsHaveNotLoaded") }}</strong>
       <p>{{ loadError }}</p>
       <button type="button" class="secondary-button" @click="emit('retry')">
-        重新加载
+        {{ t("reload") }}
       </button>
     </div>
     <div v-else class="team-grid">
@@ -287,12 +313,19 @@ function leaveEditor(): void {
             class="enable-selector"
             :class="{ 'is-selected': isEnabled(team) }"
             :disabled="saving || !runtimeAvailable"
-            :aria-label="`${isEnabled(team) ? '关闭' : '启用'}${team.name}`"
+            :aria-label="
+              t('teamToggleLabel', {
+                action: isEnabled(team) ? t('disable') : t('enable'),
+                name: team.name
+              })
+            "
             :aria-pressed="isEnabled(team)"
             :title="
               isEnabled(team)
-                ? '关闭团队'
-                : `启用该${workspaceTypeLabel(team.workspaceType)}团队`
+                ? t('disableTeam')
+                : t('enableThisValueTeam', {
+                    arg0: workspaceTypeLabel(team.workspaceType)
+                  })
             "
             @click.stop="
               emit('setEnabled', { teamId: team.id, enabled: !isEnabled(team) })
@@ -311,9 +344,11 @@ function leaveEditor(): void {
                 workspaceTypeLabel(team.workspaceType)
               }}</span>
             </span>
-            <span class="team-counts"
-              >{{ subagentCount(team) }} 个子智能体</span
-            >
+            <span class="team-counts">{{
+              t("subagentsMessage", {
+                arg0: subagentCount(team) ?? ""
+              })
+            }}</span>
           </button>
         </div>
         <div class="team-actions">
@@ -323,23 +358,25 @@ function leaveEditor(): void {
             @click.stop="emit('download', { teamId: team.id })"
           >
             <AppIcon name="download" :size="13" />
-            下载
+            {{ t("download") }}
           </button>
           <button
             type="button"
             :disabled="saving || !runtimeAvailable"
             @click.stop="openRename(team)"
           >
-            重命名
+            {{ t("rename") }}
           </button>
           <button
             type="button"
             class="delete-button"
             :disabled="saving || !runtimeAvailable || isEnabled(team)"
-            :title="isEnabled(team) ? '请先关闭该团队' : '删除团队'"
+            :title="
+              isEnabled(team) ? t('disableThisTeamFirst') : t('deleteTeam')
+            "
             @click.stop="openDelete(team)"
           >
-            删除
+            {{ t("delete") }}
           </button>
         </div>
       </article>
@@ -350,32 +387,43 @@ function leaveEditor(): void {
     <div v-if="dialogMode" class="dialog-backdrop" @click.self="closeDialog">
       <section class="team-dialog" role="dialog" aria-modal="true">
         <template v-if="dialogMode === 'delete'">
-          <h3>确认删除“{{ dialogTeam?.name }}”？</h3>
+          <h3>
+            {{
+              t("deleteMessageDetail", {
+                arg0: dialogTeam?.name ?? ""
+              })
+            }}
+          </h3>
           <p>
-            该{{
-              workspaceTypeLabel(dialogTeam?.workspaceType ?? "short")
-            }}团队中的子智能体配置会被删除，此操作不可恢复。
+            {{
+              t("theSubagentSettingsInThisTeamWillMessage", {
+                arg0:
+                  workspaceTypeLabel(dialogTeam?.workspaceType ?? "short") ?? ""
+              })
+            }}
           </p>
           <div class="dialog-actions">
-            <button type="button" @click="closeDialog">取消</button>
+            <button type="button" @click="closeDialog">
+              {{ t("cancel") }}
+            </button>
             <button
               type="button"
               class="danger-button"
               :disabled="saving"
               @click="confirmDelete"
             >
-              确认删除
+              {{ t("deleteMessage") }}
             </button>
           </div>
         </template>
         <template v-else>
           <h3>
             {{
-              dialogMode === "create" ? "新建智能体团队" : "重命名智能体团队"
+              dialogMode === "create" ? t("newAgentTeam") : t("renameAgentTeam")
             }}
           </h3>
           <label>
-            团队名称
+            {{ t("teamName") }}
             <input
               v-model="nameDraft"
               :maxlength="AGENT_TEAM_PROFILE_NAME_MAX_LENGTH"
@@ -384,23 +432,25 @@ function leaveEditor(): void {
             />
           </label>
           <label v-if="dialogMode === 'create'">
-            创作类型
+            {{ t("writingType") }}
             <PopupSelect
               v-model="createWorkspaceType"
               :options="workspaceTypeOptions"
-              accessible-label="团队创作类型"
+              :accessible-label="t('teamWritingType')"
               :menu-z-index="2200"
             />
           </label>
           <div class="dialog-actions">
-            <button type="button" @click="closeDialog">取消</button>
+            <button type="button" @click="closeDialog">
+              {{ t("cancel") }}
+            </button>
             <button
               type="button"
               class="primary-button"
               :disabled="saving"
               @click="submitName"
             >
-              确认
+              {{ t("confirm") }}
             </button>
           </div>
         </template>

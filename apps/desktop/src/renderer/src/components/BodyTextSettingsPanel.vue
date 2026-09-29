@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import type {
   BodyTextFormat,
   BodyTextFormats,
@@ -7,6 +8,8 @@ import type {
   TextViewMode
 } from "@deepwrite/contracts";
 import PopupSelect from "./PopupSelect.vue";
+
+const t = createScopedTranslator("components.bodyTextSettingsPanel");
 
 defineProps<{
   defaultTextViewMode: TextViewMode;
@@ -17,38 +20,85 @@ const emit = defineEmits<{
   updateBodyTextFormat: [change: BodyTextFormatChange];
 }>();
 const textViewModeOptions = [
-  { value: "edit", label: "编辑" },
-  { value: "preview", label: "预览" }
+  {
+    value: "edit",
+    get label() {
+      return t("edit");
+    }
+  },
+  {
+    value: "preview",
+    get label() {
+      return t("preview");
+    }
+  }
 ];
 const formatOptions: { value: BodyTextFormat; label: string }[] = [
-  { value: "flush-compact", label: "不缩进，段间不空行" },
-  { value: "flush-spaced", label: "不缩进，段间空一行" },
-  { value: "indent-compact", label: "缩进两字，段间不空行" },
-  { value: "indent-spaced", label: "缩进两字，段间空一行" }
+  {
+    value: "flush-compact",
+    get label() {
+      return t("noIndentOrBlankLinesBetweenParagraphs");
+    }
+  },
+  {
+    value: "flush-spaced",
+    get label() {
+      return t("noIndentOneBlankLineBetweenParagraphs");
+    }
+  },
+  {
+    value: "indent-compact",
+    get label() {
+      return t("twoCharacterIndentNoBlankLinesBetweenParagraphs");
+    }
+  },
+  {
+    value: "indent-spaced",
+    get label() {
+      return t("twoCharacterIndentOneBlankLineBetweenParagraphs");
+    }
+  }
 ];
 const fields: { kind: BodyTextKind; label: string }[] = [
-  { kind: "short", label: "短篇正文格式规范" },
-  { kind: "script", label: "剧本正文格式规范" },
-  { kind: "long", label: "长篇正文格式规范" }
+  {
+    kind: "short",
+    get label() {
+      return t("shortStoryManuscriptFormatting");
+    }
+  },
+  {
+    kind: "script",
+    get label() {
+      return t("screenplayManuscriptFormatting");
+    }
+  },
+  {
+    kind: "long",
+    get label() {
+      return t("novelManuscriptFormatting");
+    }
+  }
 ];
 </script>
 
 <template>
   <section class="settings-group">
-    <h2 class="settings-group-title">正文文本</h2>
+    <h2 class="settings-group-title">
+      {{ t("manuscriptText") }}
+    </h2>
     <div class="settings-card">
       <div class="settings-item body-text-setting">
         <span class="settings-item-text"
-          ><strong>默认文本模式</strong
-          ><small
-            >打开软件或切换文本时的默认显示方式，文本页内仍可随时手动切换</small
-          ></span
+          ><strong>{{ t("defaultTextMode") }}</strong
+          ><small>{{
+            t("theInitialViewWhenOpeningTheAppOrSwitching")
+          }}</small></span
         >
         <PopupSelect
           class="body-text-select"
           :model-value="defaultTextViewMode"
           :options="textViewModeOptions"
-          accessible-label="选择默认文本模式"
+          :accessible-label="t('selectDefaultTextMode')"
           align="end"
           :menu-min-width="240"
           @update:model-value="
@@ -63,15 +113,19 @@ const fields: { kind: BodyTextKind; label: string }[] = [
       >
         <span class="settings-item-text"
           ><strong>{{ field.label }}</strong
-          ><small
-            >点击正文工具栏的“一键规范格式”时应用，可撤销；缩进两字使用两个全角空格。</small
-          ></span
+          ><small>{{
+            t("appliedWhenYouChooseFormatManuscriptInTheToolbar")
+          }}</small></span
         >
         <PopupSelect
           class="body-text-select"
           :model-value="bodyTextFormats[field.kind]"
           :options="formatOptions"
-          :accessible-label="`选择${field.label}`"
+          :accessible-label="
+            t('selectValue', {
+              arg0: field.label
+            })
+          "
           align="end"
           :menu-min-width="240"
           @update:model-value="

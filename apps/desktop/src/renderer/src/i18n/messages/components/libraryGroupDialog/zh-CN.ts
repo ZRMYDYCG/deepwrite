@@ -1,0 +1,48 @@
+export default {
+  characterMaterialLibrary: "人设素材库",
+  ideaMaterialLibrary: "梗素材库",
+  plotMaterialLibrary: "剧情素材库",
+  manuscriptMaterialLibrary: "正文素材库",
+  otherMaterialLibrary: "其他素材库",
+  generalSkillLibrary: "通用技能库",
+  plotDesignSkillLibrary: "剧情设计技能库",
+  writingStyleSkillLibrary: "文风写作技能库",
+  otherSkillLibrary: "其他技能库",
+  material: "素材",
+  skill: "技能",
+  none: "不选择",
+  createDefaultLibrary: "＋ 新建默认库",
+  createANewValueAndLinkItToThis: "创建新的{arg0}并绑定到此分组",
+  group: "分组",
+  theDesktopBridgeIsNotReadyTryAgainShortly: "桌面桥接尚未就绪，请稍后重试。",
+  defaultLibraryCreationWasCanceledTheGroupOperationDid:
+    "已取消新建默认库，分组操作未继续。",
+  enterAGroupName: "请输入分组名称",
+  couldNotCreateTheDefaultLibrary: "新建默认库失败。",
+  libraryGroup: "库分组",
+  editGroup: "编辑分组",
+  newGroup: "新建分组",
+  close: "关闭",
+  change: "修改“",
+  andItsLinked: "”的名称或包含的",
+  librariesRemovedLibrariesReturnToTheirOriginalCategoryNewly:
+    "库。移出的库会回到原分类，新绑定的库会移动到此分组。已有库被占用时，也可选择「新建默认库」。",
+  chooseAtMostOneExisting: "每一种类型最多选择一个已有",
+  libraryOfEachTypeCreateDefaultsNowOrLeave:
+    "库，也可以选择「新建默认库」当场创建，或全部留空稍后再补充。",
+  groupName: "分组名称",
+  select: "选择",
+  library: "库",
+  cancel: "取消",
+  creatingDefaultLibrary: "创建默认库…",
+  saving: "保存中…",
+  creating: "创建中…",
+  saveGroup: "保存分组",
+  createGroup: "创建分组",
+  libraryGroupMessage: "{arg0}库分组",
+  changeAndItsLinkedLibrariesRemovedLibrariesMessage:
+    "修改“{arg0}”的名称或包含的{arg1}库。移出的库会回到原分类，新绑定的库会移动到此分组。已有库被占用时，也可选择「新建默认库」。",
+  chooseAtMostOneExistingLibraryPerMessage:
+    "每一种类型最多选择一个已有{arg0}库，也可以选择「新建默认库」当场创建，或全部留空稍后再补充。",
+  selectLibrariesMessage: "选择{arg0}库"
+};

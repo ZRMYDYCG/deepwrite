@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import {
   CATALOG_PROJECT_MAX_CONTENT_ITEMS,
   type CatalogLibrary,
@@ -8,6 +9,8 @@ import {
 import { computed, ref, watch } from "vue";
 import AppIcon from "./AppIcon.vue";
 import PopupSelect from "./PopupSelect.vue";
+
+const t = createScopedTranslator("components.externalSkillImportDialog");
 
 const props = defineProps<{
   open: boolean;
@@ -27,7 +30,7 @@ const emit = defineEmits<{
 const targetLibraryId = ref("");
 const selectedCandidateIds = ref<string[]>([]);
 const domainLabel = computed(() =>
-  props.domain === "skill" ? "技能" : "素材"
+  props.domain === "skill" ? t("skill") : t("material")
 );
 const libraryOptions = computed(() =>
   props.libraries.map((library) => ({
@@ -58,11 +61,11 @@ const skippedSummary = computed(() => {
   const skipped = props.selection?.skipped;
   if (!skipped) return "";
   return [
-    ["格式不支持", skipped.unsupported],
-    ["无法读取或提取", skipped.unreadable],
-    ["内容为空", skipped.empty],
-    ["文件或正文超限", skipped.tooLarge],
-    ["超过候选上限", skipped.limitExceeded]
+    [t("unsupportedFormat"), skipped.unsupported],
+    [t("couldNotReadOrExtract"), skipped.unreadable],
+    [t("emptyContent"), skipped.empty],
+    [t("fileOrContentExceedsLimit"), skipped.tooLarge],
+    [t("candidateLimitExceeded"), skipped.limitExceeded]
   ]
     .filter(([, count]) => Boolean(count))
     .map(([label, count]) => `${label} ${count}`)
@@ -90,7 +93,10 @@ function uniqueTitle(sourceTitle: string, occupied: Set<string>): string {
       .slice(0, Math.max(1, 256 - [...suffix].length))
       .join("")
       .trimEnd();
-    const candidate = `${shortened || "未命名条目"}${suffix}`;
+    const candidate = t("valueValue", {
+      arg0: shortened || t("untitledEntry"),
+      arg1: suffix
+    });
     if (occupied.has(comparableTitle(candidate))) continue;
     occupied.add(comparableTitle(candidate));
     return candidate;
@@ -190,15 +196,21 @@ watch(
       >
         <header>
           <div>
-            <span class="dialog-eyebrow">{{ domainLabel }}库 · 文件导入</span>
+            <span class="dialog-eyebrow">{{
+              t("libraryFileImportMessage", { arg0: domainLabel ?? "" })
+            }}</span>
             <h2 id="external-library-import-title">
-              从文件或文件夹导入{{ domainLabel }}
+              {{
+                t("importFromFilesOrFoldersMessage", {
+                  arg0: domainLabel ?? ""
+                })
+              }}
             </h2>
           </div>
           <button
             class="dialog-close"
             type="button"
-            aria-label="关闭"
+            :aria-label="t('close')"
             :disabled="pending"
             @click="requestClose"
           >
@@ -209,8 +221,7 @@ watch(
         <div class="dialog-content">
           <template v-if="!selection">
             <p class="dialog-description">
-              支持 TXT、Markdown、PDF 和 Word
-              文档。选择文件夹时会递归扫描其子目录。
+              {{ t("supportsTXTMarkdownPDFAndWordDocumentsFoldersAre") }}
             </p>
             <div class="source-options">
               <button
@@ -221,8 +232,10 @@ watch(
               >
                 <AppIcon name="folder" :size="22" />
                 <span
-                  ><strong>选择文件夹</strong
-                  ><small>递归扫描支持的文档</small></span
+                  ><strong>{{ t("chooseFolder") }}</strong
+                  ><small>{{
+                    t("scanSupportedDocumentsRecursively")
+                  }}</small></span
                 >
               </button>
               <button
@@ -233,8 +246,8 @@ watch(
               >
                 <AppIcon name="file" :size="22" />
                 <span
-                  ><strong>选择文件</strong
-                  ><small>可一次选择多个文件</small></span
+                  ><strong>{{ t("chooseFiles") }}</strong
+                  ><small>{{ t("selectMultipleFilesAtOnce") }}</small></span
                 >
               </button>
             </div>
@@ -242,26 +255,39 @@ watch(
 
           <template v-else>
             <p class="scan-summary">
-              扫描 {{ selection.scanned }} 个文件，找到
-              {{ selection.candidates.length }} 条可导入内容<span
-                v-if="skippedCount"
-                >，跳过 {{ skippedCount }} 条（{{ skippedSummary }}）</span
+              {{
+                t("scannedFilesImportableEntriesMessage", {
+                  arg0: selection.scanned ?? "",
+                  arg1: selection.candidates.length ?? ""
+                })
+              }}<span v-if="skippedCount">{{
+                t("skippedMessage", {
+                  arg0: skippedCount ?? "",
+                  arg1: skippedSummary ?? ""
+                })
+              }}</span
               >。
             </p>
             <label class="target-field">
-              <span>目标{{ domainLabel }}库</span>
+              <span>{{
+                t("targetLibraryMessage", {
+                  arg0: domainLabel ?? ""
+                })
+              }}</span>
               <PopupSelect
                 v-model="targetLibraryId"
                 :options="libraryOptions"
-                :accessible-label="`选择目标${domainLabel}库`"
-                placeholder="请选择目标资料库"
+                :accessible-label="
+                  t('selectTargetValueLibrary', { arg0: domainLabel })
+                "
+                :placeholder="t('selectATargetLibrary')"
                 size="large"
                 :disabled="pending || libraryOptions.length === 0"
                 :menu-min-width="260"
               />
             </label>
             <div class="candidate-toolbar">
-              <strong>导入条目</strong>
+              <strong>{{ t("importEntries") }}</strong>
               <span
                 >{{ selectedCandidateIds.length }} /
                 {{ visibleCandidates.length }}</span
@@ -271,20 +297,22 @@ watch(
                 :disabled="pending || allSelected"
                 @click="selectAll"
               >
-                全选
+                {{ t("selectAll") }}
               </button>
               <button
                 type="button"
                 :disabled="pending || selectedCandidateIds.length === 0"
                 @click="clearSelection"
               >
-                全不选
+                {{ t("deselectAll") }}
               </button>
             </div>
             <div
               class="candidate-list"
               role="group"
-              :aria-label="`选择要导入的${domainLabel}`"
+              :aria-label="
+                t('selectValueEntriesToImport', { arg0: domainLabel })
+              "
             >
               <label
                 v-for="candidate in visibleCandidates"
@@ -300,12 +328,15 @@ watch(
                 <span>{{ candidate.title }}</span>
               </label>
               <p v-if="visibleCandidates.length === 0" class="empty-state">
-                没有可导入的内容。
+                {{ t("noContentAvailableToImport") }}
               </p>
             </div>
             <p v-if="capacityExceeded" class="capacity-note">
-              目标资料库还可容纳 {{ Math.max(0, remainingCapacity) }}
-              条，请减少选择。
+              {{
+                t("theTargetLibraryHasRoomForMoreMessage", {
+                  arg0: Math.max(0, remainingCapacity) ?? ""
+                })
+              }}
             </p>
           </template>
 
@@ -316,7 +347,7 @@ watch(
               :disabled="pending"
               @click="requestClose"
             >
-              取消
+              {{ t("cancel") }}
             </button>
             <button
               v-if="selection"
@@ -331,7 +362,11 @@ watch(
               @click="submit"
             >
               {{
-                pending ? "正在导入…" : `导入 ${selectedCandidateIds.length} 条`
+                pending
+                  ? t("importing")
+                  : t("importValueEntries", {
+                      arg0: selectedCandidateIds.length
+                    })
               }}
             </button>
           </div>

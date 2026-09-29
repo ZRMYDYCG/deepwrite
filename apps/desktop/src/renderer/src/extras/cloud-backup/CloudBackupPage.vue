@@ -1,10 +1,14 @@
 <script setup lang="ts">
+import { formatError } from "../../i18n/errors";
+import { createScopedTranslator, locale } from "../../i18n";
 import { computed, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
 import type { CloudBackupPreview } from "@deepwrite/contracts";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { uiMessage } from "../../ui-feedback";
 import CloudBackupPreviewDialog from "./CloudBackupPreviewDialog.vue";
+
+const t = createScopedTranslator("extras");
 
 const props = defineProps<{
   active: boolean;
@@ -33,7 +37,7 @@ const usedPercent = computed(() => {
 });
 
 function errorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error ? error.message : fallback;
+  return formatError(error, fallback);
 }
 
 function formatBytes(bytes: number): string {
@@ -43,10 +47,10 @@ function formatBytes(bytes: number): string {
 }
 
 function formatTime(value: string | null): string {
-  if (!value) return "尚未备份";
+  if (!value) return t("cloudBackup.neverBackedUp");
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString();
+  return date.toLocaleString(locale.value);
 }
 
 async function ensureStatusLoaded(): Promise<void> {
@@ -56,7 +60,7 @@ async function ensureStatusLoaded(): Promise<void> {
       window.deepwrite!.cloudBackup!.status()
     );
   } catch (error: unknown) {
-    uiMessage.error(errorMessage(error, "加载云端备份状态失败。"));
+    uiMessage.error(errorMessage(error, t("cloudBackup.loadStatusFailed")));
   }
 }
 
@@ -71,12 +75,12 @@ async function copyMachineKey(): Promise<void> {
   try {
     await navigator.clipboard.writeText(key);
     copied.value = true;
-    uiMessage.success("本机备份密钥已复制。");
+    uiMessage.success(t("cloudBackup.keyCopied"));
     window.setTimeout(() => {
       copied.value = false;
     }, 1600);
   } catch {
-    uiMessage.error("复制失败，请手动选择密钥。");
+    uiMessage.error(t("cloudBackup.copyKeyFailed"));
   }
 }
 
@@ -86,7 +90,7 @@ async function startBackup(): Promise<void> {
   try {
     preview.value = await window.deepwrite.cloudBackup.previewBackup();
   } catch (error: unknown) {
-    uiMessage.error(errorMessage(error, "生成备份预览失败。"));
+    uiMessage.error(errorMessage(error, t("cloudBackup.previewFailed")));
   } finally {
     pending.value = false;
   }
@@ -100,7 +104,7 @@ async function startRestore(): Promise<void> {
       remoteKey.value
     );
   } catch (error: unknown) {
-    uiMessage.error(errorMessage(error, "读取云端备份失败。"));
+    uiMessage.error(errorMessage(error, t("cloudBackup.readBackupFailed")));
   } finally {
     pending.value = false;
   }
@@ -121,12 +125,17 @@ async function confirmPreview(): Promise<void> {
     }
     uiMessage.success(
       current.direction === "upload"
-        ? `已备份到云端，共 ${formatBytes(result.sizeBytes)}。`
-        : `已同步到本机：新增 ${result.added}，覆盖 ${result.overwritten}。`
+        ? t("cloudBackup.backupComplete", {
+            size: formatBytes(result.sizeBytes)
+          })
+        : t("cloudBackup.downloadComplete", {
+            added: result.added,
+            overwritten: result.overwritten
+          })
     );
     await refreshStatus();
   } catch (error: unknown) {
-    uiMessage.error(errorMessage(error, "同步失败。"));
+    uiMessage.error(errorMessage(error, t("cloudBackup.syncFailed")));
   } finally {
     pending.value = false;
   }
@@ -142,14 +151,12 @@ watch(
 </script>
 
 <template>
-  <section class="backup-page" aria-label="云端备份">
+  <section class="backup-page" :aria-label="t('cloudBackup.cloudBackup')">
     <header class="backup-header">
       <div>
-        <span class="backup-eyebrow">更多功能</span>
-        <h1>云端备份</h1>
-        <p>
-          把本机创作空间、技能库和素材库备份到云端，或用另一台机器的密钥同步过来。无需登录。
-        </p>
+        <span class="backup-eyebrow">{{ t("analysisUi.moreFeatures") }}</span>
+        <h1>{{ t("cloudBackup.cloudBackup") }}</h1>
+        <p>{{ t("cloudBackup.cloudBackupDescription") }}</p>
       </div>
       <button
         class="secondary-button"
@@ -157,35 +164,35 @@ watch(
         :disabled="loading"
         @click="refreshStatus"
       >
-        {{ loading ? "刷新中…" : "刷新状态" }}
+        {{
+          loading ? t("cloudBackup.refreshing") : t("cloudBackup.refreshStatus")
+        }}
       </button>
     </header>
 
     <div v-if="!apiAvailable" class="backup-empty">
-      <strong>当前环境未连接桌面端能力</strong>
-      <span>请在 DeepWrite 桌面客户端中打开云端备份。</span>
+      <strong>{{ t("cloudBackup.desktopUnavailable") }}</strong>
+      <span>{{ t("cloudBackup.openDesktop") }}</span>
     </div>
 
     <template v-else-if="status">
       <section v-if="!status.configured" class="backup-card warning-card">
-        <strong>当前环境未配置云端备份</strong>
-        <p>请在本地 `.env` 中填写 OSS 配置后重新启动应用。</p>
+        <strong>{{ t("cloudBackup.cloudNotConfigured") }}</strong>
+        <p>{{ t("cloudBackup.configureEnvironment") }}</p>
       </section>
 
       <section class="backup-grid">
         <article class="backup-card">
-          <span class="card-label">本机备份密钥</span>
+          <span class="card-label">{{ t("cloudBackup.localBackupKey") }}</span>
           <strong class="machine-key">{{ status.machineKey }}</strong>
-          <p>
-            把这串密钥发给另一台电脑，即可预览并同步这份备份。知道密钥的人都能读取对应云端数据。
-          </p>
+          <p>{{ t("cloudBackup.backupKeyDescription") }}</p>
           <button class="primary-button" type="button" @click="copyMachineKey">
-            {{ copied ? "已复制" : "复制密钥" }}
+            {{ copied ? t("cloudBackup.copied") : t("cloudBackup.copyKey") }}
           </button>
         </article>
 
         <article class="backup-card">
-          <span class="card-label">用量</span>
+          <span class="card-label">{{ t("cloudBackup.usage") }}</span>
           <strong
             >{{ formatBytes(status.usedBytes) }} /
             {{ formatBytes(status.quotaBytes) }}</strong
@@ -194,17 +201,21 @@ watch(
             <i :style="{ width: `${usedPercent}%` }" />
           </div>
           <p>
-            上次备份 {{ formatTime(status.lastBackupAt) }} · 本地
-            {{ status.localItemCount }} 项 · 云端
-            {{ status.remoteItemCount }} 项
+            {{
+              t("cloudBackup.backupSummary", {
+                date: formatTime(status.lastBackupAt),
+                local: status.localItemCount,
+                remote: status.remoteItemCount
+              })
+            }}
           </p>
         </article>
       </section>
 
       <section class="backup-card action-card">
         <div>
-          <h2>备份到云端</h2>
-          <p>用当前本机数据覆盖该密钥下的云端备份。超过 100 MB 会被拒绝。</p>
+          <h2>{{ t("cloudBackup.uploadBackup") }}</h2>
+          <p>{{ t("cloudBackup.uploadDescription") }}</p>
         </div>
         <button
           class="primary-button"
@@ -212,18 +223,20 @@ watch(
           :disabled="pending || !status.configured"
           @click="startBackup"
         >
-          {{ pending && !preview ? "正在预览…" : "备份到云端" }}
+          {{
+            pending && !preview
+              ? t("cloudBackup.previewing")
+              : t("cloudBackup.uploadBackup")
+          }}
         </button>
       </section>
 
       <section class="backup-card action-card restore-card">
         <div>
-          <h2>从其他设备同步</h2>
-          <p>
-            输入另一台机器的备份密钥，先预览会改动哪些内容，确认后再写入本机。
-          </p>
+          <h2>{{ t("cloudBackup.syncFromDevice") }}</h2>
+          <p>{{ t("cloudBackup.downloadDescription") }}</p>
           <label>
-            <span>对方备份密钥</span>
+            <span>{{ t("cloudBackup.remoteBackupKey") }}</span>
             <input
               v-model="remoteKey"
               maxlength="64"
@@ -238,7 +251,7 @@ watch(
           :disabled="pending || !status.configured || !remoteKey.trim()"
           @click="startRestore"
         >
-          预览同步
+          {{ t("cloudBackup.previewSync") }}
         </button>
       </section>
     </template>

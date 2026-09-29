@@ -1,3 +1,5 @@
+import { formatError } from "../i18n/errors";
+import { createScopedTranslator } from "../i18n";
 import { longBookConversationKey } from "../utils/bookConversationKey";
 import type {
   LongBookSummary,
@@ -10,13 +12,15 @@ import type {
   AgentConversationController,
   AgentRunSettings
 } from "./useAgentConversation";
-import {
-  useLongWorkspaceProposals,
-  type LongWorkspaceProposalEvent,
-  type LongWorkspaceProposalItem
+import type {
+  LongWorkspaceProposalEvent,
+  LongWorkspaceProposalItem
 } from "./useLongWorkspaceProposals";
+import { useLazyLongWorkspaceProposals } from "./useLazyLongWorkspaceProposals";
 import type { LongWorkspaceRendererApi } from "../types/longWorkspace";
 import type { ConversationDisposalOptions } from "./book-removal-runtime";
+
+const t = createScopedTranslator("workspace.longProposalRuntimeCoordinator");
 
 export interface LongProposalRuntimeNotifications {
   error(message: string): void;
@@ -61,7 +65,7 @@ export function useLongProposalRuntimeCoordinator(
   const { state, notifications } = context;
   let disposed = false;
 
-  const workspaceProposals = useLongWorkspaceProposals({
+  const workspaceProposals = useLazyLongWorkspaceProposals({
     api: context.api,
     acceptsEvent: acceptsProposalEvent,
     approvalModeForEvent: proposalApprovalMode,
@@ -138,9 +142,7 @@ export function useLongProposalRuntimeCoordinator(
   async function prepareAutomaticProposal(): Promise<void> {
     await nextTick();
     if (!(await context.workspace.saveActiveEditorChanges())) {
-      throw new Error(
-        "当前长篇编辑内容尚未保存，智能体提案未自动覆盖；请处理编辑器保存状态后重试。"
-      );
+      throw new Error(t("currentNovelEditsAreUnsavedTheAgentProposalWas"));
     }
   }
 
@@ -165,9 +167,7 @@ export function useLongProposalRuntimeCoordinator(
       if (!conversation.isBusy.value) continue;
       const stopAccepted = await conversation.stopGeneration();
       if (!stopAccepted) {
-        throw new Error(
-          "长篇智能体正在启动，暂时无法安全移除项目；请稍后重试。"
-        );
+        throw new Error(t("theNovelAgentIsStartingTheProjectCannotBe"));
       }
     }
     workspaceProposals.discardBook(bookId);
@@ -200,13 +200,14 @@ export function useLongProposalRuntimeCoordinator(
     if (!conversation) return;
     try {
       if (await conversation.stopGeneration()) {
-        notifications.info("已停止长篇生成。");
+        notifications.info(t("novelGenerationStopped"));
       }
     } catch (error: unknown) {
       notifications.error(
-        error instanceof Error
-          ? error.message
-          : "停止长篇生成失败，请稍后重试。"
+        formatError(
+          error,
+          t("failedToStopNovelGenerationPleaseTryAgainShortly")
+        )
       );
     }
   }
@@ -223,7 +224,7 @@ export function useLongProposalRuntimeCoordinator(
       await nextTick();
       if (!(await context.workspace.saveActiveEditorChanges())) return;
       if (state.activeBookId.value !== bookId) {
-        notifications.info("活动长篇已切换，本次审批已取消。");
+        notifications.info(t("theActiveNovelChangedApprovalWasCanceled"));
         return;
       }
       if (
@@ -243,7 +244,7 @@ export function useLongProposalRuntimeCoordinator(
     const bookId = state.activeBookId.value;
     if (!bookId) return;
     if (workspaceProposals.reject(bookId, eventId)) {
-      notifications.info("已拒绝该长篇提案，未写入任何文件。");
+      notifications.info(t("novelProposalRejectedNoFilesWereWritten"));
     }
   }
 
@@ -261,12 +262,13 @@ export function useLongProposalRuntimeCoordinator(
       .find(({ event }) => event.id === eventId);
     if (!item || item.status !== "accepted") return;
     if (!(await context.navigateToAcceptedProposal(item))) {
-      notifications.warning("目标文件或所属条目已不存在，无法跳转。");
+      notifications.warning(t("theTargetFileOrItemNoLongerExistsAnd"));
     }
   }
 
   function dispose(): void {
     disposed = true;
+    workspaceProposals.dispose();
   }
 
   return {

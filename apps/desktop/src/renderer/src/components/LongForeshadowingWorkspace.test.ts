@@ -9,15 +9,20 @@ describe("LongForeshadowingWorkspace", () => {
     expect(source).toContain(
       'type WorkspaceMode = "overview" | "volume" | "plotPoint"'
     );
-    expect(source).toContain("伏笔总览");
-    expect(source).toContain("本卷伏笔");
-    expect(source).toContain("伏笔触点");
+    expect(source).toContain("foreshadowingOverview");
+    expect(source).toContain("automaticVolumeForeshadowingSummary");
+    expect(source).toContain("foreshadowingTouchpoints");
     expect(source).toContain("visibleThreads");
     expect(source).toContain("activeThreadBeats");
   });
 
   it("automatically groups a volume without duplicating stored summaries", () => {
-    for (const label of ["本卷新埋", "本卷推进", "本卷回收", "带往后卷"]) {
+    for (const label of [
+      "plantedInThisVolume",
+      "developedInThisVolume",
+      "resolvedInThisVolume",
+      "carriedForward"
+    ]) {
       expect(source).toContain(label);
     }
     for (const type of [
@@ -47,8 +52,8 @@ describe("LongForeshadowingWorkspace", () => {
     );
     expect(source).toContain("arcId: beatDraft.arcId || null");
     expect(source).not.toContain("plotPointId: beatDraft");
-    expect(source).toContain("选择剧情点后，这里会自动清空。");
-    expect(source).toContain("精确到剧情点时只保存剧情点锚点。");
+    expect(source).toContain("thisClearsAutomaticallyWhenYouSelectAPlotPoint");
+    expect(source).toContain("whenPlacedAtAPlotPointOnlyThePlot");
     expect(source).toContain("const directArcId = beat.arcId ??");
     expectSourceToContain(
       source,
@@ -115,7 +120,7 @@ describe("LongForeshadowingWorkspace", () => {
 
   it("keeps committed core fields locked while exposing status-only abandon and restore actions", () => {
     expect(source).toContain("!canBackfillThreadMetadata(activeThread)");
-    expect(source).toContain("补全伏笔信息");
+    expect(source).toContain("completeForeshadowingDetails");
     expect(source).toContain("originalThread.hiddenTruth === undefined");
     expect(source).toContain("originalThread.plannedSpan === undefined");
     expect(source).toContain("editingCommittedThread");
@@ -129,9 +134,9 @@ describe("LongForeshadowingWorkspace", () => {
       'status: thread.status === "abandoned" ? "planned" : "abandoned"'
     );
     expect(toggleImplementation).toContain('"background"');
-    expect(source).toContain("标记废弃");
-    expect(source).toContain("恢复伏笔线");
-    expect(source).toContain("更新状态中…");
+    expect(source).toContain("markAbandoned");
+    expect(source).toContain("restoreThread");
+    expect(source).toContain("updatingStatus");
   });
 
   it("uses themed popup controls, floating feedback, and accessible teleported dialogs", () => {

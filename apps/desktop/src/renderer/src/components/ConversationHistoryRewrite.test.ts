@@ -18,15 +18,15 @@ describe("conversation history rewrite presentation", () => {
       ':editing="editingMessageId === message.id"'
     );
     expect(messageItemSource).toContain('@dblclick="requestEdit"');
-    expect(messageItemSource).toContain('aria-label="修改并重新发送"');
+    expect(messageItemSource).toContain("editAndResend");
     expect(messageItemSource).toContain('<AppIcon name="edit"');
     expect(messageItemSource).toContain("<ConversationUserMessageEditor");
   });
 
   it("supports cancel, send, Enter, Shift+Enter, and Escape without changing the main draft", () => {
     expect(editorSource).toContain('@submit.prevent="submit"');
-    expect(editorSource).toContain("取消");
-    expect(editorSource).toContain('submitting ? "发送中…" : "发送"');
+    expect(editorSource).toContain("cancel");
+    expect(editorSource).toContain("sending");
     expect(editorSource).toContain('event.key === "Enter" && !event.shiftKey');
     expect(editorSource).toContain('event.key === "Escape"');
     expect(editorSource).toContain("event.isComposing");

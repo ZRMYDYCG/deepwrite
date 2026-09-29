@@ -1,3 +1,4 @@
+import { t } from "../i18n";
 import {
   computed,
   onScopeDispose,
@@ -248,7 +249,9 @@ export function useAgentActivityCoordinator(
     if (outcome === "missing") {
       removeItem(conversationKey);
       options.notifications.warning(
-        "对应的智能体上下文已不存在，已移除该提醒。"
+        t(
+          "workspace.agentActivityCoordinator.theAssociatedAgentContextNoLongerExistsTheNotice"
+        )
       );
       return;
     }

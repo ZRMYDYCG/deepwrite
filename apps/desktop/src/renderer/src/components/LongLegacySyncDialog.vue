@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import { computed, ref, watch } from "vue";
 import type {
   LongApplyLegacySyncResult,
@@ -6,6 +7,8 @@ import type {
   LongLegacySyncModule
 } from "@deepwrite/contracts";
 import AppIcon from "./AppIcon.vue";
+
+const t = createScopedTranslator("components.longLegacySyncDialog");
 
 const props = defineProps<{
   preview: LongChooseLegacySyncSourceResult | null;
@@ -25,22 +28,34 @@ const options = computed(() => {
   return [
     {
       id: "worldbuilding" as const,
-      title: "世界观",
-      description: `分类、概览、正文和条目（${counts?.worldbuilding ?? 0} 个分类）`,
+      title: t("worldbuilding"),
+      description: t("categoriesOverviewsContentAndEntriesValueCategories", {
+        arg0: counts?.worldbuilding ?? 0
+      }),
       count: counts?.worldbuilding ?? 0
     },
     {
       id: "characters" as const,
-      title: "人物",
-      description: `人物档案、关系、状态和历史（${counts?.characters ?? 0} 人）`,
+      title: t("characters"),
+      description: t(
+        "characterProfilesRelationshipsStateAndHistoryValueCharacters",
+        { arg0: counts?.characters ?? 0 }
+      ),
       count: counts?.characters ?? 0
     },
     {
       id: "plot" as const,
-      title: "剧情",
+      title: t("plot"),
       description:
-        `大纲 ${counts?.outline ?? 0}、卷纲 ${counts?.volumes ?? 0}、剧情点 ${counts?.plotPoints ?? 0}、` +
-        `故事事件 ${counts?.storyEvents ?? 0}、章卡 ${counts?.chapterCards ?? 0}`,
+        t("outlinesValueVolumeOutlinesValuePlotPointsValue", {
+          arg0: counts?.outline ?? 0,
+          arg1: counts?.volumes ?? 0,
+          arg2: counts?.plotPoints ?? 0
+        }) +
+        t("storyEventsValueChapterCardsValue", {
+          arg0: counts?.storyEvents ?? 0,
+          arg1: counts?.chapterCards ?? 0
+        }),
       count:
         (counts?.outline ?? 0) +
         (counts?.volumes ?? 0) +
@@ -93,13 +108,13 @@ function total(counts: LongApplyLegacySyncResult["imported"]): number {
       >
         <header>
           <div>
-            <span class="dialog-eyebrow">同步旧版本</span>
+            <span class="dialog-eyebrow">{{ t("syncLegacyVersion") }}</span>
             <h2 id="legacy-sync-title">{{ preview.sourceTitle }}</h2>
           </div>
           <button
             class="dialog-close"
             type="button"
-            aria-label="关闭"
+            :aria-label="t('close')"
             :disabled="pending"
             @click="emit('close')"
           >
@@ -110,7 +125,7 @@ function total(counts: LongApplyLegacySyncResult["imported"]): number {
         <div class="dialog-content legacy-sync-content">
           <template v-if="!result">
             <p>
-              选择要追加到当前长篇的内容。现有内容不会删除或覆盖，重复同步的条目会自动跳过。
+              {{ t("chooseContentToAppendToThisNovelExistingContent") }}
             </p>
             <div class="legacy-sync-options">
               <button
@@ -136,21 +151,32 @@ function total(counts: LongApplyLegacySyncResult["imported"]): number {
               </button>
             </div>
             <p v-if="preview.warnings.length" class="legacy-sync-warning">
-              压缩包有
-              {{ preview.warnings.length }} 项解析提示，同步完成后会一并显示。
+              {{
+                t("theArchiveHasParsingNotesThatWillMessage", {
+                  arg0: preview.warnings.length ?? ""
+                })
+              }}
             </p>
           </template>
           <template v-else>
             <div class="legacy-sync-result">
               <AppIcon name="check" :size="24" />
-              <strong>同步完成</strong>
-              <span
-                >新增 {{ total(result.imported) }} 项，跳过
-                {{ total(result.skipped) }} 项。</span
-              >
+              <strong>{{ t("syncComplete") }}</strong>
+              <span>{{
+                t("addedSkippedMessage", {
+                  arg0: total(result.imported) ?? "",
+                  arg1: total(result.skipped) ?? ""
+                })
+              }}</span>
             </div>
             <details v-if="result.warnings.length">
-              <summary>{{ result.warnings.length }} 项同步说明</summary>
+              <summary>
+                {{
+                  t("syncNotesMessage", {
+                    arg0: result.warnings.length ?? ""
+                  })
+                }}
+              </summary>
               <ul>
                 <li v-for="warning in result.warnings" :key="warning">
                   {{ warning }}
@@ -166,7 +192,7 @@ function total(counts: LongApplyLegacySyncResult["imported"]): number {
               :disabled="pending"
               @click="emit('close')"
             >
-              取消
+              {{ t("cancel") }}
             </button>
             <button
               v-if="!result"
@@ -175,7 +201,7 @@ function total(counts: LongApplyLegacySyncResult["imported"]): number {
               :disabled="pending || selected.length === 0"
               @click="confirm"
             >
-              {{ pending ? "同步中…" : "确认同步" }}
+              {{ pending ? t("syncing") : t("sync") }}
             </button>
             <button
               v-else
@@ -183,7 +209,7 @@ function total(counts: LongApplyLegacySyncResult["imported"]): number {
               type="button"
               @click="emit('close')"
             >
-              完成
+              {{ t("done") }}
             </button>
           </footer>
         </div>

@@ -1,0 +1,20 @@
+export default {
+  chat: "聊天",
+  openStandaloneChatAssistant: "打开独立聊天助手",
+  revisionAnalysis: "修改分析",
+  learnReusableSkillsFromManuscriptRevisions: "从文稿修改中学习可复用技能",
+  shortStoryAnalysis: "短篇拆书分析",
+  analyzeFullWorksCombiningUpTo10Books: "整篇分析，支持最多 10 本联合提炼",
+  novelAnalysis: "长篇拆书分析",
+  extractNovelPlotCharactersAndStyleInBatches: "分批提炼长篇剧情、人物与文风",
+  styleComparison: "文风比对",
+  compareTheStyleAndSimilarityOfTwoTexts: "比较两份文本的文风与相似度",
+  skillMarketplace: "技能广场",
+  discoverInstallAndPublishWritingSkills: "发现、安装与发布写作技能",
+  deviceSync: "双端同步",
+  continueWritingUsingYourOwnCloudDrive: "使用自己的网盘接续写作",
+  cloudBackup: "云端备份",
+  backUpTheWorkspaceAndReferences: "备份创作空间和资料",
+  aITextDetection: "朱雀检测",
+  detectAIGeneratedText: "检测文本中的 AI 生成内容"
+};

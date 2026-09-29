@@ -1,0 +1,14 @@
+export default {
+  agentTeams: "Agent teams",
+  workspaceFolder: "Workspace folder",
+  revisionAnalysis: "Revision analysis",
+  shortStoryAnalysis: "Short story analysis",
+  novelAnalysis: "Novel analysis",
+  styleComparison: "Style comparison",
+  skillMarketplace: "Skill marketplace",
+  expandSidebar: "Expand sidebar",
+  deviceSync: "Device sync",
+  expandSidebarLabel: "Expand sidebar",
+  cloudBackup: "Cloud backup",
+  aITextDetection: "AI text detection"
+};

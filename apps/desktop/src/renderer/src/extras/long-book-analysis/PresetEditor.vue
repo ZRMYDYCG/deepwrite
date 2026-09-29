@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import { presetLabel } from "../analysis-ui/preset-labels";
+import { computed } from "vue";
+import { createScopedTranslator } from "../../i18n";
 import type {
-  CatalogSnapshot,
   LongBookAnalysisPreset,
   MaterialKind,
   MaterialStageId,
@@ -15,18 +17,36 @@ import {
   SKILL_KIND_LABELS
 } from "../../data/catalogWorkspace";
 
+const t = createScopedTranslator("extras");
+
 const props = defineProps<{
   short?: boolean;
   preset: LongBookAnalysisPreset & { selectionMode?: "single" | "multiple" };
-  catalogSnapshot: CatalogSnapshot | null;
 }>();
 
-const materialKinds: PopupSelectOption[] = (
-  ["character", "gimmick", "plot", "draft", "other"] as const
-).map((value) => ({ value, label: MATERIAL_KIND_LABELS[value] }));
-const skillKinds: PopupSelectOption[] = (
-  ["general", "plot", "style", "other"] as const
-).map((value) => ({ value, label: SKILL_KIND_LABELS[value] }));
+const materialKinds = computed<PopupSelectOption[]>(() =>
+  (["character", "gimmick", "plot", "draft", "other"] as const).map(
+    (value) => ({ value, label: MATERIAL_KIND_LABELS[value] })
+  )
+);
+const skillKinds = computed<PopupSelectOption[]>(() =>
+  (["general", "plot", "style", "other"] as const).map((value) => ({
+    value,
+    label: SKILL_KIND_LABELS[value]
+  }))
+);
+const displayName = computed({
+  get: () => presetLabel(props.preset),
+  set: (value: string) => {
+    props.preset.name = value;
+  }
+});
+const displayDescription = computed({
+  get: () => presetLabel(props.preset, "description"),
+  set: (value: string) => {
+    props.preset.description = value;
+  }
+});
 const materialStageIds: readonly MaterialStageId[] = [
   "gimmick",
   "character",
@@ -37,13 +57,33 @@ const materialStageIds: readonly MaterialStageId[] = [
   "other"
 ] as const;
 const domainOptions: PopupSelectOption[] = [
-  { value: "material", label: "素材库" },
-  { value: "skill", label: "技能库" }
+  {
+    value: "material",
+    get label() {
+      return t("cloudBackup.materialLibrary");
+    }
+  },
+  {
+    value: "skill",
+    get label() {
+      return t("cloudBackup.skillLibrary");
+    }
+  }
 ];
 
 const selectionOptions = [
-  { value: "single", label: "单本（1 本）" },
-  { value: "multiple", label: "多本（1—10 本）" }
+  {
+    value: "single",
+    get label() {
+      return t("longBookAnalysis.singleBook");
+    }
+  },
+  {
+    value: "multiple",
+    get label() {
+      return t("longBookAnalysis.multipleBooks");
+    }
+  }
 ];
 
 function setDomain(
@@ -54,63 +94,6 @@ function setDomain(
     value === "skill"
       ? { domain: "skill", kind: "general", stageId: "draft" }
       : { domain: "material", kind: "other", stageId: "other" };
-}
-
-function targetLibraryOptions(
-  preset: LongBookAnalysisPreset
-): PopupSelectOption[] {
-  const unset = { value: "", label: "每次任务时选择" };
-  if (preset.output.domain === "material") {
-    return [
-      unset,
-      ...(props.catalogSnapshot?.materials ?? [])
-        .filter(
-          (library) =>
-            library.materialKind === preset.output.kind ||
-            library.materialKind === "mixed"
-        )
-        .map((library) => ({
-          value: library.id,
-          label: library.title,
-          description: MATERIAL_KIND_LABELS[library.materialKind]
-        }))
-    ];
-  }
-  return [
-    unset,
-    ...(props.catalogSnapshot?.skills ?? [])
-      .filter(
-        (library) =>
-          library.skillKind === preset.output.kind && !library.isBuiltin
-      )
-      .map((library) => ({
-        value: library.id,
-        label: library.title,
-        description: SKILL_KIND_LABELS[library.skillKind]
-      }))
-  ];
-}
-
-function setTargetLibrary(
-  preset: LongBookAnalysisPreset,
-  value: string | number
-): void {
-  const libraryId = String(value).trim();
-  if (preset.output.domain === "material") {
-    const output = {
-      domain: preset.output.domain,
-      kind: preset.output.kind,
-      stageId: preset.output.stageId
-    } as const;
-    preset.output = libraryId ? { ...output, libraryId } : output;
-    return;
-  }
-  const output = {
-    domain: preset.output.domain,
-    kind: preset.output.kind,
-    stageId: preset.output.stageId
-  } as const;
-  preset.output = libraryId ? { ...output, libraryId } : output;
 }
 
 function setKind(preset: LongBookAnalysisPreset, value: string | number): void {
@@ -140,69 +123,62 @@ function setKind(preset: LongBookAnalysisPreset, value: string | number): void {
 <template>
   <div class="preset-editor">
     <label class="preset-output-field">
-      <span>预设名称</span>
-      <input v-model="preset.name" maxlength="80" aria-label="预设名称" />
+      <span>{{ t("longBookAnalysis.presetName") }}</span>
+      <input
+        v-model="displayName"
+        maxlength="80"
+        :aria-label="t('longBookAnalysis.presetName')"
+      />
     </label>
     <label class="preset-output-field">
-      <span>预设说明</span>
+      <span>{{ t("longBookAnalysis.presetDescription") }}</span>
       <input
-        v-model="preset.description"
+        v-model="displayDescription"
         maxlength="500"
-        aria-label="预设说明"
+        :aria-label="t('longBookAnalysis.presetDescription')"
       />
     </label>
     <label v-if="short" class="preset-output-field"
-      ><span>可选择书本数量</span
+      ><span>{{ t("longBookAnalysis.bookSelectionCount") }}</span
       ><PopupSelect
         :model-value="preset.selectionMode ?? 'single'"
         @update:model-value="
           preset.selectionMode = $event === 'multiple' ? 'multiple' : 'single'
         "
         :options="selectionOptions"
-        accessible-label="可选择书本数量"
+        :accessible-label="t('longBookAnalysis.bookSelectionCount')"
         :menu-z-index="3200"
     /></label>
     <div class="preset-output-row">
       <label class="preset-output-field">
-        <span>输出领域</span>
+        <span>{{ t("longBookAnalysis.outputDomain") }}</span>
         <PopupSelect
           :model-value="preset.output.domain"
           :options="domainOptions"
-          accessible-label="结果领域"
+          :accessible-label="t('longBookAnalysis.resultDomain')"
           :menu-z-index="3200"
           @update:model-value="setDomain(preset, $event)"
         />
       </label>
       <label class="preset-output-field">
-        <span>资料库分类</span>
+        <span>{{ t("longBookAnalysis.libraryCategory") }}</span>
         <PopupSelect
           :model-value="preset.output.kind"
           :options="
             preset.output.domain === 'material' ? materialKinds : skillKinds
           "
-          accessible-label="资料库分类"
+          :accessible-label="t('longBookAnalysis.libraryCategory')"
           :menu-z-index="3200"
           @update:model-value="setKind(preset, $event)"
         />
       </label>
-      <label class="preset-output-field">
-        <span>默认目标资料库</span>
-        <PopupSelect
-          :model-value="preset.output.libraryId ?? ''"
-          :options="targetLibraryOptions(preset)"
-          accessible-label="默认目标资料库"
-          :menu-min-width="260"
-          :menu-z-index="3200"
-          @update:model-value="setTargetLibrary(preset, $event)"
-        />
-      </label>
     </div>
     <label class="preset-output-field">
-      <span>系统提示词</span>
+      <span>{{ t("longBookAnalysis.systemPrompt") }}</span>
       <textarea
         v-model="preset.systemPrompt"
         maxlength="200000"
-        aria-label="预设系统提示词"
+        :aria-label="t('longBookAnalysis.presetSystemPrompt')"
       />
     </label>
   </div>
@@ -238,7 +214,7 @@ function setKind(preset: LongBookAnalysisPreset, value: string | number): void {
 }
 .preset-output-row {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 .preset-output-field {

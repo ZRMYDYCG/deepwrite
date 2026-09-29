@@ -1,3 +1,4 @@
+import { t } from "../i18n";
 import { watch } from "vue";
 import { randomHex8 } from "@deepwrite/shared";
 import type { ChatMessage, EditorTextReference } from "../types/conversation";
@@ -48,7 +49,10 @@ export function useConversationSelectionInsertion(options: {
       id: randomHex8(),
       sessionId,
       messageId,
-      messageLabel: `智能体回复 ${responseNumber}`,
+      messageLabel: t(
+        "workspace.conversationSelectionInsertion.agentResponse",
+        { responseNumber: responseNumber }
+      ),
       text: selection.toString()
     });
     if (!reference) return;

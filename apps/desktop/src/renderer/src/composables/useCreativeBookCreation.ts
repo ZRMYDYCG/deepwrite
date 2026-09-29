@@ -1,3 +1,4 @@
+import { t } from "../i18n";
 import { ref, type Ref } from "vue";
 import type {
   CatalogIndexSnapshot,
@@ -23,7 +24,11 @@ export function useCreativeBookCreation(options: CreativeBookCreationOptions) {
   }
   function openCreateBookDialog(fromTemplate = false) {
     if (!window.deepwrite) {
-      uiMessage.warning("浏览器预览不能保存作品，请使用桌面客户端创建。");
+      uiMessage.warning(
+        t(
+          "workspace.creativeBookCreation.theBrowserPreviewCannotSaveProjectsCreateProjectsIn"
+        )
+      );
       return;
     }
     createFromTemplate.value = fromTemplate;

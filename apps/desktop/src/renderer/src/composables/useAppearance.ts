@@ -1,4 +1,5 @@
-import { computed, reactive, readonly, watch } from "vue";
+import { t } from "../i18n";
+import { computed, nextTick, reactive, readonly, watch } from "vue";
 import {
   AppearanceEditorFontSelectionSchema,
   AppearanceSettingsSchema,
@@ -162,6 +163,7 @@ let initialized = false;
 let suppressPersist = false;
 let persistTimer: ReturnType<typeof setTimeout> | undefined;
 let persistChain: Promise<void> = Promise.resolve();
+let persistFailed = false;
 let hydratePromise: Promise<void> | undefined;
 
 function applyToDocument(): void {
@@ -183,9 +185,11 @@ function queueDesktopPersist(settings: AppearanceSettings): void {
     .catch(() => undefined)
     .then(async () => {
       await api.save(settings);
+      persistFailed = false;
       clearLegacyStorage();
     })
     .catch(() => {
+      persistFailed = true;
       persistToLegacyStorage();
     });
 }
@@ -200,6 +204,23 @@ function persist(): void {
     if (typeof window === "undefined") return;
     queueDesktopPersist(captureSettings());
   }, PERSIST_DEBOUNCE_MS);
+}
+
+async function flush(): Promise<void> {
+  await nextTick();
+  if (persistTimer !== undefined || persistFailed) {
+    clearTimeout(persistTimer);
+    persistTimer = undefined;
+    queueDesktopPersist(captureSettings());
+  }
+  let pending: Promise<void>;
+  do {
+    pending = persistChain;
+    await pending;
+  } while (pending !== persistChain);
+  if (persistFailed) {
+    throw new Error(t("workspace.builtins.appearancePending"));
+  }
 }
 
 async function normalizeLoadedFontSelections(
@@ -388,6 +409,7 @@ export function useAppearance() {
     applyPreset: applyThemePreset,
     importTheme,
     resetTheme,
+    flush,
     whenReady: () => hydratePromise ?? Promise.resolve()
   };
 }

@@ -1,3 +1,4 @@
+import { createScopedTranslator } from "../../i18n";
 import {
   createExpertDraftDirectoryRevision,
   createShortWorkspaceContentRevision,
@@ -7,6 +8,8 @@ import {
 } from "@deepwrite/contracts/renderer";
 export { loadWritingContextForPrompt } from "./writing-context";
 import type { WorkspaceDocument } from "../../types/workspace";
+
+const t = createScopedTranslator("workspace");
 
 /** Assemble live creative documents only when a prompt is sent. */
 export function buildCreativeWorkspaceContext(
@@ -186,7 +189,10 @@ export function buildCreativeWorkspaceContext(
         : {}),
       expertDraft: {
         id: "draft",
-        title: workspaceType === "script" ? "剧集" : "正文",
+        title:
+          workspaceType === "script"
+            ? t("workspaceResourceCoordinator.episode")
+            : t("catalogWorkspace.manuscript"),
         revision: expertDraftRevision,
         sections: completeDraftSections
       },

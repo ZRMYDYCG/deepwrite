@@ -1,10 +1,11 @@
 import { expectSourceToContain } from "../../../../test-utils/sourceText";
 import { describe, expect, it } from "vitest";
-import pageSource from "./LongBookAnalysisPage.vue?raw";
+import shellSource from "./LongBookAnalysisPage.vue?raw";
+import setupSource from "./LongAnalysisTaskSetup.vue?raw";
+import sourceSummary from "./LongAnalysisSourceSummary.vue?raw";
+const pageSource = `${shellSource}\n${setupSource}\n${sourceSummary}`;
 import runControlsSource from "./LongAnalysisRunControls.vue?raw";
-import runStatusSource from "./AnalysisRunStatus.vue?raw";
-import processPanelSource from "./AnalysisProcessPanel.vue?raw";
-import processTrackerSource from "./analysis-process.ts?raw";
+import runStatusSource from "../analysis-ui/AnalysisRunStatus.vue?raw";
 import resultPanelSource from "./AnalysisResultPanel.vue?raw";
 import sourceControlsSource from "./AnalysisSourceControls.vue?raw";
 import presetManagerSource from "./PresetManager.vue?raw";
@@ -19,30 +20,20 @@ const lazySource = `${asyncComponentsSource}\n${featureImportsSource}`;
 
 describe("long-book analysis feature wiring", () => {
   it("is a preset-driven page without a conversation composer", () => {
-    expect(pageSource).toContain("长篇拆书分析");
     expect(pageSource).toContain("selectionCount <= 50");
     expect(pageSource).toContain("<PopupSelect");
     expect(runControlsSource).toContain("controller.retry");
     expect(runControlsSource).toContain("controller.stop");
     expect(pageSource).toContain("controller.selectedThinkingLevel.value");
-    expect(pageSource).toContain("selectedTargetLibraryId");
+    expect(pageSource).not.toContain("selectedTargetLibraryId");
+    expect(pageSource).toContain("<AnalysisModelSettings");
+    expect(setupSource).not.toContain("<AnalysisSettings");
     expect(pageSource).toContain("<AnalysisSourceControls");
-    expect(sourceControlsSource).toContain("选择已导入长篇");
     expect(sourceControlsSource).toContain("controller.loadSavedSources");
     expect(sourceControlsSource).toContain("controller.loadSavedSource");
-    expect(sourceControlsSource).toContain("备份到工作目录");
-    expect(pageSource).toContain(
-      ':target-library-id="controller.targetLibraryId.value"'
-    );
-    expect(runStatusSource).toContain("查看详情");
+    expect(pageSource).not.toContain(":target-library-id");
     expect(runStatusSource).toContain("<AnalysisProcessPanel");
-    expect(runControlsSource).toContain("查看生成结果");
-    expect(runControlsSource).toContain("执行“{{ presetName }}");
-    expect(pageSource).not.toContain("!selectedTargetLibraryId");
-    expect(processTrackerSource).toContain("仅运行当前预设");
-    expect(processPanelSource).toContain("内部思考文本不会展示");
     expect(resultPanelSource).toContain('v-model="targetId"');
-    expect(resultPanelSource).toContain("生成后可随时更换目标库");
     expect(pageSource).not.toContain("AgentConversation");
     expect(pageSource).not.toContain("ConversationComposer");
   });
@@ -61,20 +52,22 @@ describe("long-book analysis feature wiring", () => {
   it("keeps the page toolbar and task form responsive", () => {
     expect(sourceControlsSource).toContain('class="analysis-page-actions"');
     expect(pageSource).toContain('class="chapter-range-inputs"');
-    expect(pageSource).toContain("<AnalysisRunStatus");
+    expect(runControlsSource).toContain("<AnalysisRunStatus");
     expect(pageSource).toContain('import "./long-book-analysis.css"');
     expect(pageSource).toContain('class="analysis-empty-meta"');
     expect(pageSource).toContain('class="setup-field setup-range-field"');
-    expect(pageSource).toContain('class="preset-target-field"');
+    expect(pageSource).not.toContain('class="preset-target-field"');
   });
 
-  it("configures a preset's concrete target library", () => {
-    expect(presetEditorSource).toContain("默认目标资料库");
-    expect(presetEditorSource).toContain("setTargetLibrary");
+  it("keeps destination selection in the completed result only", () => {
+    expect(presetEditorSource).not.toContain("setTargetLibrary");
+    expect(presetEditorSource).not.toContain("libraryId");
+    expect(presetManagerSource).not.toContain("targetLibraryLabel");
+    expect(resultPanelSource).not.toContain("props.targetLibraryId");
+    expect(resultPanelSource).not.toContain("preset.output.libraryId");
     expect(presetEditorSource).not.toContain("导入条目类型");
     expect(presetManagerSource).toContain("cloneLongBookAnalysisPreset");
     expect(presetManagerSource).not.toContain("structuredClone(preset)");
-    expect(presetManagerSource).toContain("点击卡片展开编辑");
     expect(presetManagerSource).toContain('v-if="!preset.builtin"');
   });
 });

@@ -67,6 +67,7 @@ describe("skill metadata draft editing", () => {
     (values) => {
       expect(updateSkillMarkdownMetadata("原文", values)).toEqual({
         updated: false,
+        code: "missing_skill_fields",
         message: "请填写技能名称和使用说明。"
       });
       expect(parseSkillMarkdown("原文").valid).toBe(false);

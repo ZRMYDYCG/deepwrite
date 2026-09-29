@@ -1,0 +1,21 @@
+export default {
+  book: "书籍",
+  skillLibrary: "技能库",
+  materialLibrary: "素材库",
+  newWork: "新建作品",
+  newValue: "新建{arg0}",
+  createFromTemplate: "按模板新建",
+  newGroup: "新建分组",
+  openExistingWork: "打开已有作品",
+  openExistingValue: "打开已存在{arg0}",
+  importExistingWork: "导入已有作品",
+  refreshNovels: "刷新长篇列表",
+  importLegacyValue: "导入旧版{arg0}",
+  importValueFromFilesOrFolders: "从文件或文件夹导入{arg0}",
+  skill: "技能",
+  material: "素材",
+  expandValue: "展开{arg0}",
+  collapseValue: "折叠{arg0}",
+  createOrImportValue: "{arg0}新建或导入",
+  contentUnderValue: "{arg0}下的内容"
+};

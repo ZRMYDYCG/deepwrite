@@ -1,3 +1,4 @@
+import { createScopedTranslator } from "../i18n";
 import {
   LIBRARY_AGENT_ENTRY_MAX_CHARACTERS,
   LIBRARY_AGENT_MAX_ENTRIES,
@@ -13,6 +14,8 @@ import {
 } from "@deepwrite/contracts";
 import type { WorkspaceDocument } from "../types/workspace";
 import type { ComposerReferenceOption } from "../types/conversation";
+
+const t = createScopedTranslator("workspace");
 
 function takeSnapshotText(
   content: string,
@@ -421,7 +424,10 @@ export function buildLibraryEntryComposerReferences(
   context: LibraryAgentWorkspaceSnapshot | undefined
 ): ComposerReferenceOption[] {
   if (!context) return [];
-  const domainLabel = context.domain === "skill" ? "技能" : "素材";
+  const domainLabel =
+    context.domain === "skill"
+      ? t("catalogWorkspace.skill")
+      : t("catalogWorkspace.material");
   const activeEntryId = context.activeEntryId;
   return context.entries
     .filter((entry) => entry.id !== activeEntryId)
@@ -433,10 +439,19 @@ export function buildLibraryEntryComposerReferences(
         id: entry.documentId,
         label: entry.title,
         detail: isPeer
-          ? `分组 · ${entry.sourceLibraryTitle ?? "同组成员库"}`
+          ? t("libraryAgentContext.group", {
+              value:
+                entry.sourceLibraryTitle ??
+                t("libraryAgentContext.librariesInThisGroup")
+            })
           : context.groupTitle
-            ? `当前${domainLabel}库 · ${context.groupTitle}`
-            : `当前${domainLabel}库`
+            ? t("libraryAgentContext.currentLibrary", {
+                domainLabel: domainLabel,
+                groupTitle: context.groupTitle
+              })
+            : t("libraryAgentContext.currentLibrary2", {
+                domainLabel: domainLabel
+              })
       };
     });
 }

@@ -1,9 +1,12 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import { computed } from "vue";
 import type {
   AgentActivityItem,
   AgentActivityStatus
 } from "../types/agentActivity";
+
+const t = createScopedTranslator("components.agentActivityFloatPanel");
 
 const props = defineProps<{
   items: readonly AgentActivityItem[];
@@ -18,27 +21,35 @@ const runningCount = computed(
 );
 
 const statusLabels: Record<AgentActivityStatus, string> = {
-  running: "执行中",
-  completed: "已完成，等待查看",
-  error: "执行失败，等待查看",
-  stopped: "已停止，等待查看"
+  get running() {
+    return t("running");
+  },
+  get completed() {
+    return t("completedAwaitingReview");
+  },
+  get error() {
+    return t("failedAwaitingReview");
+  },
+  get stopped() {
+    return t("stoppedAwaitingReview");
+  }
 };
 </script>
 
 <template>
   <section
     class="agent-activity-panel"
-    aria-label="智能体执行列表"
+    :aria-label="t('agentActivityList')"
     aria-live="polite"
   >
     <header class="agent-activity-panel-header">
-      <strong>智能体执行</strong>
+      <strong>{{ t("agentActivity") }}</strong>
       <span>{{
         runningCount
-          ? runningCount + " 个执行中"
+          ? runningCount + t("runningLabel")
           : items.length
-            ? "等待查看"
-            : "暂无活动"
+            ? t("awaitingReview")
+            : t("noActivity")
       }}</span>
     </header>
     <ul v-if="items.length" class="agent-activity-list">
@@ -72,8 +83,8 @@ const statusLabels: Record<AgentActivityStatus, string> = {
       </li>
     </ul>
     <div v-else class="agent-activity-empty">
-      <strong>暂无运行中的智能体</strong>
-      <span>启动任务后，可在这里查看和切换。</span>
+      <strong>{{ t("noAgentsAreRunning") }}</strong>
+      <span>{{ t("startATaskToViewAndSwitchBetweenAgents") }}</span>
     </div>
   </section>
 </template>

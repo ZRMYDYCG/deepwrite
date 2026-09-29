@@ -1,3 +1,4 @@
+import { t } from "../i18n";
 import {
   computed,
   nextTick,
@@ -36,7 +37,9 @@ export function usePopupSelect(
   const displayLabel = computed(() =>
     props.multiple
       ? props.selectedValues.length
-        ? `已选择 ${props.selectedValues.length} 个模型`
+        ? t("workspace.popupSelect.modelsSelected", {
+            length: props.selectedValues.length
+          })
         : props.placeholder
       : (selectedOption.value?.label ?? props.placeholder)
   );

@@ -1,7 +1,10 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import { computed } from "vue";
 import type { LongWorkspaceProposalItem } from "../composables/useLongWorkspaceProposals";
 import AppIcon from "./AppIcon.vue";
+
+const t = createScopedTranslator("components.longLedgerFinalizationCard");
 
 const props = defineProps<{ item: LongWorkspaceProposalItem }>();
 
@@ -27,42 +30,48 @@ const batchInfo = computed(() => {
     input.mode === "text_files_batch"
       ? input.checkpointChapterCardId
       : input.chapterCardId;
-  return `本批 ${chapterCardIds.length} 章 · 末章检查点 ${checkpointChapterCardId}`;
+  return t("batchOfValueChaptersFinalChapterCheckpointValue", {
+    arg0: chapterCardIds.length,
+    arg1: checkpointChapterCardId
+  });
 });
 
 const statusLabel = computed(() => {
   switch (props.item.status) {
     case "waiting":
-      return "等待前序文件";
+      return t("waitingForPrerequisiteFiles");
     case "submitting":
-      return "正在归档";
+      return t("archiving");
     case "accepted":
-      return "已归档";
+      return t("archived");
     case "error":
-      return "归档失败";
+      return t("archiveFailed");
     case "previewing":
-      return "正在校验";
+      return t("validating");
     case "ready":
-      return "等待归档";
+      return t("awaitingArchive");
     default:
-      return "等待归档";
+      return t("awaitingArchive");
   }
 });
 
 const statusMessage = computed(() => {
   if (props.item.status === "error") {
-    return props.item.error ?? "连续性账本归档失败，当前文件仍保留在本地。";
+    return (
+      props.item.error ??
+      t("continuityLedgerArchivalFailedTheCurrentFilesRemainSaved")
+    );
   }
   if (props.item.status === "waiting") {
-    return "末章汇总连续性文件全部保存后，将自动归档整个章节批次。";
+    return t("theFullChapterBatchWillBeArchivedAfterAll");
   }
   if (props.item.status === "submitting") {
-    return "正在校验批次正文、历史账本和末章文件，并保存连续性记录……";
+    return t("validatingBatchManuscriptsHistoricalLedgersAndFinalChapterFiles");
   }
   if (props.item.status === "accepted") {
-    return "整批章节已共用一条连续性记录并保存到本地账本。";
+    return t("theChapterBatchSharesOneContinuityRecordSavedIn");
   }
-  return "等待执行连续性账本归档。";
+  return t("waitingToArchiveTheContinuityLedger");
 });
 </script>
 
@@ -73,7 +82,7 @@ const statusMessage = computed(() => {
         <AppIcon name="wand" :size="16" />
       </span>
       <div>
-        <strong>连续性账本归档</strong>
+        <strong>{{ t("continuityLedgerArchive") }}</strong>
         <small>{{ batchInfo }}</small>
       </div>
       <span class="ledger-finalization-status">{{ statusLabel }}</span>
@@ -86,7 +95,9 @@ const statusMessage = computed(() => {
 
     <footer v-if="item.status === 'error'">
       <button type="button" class="is-secondary" @click="emit('reject')">
-        {{ item.errorRetryable === false ? "关闭并保留文件" : "关闭" }}
+        {{
+          item.errorRetryable === false ? t("closeAndKeepFiles") : t("close")
+        }}
       </button>
       <button
         v-if="item.errorRetryable !== false"
@@ -94,7 +105,7 @@ const statusMessage = computed(() => {
         class="is-primary"
         @click="emit('approve')"
       >
-        重试归档
+        {{ t("retryArchive") }}
       </button>
     </footer>
   </section>

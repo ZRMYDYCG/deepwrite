@@ -1,9 +1,12 @@
+import { createScopedTranslator } from "../i18n";
 import { computed, ref } from "vue";
 import { useConversationStore } from "../stores/conversationStore";
 import type { ConversationPersistenceProgress } from "../stores/conversationPersistenceQueue";
 import { conversationHistoryPersistenceKey } from "../utils/conversationPersistenceKeys";
 import { uiMessage } from "../ui-feedback";
 import type { AgentConversationController } from "./useAgentConversation";
+
+const t = createScopedTranslator("workspace.conversationSaveStatus");
 
 interface ConversationSaveStatusStore {
   controllers: ReadonlyMap<string, AgentConversationController>;
@@ -19,7 +22,7 @@ interface ConversationSaveStatusStore {
 function errorMessage(error: unknown): string {
   if (error instanceof Error && error.message) return error.message;
   if (typeof error === "string" && error) return error;
-  return "对话暂时无法保存到本机，请重试。";
+  return t("theConversationCouldNotBeSavedLocallyPleaseTry");
 }
 
 export function createConversationSaveStatus(options: {
@@ -55,10 +58,18 @@ export function createConversationSaveStatus(options: {
     return current?.status;
   });
   const labels = {
-    pending: "等待保存",
-    saving: "正在保存",
-    saved: "已保存",
-    error: "保存失败"
+    get pending() {
+      return t("waitingToSave");
+    },
+    get saving() {
+      return t("saving");
+    },
+    get saved() {
+      return t("saved");
+    },
+    get error() {
+      return t("saveFailed");
+    }
   } as const;
   const label = computed(() => (status.value ? labels[status.value] : ""));
   const retrying = computed(

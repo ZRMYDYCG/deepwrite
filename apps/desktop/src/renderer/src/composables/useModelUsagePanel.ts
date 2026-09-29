@@ -1,3 +1,4 @@
+import { createScopedTranslator, locale } from "../i18n";
 import { computed, onMounted, ref } from "vue";
 import {
   isDeepWriteSiteOfficialModel,
@@ -6,6 +7,8 @@ import {
   type ModelUsageQueryInput
 } from "@deepwrite/contracts/renderer";
 import { MODULE_META } from "../components/modelUsageModuleMeta";
+
+const t = createScopedTranslator("workspace.modelUsagePanel");
 
 type TimeRange = "24h" | 7 | 30 | "all";
 
@@ -22,10 +25,30 @@ interface TrendChartPoint {
 }
 
 const RANGE_OPTIONS: readonly RangeOption[] = [
-  { id: "24h", label: "近 24 小时" },
-  { id: 7, label: "近 7 天" },
-  { id: 30, label: "近 30 天" },
-  { id: "all", label: "全部" }
+  {
+    id: "24h",
+    get label() {
+      return t("lastHours");
+    }
+  },
+  {
+    id: 7,
+    get label() {
+      return t("lastDays");
+    }
+  },
+  {
+    id: 30,
+    get label() {
+      return t("lastDays2");
+    }
+  },
+  {
+    id: "all",
+    get label() {
+      return t("allTime");
+    }
+  }
 ];
 
 export function useModelUsagePanel(
@@ -50,7 +73,7 @@ export function useModelUsagePanel(
   const rangeLabel = computed(
     () =>
       RANGE_OPTIONS.find((option) => option.id === selectedRange.value)
-        ?.label ?? "近 24 小时"
+        ?.label ?? t("lastHours")
   );
 
   const moduleRows = computed(() =>
@@ -123,10 +146,13 @@ export function useModelUsagePanel(
   );
   const trendAccessibleLabel = computed(() => {
     if (!trendChartPoints.value.length)
-      return `${rangeLabel.value}暂无趋势数据`;
-    return `${rangeLabel.value}模型总 Token 趋势，共 ${formatTokens(
-      props.dashboard?.totals.totalTokens ?? 0
-    )}`;
+      return t("noTrendDataYet", {
+        value: rangeLabel.value
+      });
+    return t("totalModelTokenTrendInTotal", {
+      value: rangeLabel.value,
+      value2: formatTokens(props.dashboard?.totals.totalTokens ?? 0)
+    });
   });
 
   function createQuery(range: TimeRange): ModelUsageQueryInput {
@@ -154,38 +180,38 @@ export function useModelUsagePanel(
 
   function formatTokens(value: number): string {
     const safeValue = Number.isFinite(value) ? Math.max(0, value) : 0;
-    return new Intl.NumberFormat("zh-CN", { maximumFractionDigits: 0 }).format(
-      safeValue
-    );
+    return new Intl.NumberFormat(locale.value, {
+      maximumFractionDigits: 0
+    }).format(safeValue);
   }
 
   function formatTrendBucket(value: string): string {
     const timestamp = Date.parse(value);
     if (!Number.isFinite(timestamp)) return "—";
     if (props.dashboard?.trendGranularity === "hour") {
-      return new Intl.DateTimeFormat("zh-CN", {
+      return new Intl.DateTimeFormat(locale.value, {
         month: "numeric",
         day: "numeric",
         hour: "2-digit"
       }).format(timestamp);
     }
     if (props.dashboard?.trendGranularity === "month") {
-      return new Intl.DateTimeFormat("zh-CN", {
+      return new Intl.DateTimeFormat(locale.value, {
         year: "numeric",
         month: "numeric"
       }).format(timestamp);
     }
-    return new Intl.DateTimeFormat("zh-CN", {
+    return new Intl.DateTimeFormat(locale.value, {
       month: "numeric",
       day: "numeric"
     }).format(timestamp);
   }
 
   function formatDateTime(value: string | undefined): string {
-    if (!value) return "未使用";
+    if (!value) return t("unused");
     const timestamp = Date.parse(value);
     if (!Number.isFinite(timestamp)) return "—";
-    return new Intl.DateTimeFormat("zh-CN", {
+    return new Intl.DateTimeFormat(locale.value, {
       year: "numeric",
       month: "numeric",
       day: "numeric",
@@ -207,17 +233,18 @@ export function useModelUsagePanel(
   }
 
   function modelStatusLabel(status: "current" | "historical" | "faux"): string {
-    if (status === "current") return "当前配置";
-    if (status === "historical") return "历史模型";
-    return "本地模拟";
+    if (status === "current") return t("currentConfiguration");
+    if (status === "historical") return t("historicalModel");
+    return t("localSimulation");
   }
 
   function modelProviderLabel(
     model: ModelUsageDashboard["models"][number]["model"]
   ): string {
-    if (model.managedBy === "deepwrite-official") return "旧官方小站";
-    if (isDeepWriteSiteOfficialModel(model)) return "新官方小站";
-    if (model.managedBy === "deepwrite-free") return "DeepWrite 免费";
+    if (model.managedBy === "deepwrite-official")
+      return t("legacyOfficialSite");
+    if (isDeepWriteSiteOfficialModel(model)) return t("newOfficialSite");
+    if (model.managedBy === "deepwrite-free") return t("deepwriteFree");
     return model.provider;
   }
 
@@ -231,17 +258,17 @@ export function useModelUsagePanel(
   function actorLabel(
     actor: ModelUsageDashboard["recentCalls"][number]["actor"]
   ): string {
-    if (actor === "subagent") return "子智能体";
-    if (actor === "connection-test") return "连接测试";
-    return "主智能体";
+    if (actor === "subagent") return t("subagent");
+    if (actor === "connection-test") return t("connectionTest");
+    return t("mainAgent");
   }
 
   function callStatusLabel(
     status: ModelUsageDashboard["recentCalls"][number]["status"]
   ): string {
-    if (status === "error") return "错误";
-    if (status === "aborted") return "已中止";
-    return "完成";
+    if (status === "error") return t("error");
+    if (status === "aborted") return t("aborted");
+    return t("completed");
   }
 
   onMounted(() => {

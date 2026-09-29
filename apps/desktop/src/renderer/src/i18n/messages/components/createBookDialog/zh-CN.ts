@@ -1,0 +1,31 @@
+export default {
+  shortStory: "短篇",
+  charactersPlotIntroductionOutlineAndManuscript:
+    "人物、剧情、导语、大纲与正文",
+  screenplay: "剧本",
+  charactersPlotOutlineAndEpisodeManuscripts: "人物、剧情、大纲与分集正文",
+  novel: "长篇",
+  worldbuildingCharactersPlotManuscriptAndContinuity:
+    "世界观、人物、情节、正文与连续性",
+  enterABookTitle: "请输入书名",
+  novelTitlesCannotExceed256Characters: "长篇书名不能超过 256 个字符",
+  workspace: "创作空间 ·",
+  new: "新建",
+  novelLabel: "长篇作品",
+  shortStoryLabel: "短篇书籍",
+  close: "关闭",
+  writingType: "创作类型",
+  bookInformation: "书籍信息",
+  bookTitle: "书名",
+  enterANovelTitle: "请输入长篇书名",
+  novelGenre: "长篇题材",
+  valueCategory: "{arg0}分类",
+  loadingMaterialAndSkillLibraries: "正在加载素材库和技能库目录…",
+  cancel: "取消",
+  creating: "创建中…",
+  createNovel: "创建长篇",
+  createScreenplay: "创建剧本",
+  createBook: "创建书籍",
+  workspaceMessage: "创作空间 · {arg0}",
+  newMessage: "新建{arg0}"
+};

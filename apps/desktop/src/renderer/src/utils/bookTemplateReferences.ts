@@ -1,9 +1,12 @@
+import { createScopedTranslator } from "../i18n";
 import type {
   BookTemplateDraft,
   CreativePlotStage,
   MaterialLibrary,
   SkillLibrary
 } from "@deepwrite/contracts";
+
+const t = createScopedTranslator("workspace.bookTemplateReferences");
 export function bookTemplateReferenceError(
   configuration: BookTemplateDraft,
   catalog: {
@@ -17,7 +20,7 @@ export function bookTemplateReferenceError(
       (id) => !catalog.creativePlotStages.some((stage) => stage.id === id)
     )
   )
-    return "模板中的剧情阶段已失效，请编辑模板后重试。";
+    return t("aPlotStageInThisTemplateIsNoLonger");
   for (const [kind, ids] of Object.entries(
     configuration.linkedMaterialIdsByKind
   )) {
@@ -31,7 +34,7 @@ export function bookTemplateReferenceError(
           )
       )
     )
-      return "模板中的素材库已失效，请重新选择。";
+      return t("aMaterialLibraryInThisTemplateIsNoLonger");
   }
   for (const [kind, ids] of Object.entries(
     configuration.linkedSkillIdsByKind
@@ -44,7 +47,7 @@ export function bookTemplateReferenceError(
           )
       )
     )
-      return "模板中的技能库已失效，请重新选择。";
+      return t("aSkillLibraryInThisTemplateIsNoLonger");
   }
   return null;
 }

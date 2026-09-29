@@ -36,8 +36,8 @@ describe("AgentConversation edit proposal placement", () => {
     expect(modeSelectIndex).toBeGreaterThan(-1);
     expect(approvalSelectIndex).toBeGreaterThan(modeSelectIndex);
     expect(composerSource).toContain('v-if="agentWorkspaceType && agentId"');
-    expect(teamModeSource).toContain('label: "普通模式"');
-    expect(teamModeSource).toContain('label: "团队模式"');
+    expect(teamModeSource).toContain("standardMode");
+    expect(teamModeSource).toContain("teamMode");
     expect(teamModeSource).toContain("disabled: !availability.value.available");
     expect(teamModeSource).toContain('emit("update:modelValue", "normal")');
     expect(writingWorkspaceSource).toContain(
@@ -54,14 +54,14 @@ describe("AgentConversation edit proposal placement", () => {
     expect(userInputCardSource).toContain(
       "request.source === 'cross_stage_write'"
     );
-    expect(userInputCardSource).toContain("输入自己的回答");
-    expect(userInputCardSource).toContain("推荐");
-    expect(userInputCardSource).toContain("跳过");
+    expect(userInputCardSource).toContain("writeYourOwnAnswer");
+    expect(userInputCardSource).toContain("recommended");
+    expect(userInputCardSource).toContain("skip");
     expect(userInputCardSource).toContain(
       'v-for="question in visibleQuestions"'
     );
     expect(userInputCardSource).toContain("activeQuestionIndex.value += 1");
-    expect(userInputCardSource).toContain('isLastQuestion ? "确认" : "下一题"');
+    expect(userInputCardSource).toContain("nextQuestion");
     expect(userInputCardSource).not.toContain(
       'v-for="question in request.questions"'
     );
@@ -77,7 +77,7 @@ describe("AgentConversation edit proposal placement", () => {
 
   it("moves right-pane collapse controls with the selected layout", () => {
     expect(conversationSource).toContain("rightPane?: boolean");
-    expect(conversationSource).toContain('aria-label="收起智能体栏"');
+    expect(conversationSource).toContain("collapseAgentPane");
     expect(conversationSource).toContain("rightCollapsed && !rightPane");
     expect(writingWorkspaceSource).toContain(
       ":right-pane=\"paneLayout === 'editor-agent'\""
@@ -92,8 +92,8 @@ describe("AgentConversation edit proposal placement", () => {
       "v-if=\"proposal.status === 'accepted'\""
     );
     expect(proposalCardSource).toContain("approval-target-button");
-    expect(proposalCardSource).toContain('aria-label="跳转到目标文件"');
-    expect(proposalCardSource).toContain(">\n            跳转到目标文件\n");
+    expect(proposalCardSource).toContain("goToTargetFile");
+    expect(proposalCardSource).toContain("goToTargetFile");
     expect(proposalCardSource).toContain("emit('locate', {");
     expect(`${messageItemSource}\n${processingItemSource}`).toContain(
       "@locate=\"emit('locateEditProposal', $event)\""
@@ -111,7 +111,7 @@ describe("AgentConversation edit proposal placement", () => {
   it("places discard beside target navigation only when the card is eligible", () => {
     expect(proposalCardSource).toContain("discardable?: boolean");
     expect(proposalCardSource).toContain("function showDiscardButton");
-    expect(discardButtonSource).toContain("舍弃本次修改");
+    expect(discardButtonSource).toContain("discardTheseChanges");
     expect(proposalCardSource).toContain("<ApprovalDiscardButton");
     expect(presentationSource).toContain(
       "canDiscard: agentApprovalCanDiscard(message, proposal)"
@@ -177,26 +177,24 @@ describe("AgentConversation edit proposal placement", () => {
     );
     expect(proposalCardSource).not.toContain('proposal.stageId === "draft"');
     expect(proposalCardSource).not.toContain("!proposal.libraryTarget");
+    expect(proposalCardSource).toContain("thisItemIsReadyForReviewTheAgentIs");
     expect(proposalCardSource).toContain(
-      "本项已生成，可立即审阅；智能体仍在继续。"
-    );
-    expect(proposalCardSource).toContain(
-      "本项已生成，正在进入实时自动保存队列；智能体仍在继续。"
+      "thisItemIsReadyAndIsEnteringTheAutosave"
     );
     expect(proposalCardSource).toContain("proposal.longCharacterTarget");
     expect(proposalCardSource).toContain(
-      "接受后将创建人物及其两份档案并保存到本机。"
+      "acceptToCreateTheCharacterAndBothProfilesAnd"
     );
-    expect(proposalCardSource).toContain("接受后将写入人物档案并保存到本机。");
+    expect(proposalCardSource).toContain(
+      "acceptToWriteTheCharacterProfileAndSaveIt"
+    );
     expect(proposalCardSource).toContain("proposal.longPlotDesignTarget");
     expect(proposalCardSource).toContain(
-      "接受后将校验结构影响并保存剧情设计。"
+      "acceptToValidateStructuralImpactAndSaveThePlot"
     );
+    expect(proposalCardSource).toContain("thisItemIsReadyAndHasBeenAddedTo");
     expect(proposalCardSource).toContain(
-      "本项已生成，已加入实时自动保存队列。"
-    );
-    expect(proposalCardSource).toContain(
-      "实时保存失败，可立即重试或拒绝；智能体仍在继续。"
+      "autosaveFailedYouCanRetryOrRejectNowThe"
     );
     expect(proposalCardSource).toContain("showProposalReviewActions()");
     expect(proposalCardSource).toContain(
@@ -238,13 +236,13 @@ describe("AgentConversation edit proposal placement", () => {
   it("uses distinct composer placeholders for creative space and library agents", () => {
     expect(composerSource).toContain("composerPlaceholder");
     expect(composerLogicSource).toContain(
-      "随心输入，输入 / 调用技能，输入 @ 引用素材"
+      "writeAnythingTypeToUseSkillsOrToReference"
     );
     expect(composerLogicSource).toContain(
-      "输入 / 加载方法技能，输入 @ 引用当前库或同分组其它库的技能"
+      "describeALibraryTaskTypeToLoadAMethod"
     );
     expect(composerLogicSource).toContain(
-      "输入 / 加载方法技能，输入 @ 引用当前库或同分组其它库的素材"
+      "describeALibraryTaskTypeToLoadAMethod2"
     );
   });
 
@@ -284,8 +282,8 @@ describe("AgentConversation edit proposal placement", () => {
     expect(messageItemSource).toContain('<div class="message-content">');
     expect(messageItemSource).toContain("message.status !== 'streaming' &&");
     expect(messageItemSource).toContain("!editing");
-    expect(messageItemSource).toContain("'复制回复'");
-    expect(messageItemSource).toContain("'复制消息'");
+    expect(messageItemSource).toContain("copyReply");
+    expect(messageItemSource).toContain("copyMessage");
 
     const actionsStart = sourceTextIndexOf(
       messageItemSource,
@@ -363,13 +361,13 @@ describe("AgentConversation edit proposal placement", () => {
   it("shares write previews between tool items and subagents", () => {
     expectSourceToContain(
       processingItemSource,
-      "writeToolText(item.tool).length.toLocaleString('zh-CN')"
+      "writeToolText(item.tool).length.toLocaleString(locale)"
     );
     expect(processingItemSource).toContain(
       'import { writeToolText } from "../utils/agentWriteToolPreview"'
     );
     expect(proposalCardSource).toContain(
-      "接受后将把当前章正文保存到该章节独立的 Markdown 文件。"
+      "acceptToSaveTheCurrentChapterManuscriptToIts"
     );
     expect(workGroupSource).toContain("<ConversationProcessingItem");
     expect(subagentSource).toContain("<ConversationWorkGroup");
@@ -384,7 +382,7 @@ describe("AgentConversation edit proposal placement", () => {
     expect(subagentSource).not.toContain(
       '<details\n      v-for="run in runs"\n      open'
     );
-    expect(subagentSource).toContain('aria-label="子智能体执行过程"');
+    expect(subagentSource).toContain("subagentExecution");
     expect(subagentSource).toContain("subagentProcessingDisplayItems(run)");
     expect(subagentSource).toContain("<ConversationWorkGroup");
     expect(workGroupSource).toContain("workGroupActivityLabel(item)");
@@ -410,16 +408,13 @@ describe("AgentConversation edit proposal placement", () => {
     expect(processingItemSource).toContain(
       'class="processing-live-item processing-live-thinking processing-tool-group"'
     );
-    expectSourceToContain(
-      processingItemSource,
-      "streaming ? '思考中' : '思考过程'"
-    );
+    expectSourceToContain(processingItemSource, "reasoning");
     expect(subagentSource).not.toContain('class="subagent-run-timeline"');
     expect(subagentSource).toContain("{{ run.task }}");
     expect(subagentSource).toContain("{{ subagentStatusLabel(run, now) }}");
-    expect(subagentSource).toContain("{{ run.toolCalls.length }} 个工具");
+    expect(subagentSource).toContain("toolsMessage");
     expect(subagentSource).toContain("subagentReviewHint(message, run)");
-    expect(subagentPresentationSource).toContain("`${writeCount} 次写入调用`");
+    expect(subagentPresentationSource).toContain("valueWriteCalls");
     expect(subagentSource).not.toContain("`${writeCount} 项文本变更`");
     expect(processingItemSource).toContain(
       "formatToolPayload(visibleToolArguments(item.tool))"
@@ -505,9 +500,9 @@ describe("AgentConversation edit proposal placement", () => {
   it("shows retry countdowns in the existing processing areas", () => {
     expect(presentationSource).toContain("function retryStatusLabel");
     expect(presentationSource).toContain(
-      "网络波动，${remainingSeconds}s 后重试${suffix}"
+      "connectionInterruptedRetryingValueInValueS"
     );
-    expect(presentationSource).toContain("正在重试${suffix}");
+    expect(presentationSource).toContain("retryingValue");
     expectSourceToContain(
       processingTimelineSource,
       "hasProcessingDisclosure(message) || message.retry || message.processingStartedAt"
@@ -518,9 +513,9 @@ describe("AgentConversation edit proposal placement", () => {
       "export function subagentRetryStatus"
     );
     expect(subagentPresentationSource).toContain(
-      "网络波动，${retryCountdownSeconds(run, now)}s 后重试（${progress}）"
+      "connectionInterruptedRetryInValueSValue"
     );
-    expect(subagentPresentationSource).toContain("正在重试（${progress}）");
+    expect(subagentPresentationSource).toContain("retrying");
     expect(subagentSource).toContain('v-if="subagentRetryStatus(run, now)"');
   });
 
@@ -533,7 +528,7 @@ describe("AgentConversation edit proposal placement", () => {
       "end - start >= MODEL_QUEUE_LABEL_DELAY_MS"
     );
     expect(presentationSource).toContain("!hasFirstModelOutput(message)");
-    expect(presentationSource).toContain("模型排队中 · 已等待 ${seconds}s");
+    expect(presentationSource).toContain("modelQueuedWaitedValueS");
     expect(presentationSource).toContain("message.content || message.thinking");
     expect(presentationSource).toContain(
       "message.toolCalls?.length || message.subagentRuns?.length"
@@ -543,12 +538,12 @@ describe("AgentConversation edit proposal placement", () => {
   it("keeps model selection and fixed run settings in one popup", () => {
     expect(composerSource).toContain("<ConversationModelConfigSelect");
     expect(composerSource).not.toContain("<ConversationRunSettings");
-    expect(modelConfigSource).toContain('aria-label="模型"');
+    expect(modelConfigSource).toContain("model");
     expect(modelConfigSource).toContain(
       'class="conversation-model-config-footer"'
     );
-    expect(modelConfigSource).toContain('aria-label="思考等级"');
-    expect(modelConfigSource).toContain('aria-label="联网"');
+    expect(modelConfigSource).toContain("reasoningLevel");
+    expect(modelConfigSource).toContain("webAccess");
     expect(modelConfigSource).toContain(':aria-pressed="webSearchEnabled"');
     expect(modelConfigSource).toContain(
       ':disabled="responding || !webSearchAvailable"'

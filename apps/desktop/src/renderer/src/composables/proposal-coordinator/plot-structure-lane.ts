@@ -1,3 +1,5 @@
+import { formatError } from "../../i18n/errors";
+import { createScopedTranslator } from "../../i18n";
 import type {
   Book,
   DeepWriteApi,
@@ -8,6 +10,8 @@ import type { AgentEditProposal } from "../../types/conversation";
 import { agentEditProposalId } from "../../utils/agentEditReview";
 import { buildAgentTextDiff } from "../../utils/agentTextDiff";
 import type { AgentConversationController } from "../useAgentConversation";
+
+const t = createScopedTranslator("workspace");
 
 type WorkspaceEditorMutationEvent = Extract<
   SystemEventEnvelope,
@@ -58,7 +62,9 @@ export function createPlotStructureProposalLane(input: PlotStructureLaneInput) {
     if (target?.kind !== "plot-structure") return false;
     const book = input.catalogBook(event.payload.workspaceId);
     if (!book) {
-      const message = "目标作品已不可用，剧情结构变更未进入审阅。";
+      const message = t(
+        "plotStructureLane.theTargetProjectIsNoLongerAvailableThePlot"
+      );
       conversation.markToolConflict(
         event.payload.runId,
         event.payload.toolCallId,
@@ -73,7 +79,9 @@ export function createPlotStructureProposalLane(input: PlotStructureLaneInput) {
         ? book.plotStages.find((stage) => stage.id === mutation.stageId)
         : undefined;
     if (mutation.type === "update" && !currentStage) {
-      const message = "目标剧情结构已不存在，本次修改未进入审阅。";
+      const message = t(
+        "plotStructureLane.theTargetPlotStructureNoLongerExistsTheseChanges"
+      );
       conversation.markToolConflict(
         event.payload.runId,
         event.payload.toolCallId,
@@ -113,8 +121,13 @@ export function createPlotStructureProposalLane(input: PlotStructureLaneInput) {
       documentId,
       title:
         mutation.type === "create"
-          ? `创建剧情结构：${mutation.title}`
-          : `修改剧情结构：${currentStage!.title} → ${mutation.title}`,
+          ? t("plotStructureLane.createPlotStructure", {
+              title: mutation.title
+            })
+          : t("plotStructureLane.renamePlotStructure", {
+              value: currentStage!.title,
+              title: mutation.title
+            }),
       summary: event.payload.summary,
       status: "pending",
       baseRevision: event.payload.baseRevision,
@@ -171,7 +184,9 @@ export function createPlotStructureProposalLane(input: PlotStructureLaneInput) {
     const book = input.catalogBook(proposal.workspaceId);
     const api = input.api();
     if (!target || !book || !api) {
-      const message = "剧情结构目标已不可用，无法应用本次变更。";
+      const message = t(
+        "plotStructureLane.thePlotStructureTargetIsUnavailableTheseChangesCannot"
+      );
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: "conflict",
         statusMessage: message
@@ -181,8 +196,10 @@ export function createPlotStructureProposalLane(input: PlotStructureLaneInput) {
     }
     if (input.isWorkspaceAccepting(proposal.workspaceId)) {
       const message = automatic
-        ? "作品正在保存其他内容，自动创建剧情结构已暂停，请稍后重试。"
-        : "同一作品正在保存其他修改，请稍候再接受";
+        ? t(
+            "plotStructureLane.theProjectIsSavingOtherContentAutomaticPlotStructure"
+          )
+        : t("proposalCoordinator.otherEditsToThisProjectAreBeingSavedWait");
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: automatic ? "error" : "pending",
         statusMessage: message
@@ -194,8 +211,8 @@ export function createPlotStructureProposalLane(input: PlotStructureLaneInput) {
     conversation.updateEditProposal(request.runId, request.proposalId, {
       status: "accepting",
       statusMessage: automatic
-        ? "正在自动批准并保存剧情结构…"
-        : "正在保存剧情结构…"
+        ? t("plotStructureLane.automaticallyApprovingAndSavingThePlotStructure")
+        : t("plotStructureLane.savingThePlotStructure")
     });
     input.setWorkspaceAccepting(proposal.workspaceId, true);
     try {
@@ -238,14 +255,20 @@ export function createPlotStructureProposalLane(input: PlotStructureLaneInput) {
             )
           : undefined;
         if (!createdStage || !createdDocument) {
-          throw new Error("剧情结构已创建，但无法定位对应正文文件。");
+          throw new Error(
+            t("plotStructureLane.thePlotStructureWasCreatedButItsContentFile")
+          );
         }
         const intendedContent = mutation.content.trim() ? mutation.content : "";
         if (
           createdDocument.content.trim() &&
           createdDocument.content !== intendedContent
         ) {
-          throw new Error("新建剧情结构正文已有不同内容，未覆盖现有文件。");
+          throw new Error(
+            t(
+              "plotStructureLane.theNewPlotStructureAlreadyHasDifferentContentThe"
+            )
+          );
         }
         if (createdDocument.content !== intendedContent) {
           await api.catalog.saveDocument({
@@ -272,7 +295,7 @@ export function createPlotStructureProposalLane(input: PlotStructureLaneInput) {
           refreshedDocument.content !== intendedContent
         ) {
           throw new Error(
-            "剧情结构已创建，但刷新工作区后仍无法定位结构正文；请重试以完成正文映射。"
+            t("plotStructureLane.thePlotStructureWasCreatedButItsContentFile2")
           );
         }
       }
@@ -290,23 +313,39 @@ export function createPlotStructureProposalLane(input: PlotStructureLaneInput) {
         statusMessage:
           mutation.type === "create"
             ? automatic
-              ? `已自动批准并创建剧情结构“${mutation.title}”，结构正文已一并保存。`
-              : `已创建剧情结构“${mutation.title}”，结构正文已一并保存。`
+              ? t(
+                  "plotStructureLane.automaticallyApprovedAndCreatedPlotStructureIncludingItsContent",
+                  { title: mutation.title }
+                )
+              : t("plotStructureLane.createdPlotStructureIncludingItsContent", {
+                  title: mutation.title
+                })
             : automatic
-              ? `已自动批准并更新剧情结构“${mutation.title}”。`
-              : `已更新剧情结构“${mutation.title}”。`
+              ? t(
+                  "plotStructureLane.automaticallyApprovedAndUpdatedPlotStructure",
+                  { title: mutation.title }
+                )
+              : t("plotStructureLane.updatedPlotStructure", {
+                  title: mutation.title
+                })
       });
       if (!automatic) {
         input.notifications.success(
           mutation.type === "create"
-            ? `已创建剧情结构“${mutation.title}”`
-            : `已更新剧情结构“${mutation.title}”`
+            ? t("plotStructureLane.createdPlotStructure", {
+                title: mutation.title
+              })
+            : t("plotStructureLane.updatedPlotStructure2", {
+                title: mutation.title
+              })
         );
       }
     } catch (error: unknown) {
       await input.loadCatalogSnapshot().catch(() => undefined);
-      const message =
-        error instanceof Error ? error.message : "剧情结构保存失败。";
+      const message = formatError(
+        error,
+        t("plotStructureLane.couldNotSaveThePlotStructure")
+      );
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: input.isCatalogConflict(error) ? "conflict" : "error",
         statusMessage: message

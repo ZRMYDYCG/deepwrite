@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import {
   BUILT_IN_REASONING_LEVELS,
   LONG_AGENT_IDS,
@@ -26,6 +27,8 @@ import AppIcon from "./AppIcon.vue";
 import LoadSubagentFromSkillDialog from "./LoadSubagentFromSkillDialog.vue";
 import PopupSelect, { type PopupSelectOption } from "./PopupSelect.vue";
 import { createCopiedSubagent } from "./agentTeamSettingsEditorHelpers";
+
+const t = createScopedTranslator("components.longAgentTeamSettingsPanel");
 
 const props = defineProps<{
   settings: LongAgentTeamSettings | null;
@@ -55,8 +58,9 @@ const emit = defineEmits<{
   authoringReset: [];
 }>();
 
-const PARENT_AGENT_DESCRIPTION =
-  "配置世界观、人物、剧情、正文与连续性等专项助手，由长篇智能体按需调用。";
+const PARENT_AGENT_DESCRIPTION = computed(() =>
+  t("configureSpecialistAssistantsForWorldbuildingCharactersPlotManuscriptAnd")
+);
 
 const parentAgentId: LongAgentId = LONG_AGENT_IDS[0];
 const draftTeams = ref<LongAgentTeamSettingsInput["teams"]>([]);
@@ -81,12 +85,24 @@ const modelOptions = computed<PopupSelectOption[]>(() =>
 );
 
 const THINKING_LABELS: Record<BuiltInReasoningLevel, string> = {
-  minimal: "最低",
-  low: "较低",
-  medium: "标准",
-  high: "深度",
-  xhigh: "极高",
-  max: "最高"
+  get minimal() {
+    return t("minimal");
+  },
+  get low() {
+    return t("low");
+  },
+  get medium() {
+    return t("medium");
+  },
+  get high() {
+    return t("high");
+  },
+  get xhigh() {
+    return t("extraHigh");
+  },
+  get max() {
+    return t("maximum");
+  }
 };
 
 watch(
@@ -114,10 +130,10 @@ watch(
 );
 
 function thinkingLabel(level: ThinkingLevel): string {
-  if (level === "off") return "关闭";
+  if (level === "off") return t("off");
   return BUILT_IN_REASONING_LEVELS.includes(level as BuiltInReasoningLevel)
     ? THINKING_LABELS[level as BuiltInReasoningLevel]
-    : `自定义（${level}）`;
+    : t("customValue", { arg0: level });
 }
 
 function thinkingOptionsFor(
@@ -145,7 +161,9 @@ function temperatureOptionsFor(
     : undefined;
   return (model?.temperatureOptions ?? [0.1, 0.7, 1]).map((temperature) => ({
     value: temperature,
-    label: `温度 ${temperature}`
+    label: t("temperatureValue", {
+      arg0: temperature
+    })
   }));
 }
 
@@ -228,7 +246,9 @@ function addSubagent(
   if (!team || formDisabled.value) return;
   if (team.subagents.length >= LONG_AGENT_SUBAGENT_MAX_COUNT) {
     uiMessage.warning(
-      `每个长篇主智能体最多配置 ${LONG_AGENT_SUBAGENT_MAX_COUNT} 个子智能体`
+      t("eachNovelPrimaryAgentSupportsUpToValueSubagents", {
+        arg0: LONG_AGENT_SUBAGENT_MAX_COUNT
+      })
     );
     return;
   }
@@ -236,7 +256,11 @@ function addSubagent(
   const index = team.subagents.length + 1;
   team.subagents.push({
     id,
-    name: draft?.name?.trim() || `新子智能体 ${index}`,
+    name:
+      draft?.name?.trim() ||
+      t("newSubagentValue", {
+        arg0: index
+      }),
     description: draft?.description?.trim() || "",
     systemPrompt: draft?.systemPrompt?.trim() || "",
     enabled: true,
@@ -252,7 +276,9 @@ function duplicateSubagent(index: number): void {
   if (!source) return;
   if (team.subagents.length >= LONG_AGENT_SUBAGENT_MAX_COUNT) {
     uiMessage.warning(
-      `每个长篇主智能体最多配置 ${LONG_AGENT_SUBAGENT_MAX_COUNT} 个子智能体`
+      t("eachNovelPrimaryAgentSupportsUpToValueSubagents", {
+        arg0: LONG_AGENT_SUBAGENT_MAX_COUNT
+      })
     );
     return;
   }
@@ -263,7 +289,7 @@ function duplicateSubagent(index: number): void {
     SHORT_AGENT_SUBAGENT_NAME_MAX_LENGTH
   );
   team.subagents.splice(index + 1, 0, copied);
-  uiMessage.info("已复制到当前草稿；保存智能体团队后生效");
+  uiMessage.info(t("copiedToTheCurrentDraftSaveTheAgentTeam"));
 }
 
 function openLoadFromSkill(): void {
@@ -271,12 +297,14 @@ function openLoadFromSkill(): void {
   if (!team || formDisabled.value) return;
   if (team.subagents.length >= LONG_AGENT_SUBAGENT_MAX_COUNT) {
     uiMessage.warning(
-      `每个长篇主智能体最多配置 ${LONG_AGENT_SUBAGENT_MAX_COUNT} 个子智能体`
+      t("eachNovelPrimaryAgentSupportsUpToValueSubagents", {
+        arg0: LONG_AGENT_SUBAGENT_MAX_COUNT
+      })
     );
     return;
   }
   if (!props.skills.length) {
-    uiMessage.warning("技能库为空，请先在左侧技能库中添加条目");
+    uiMessage.warning(t("theSkillLibraryIsEmptyAddAnEntryIn"));
     return;
   }
   loadFromSkillOpen.value = true;
@@ -292,14 +320,14 @@ function confirmLoadFromSkill(draft: SubagentAuthoringDraft): void {
   addSubagent(draft);
   loadFromSkillOpen.value = false;
   emit("authoringReset");
-  uiMessage.success("已加入当前主智能体草稿；保存智能体团队后生效");
+  uiMessage.success(t("addedToThePrimaryAgentDraftSaveTheAgent"));
 }
 
 function subagentModelSummary(
   definition: ShortAgentSubagentDefinition
 ): string {
-  if (definition.modelMode !== "custom") return "跟随主智能体";
-  if (!definition.modelId) return "单独配置（未选模型）";
+  if (definition.modelMode !== "custom") return t("usePrimaryAgentModel");
+  if (!definition.modelId) return t("separateConfigurationNoModelSelected");
   const modelLabel =
     modelById.value.get(definition.modelId)?.label ?? definition.modelId;
   const thinking =
@@ -311,7 +339,10 @@ function subagentModelSummary(
     definition.thinkingLevel === "off" &&
     definition.temperature !== undefined
   ) {
-    return `${modelLabel} · 关闭 · 温度 ${definition.temperature}`;
+    return t("valueOffTemperatureValue", {
+      arg0: modelLabel,
+      arg1: definition.temperature
+    });
   }
   return `${modelLabel} · ${thinking}`;
 }
@@ -332,7 +363,7 @@ function removeSubagent(index: number): void {
     editingSubagentId.value = null;
   }
   if (removed) {
-    uiMessage.info("已从当前草稿移除；保存智能体团队后生效");
+    uiMessage.info(t("removedFromTheCurrentDraftSaveTheAgentTeam"));
   }
 }
 
@@ -349,40 +380,49 @@ function validationMessage(): string | null {
     const ids = new Set<string>();
     const names = new Set<string>();
     for (const definition of team.subagents) {
-      if (!definition.name.trim()) return "子智能体名称不能为空";
-      if (!definition.description.trim()) return "子智能体能力说明不能为空";
-      if (!definition.systemPrompt.trim()) return "子智能体系统提示词不能为空";
+      if (!definition.name.trim()) return t("subagentNameIsRequired");
+      if (!definition.description.trim())
+        return t("subagentCapabilitiesAreRequired");
+      if (!definition.systemPrompt.trim())
+        return t("subagentSystemPromptIsRequired");
       if (definition.modelMode === "custom") {
-        if (!definition.modelId?.trim()) return "单独配置模型时必须选择模型";
+        if (!definition.modelId?.trim())
+          return t("selectAModelForASeparateConfiguration");
         const model = modelById.value.get(definition.modelId);
         if (!model) {
-          return `子智能体「${definition.name.trim() || "未命名"}」所选模型不存在，请重新选择`;
+          return t("theModelSelectedForSubagentValueNoLongerExists", {
+            arg0: definition.name.trim() || t("untitled")
+          });
         }
         if (definition.thinkingLevel === undefined) {
-          return "单独配置模型时必须选择思考等级";
+          return t("selectAReasoningLevelForASeparateConfiguration");
         }
         if (
           definition.thinkingLevel !== "off" &&
           !model.thinkingLevelOptions.includes(definition.thinkingLevel)
         ) {
-          return `子智能体「${definition.name.trim() || "未命名"}」的思考等级不在所选模型配置中`;
+          return t("theReasoningLevelForSubagentValueIsNotAvailable", {
+            arg0: definition.name.trim() || t("untitled")
+          });
         }
         if (definition.thinkingLevel === "off") {
           if (definition.temperature === undefined) {
-            return "思考等级关闭时必须选择温度";
+            return t("selectATemperatureWhenReasoningIsOff");
           }
           if (!model.temperatureOptions.includes(definition.temperature)) {
-            return `子智能体「${definition.name.trim() || "未命名"}」的温度不在所选模型配置中`;
+            return t("theTemperatureForSubagentValueIsNotAvailableIn", {
+              arg0: definition.name.trim() || t("untitled")
+            });
           }
         }
       }
       const normalizedId = definition.id.toLocaleLowerCase();
       const normalizedName = definition.name.trim().toLocaleLowerCase();
       if (ids.has(normalizedId)) {
-        return "同一主智能体下的子智能体 ID 不能重复";
+        return t("subagentIDsMustBeUniqueWithinAPrimaryAgent");
       }
       if (names.has(normalizedName)) {
-        return "同一主智能体下的子智能体名称不能重复";
+        return t("subagentNamesMustBeUniqueWithinAPrimaryAgent");
       }
       ids.add(normalizedId);
       names.add(normalizedName);
@@ -430,9 +470,7 @@ function saveSettings(): void {
     })
   });
   if (!parsed.success) {
-    uiMessage.warning(
-      parsed.error.issues[0]?.message ?? "长篇智能体团队配置不完整"
-    );
+    uiMessage.warning(t("novelAgentTeamSettingsAreIncomplete"));
     return;
   }
   emit("save", parsed.data);

@@ -644,7 +644,7 @@ describe("catalog document persistence", () => {
           input.documentId === "draft-section:section-2:body" &&
           input.baseProjectRevision !== diskRevision
         ) {
-          throw new Error("catalog.conflict: stale project revision");
+          throw { code: "catalog.conflict", message: "stale project revision" };
         }
         diskRevision += 1;
         return savedDocument(input.content, diskRevision);
@@ -701,7 +701,7 @@ describe("catalog document persistence", () => {
     });
     const harness = createHarness({
       saveDocument: async () => {
-        throw new Error("catalog.conflict: stale base");
+        throw { code: "catalog.conflict", message: "stale base" };
       },
       ensureOne: async () => oneResult(diskA)
     });
@@ -730,7 +730,7 @@ describe("catalog document persistence", () => {
   it("keeps the first conflict stable and resumes other drafts only after it is handled", async () => {
     const harness = createHarness({
       saveDocument: async () => {
-        throw new Error("catalog.conflict: stale base");
+        throw { code: "catalog.conflict", message: "stale base" };
       },
       ensureOne: async () =>
         oneResult(
@@ -782,7 +782,7 @@ describe("catalog document persistence", () => {
     let reads = 0;
     const harness = createHarness({
       saveDocument: async () => {
-        throw new Error("catalog.conflict: stale base");
+        throw { code: "catalog.conflict", message: "stale base" };
       },
       ensureOne: async () => {
         reads += 1;
@@ -833,7 +833,7 @@ describe("catalog document persistence", () => {
       saveDocument: async (input) => {
         writes += 1;
         if (writes === 1) {
-          throw new Error("catalog.conflict: stale base");
+          throw { code: "catalog.conflict", message: "stale base" };
         }
         return savedDocument(
           input.content,
@@ -972,7 +972,7 @@ describe("catalog document persistence", () => {
     const saveLibraryEntry = vi.fn(async () => {
       writeCount += 1;
       if (writeCount === 1) {
-        throw new Error("catalog.conflict: stale base");
+        throw { code: "catalog.conflict", message: "stale base" };
       }
       return normalizedEntry;
     });

@@ -27,7 +27,7 @@ describe("long agent settings UI", () => {
     expect(longPanelSource).toContain('id: "continuity_ledger"');
     expect(longPanelSource).not.toContain('id: "setting"');
     expect(longPanelSource).not.toContain("expert_section_writer");
-    expect(longPanelSource).toContain("长篇智能体已恢复内置值");
+    expect(longPanelSource).toContain("theNovelAgentHasBeenResetToBuiltIn");
     expect(workspacePanelSource).toContain('@click="activeType = type"');
     expect(workspacePanelSource).not.toContain("长篇 <small>尚未接入</small>");
     expect(settingsPageSource).toContain(
@@ -35,26 +35,30 @@ describe("long agent settings UI", () => {
     );
   });
 
-  it("edits prompts, shortcuts and catalog read scopes", () => {
+  it("edits prompts and catalog read scopes without obsolete welcome controls", () => {
     expect(longPanelSource).toContain("LongAgentSettingsInputSchema.safeParse");
     expect(longPanelSource).toContain("readAccess.materialKinds");
     expect(longPanelSource).toContain("readAccess.skillKinds");
-    expect(longPanelSource).toContain("系统提示词");
-    expect(longPanelSource).toContain("欢迎快捷按钮");
-    expect(longPanelSource).toContain("素材库");
-    expect(longPanelSource).toContain("技能库");
+    expect(longPanelSource).toContain("systemPrompt");
+    expect(longPanelSource).toContain("welcomeShortcuts");
+    expect(longPanelSource).not.toContain("welcome-shortcut-list");
+    expect(longPanelSource).not.toContain(
+      "threeQuickPromptsShownWhenAConversationIsEmpty"
+    );
+    expect(longPanelSource).toContain("materialLibrary");
+    expect(longPanelSource).toContain("skillLibrary");
     expect(longPanelSource).not.toContain('v-model="activeAgent.writeAccess');
     expect(longPanelSource).not.toContain("patchWriteAccess");
   });
 
   it("shows fixed full read access and immutable write boundaries", () => {
     expect(longPanelSource).not.toContain("isRequiredWorkspaceRoot");
-    expect(longPanelSource).toContain("阶段读取、写入与工具边界");
+    expect(longPanelSource).toContain("stageAccessAndToolBoundaries");
     expect(longPanelSource).toContain(
-      "阶段范围与写入边界由应用内置并在 Main 与工具层强制校验。"
+      "stageAccessAndWriteBoundariesAreBuiltIntoThe"
     );
     expect(longPanelSource).toContain(
-      "阶段读取范围：世界观、人物、剧情、正文与连续性账本全部可读"
+      "readableStagesAllWorldbuildingCharactersPlotManuscriptAndContinuity"
     );
   });
 

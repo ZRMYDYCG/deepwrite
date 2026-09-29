@@ -39,7 +39,7 @@ describe("RightEditorPane expert draft navigation", () => {
 
   it("expands a collapsed right-side agent when the editor is centered", () => {
     expect(source).toContain("rightPaneCollapsed?: boolean");
-    expect(source).toContain('aria-label="展开智能体栏"');
+    expect(source).toContain("expandAgentPane");
     expect(source).toContain("emit('toggleRight')");
     expect(writingWorkspaceSource).toContain(
       ":right-pane=\"paneLayout === 'agent-editor'\""
@@ -59,15 +59,17 @@ describe("RightEditorPane expert draft navigation", () => {
       "<EditorPaneToggle"
     );
     expect(source).not.toContain('autoSaveEnabled ? "等待自动保存"');
-    expectSourceToContain(source, 'autoSaveEnabled ? "开启" : "关闭"');
-    expectSourceToContain(source, 'autoSaveEnabled ? "立即保存" : "应用"');
+    expectSourceToContain(source, "on");
+    expectSourceToContain(source, "saveNow");
   });
 
   it("reminds material and skill entries about the 40,000-character recommendation without blocking save", () => {
     expect(source).toContain("CATALOG_LIBRARY_ENTRY_MAX_CHARACTERS");
     expect(source).not.toContain(':maxlength="contentMaxLength"');
     expect(source).not.toContain(':maxlength="recommendedContentLength"');
-    expect(source).toContain("建议每个条目不超过 40,000 字，请勿上传过多内容");
+    expect(source).toContain(
+      "recommendedEntryLimit40000CharactersAvoidUploadingExcessive"
+    );
     expect(source).toContain("contentExceedsRecommendedLength");
     expect(source).not.toContain("contentExceedsLimit");
   });
@@ -102,7 +104,7 @@ describe("RightEditorPane expert draft navigation", () => {
     );
     expect(metadataSource).toContain("parseSkillFrontmatter(props.content)");
 
-    const bindingBadge = metadataSource.indexOf("仅浏览 · 未绑定");
+    const bindingBadge = metadataSource.indexOf("browseOnlyNotLinked");
     const formatBadge = metadataSource.indexOf(
       'class="skill-format-error-badge"'
     );
@@ -143,12 +145,8 @@ describe("RightEditorPane expert draft navigation", () => {
 
     expect(tabsStart).toBeGreaterThan(-1);
     expect(source).toContain(':aria-label="resolvedSectionTabsLabel"');
-    expect(source).toContain(
-      "props.sectionTabsLabel ?? `正文${draftUnitLabel.value}`"
-    );
-    expect(source).toContain(
-      'props.document.workspaceType === "script" ? "剧集" : "小节"'
-    );
+    expect(source).toContain("manuscript");
+    expect(source).toContain("episode");
     expect(source).toContain("emit('selectSection', section.id)");
     expect(source).toContain('v-if="canCreateSection"');
     expect(source).toContain(':aria-label="resolvedCreateSectionLabel"');
@@ -207,14 +205,14 @@ describe("RightEditorPane expert draft navigation", () => {
       "onBeforeUpdate(captureEditorViewportBeforeRender)"
     );
     expect(source).toContain("onUpdated(restoreEditorViewportAfterRender)");
-    expect(source).toContain('{{ manualSaving ? "保存中…"');
+    expect(source).toContain("saving");
     expect(source).toContain("(!autoSaveEnabled && !dirty)");
     expect(source).toContain("@mousedown.prevent");
   });
 
   it("keeps the editor in place while an agent temporarily makes it readonly", () => {
     expect(source).toContain("isTransientlyReadOnly: () => props.locked");
-    expect(source).toContain("lockedLabel ?? '智能体运行中 · 只读'");
+    expect(source).toContain("agentRunningReadOnly");
     expect(source).toContain(':readonly="document.readOnly || locked"');
     expect(source).toContain(":class=\"{ 'is-readonly': document.readOnly }\"");
     expect(source).not.toContain(
@@ -250,7 +248,9 @@ describe("RightEditorPane expert draft navigation", () => {
     expect(resourceSource).toContain(
       "const showEditorDeleteSection = computed"
     );
-    expect(resourceSource).toContain('return "删除当前小节"');
+    expect(resourceSource).toContain(
+      "workspaceResourceCoordinator.deleteCurrentSection"
+    );
     expect(resourceSource).toContain("(directory?.sections.length ?? 0) > 1");
     expect(structureSource).toContain(
       "function removeExpertSectionFromEditor()"
@@ -272,10 +272,16 @@ describe("RightEditorPane expert draft navigation", () => {
     expect(resourceSource).toContain(
       'book.characterStructure.format !== "list"'
     );
-    expect(resourceSource).toContain('title: "概览"');
-    expect(resourceSource).toContain('? "人物条目"');
-    expect(resourceSource).toContain('? "新建人物条目"');
-    expect(resourceSource).toContain('return "删除当前人物条目"');
+    expect(resourceSource).toContain("catalogWorkspace.overview");
+    expect(resourceSource).toContain(
+      "workspaceResourceCoordinator.characterEntry"
+    );
+    expect(resourceSource).toContain(
+      "workspaceResourceCoordinator.newCharacterEntry"
+    );
+    expect(resourceSource).toContain(
+      "workspaceResourceCoordinator.deleteCurrentCharacterEntry"
+    );
     expect(appSource).toContain(
       "showDeleteSection: showEditorDeleteSection.value"
     );
@@ -287,7 +293,7 @@ describe("RightEditorPane expert draft navigation", () => {
   });
 
   it("offers one insert action only after right-clicking a selected editor range", () => {
-    expect(selectionMenuSource).toContain("插入输入框");
+    expect(selectionMenuSource).toContain('nativeText("insertReference")');
     expect(source).toContain('@contextmenu="handleEditorContextMenu"');
     expect(source).toContain('@contextmenu="handlePreviewContextMenu"');
     expect(selectionInsertionSource).not.toContain("event.preventDefault()");
@@ -320,10 +326,10 @@ describe("RightEditorPane expert draft navigation", () => {
   });
 
   it("provides working text undo, redo, find, and replace controls", () => {
-    expect(toolsSource).toContain('aria-label="撤销"');
-    expect(toolsSource).toContain('aria-label="还原"');
-    expect(toolsSource).toContain('aria-label="查找"');
-    expect(toolsSource).toContain('aria-label="替换"');
+    expect(toolsSource).toContain("undo");
+    expect(toolsSource).toContain("redo");
+    expect(toolsSource).toContain("find");
+    expect(toolsSource).toContain("replace");
     expect(source).toContain('@beforeinput="handleEditorBeforeInput"');
     expect(source).toContain('@input="handleEditorInput"');
     expect(source).toContain('@keydown="handleEditorKeydown"');

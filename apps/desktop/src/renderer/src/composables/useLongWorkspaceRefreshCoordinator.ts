@@ -1,3 +1,5 @@
+import { formatError } from "../i18n/errors";
+import { createScopedTranslator } from "../i18n";
 import {
   createLongWorkspaceNavigationSnapshot,
   type LongBookSummary,
@@ -16,6 +18,8 @@ import {
   type LongWorkspaceSelection
 } from "../types/longWorkspace";
 import { createLongWorkspaceRefreshClock } from "../utils/longWorkspaceRefresh";
+
+const t = createScopedTranslator("workspace.longWorkspaceRefreshCoordinator");
 
 interface LongWorkspaceRefreshState {
   longBooks: Ref<readonly LongBookSummary[]>;
@@ -81,11 +85,13 @@ export function useLongWorkspaceRefreshCoordinator(
         return false;
       }
       if (result.bookId !== bookId) {
-        throw new Error("长篇工作区刷新返回了其他书籍。");
+        throw new Error(t("theNovelWorkspaceRefreshReturnedADifferentBook"));
       }
       const currentSummary = state.activeBookSummary.value;
       if (!currentSummary || currentSummary.id !== bookId) {
-        throw new Error("活动长篇摘要已经切换，无法发布刷新结果。");
+        throw new Error(
+          t("theActiveNovelSummaryChangedRefreshResultsCannotBe")
+        );
       }
       const nextSummary: LongBookSummary = {
         ...currentSummary,
@@ -130,8 +136,10 @@ export function useLongWorkspaceRefreshCoordinator(
         state.activeBookId.value === bookId &&
         refreshClock.isCurrent(bookId, requestId)
       ) {
-        const message =
-          error instanceof Error ? error.message : "刷新长篇工作区索引失败。";
+        const message = formatError(
+          error,
+          t("failedToRefreshTheNovelWorkspaceIndex")
+        );
         state.refreshStatus.value = {
           bookId,
           requestId,

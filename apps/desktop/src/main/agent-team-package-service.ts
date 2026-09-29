@@ -1,3 +1,4 @@
+import { nativeMessages, nativeText } from "./native-i18n";
 import { readFile, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { BrowserWindow, Dialog } from "electron";
@@ -37,10 +38,10 @@ export async function downloadAgentTeamPackage(
   const input = AgentTeamProfileTargetInputSchema.parse(rawInput);
   const team = await store.exportProfile(input);
   const selection = await dialog.showSaveDialog(window, {
-    title: `下载智能体团队“${team.name}”`,
-    buttonLabel: "下载团队",
+    title: nativeMessages().downloadTeam(team.name),
+    buttonLabel: nativeText("downloadTeam"),
     defaultPath: join(defaultDirectory, safePackageFileName(team.name)),
-    filters: [{ name: "DeepWrite 智能体团队压缩包", extensions: ["zip"] }]
+    filters: [{ name: nativeText("agentTeamArchive"), extensions: ["zip"] }]
   });
   if (selection.canceled || !selection.filePath) {
     return AgentTeamPackageExportResultSchema.parse({ status: "canceled" });
@@ -61,10 +62,10 @@ export async function installAgentTeamPackage(
   defaultDirectory: string
 ): Promise<AgentTeamPackageInstallResult> {
   const selection = await dialog.showOpenDialog(window, {
-    title: "安装智能体团队",
-    buttonLabel: "安装团队",
+    title: nativeText("installAgentTeam"),
+    buttonLabel: nativeText("installTeam"),
     defaultPath: defaultDirectory,
-    filters: [{ name: "DeepWrite 智能体团队压缩包", extensions: ["zip"] }],
+    filters: [{ name: nativeText("agentTeamArchive"), extensions: ["zip"] }],
     properties: ["openFile"]
   });
   const sourcePath = selection.filePaths[0];

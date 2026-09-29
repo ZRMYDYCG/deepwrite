@@ -1,10 +1,13 @@
 <script setup lang="ts">
+import { createScopedTranslator, locale } from "../i18n";
 import { inject, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { SHORT_MANUSCRIPT_PREVIEW_KEY } from "../composables/shortManuscriptPreviewContext";
 import { useShortManuscriptCharacterCount } from "../composables/useShortManuscriptCharacterCount";
 import type { IconName } from "../types/workspace";
 import type { ShortManuscriptExportTarget } from "../utils/shortManuscriptExport";
 import AppIcon from "./AppIcon.vue";
+
+const t = createScopedTranslator("components.exportShortManuscriptDialog");
 
 const props = defineProps<{
   open: boolean;
@@ -33,26 +36,42 @@ const formats: ReadonlyArray<{
 }> = [
   {
     id: "docx",
-    label: "DOCX 文档",
-    description: "适合继续排版、编辑和打印",
+    get label() {
+      return t("dOCXDocument");
+    },
+    get description() {
+      return t("forFurtherFormattingEditingAndPrinting");
+    },
     icon: "file"
   },
   {
     id: "txt",
-    label: "TXT 纯文本",
-    description: "通用兼容，适合阅读和备份",
+    get label() {
+      return t("tXTPlainText");
+    },
+    get description() {
+      return t("widelyCompatibleForReadingAndBackups");
+    },
     icon: "file"
   },
   {
     id: "epub",
-    label: "EPUB 电子书",
-    description: "适合手机和电子书阅读器",
+    get label() {
+      return t("ePUBEbook");
+    },
+    get description() {
+      return t("forPhonesAndEbookReaders");
+    },
     icon: "book"
   },
   {
     id: "clipboard",
-    label: "复制正文",
-    description: "复制全部正文，可自由选择粘贴位置",
+    get label() {
+      return t("copyManuscript");
+    },
+    get description() {
+      return t("copyTheFullManuscriptToPasteAnywhere");
+    },
     icon: "copy"
   }
 ];
@@ -93,13 +112,20 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
           <div>
             <span class="dialog-eyebrow">{{ bookTitle }}</span>
             <h2 id="export-manuscript-title">
-              导出{{ workspaceType === "script" ? "剧集正文" : "正文" }}
+              {{
+                t("exportMessage", {
+                  arg0:
+                    (workspaceType === "script"
+                      ? t("episodeManuscripts")
+                      : t("manuscript")) ?? ""
+                })
+              }}
             </h2>
           </div>
           <button
             class="dialog-close"
             type="button"
-            aria-label="关闭"
+            :aria-label="t('close')"
             :disabled="submitting"
             @click="requestClose"
           >
@@ -114,24 +140,34 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
           <div
             class="export-manuscript-notice"
             role="note"
-            aria-label="导出范围提醒"
+            :aria-label="t('exportScope')"
           >
             <span class="export-manuscript-notice-icon">
               <AppIcon name="download" :size="18" />
             </span>
             <div>
-              <strong>导出范围提醒</strong>
+              <strong>{{ t("exportScope") }}</strong>
               <p v-if="workspaceType === 'script'">
-                仅导出“剧集”下的全部剧集正文，不包含人物状态、剧情设计和大纲等内容。当前尚未保存的编辑内容也会一并导出。
+                {{
+                  t(
+                    "exportsAllEpisodeManuscriptsOnlyExcludingCharacterStatePlot"
+                  )
+                }}
               </p>
               <p v-else>
-                仅导出“正文”下的导语和全部小节正文，不包含人物状态、剧情设计和大纲等内容。当前尚未保存的编辑内容也会一并导出。
+                {{
+                  t(
+                    "exportsTheIntroductionAndAllManuscriptSectionsOnlyExcluding"
+                  )
+                }}
               </p>
             </div>
           </div>
 
           <fieldset class="export-manuscript-formats">
-            <legend>选择导出格式</legend>
+            <legend>
+              {{ t("selectExportFormat") }}
+            </legend>
             <div class="export-manuscript-format-grid">
               <label
                 v-for="format in formats"
@@ -159,10 +195,12 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
                     >
                       {{
                         characterCount !== null
-                          ? `全文 ${characterCount.toLocaleString("zh-CN")} 字`
+                          ? t("fullManuscriptValueCharacters", {
+                              arg0: characterCount.toLocaleString(locale)
+                            })
                           : characterCountLoading
-                            ? "全文字数统计中…"
-                            : "全文字数暂不可用"
+                            ? t("countingFullManuscript")
+                            : t("fullManuscriptCountUnavailable")
                       }}
                     </span>
                   </strong>
@@ -182,7 +220,7 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
               :disabled="submitting"
               @click="requestClose"
             >
-              取消
+              {{ t("cancel") }}
             </button>
             <button
               class="dialog-primary-button"
@@ -196,11 +234,11 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
               {{
                 submitting
                   ? selectedTarget === "clipboard"
-                    ? "正在复制…"
-                    : "正在导出…"
+                    ? t("copying")
+                    : t("exporting")
                   : selectedTarget === "clipboard"
-                    ? "复制正文"
-                    : "选择保存位置"
+                    ? t("copyManuscript")
+                    : t("selectSaveLocation")
               }}
             </button>
           </div>

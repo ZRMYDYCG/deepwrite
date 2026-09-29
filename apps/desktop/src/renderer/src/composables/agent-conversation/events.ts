@@ -1,3 +1,4 @@
+import { createScopedTranslator } from "../../i18n";
 import { handleToolEvent } from "./tool-events";
 import type { AgentConversationContext } from "./context";
 import type { SystemEventEnvelope } from "@deepwrite/contracts";
@@ -7,6 +8,8 @@ import { rememberBounded } from "./shared";
 import { isAgentEvent, isSubagentEvent } from "./event-kinds";
 import { applyContextCompactionEvent } from "./context-compaction";
 import { uiMessage } from "../../ui-feedback";
+
+const t = createScopedTranslator("workspace.events");
 
 type EventsContext = Pick<
   AgentConversationContext,
@@ -89,7 +92,7 @@ export function handleEvent(
     if (observedRunId && observedRunId !== runId) {
       ctx.failProtocol(
         observedRunId,
-        "同一次请求收到了多个运行标识。",
+        t("multipleRunIdsWereReceivedForTheSameRequest"),
         ctx.runtime.value ?? undefined
       );
       return;
@@ -176,7 +179,9 @@ export function handleEvent(
     }
     if (event.payload.phase === "failed") {
       uiMessage.warning(
-        `上下文压缩失败：${event.payload.errorMessage ?? "未知原因"}。原上下文已保留。`,
+        t("contextCompactionFailedTheOriginalContextWasPreserved", {
+          value: event.payload.errorMessage ?? t("unknownReason")
+        }),
         { duration: 6_000 }
       );
     }
@@ -239,12 +244,12 @@ export function handleEvent(
       message,
       "error",
       event.timestamp,
-      "父智能体运行已完成，但子任务未返回完整终态。"
+      t("theParentAgentCompletedButSubtasksDidNotReturn")
     );
     finalizeUnfinishedMessageTools(
       message,
       event.timestamp,
-      "智能体运行已完成，但工具调用未返回完整终态。"
+      t("theAgentCompletedButToolCallsDidNotReturn")
     );
     message.status = "completed";
     message.activityOnly = false;

@@ -1,8 +1,11 @@
+import { createScopedTranslator } from "../i18n";
 import type {
   ConversationHistoryApi,
   ConversationHistorySession
 } from "@deepwrite/contracts";
 import type { ConversationHistoryItem } from "../types/conversation";
+
+const t = createScopedTranslator("workspace.conversationHistoryIndex");
 
 export function conversationHistoryItem(
   session: ConversationHistorySession,
@@ -13,12 +16,16 @@ export function conversationHistoryItem(
     typeof metadata.createdAt !== "string" ||
     typeof metadata.updatedAt !== "string"
   )
-    throw new Error("历史对话时间格式无效，原始记录已保留。");
+    throw new Error(
+      t("invalidConversationTimestampTheOriginalRecordHasBeenPreserved")
+    );
   return {
     sessionId: session.sessionId,
     title:
       session.summary?.title ??
-      (typeof metadata.title === "string" ? metadata.title : "未命名对话"),
+      (typeof metadata.title === "string"
+        ? metadata.title
+        : t("untitledConversation")),
     preview:
       session.summary?.preview ??
       (typeof metadata.preview === "string" ? metadata.preview : ""),
@@ -58,7 +65,9 @@ async function withHistoryDates(
       result.nextOffset !== null ||
       !Number.isFinite(Date.parse(result.chunk))
     )
-      throw new Error("历史对话时间格式无效，原始记录已保留。");
+      throw new Error(
+        t("invalidConversationTimestampTheOriginalRecordHasBeenPreserved")
+      );
     metadata[field] = result.chunk;
   }
   return { ...session, metadata };
@@ -92,7 +101,7 @@ export async function listConversationHistoryIndex(
     }
     if (page.nextSessionId === null) break;
     if (afterSessionId !== undefined && page.nextSessionId <= afterSessionId)
-      throw new Error("历史会话分页游标没有向前移动。");
+      throw new Error(t("theConversationHistoryCursorDidNotAdvance"));
     afterSessionId = page.nextSessionId;
   }
   items.sort(

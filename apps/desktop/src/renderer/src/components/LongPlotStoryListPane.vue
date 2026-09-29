@@ -1,6 +1,9 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import type { LongWorkspaceSelection } from "../types/longWorkspace";
 import AppIcon from "./AppIcon.vue";
+
+const t = createScopedTranslator("components.longPlotStoryListPane");
 
 type StoryPlot = NonNullable<LongWorkspaceSelection["storyPlots"]>[number];
 type StoryPlotMenuAction = "up" | "down" | "delete";
@@ -23,10 +26,10 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <aside class="long-story-plot-pane" aria-label="故事情节列表">
+  <aside class="long-story-plot-pane" :aria-label="t('storyEvents')">
     <header>
       <div>
-        <strong>当前剧情点涉及</strong>
+        <strong>{{ t("inThisPlotPoint") }}</strong>
         <span>{{ plots.length }}</span>
       </div>
     </header>
@@ -60,7 +63,11 @@ const emit = defineEmits<{
             class="long-story-plot-more-button"
             :class="{ 'is-active': actionMenuId === plot.id }"
             type="button"
-            :aria-label="`${plot.title}更多操作`"
+            :aria-label="
+              t('moreActionsForValue', {
+                arg0: plot.title
+              })
+            "
             :aria-expanded="actionMenuId === plot.id"
             aria-haspopup="menu"
             :disabled="locked"
@@ -82,7 +89,7 @@ const emit = defineEmits<{
               @click.stop="emit('menuAction', plot.id, 'up')"
             >
               <AppIcon name="arrow-up" :size="14" />
-              <span>上移</span>
+              <span>{{ t("moveUp") }}</span>
             </button>
             <button
               class="long-story-plot-action-menu-item"
@@ -96,7 +103,7 @@ const emit = defineEmits<{
                 name="arrow-up"
                 :size="14"
               />
-              <span>下移</span>
+              <span>{{ t("moveDown") }}</span>
             </button>
             <button
               class="long-story-plot-action-menu-item is-danger"
@@ -105,7 +112,7 @@ const emit = defineEmits<{
               @click.stop="emit('menuAction', plot.id, 'delete')"
             >
               <AppIcon name="trash" :size="14" />
-              <span>删除</span>
+              <span>{{ t("delete") }}</span>
             </button>
           </div>
         </div>
@@ -113,8 +120,8 @@ const emit = defineEmits<{
     </div>
     <div v-else class="long-story-plot-pane-empty">
       <AppIcon name="sparkles" :size="22" />
-      <strong>当前范围还没有故事情节</strong>
-      <span>新增情节后会出现在这里，左侧可直接编写正文。</span>
+      <strong>{{ t("noStoryEventsInThisScopeYet") }}</strong>
+      <span>{{ t("newEventsAppearHereWriteTheirContentOnThe") }}</span>
     </div>
   </aside>
 </template>

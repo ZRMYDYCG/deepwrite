@@ -1,3 +1,5 @@
+import { formatError } from "../../i18n/errors";
+import { createScopedTranslator } from "../../i18n";
 import type { AgentEditProposal } from "../../types/conversation";
 import {
   beginAgentEditProposalCommit,
@@ -7,6 +9,8 @@ import {
 import { createKeyedSerialTaskQueue } from "../../utils/keyedSerialTaskQueue";
 import type { AgentConversationController } from "../useAgentConversation";
 import type { QueuedAgentEdit } from "./types";
+
+const t = createScopedTranslator("workspace.queue");
 
 interface ProposalQueueOptions {
   apply(queued: QueuedAgentEdit): Promise<void>;
@@ -23,8 +27,10 @@ function queueKey(sessionId: string, runId: string, proposalId: string) {
 }
 
 function unexpectedQueueErrorMessage(error: unknown): string {
-  const detail = error instanceof Error ? error.message : "未知错误";
-  return `审批保存队列执行异常：${detail}。本项已暂停，可重试；后续独立任务将继续。`;
+  const detail = formatError(error, t("unknownError"));
+  return t("theApprovalSaveQueueFailedThisItemIsPaused", {
+    detail: detail
+  });
 }
 
 function proposalQueueToken(proposal: AgentEditProposal): string {
@@ -159,7 +165,7 @@ export function createProposalQueue(options: ProposalQueueOptions) {
       conversation.updateEditProposal(runId, proposalId, {
         status: "accepting",
         decisionToken,
-        statusMessage: "已批准，正在等待本作品的保存队列…"
+        statusMessage: t("approvedWaitingForThisProjectSSaveQueue")
       });
     }
     const queued: QueuedAgentEdit = {
@@ -208,8 +214,7 @@ export function createProposalQueue(options: ProposalQueueOptions) {
     if (current.status === "accepting") {
       queued.conversation.updateEditProposal(queued.runId, queued.proposalId, {
         status: "pending",
-        statusMessage:
-          "本次审批正在等待关联任务；内容已保留，依赖完成后将自动继续。"
+        statusMessage: t("thisApprovalIsWaitingForARelatedTaskThe")
       });
     } else if (current.status !== "pending") {
       return false;
@@ -263,8 +268,8 @@ export function createProposalQueue(options: ProposalQueueOptions) {
             status: "accepting",
             decisionToken: queued.decisionToken,
             statusMessage: queued.automatic
-              ? "已进入自动保存队列…"
-              : "已批准，正在等待本作品的保存队列…"
+              ? t("addedToTheAutomaticSaveQueue")
+              : t("approvedWaitingForThisProjectSSaveQueue")
           }
         );
       }

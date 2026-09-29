@@ -1,3 +1,4 @@
+import { createScopedTranslator } from "../../i18n";
 import type { AgentConversationContext } from "./context";
 import { expireIdleConversation, type IdleTimeoutScope } from "./idle-timeout";
 import type { AgentRuntimeRef } from "@deepwrite/contracts";
@@ -5,6 +6,8 @@ import type { ChatMessage } from "../../types/conversation";
 import { claimPendingActivityPlaceholder } from "./message-identity";
 import { finalizeUnfinishedMessageTools } from "./attempt-state";
 import { id, rememberBounded } from "./shared";
+
+const t = createScopedTranslator("workspace.runLifecycle");
 
 type RunLifecycleContext = Pick<
   AgentConversationContext,
@@ -153,12 +156,12 @@ export function markRunStopped(
     message,
     "stopped",
     completedAt,
-    "父智能体运行已停止，子任务同步停止。"
+    t("theParentAgentStoppedSubtasksWereAlsoStopped")
   );
   finalizeUnfinishedMessageTools(
     message,
     completedAt,
-    "智能体运行已停止，工具调用未返回完整终态。"
+    t("theAgentStoppedBeforeToolCallsReturnedTheirFinal")
   );
   if (message.processingStartedAt) {
     message.processingCompletedAt = completedAt;

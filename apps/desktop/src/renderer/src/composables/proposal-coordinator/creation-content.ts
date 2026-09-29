@@ -1,4 +1,7 @@
+import { createScopedTranslator } from "../../i18n";
 import type { DeepWriteApi } from "@deepwrite/contracts";
+
+const t = createScopedTranslator("workspace");
 
 type CatalogDocumentWriter = Pick<DeepWriteApi["catalog"], "saveDocument">;
 
@@ -53,7 +56,9 @@ export async function saveCreatedCharacterContent(
 ): Promise<void> {
   if (!input.content.trim() || input.currentContent === input.content) return;
   if (input.currentContent.trim()) {
-    throw new Error("新建人物条目已有不同内容，未覆盖现有文件。");
+    throw new Error(
+      t("creationContent.theNewCharacterEntryAlreadyHasDifferentContentThe")
+    );
   }
   await catalog.saveDocument({
     bookId: input.bookId,
@@ -77,7 +82,11 @@ async function saveCreatedDraftDocument(
     return;
   }
   if (input.currentContent.trim()) {
-    throw new Error(`新建章节${input.label}已有不同内容，未覆盖现有文件。`);
+    throw new Error(
+      t("creationContent.theNewChapterAlreadyHasDifferentContentTheExisting", {
+        label: input.label
+      })
+    );
   }
   await catalog.saveDocument({
     bookId: input.bookId,
@@ -104,14 +113,14 @@ export async function saveCreatedDraftSectionContents(
       documentId: result.section.body.id,
       currentContent: result.section.body.content,
       content: requested?.bodyContent,
-      label: "正文"
+      label: t("catalogWorkspace.manuscript")
     });
     await saveCreatedDraftDocument(catalog, {
       bookId: input.bookId,
       documentId: result.section.characterState.id,
       currentContent: result.section.characterState.content,
       content: requested?.characterStateContent,
-      label: "人物状态"
+      label: t("catalogWorkspace.characterState")
     });
   }
 }

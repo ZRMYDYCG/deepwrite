@@ -1,6 +1,9 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import { computed, onBeforeUnmount, ref, useId } from "vue";
 import type { ConversationTurn } from "../composables/useConversationTurnNavigator";
+
+const t = createScopedTranslator("components.conversationTurnNavigator");
 
 const props = defineProps<{
   turns: readonly ConversationTurn[];
@@ -89,7 +92,7 @@ onBeforeUnmount(cancelPreviewHide);
   <nav
     ref="navigator"
     class="conversation-turn-navigator"
-    aria-label="当前对话轮次"
+    :aria-label="t('conversationTurns')"
   >
     <ol class="conversation-turn-marker-list">
       <li v-for="turn in turns" :key="turn.id">
@@ -99,7 +102,12 @@ onBeforeUnmount(cancelPreviewHide);
           :class="{ 'is-active': activeTurnId === turn.id }"
           :data-conversation-turn-id="turn.id"
           :aria-current="activeTurnId === turn.id ? 'location' : undefined"
-          :aria-label="`预览第 ${turn.number} 轮：${turn.prompt}`"
+          :aria-label="
+            t('previewTurnValueValue', {
+              arg0: turn.number,
+              arg1: turn.prompt
+            })
+          "
           :aria-describedby="previewTurnId === turn.id ? previewId : undefined"
           @mouseenter="showPreview(turn.id, $event, 'hover')"
           @mouseleave="schedulePreviewHide(turn.id, 'hover')"
@@ -117,7 +125,12 @@ onBeforeUnmount(cancelPreviewHide);
       type="button"
       class="conversation-turn-preview is-visible"
       :style="{ top: `${previewTop}px` }"
-      :aria-label="`跳转到第 ${previewTurn.number} 轮：${previewTurn.prompt}`"
+      :aria-label="
+        t('goToTurnValueValue', {
+          arg0: previewTurn.number,
+          arg1: previewTurn.prompt
+        })
+      "
       @mouseenter="cancelPreviewHide"
       @mouseleave="dismissPreview"
       @focus="cancelPreviewHide"

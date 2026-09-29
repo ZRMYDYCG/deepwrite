@@ -18,7 +18,9 @@ describe("App agent model selection", () => {
     expect(registryPortSource).toContain("sessionAgentModelSelection");
     expect(registryPortSource).toContain("storeToRefs(store)");
     expect(source).toContain("createConversationPersistenceAdapter(");
-    expect(source).toContain("{ storage: window.localStorage }");
+    expect(source).toMatch(
+      /createConversationPersistenceAdapter\(\s*window\.deepwrite\?\.conversationPersistence,\s*\{\s*storage: window\.localStorage,/u
+    );
     const body = functionBody(
       runtimeRegistrySource,
       "synchronizeSessionAgentModelSelection",

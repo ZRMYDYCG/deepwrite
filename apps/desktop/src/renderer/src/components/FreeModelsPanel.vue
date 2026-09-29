@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import { computed } from "vue";
 import type {
   ModelConfig,
@@ -8,6 +9,8 @@ import type {
 import AppIcon from "./AppIcon.vue";
 import { freeModelStatus, isFreeModelAvailable } from "./freeModelPresentation";
 import { toModelInput } from "./modelSettingsDraft";
+
+const t = createScopedTranslator("components.freeModelsPanel");
 
 const props = defineProps<{
   settings: ModelSettings | null;
@@ -52,11 +55,14 @@ function testModel(model: ModelConfig): void {
     <header class="free-models-header">
       <div>
         <span class="free-models-kicker">
-          <AppIcon name="model" :size="15" /> DeepWrite 免费模型
+          <AppIcon name="model" :size="15" />
+          {{ t("deepWriteFreeModels") }}
         </span>
-        <h2 id="free-models-title">免费模型</h2>
+        <h2 id="free-models-title">
+          {{ t("freeModels") }}
+        </h2>
         <p>
-          选择要在模型配置和各模型选择器中显示的免费模型。需要更新目录时请点击“刷新列表”，新加入的模型默认关闭。
+          {{ t("chooseWhichFreeModelsAppearInModelSettingsAnd") }}
         </p>
       </div>
       <button
@@ -66,7 +72,7 @@ function testModel(model: ModelConfig): void {
         @click="emit('refresh')"
       >
         <AppIcon name="history" :size="15" />
-        {{ refreshing ? "刷新中…" : "刷新列表" }}
+        {{ refreshing ? t("refreshing") : t("refreshList") }}
       </button>
     </header>
 
@@ -75,16 +81,22 @@ function testModel(model: ModelConfig): void {
     </p>
 
     <div v-if="refreshing && !settings" class="free-models-empty">
-      正在拉取免费模型…
+      {{ t("fetchingFreeModels") }}
     </div>
     <template v-else>
       <section class="free-models-group" aria-labelledby="current-free-models">
         <header>
           <div>
-            <span>当前目录</span>
-            <h3 id="current-free-models">可配置模型</h3>
+            <span>{{ t("currentCatalog") }}</span>
+            <h3 id="current-free-models">
+              {{ t("availableModels") }}
+            </h3>
           </div>
-          <span>{{ currentModels.length }} 个模型</span>
+          <span>{{
+            t("modelsMessage", {
+              arg0: currentModels.length ?? ""
+            })
+          }}</span>
         </header>
 
         <div v-if="currentModels.length" class="free-models-list">
@@ -116,10 +128,18 @@ function testModel(model: ModelConfig): void {
                 class="free-model-test"
                 type="button"
                 :disabled="saving || refreshing || testingModelId !== null"
-                :aria-label="`测试 ${model.label} 联通情况`"
+                :aria-label="
+                  t('testValueConnection', {
+                    arg0: model.label
+                  })
+                "
                 @click="testModel(model)"
               >
-                {{ testingModelId === model.id ? "测试中…" : "测试联通" }}
+                {{
+                  testingModelId === model.id
+                    ? t("testing")
+                    : t("testConnection")
+                }}
               </button>
               <label class="free-model-toggle">
                 <input
@@ -128,7 +148,14 @@ function testModel(model: ModelConfig): void {
                   :disabled="
                     saving || refreshing || !isFreeModelAvailable(model)
                   "
-                  :aria-label="`${enabledModelIds.has(model.id) ? '停用' : '启用'} ${model.label}`"
+                  :aria-label="
+                    t('valueValue', {
+                      arg0: enabledModelIds.has(model.id)
+                        ? t('disable')
+                        : t('enable'),
+                      arg1: model.label
+                    })
+                  "
                   @change="toggleModel(model, $event)"
                 />
                 <span aria-hidden="true" />
@@ -136,7 +163,9 @@ function testModel(model: ModelConfig): void {
             </div>
           </article>
         </div>
-        <p v-else class="free-models-empty">当前没有可配置的免费模型。</p>
+        <p v-else class="free-models-empty">
+          {{ t("noFreeModelsAvailableToConfigure") }}
+        </p>
       </section>
 
       <section
@@ -146,10 +175,16 @@ function testModel(model: ModelConfig): void {
       >
         <header>
           <div>
-            <span>历史记录</span>
-            <h3 id="deprecated-free-models">已废弃模型</h3>
+            <span>{{ t("history") }}</span>
+            <h3 id="deprecated-free-models">
+              {{ t("retiredModels") }}
+            </h3>
           </div>
-          <span>{{ deprecatedModels.length }} 个模型</span>
+          <span>{{
+            t("modelsMessage", {
+              arg0: deprecatedModels.length ?? ""
+            })
+          }}</span>
         </header>
         <div class="free-models-list">
           <article
@@ -163,16 +198,25 @@ function testModel(model: ModelConfig): void {
             <div class="free-model-details">
               <div class="free-model-title-row">
                 <strong>{{ model.label }}</strong>
-                <span class="free-model-status is-deprecated">已废弃</span>
+                <span class="free-model-status is-deprecated">{{
+                  t("retired")
+                }}</span>
               </div>
               <small>{{ model.provider }} · {{ model.modelId }}</small>
               <small>{{ model.api }} · {{ model.id }}</small>
             </div>
-            <label class="free-model-toggle" title="已废弃模型不可启用">
+            <label
+              class="free-model-toggle"
+              :title="t('retiredModelsCannotBeEnabled')"
+            >
               <input
                 type="checkbox"
                 disabled
-                :aria-label="`${model.label} 已废弃`"
+                :aria-label="
+                  t('valueIsRetired', {
+                    arg0: model.label
+                  })
+                "
               />
               <span aria-hidden="true" />
             </label>

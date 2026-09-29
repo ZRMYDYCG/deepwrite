@@ -1,3 +1,4 @@
+import { t } from "../../i18n";
 import { computed, type Ref } from "vue";
 import type {
   ChatMessage,
@@ -36,7 +37,8 @@ function summarizeMessages(messages: readonly ChatMessage[]) {
   }
   return {
     title: compactConversationText(
-      firstUserMessage?.content ?? "未命名对话",
+      firstUserMessage?.content ??
+        t("workspace.conversationHistoryIndex.untitledConversation"),
       42
     ),
     preview: lastVisibleMessage

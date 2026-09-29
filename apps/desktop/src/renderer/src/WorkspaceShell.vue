@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { formatError } from "./i18n/errors";
+import { createScopedTranslator } from "./i18n";
 import { useWorkspaceWindowMenus } from "./composables/useWorkspaceWindowMenus";
 import { useBookAnalysisFeatures } from "./composables/useBookAnalysisFeatures";
 import {
@@ -117,7 +119,9 @@ import { useCatalogIndexStore } from "./stores/catalogIndexStore";
 import { useConversationStore } from "./stores/conversationStore";
 import { useLongWorkspaceStore } from "./stores/longWorkspaceStore";
 
-useAppearance();
+const t = createScopedTranslator("components.workspaceShell");
+
+const appearance = useAppearance();
 const layoutStore = useLayoutStore();
 const {
   currentView,
@@ -296,12 +300,11 @@ const {
     await retryPendingBookReconciliations();
   },
   onUnexpectedError: (error) =>
-    uiMessage.error(
-      error instanceof Error ? error.message : "保存编辑器草稿失败。"
-    )
+    uiMessage.error(formatError(error, t("couldNotSaveEditorDraft")))
 });
 const {
   dispose: disposeGeneralSettings,
+  drain: drainGeneralSettings,
   load: loadGeneralSettings,
   updateAutoApproveCrossStageOperations,
   updateAutoSave: updateEditorAutoSave,
@@ -437,7 +440,17 @@ const conversations = conversationControllers.value;
 const conversationScopes = conversationScopesByKey.value;
 const conversationPersistenceAdapter = createConversationPersistenceAdapter(
   window.deepwrite?.conversationPersistence,
-  { storage: window.localStorage }
+  {
+    storage: window.localStorage,
+    beforeClose: async () => {
+      await drainEditorSaves();
+      await drainGeneralSettings({ strict: true });
+      await appearance.flush();
+      await draftRecoveryPersistence.flush({ strict: true });
+      // The Main store serializes this read after any pending directory write.
+      await window.deepwrite?.workspaceDirectory.list();
+    }
+  }
 );
 const conversationRuntimeRegistry = useConversationRuntimeRegistryCoordinator({
   store: conversationRuntimeRegistryStorePort(conversationStore),
@@ -879,7 +892,9 @@ const {
     exportLong(input) {
       const desktop = window.deepwrite;
       if (!desktop) {
-        throw new Error("桌面运行时已断开，无法导出长篇。");
+        throw new Error(
+          t("theDesktopRuntimeDisconnectedTheNovelCannotBeExported")
+        );
       }
       return desktop.manuscript.exportLong(input);
     }
@@ -1099,7 +1114,7 @@ const shortBookLifecycle = useLazyShortBookLifecycleCoordinator({
         )
       );
       if (stopped.some((accepted) => !accepted)) {
-        throw new Error("当前智能体未能安全停止，作品操作已取消。");
+        throw new Error(t("theAgentCouldNotStopSafelyTheWorkOperation"));
       }
     },
     disposeBook(bookId, options) {
@@ -1233,7 +1248,7 @@ const skillLibraries = computed<ResourceTreeNode[]>(() => {
       id: library.id,
       label: library.title,
       icon: "library",
-      ...(library.isBuiltin ? { badge: "官方" } : {}),
+      ...(library.isBuiltin ? { badge: t("official") } : {}),
       catalogNodeType: "library",
       libraryId: library.id,
       skillKind: library.skillKind,
@@ -1654,7 +1669,7 @@ async function prepareLibraryProjectsForDuplicate(
     saveConflict.value &&
     scopedDocuments.some(({ id }) => id === saveConflict.value?.documentId)
   ) {
-    uiMessage.warning("请先处理资料库尚未解决的保存冲突。");
+    uiMessage.warning(t("resolveTheLibrarySSaveConflictsFirst"));
     return false;
   }
   for (const document of scopedDocuments) {
@@ -1667,7 +1682,7 @@ async function prepareLibraryProjectsForDuplicate(
       false
     );
     if (!saved) {
-      uiMessage.warning("存在无法安全保存的资料库草稿，复制已取消。");
+      uiMessage.warning(t("someLibraryDraftsCannotBeSavedSafelyCopyingWas"));
       return false;
     }
   }
@@ -1721,7 +1736,7 @@ async function handleResourceAction(
       payload.action === "choose-import-book")
   ) {
     if (!window.deepwrite) {
-      uiMessage.warning("浏览器预览不能打开本地作品，请使用桌面客户端。");
+      uiMessage.warning(t("browserPreviewsCannotOpenLocalWorksUseTheDesktop"));
       return;
     }
     bookTransferDialogMode.value =
@@ -1734,12 +1749,14 @@ async function handleResourceAction(
     payload.action === "refresh-long-books"
   ) {
     if (!resolveLongWorkspaceApi()) {
-      uiMessage.warning("浏览器预览不能刷新本地长篇，请使用桌面客户端。");
+      uiMessage.warning(
+        t("browserPreviewsCannotRefreshLocalNovelsUseTheDesktop")
+      );
       return;
     }
     await loadLongBookList({ notify: true, force: true });
     if (!longCatalogLoadError.value) {
-      uiMessage.success("长篇列表已刷新");
+      uiMessage.success(t("novelListRefreshed"));
     }
     return;
   }
@@ -1778,7 +1795,9 @@ async function handleResourceAction(
     (payload.domain === "material" || payload.domain === "skill")
   ) {
     if (!window.deepwrite) {
-      uiMessage.warning("浏览器预览不能创建本地资料库，请使用桌面客户端。");
+      uiMessage.warning(
+        t("browserPreviewsCannotCreateLocalLibrariesUseTheDesktop")
+      );
       return;
     }
     libraryProjectDialog.value = {
@@ -1793,7 +1812,9 @@ async function handleResourceAction(
     (payload.domain === "material" || payload.domain === "skill")
   ) {
     if (!window.deepwrite) {
-      uiMessage.warning("浏览器预览不能创建本地分组，请使用桌面客户端。");
+      uiMessage.warning(
+        t("browserPreviewsCannotCreateLocalGroupsUseTheDesktop")
+      );
       return;
     }
     libraryGroupDialog.value = { domain: payload.domain };
@@ -1861,7 +1882,7 @@ async function handleResourceAction(
     return;
   }
 
-  uiMessage.info("当前资源操作暂不可用。");
+  uiMessage.info(t("thisResourceActionIsTemporarilyUnavailable"));
 }
 
 function handleBookTransferSelect(action: BookTransferAction): void {
@@ -2051,7 +2072,7 @@ async function selectEditorEntrySearchResult(
     (document) => document.id === documentId
   );
   if (!target) {
-    uiMessage.warning("目标条目已不存在，无法跳转。");
+    uiMessage.warning(t("theTargetEntryNoLongerExists"));
     return;
   }
   const navigated = await navigateToApprovalTarget({
@@ -2059,7 +2080,7 @@ async function selectEditorEntrySearchResult(
     workspaceId: target.workspaceId ?? target.libraryId ?? target.id,
     documentId: target.id
   });
-  if (!navigated) uiMessage.warning("目标条目暂时无法打开。");
+  if (!navigated) uiMessage.warning(t("theTargetEntryCannotBeOpenedRightNow"));
 }
 
 async function prepareEditorEntrySearch(): Promise<void> {
@@ -2079,7 +2100,8 @@ async function selectLongEntrySearchResult(fileId: string): Promise<void> {
     bookId,
     candidates: [{ kind: "file", fileId }]
   });
-  if (!navigated) uiMessage.warning("目标长篇条目暂时无法打开。");
+  if (!navigated)
+    uiMessage.warning(t("theTargetNovelEntryCannotBeOpenedRightNow"));
 }
 
 const disposeLazyApprovalNavigationCoordinator = approvalNavigation.dispose;
@@ -2097,7 +2119,7 @@ async function locateAcceptedEditProposal(input: {
   if (
     !(await navigateToApprovalTarget(resolveAgentEditApprovalTarget(proposal)))
   ) {
-    uiMessage.warning("目标文件或所属条目已不存在，无法跳转。");
+    uiMessage.warning(t("theTargetFileOrItsParentEntryNoLonger"));
   }
 }
 
@@ -2380,6 +2402,8 @@ onBeforeUnmount(() => {
     :module="workspaceFeatureModule"
     :left-collapsed="leftCollapsed"
     @back="featureHost.closeSettings"
+    @choose-workspace-directory="featureHost.chooseWorkspaceDirectory"
+    @reset-workspace-directory="featureHost.resetWorkspaceDirectory"
     @update-permission-mode="updatePermissionMode"
     @update-auto-approve-cross-stage-operations="
       updateAutoApproveCrossStageOperations
@@ -2483,6 +2507,7 @@ onBeforeUnmount(() => {
       @set-agent-team-enabled="setAgentTeamEnabled"
       @save-agent-team="saveAgentTeamSettings"
       @choose-workspace-directory="featureHost.chooseWorkspaceDirectory"
+      @reset-workspace-directory="featureHost.resetWorkspaceDirectory"
       @save-models="saveModelSettings"
       @test-model="testModel"
       @open-official-models="featureHost.openOfficialModelsSettings"
@@ -2511,6 +2536,7 @@ onBeforeUnmount(() => {
       :right-pane="writingRightPaneViewModel"
       :pane-layout="generalSettings.workspacePaneLayout"
       :default-text-view-mode="generalSettings.defaultTextViewMode"
+      :auto-save-enabled="editorAutoSaveEnabled"
       @update:draft="updateLongComposerDraft"
       @editor-port-change="updateLongWorkspaceEditorPort"
       @expand-left="leftCollapsed = false"
@@ -2601,7 +2627,7 @@ onBeforeUnmount(() => {
       v-if="!leftCollapsed"
       class="pane-resizer pane-resizer-left"
       role="separator"
-      aria-label="调整左侧栏宽度"
+      :aria-label="t('resizeLeftSidebar')"
       aria-orientation="vertical"
       :aria-valuemin="LEFT_PANE_MIN"
       :aria-valuemax="LEFT_PANE_MAX"

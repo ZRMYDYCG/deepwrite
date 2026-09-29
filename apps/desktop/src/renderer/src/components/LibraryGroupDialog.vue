@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { formatError } from "../i18n/errors";
+import { createScopedTranslator } from "../i18n";
 import {
   computed,
   nextTick,
@@ -21,6 +23,8 @@ import { MATERIAL_KINDS, SKILL_KINDS } from "@deepwrite/contracts";
 import { uiMessage } from "../ui-feedback";
 import PopupSelect from "./PopupSelect.vue";
 
+const t = createScopedTranslator("components.libraryGroupDialog");
+
 const CREATE_DEFAULT_LIBRARY_VALUE = "__create_default_library__";
 
 type LibraryDomain = "material" | "skill";
@@ -42,17 +46,35 @@ const emit = defineEmits<{
 }>();
 
 const MATERIAL_LABELS = {
-  character: "人设素材库",
-  gimmick: "梗素材库",
-  plot: "剧情素材库",
-  draft: "正文素材库",
-  other: "其他素材库"
+  get character() {
+    return t("characterMaterialLibrary");
+  },
+  get gimmick() {
+    return t("ideaMaterialLibrary");
+  },
+  get plot() {
+    return t("plotMaterialLibrary");
+  },
+  get draft() {
+    return t("manuscriptMaterialLibrary");
+  },
+  get other() {
+    return t("otherMaterialLibrary");
+  }
 } as const;
 const SKILL_LABELS = {
-  general: "通用技能库",
-  plot: "剧情设计技能库",
-  style: "文风写作技能库",
-  other: "其他技能库"
+  get general() {
+    return t("generalSkillLibrary");
+  },
+  get plot() {
+    return t("plotDesignSkillLibrary");
+  },
+  get style() {
+    return t("writingStyleSkillLibrary");
+  },
+  get other() {
+    return t("otherSkillLibrary");
+  }
 } as const;
 
 const title = ref("");
@@ -61,7 +83,7 @@ const selections = ref<Record<string, string>>({});
 const resolving = ref(false);
 const editing = computed(() => Boolean(props.group));
 const domainLabel = computed(() =>
-  props.domain === "material" ? "素材" : "技能"
+  props.domain === "material" ? t("material") : t("skill")
 );
 const busy = computed(() => Boolean(props.submitting) || resolving.value);
 const unavailableLibraryIds = computed(() => {
@@ -87,11 +109,13 @@ const rows = computed(() =>
         kind,
         label: MATERIAL_LABELS[kind],
         options: [
-          { value: "", label: "不选择" },
+          { value: "", label: t("none") },
           {
             value: CREATE_DEFAULT_LIBRARY_VALUE,
-            label: "＋ 新建默认库",
-            description: `创建新的${MATERIAL_LABELS[kind]}并绑定到此分组`
+            label: t("createDefaultLibrary"),
+            description: t("createANewValueAndLinkItToThis", {
+              arg0: MATERIAL_LABELS[kind]
+            })
           },
           ...props.materials
             .filter(
@@ -108,11 +132,13 @@ const rows = computed(() =>
         kind,
         label: SKILL_LABELS[kind],
         options: [
-          { value: "", label: "不选择" },
+          { value: "", label: t("none") },
           {
             value: CREATE_DEFAULT_LIBRARY_VALUE,
-            label: "＋ 新建默认库",
-            description: `创建新的${SKILL_LABELS[kind]}并绑定到此分组`
+            label: t("createDefaultLibrary"),
+            description: t("createANewValueAndLinkItToThis", {
+              arg0: SKILL_LABELS[kind]
+            })
           },
           ...props.skills
             .filter(
@@ -135,7 +161,7 @@ function defaultLibraryName(kind: string): string {
     props.domain === "material"
       ? MATERIAL_LABELS[kind as MaterialKind]
       : SKILL_LABELS[kind as SkillKind];
-  const groupTitle = title.value.trim() || "分组";
+  const groupTitle = title.value.trim() || t("group");
   return `${groupTitle} · ${kindLabel}`;
 }
 
@@ -144,7 +170,7 @@ async function resolveMemberSelections(
 ): Promise<Record<string, string> | null> {
   const api = window.deepwrite;
   if (!api) {
-    uiMessage.error("桌面桥接尚未就绪，请稍后重试。");
+    uiMessage.error(t("theDesktopBridgeIsNotReadyTryAgainShortly"));
     return null;
   }
   const resolved: Record<string, string> = {};
@@ -168,7 +194,9 @@ async function resolveMemberSelections(
             skillKind: kind as SkillKind
           });
     if (!created) {
-      uiMessage.info("已取消新建默认库，分组操作未继续。");
+      uiMessage.info(
+        t("defaultLibraryCreationWasCanceledTheGroupOperationDid")
+      );
       return null;
     }
     resolved[kind] = created.id;
@@ -181,7 +209,7 @@ async function submit(): Promise<void> {
   if (busy.value) return;
   const name = title.value.trim();
   if (!name) {
-    uiMessage.warning("请输入分组名称");
+    uiMessage.warning(t("enterAGroupName"));
     titleInput.value?.focus();
     return;
   }
@@ -224,9 +252,7 @@ async function submit(): Promise<void> {
       );
     }
   } catch (error: unknown) {
-    uiMessage.error(
-      error instanceof Error ? error.message : "新建默认库失败。"
-    );
+    uiMessage.error(formatError(error, t("couldNotCreateTheDefaultLibrary")));
   } finally {
     resolving.value = false;
   }
@@ -268,15 +294,19 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
       >
         <header>
           <div>
-            <span class="dialog-eyebrow">{{ domainLabel }}库分组</span>
+            <span class="dialog-eyebrow">{{
+              t("libraryGroupMessage", {
+                arg0: domainLabel ?? ""
+              })
+            }}</span>
             <h2 id="library-group-dialog-title">
-              {{ editing ? "编辑分组" : "新建分组" }}
+              {{ editing ? t("editGroup") : t("newGroup") }}
             </h2>
           </div>
           <button
             class="dialog-close"
             type="button"
-            aria-label="关闭"
+            :aria-label="t('close')"
             :disabled="busy"
             @click="requestClose"
           >
@@ -290,31 +320,42 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
         >
           <p class="dialog-description">
             <template v-if="editing">
-              修改“{{ group?.title }}”的名称或包含的{{
-                domainLabel
-              }}库。移出的库会回到原分类，新绑定的库会移动到此分组。已有库被占用时，也可选择「新建默认库」。
+              {{
+                t("changeAndItsLinkedLibrariesRemovedLibrariesMessage", {
+                  arg0: group?.title ?? "",
+                  arg1: domainLabel ?? ""
+                })
+              }}
             </template>
             <template v-else>
-              每一种类型最多选择一个已有{{
-                domainLabel
-              }}库，也可以选择「新建默认库」当场创建，或全部留空稍后再补充。
+              {{
+                t("chooseAtMostOneExistingLibraryPerMessage", {
+                  arg0: domainLabel ?? ""
+                })
+              }}
             </template>
           </p>
           <label class="book-resource-name-field">
-            <span>分组名称</span>
+            <span>{{ t("groupName") }}</span>
             <input
               ref="titleInput"
               v-model="title"
               type="text"
               maxlength="80"
               autocomplete="off"
-              placeholder="请输入分组名称"
+              :placeholder="t('enterAGroupName')"
               :disabled="busy"
             />
           </label>
 
           <fieldset class="library-group-members">
-            <legend>选择{{ domainLabel }}库</legend>
+            <legend>
+              {{
+                t("selectLibrariesMessage", {
+                  arg0: domainLabel ?? ""
+                })
+              }}
+            </legend>
             <label
               v-for="row in rows"
               :key="row.kind"
@@ -340,7 +381,7 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
               :disabled="busy"
               @click="requestClose"
             >
-              取消
+              {{ t("cancel") }}
             </button>
             <button
               class="dialog-primary-button"
@@ -349,14 +390,14 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
             >
               {{
                 resolving
-                  ? "创建默认库…"
+                  ? t("creatingDefaultLibrary")
                   : submitting
                     ? editing
-                      ? "保存中…"
-                      : "创建中…"
+                      ? t("saving")
+                      : t("creating")
                     : editing
-                      ? "保存分组"
-                      : "创建分组"
+                      ? t("saveGroup")
+                      : t("createGroup")
               }}
             </button>
           </div>

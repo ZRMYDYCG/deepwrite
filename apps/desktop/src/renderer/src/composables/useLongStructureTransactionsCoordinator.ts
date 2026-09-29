@@ -1,3 +1,5 @@
+import { formatError } from "../i18n/errors";
+import { createScopedTranslator } from "../i18n";
 import { computed } from "vue";
 import type {
   LongWorkspaceImpactConfirmation,
@@ -20,6 +22,8 @@ import { createLongStructureSync } from "./long-structure-transactions/sync";
 import { createLongStructureTree } from "./long-structure-transactions/tree";
 import { NOOP_COMPLETION } from "./long-structure-transactions/types";
 import type { LongStructureTransactionsCoordinatorOptions } from "./long-structure-transactions/types";
+
+const t = createScopedTranslator("workspace");
 
 export type {
   LongStructureTransactionsCoordinatorOptions,
@@ -111,7 +115,9 @@ export function useLongStructureTransactionsCoordinator(
   ): Promise<void> {
     const expectedBookId = state.activeBookId.value;
     if (!expectedBookId) {
-      const message = "当前长篇结构尚未就绪。";
+      const message = t(
+        "longBookLifecycleCoordinator.theCurrentNovelStructureIsNotReady"
+      );
       options.notifications.warning(message);
       completion.fail(message);
       return;
@@ -126,7 +132,9 @@ export function useLongStructureTransactionsCoordinator(
     const expectedBookId = state.activeBookId.value;
     const expectedIndex = state.workspaceIndex.value;
     if (!expectedBookId || !expectedIndex) {
-      options.notifications.warning("当前长篇结构尚未就绪。");
+      options.notifications.warning(
+        t("longBookLifecycleCoordinator.theCurrentNovelStructureIsNotReady")
+      );
       completion();
       return;
     }
@@ -146,9 +154,12 @@ export function useLongStructureTransactionsCoordinator(
     } catch (error: unknown) {
       if (lease.isDisposed()) return;
       options.notifications.warning(
-        error instanceof Error
-          ? error.message
-          : "无法读取这次结构修改的关联影响。"
+        formatError(
+          error,
+          t(
+            "longStructureTransactionsCoordinator.couldNotReadTheRelationshipImpactOfThisStructure"
+          )
+        )
       );
       completion();
     }
@@ -166,7 +177,9 @@ export function useLongStructureTransactionsCoordinator(
         !chapterCardId ||
         node.longWorkspaceSelection?.root !== "draft"
       ) {
-        options.notifications.warning("当前小节尚未准备好。");
+        options.notifications.warning(
+          t("longStructureTransactionsCoordinator.theCurrentSectionIsNotReady")
+        );
         return;
       }
       if (state.activeBookId.value !== bookId) {
@@ -181,7 +194,11 @@ export function useLongStructureTransactionsCoordinator(
         ({ id }) => id === chapterCardId
       );
       if (state.activeBookId.value !== bookId || !index || !chapter) {
-        options.notifications.warning("该小节已不存在，请刷新后重试。");
+        options.notifications.warning(
+          t(
+            "longStructureTransactionsCoordinator.thisSectionNoLongerExistsRefreshAndTryAgain"
+          )
+        );
         return;
       }
       if (action === "delete") {
@@ -214,7 +231,12 @@ export function useLongStructureTransactionsCoordinator(
         } catch (error: unknown) {
           if (!lease.isDisposed()) {
             options.notifications.warning(
-              error instanceof Error ? error.message : "无法预览小节删除影响。"
+              formatError(
+                error,
+                t(
+                  "longStructureTransactionsCoordinator.couldNotPreviewTheImpactOfDeletingTheSection"
+                )
+              )
             );
           }
         }
@@ -226,7 +248,9 @@ export function useLongStructureTransactionsCoordinator(
         async (mutationLease) => {
           if (mutationLease.target.index !== index) {
             options.notifications.warning(
-              "活动长篇或结构已切换，本次调整已取消。"
+              t(
+                "longStructureTransactionsCoordinator.theActiveLongFormProjectOrStructureChangedThis"
+              )
             );
             return;
           }
@@ -237,7 +261,9 @@ export function useLongStructureTransactionsCoordinator(
             lease.assertCurrentLongStructureMutationTarget(
               mutationLease.target,
               mutationLease,
-              "活动长篇或结构已切换，本次调整已取消。"
+              t(
+                "longStructureTransactionsCoordinator.theActiveLongFormProjectOrStructureChangedThis"
+              )
             );
             batch = createLongStructureMutationBuilder(index).reorderChapter(
               chapterCardId,
@@ -246,7 +272,12 @@ export function useLongStructureTransactionsCoordinator(
           } catch (error: unknown) {
             if (lease.isDisposed()) return;
             options.notifications.warning(
-              error instanceof Error ? error.message : "无法调整小节顺序。"
+              formatError(
+                error,
+                t(
+                  "longStructureTransactionsCoordinator.couldNotReorderTheSection"
+                )
+              )
             );
             return;
           }
@@ -258,8 +289,12 @@ export function useLongStructureTransactionsCoordinator(
               saveEditor: false,
               successMessage:
                 action === "move-up"
-                  ? `已上移小节“${chapter.title}”`
-                  : `已下移小节“${chapter.title}”`
+                  ? t("longStructureTransactionsCoordinator.movedSectionUp", {
+                      title: chapter.title
+                    })
+                  : t("longStructureTransactionsCoordinator.movedSectionDown", {
+                      title: chapter.title
+                    })
             },
             index
           );

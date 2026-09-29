@@ -7,7 +7,7 @@ describe("AgentTeamCatalogFeature", () => {
     expect(source).toContain('v-if="selectedTeam"');
     expect(source).toContain("<AgentTeamSettingsPanel");
     expect(source).toContain("selectedTeamId = team.id");
-    expect(source).toContain("返回团队列表");
+    expect(source).toContain("backToTeams");
   });
 
   it("supports per-type selection toggles and protected deletion", () => {
@@ -18,7 +18,7 @@ describe("AgentTeamCatalogFeature", () => {
     expect(source).toContain(
       "catalog?.enabledTeamIds[team.workspaceType] === team.id"
     );
-    expect(source).toContain("确认删除");
+    expect(source).toContain("deleteMessage");
     expect(source).toContain('class="danger-button"');
   });
 
@@ -53,7 +53,7 @@ describe("AgentTeamCatalogFeature", () => {
   });
 
   it("downloads each complete team and installs uploaded team archives", () => {
-    expect(source).toContain("安装团队");
+    expect(source).toContain("installTeam");
     expect(source).toContain("emit('install')");
     expect(source).toContain("emit('download', { teamId: team.id })");
     expect(source).toContain('<AppIcon name="download"');

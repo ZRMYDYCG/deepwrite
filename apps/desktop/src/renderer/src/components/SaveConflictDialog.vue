@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
+
+const t = createScopedTranslator("components.saveConflictDialog");
 defineProps<{
   open: boolean;
   title: string;
@@ -25,31 +28,40 @@ const emit = defineEmits<{
       >
         <header>
           <div>
-            <span class="dialog-eyebrow">外部修改冲突</span>
-            <h2 id="save-conflict-title">“{{ title }}”已在其他编辑器中更新</h2>
+            <span class="dialog-eyebrow">{{ t("externalEditConflict") }}</span>
+            <h2 id="save-conflict-title">
+              {{ t("wasUpdatedInAnotherEditorMessage", { arg0: title ?? "" }) }}
+            </h2>
           </div>
         </header>
 
         <div class="dialog-content">
           <p class="dialog-description">
-            DeepWrite
-            没有覆盖磁盘内容。可以保留当前草稿、重新加载磁盘版本，或明确确认后用当前草稿覆盖。
+            {{ t("deepWriteDidNotOverwriteTheDiskContentKeepThe") }}
           </p>
           <div class="save-conflict-columns">
             <section>
-              <strong>当前草稿 · {{ draftContent.length }} 字</strong>
-              <pre>{{ draftContent.slice(0, 2000) || "（空内容）" }}</pre>
+              <strong>{{
+                t("currentDraftCharactersMessage", {
+                  arg0: draftContent.length ?? ""
+                })
+              }}</strong>
+              <pre>{{ draftContent.slice(0, 2000) || t("emptyContent") }}</pre>
             </section>
             <section>
-              <strong>磁盘版本 · {{ diskContent.length }} 字</strong>
-              <pre>{{ diskContent.slice(0, 2000) || "（空内容）" }}</pre>
+              <strong>{{
+                t("diskVersionCharactersMessage", {
+                  arg0: diskContent.length ?? ""
+                })
+              }}</strong>
+              <pre>{{ diskContent.slice(0, 2000) || t("emptyContent") }}</pre>
             </section>
           </div>
           <p
             v-if="draftContent.length > 2000 || diskContent.length > 2000"
             class="dialog-note"
           >
-            对比预览最多显示前 2,000 字，实际操作仍针对完整内容。
+            {{ t("theComparisonShowsUpTo2000CharactersActions") }}
           </p>
           <div class="dialog-actions save-conflict-actions">
             <button
@@ -58,7 +70,7 @@ const emit = defineEmits<{
               :disabled="submitting"
               @click="emit('keep')"
             >
-              保留当前草稿
+              {{ t("keepCurrentDraft") }}
             </button>
             <button
               class="dialog-secondary-button"
@@ -66,7 +78,7 @@ const emit = defineEmits<{
               :disabled="submitting"
               @click="emit('reload')"
             >
-              重新加载磁盘版
+              {{ t("reloadDiskVersion") }}
             </button>
             <button
               class="dialog-primary-button is-danger"
@@ -74,7 +86,7 @@ const emit = defineEmits<{
               :disabled="submitting"
               @click="emit('overwrite')"
             >
-              {{ submitting ? "覆盖中…" : "覆盖磁盘版" }}
+              {{ submitting ? t("overwriting") : t("overwriteDiskVersion") }}
             </button>
           </div>
         </div>

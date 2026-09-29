@@ -1,3 +1,5 @@
+import { formatError } from "../../i18n/errors";
+import { createScopedTranslator } from "../../i18n";
 import { computed, ref } from "vue";
 import {
   CHAT_ASSISTANT_PROJECT_PROMPT_MAX_LENGTH,
@@ -15,6 +17,8 @@ import {
   readChatProjectConfig,
   saveChatProjectConfig
 } from "./chatAssistantProfiles";
+
+const t = createScopedTranslator("extras.chatAssistant");
 export function useChatAssistantProjectConfig(
   assistant: ChatAssistantModeFeature
 ) {
@@ -53,7 +57,7 @@ export function useChatAssistantProjectConfig(
       ) ?? null
   );
   const projectConfigTitle = computed(() =>
-    projectConfigMode.value === "add" ? "添加项目" : "编辑项目"
+    projectConfigMode.value === "add" ? t("addProject") : t("editProject")
   );
   async function loadProjectConfigFor(
     project: ChatAssistantProjectRef
@@ -64,9 +68,7 @@ export function useChatAssistantProjectConfig(
       projectConfigPrompt.value = config.systemPrompt;
       projectConfigCustomized.value = config.customized;
     } catch (cause) {
-      uiMessage.error(
-        cause instanceof Error ? cause.message : "读取项目配置失败"
-      );
+      uiMessage.error(formatError(cause, t("readProjectConfigFailed")));
     } finally {
       projectConfigPending.value = false;
     }
@@ -76,8 +78,8 @@ export function useChatAssistantProjectConfig(
     if (!availableProjectOptions.value.length) {
       uiMessage.info(
         assistant.projectOptions.value.length
-          ? "当前书籍都已添加为聊天项目"
-          : "当前没有可关联的短篇、剧本或长篇书籍"
+          ? t("allBooksLinked")
+          : t("noLinkableBooks")
       );
       return;
     }
@@ -97,7 +99,7 @@ export function useChatAssistantProjectConfig(
       (candidate) => candidate.key === projectKey
     );
     if (!option?.available) {
-      uiMessage.info("当前没有可编辑的关联项目");
+      uiMessage.info(t("noEditableProjects"));
       return;
     }
     projectConfigMode.value = "edit";
@@ -122,17 +124,19 @@ export function useChatAssistantProjectConfig(
   async function saveProjectConfig(): Promise<void> {
     const option = projectConfigOption.value;
     if (!option) {
-      uiMessage.warning("请选择要关联的书籍");
+      uiMessage.warning(t("chooseLinkedBook"));
       return;
     }
     const prompt = projectConfigPrompt.value.trim();
     if (!prompt) {
-      uiMessage.warning("项目提示词不能为空");
+      uiMessage.warning(t("projectPromptRequired"));
       return;
     }
     if (prompt.length > CHAT_ASSISTANT_PROJECT_PROMPT_MAX_LENGTH) {
       uiMessage.warning(
-        `项目提示词不能超过 ${CHAT_ASSISTANT_PROJECT_PROMPT_MAX_LENGTH} 个字符`
+        t("projectPromptLimit", {
+          limit: CHAT_ASSISTANT_PROJECT_PROMPT_MAX_LENGTH
+        })
       );
       return;
     }
@@ -152,12 +156,12 @@ export function useChatAssistantProjectConfig(
       }
       projectConfigOpen.value = false;
       uiMessage.success(
-        projectConfigMode.value === "add" ? "项目已添加" : "项目配置已保存"
+        projectConfigMode.value === "add"
+          ? t("projectAdded")
+          : t("projectConfigurationSaved")
       );
     } catch (cause) {
-      uiMessage.error(
-        cause instanceof Error ? cause.message : "保存项目配置失败"
-      );
+      uiMessage.error(formatError(cause, t("saveProjectConfigFailed")));
     } finally {
       projectConfigPending.value = false;
     }
@@ -166,7 +170,7 @@ export function useChatAssistantProjectConfig(
   async function resetProjectConfig(): Promise<void> {
     const option = projectConfigOption.value;
     if (!option) {
-      uiMessage.warning("请先选择关联书籍");
+      uiMessage.warning(t("linkedBookRequired"));
       return;
     }
     projectConfigPending.value = true;
@@ -179,11 +183,9 @@ export function useChatAssistantProjectConfig(
       );
       projectConfigPrompt.value = config.systemPrompt;
       projectConfigCustomized.value = config.customized;
-      uiMessage.success("已恢复默认项目提示词");
+      uiMessage.success(t("defaultProjectPromptRestored"));
     } catch (cause) {
-      uiMessage.error(
-        cause instanceof Error ? cause.message : "恢复默认配置失败"
-      );
+      uiMessage.error(formatError(cause, t("restoreDefaultConfigFailed")));
     } finally {
       projectConfigPending.value = false;
     }

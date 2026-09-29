@@ -1,5 +1,8 @@
+import { createScopedTranslator } from "../i18n";
 import type { ApprovalNavigationTarget } from "../utils/approvalNavigation";
 import type { ApprovalNavigationCoordinatorContext } from "./useApprovalNavigationCoordinator";
+
+const t = createScopedTranslator("workspace.lazyApprovalNavigationCoordinator");
 
 type ApprovalNavigationCoordinatorModule =
   typeof import("./useApprovalNavigationCoordinator");
@@ -45,8 +48,8 @@ export function useLazyApprovalNavigationCoordinator(
         if (!disposed) {
           options.notifications.error(
             error instanceof Error
-              ? `加载审批跳转能力失败：${error.message}`
-              : "加载审批跳转能力失败，请重试。"
+              ? t("couldNotLoadApprovalNavigation", { message: error.message })
+              : t("couldNotLoadApprovalNavigationTryAgain")
           );
         }
         throw error;

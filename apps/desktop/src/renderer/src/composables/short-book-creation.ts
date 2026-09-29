@@ -1,8 +1,11 @@
+import { createScopedTranslator } from "../i18n";
 import type { Book } from "@deepwrite/contracts";
 import type {
   CreateShortOrScriptBookInput,
   ShortBookLifecycleCoordinatorOptions
 } from "./useShortBookLifecycleCoordinator";
+
+const t = createScopedTranslator("workspace");
 export function createShortBookCreator<Lease>(
   options: Pick<
     ShortBookLifecycleCoordinatorOptions,
@@ -31,7 +34,11 @@ export function createShortBookCreator<Lease>(
   function createBook(input: CreateShortOrScriptBookInput): Promise<void> {
     const api = catalog.api();
     if (!api) {
-      notifications.warning("浏览器预览不能保存作品，请使用桌面客户端创建。");
+      notifications.warning(
+        t(
+          "creativeBookCreation.theBrowserPreviewCannotSaveProjectsCreateProjectsIn"
+        )
+      );
       return Promise.resolve();
     }
     const lease = acquirePendingLease("catalog");
@@ -77,7 +84,16 @@ export function createShortBookCreator<Lease>(
         if (!refreshed || directoryRefreshFailed) {
           if (leaseCanPublish(lease)) {
             notifications.warning(
-              `已创建${input.workspaceType === "script" ? "剧本" : "短篇"}“${created.title}”，但作品列表刷新失败；稍后将自动重试。`
+              t(
+                "shortBookCreation.createdButFailedToRefreshTheProjectListRefresh",
+                {
+                  value:
+                    input.workspaceType === "script"
+                      ? t("catalogWorkspace.screenplay")
+                      : t("catalogWorkspace.shortStory"),
+                  title: created.title
+                }
+              )
             );
           }
           return;
@@ -87,7 +103,16 @@ export function createShortBookCreator<Lease>(
         await resources.selectPreferredBook(created.id);
         if (leaseCanPublish(lease)) {
           notifications.success(
-            `已创建${input.workspaceType === "script" ? "剧本" : "短篇"}“${created.title}”，素材库和技能库绑定已保存`
+            t(
+              "shortBookCreation.createdAndSavedTheMaterialAndSkillLibraryLinks",
+              {
+                value:
+                  input.workspaceType === "script"
+                    ? t("catalogWorkspace.screenplay")
+                    : t("catalogWorkspace.shortStory"),
+                title: created.title
+              }
+            )
           );
         }
       } catch (error: unknown) {
@@ -95,10 +120,15 @@ export function createShortBookCreator<Lease>(
         if (created) {
           state.createBookDialogOpen.value = false;
           notifications.warning(
-            `已创建作品“${created.title}”，但刷新本地列表失败；稍后将自动重试。`
+            t(
+              "shortBookCreation.createdProjectButFailedToRefreshTheLocalList",
+              { title: created.title }
+            )
           );
         } else {
-          notifications.error(errorMessage(error, "创建作品失败。"));
+          notifications.error(
+            errorMessage(error, t("shortBookCreation.failedToCreateProject"))
+          );
         }
       }
     });

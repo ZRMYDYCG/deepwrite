@@ -1,3 +1,4 @@
+import { expectSourceToContain } from "../../test-utils/sourceText";
 import { describe, expect, it } from "vitest";
 import source from "./WorkspaceShell.vue?raw";
 import applyReviewSource from "./composables/proposal-coordinator/apply-review.ts?raw";
@@ -92,9 +93,12 @@ describe("App agent chapter-file creation", () => {
     expect(proposalCoordinatorSource).toContain(
       'directory?.workspaceType === "script" || book?.bookType === "script"'
     );
-    expect(draftSectionLaneSource).toContain(
-      "title: `删除${draftUnit}：${mutationTarget.title}`"
+    expectSourceToContain(
+      draftSectionLaneSource,
+      'title: t("proposalCoordinator.delete", { draftUnit: draftUnit, title: mutationTarget.title })'
     );
-    expect(draftSectionLaneSource).toContain("及其正文与人物状态文件");
+    expect(draftSectionLaneSource).toContain(
+      "proposalCoordinator.deletedAndItsManuscriptAndCharacterStateFiles"
+    );
   });
 });

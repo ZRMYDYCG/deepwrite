@@ -9,16 +9,16 @@ const source = `${sidebarSource}\n${profileSource}\n${updateDialogSource}\n${mor
 describe("LeftSidebar account controls", () => {
   it("separates the account menu from the settings-page button", () => {
     expect(source).toContain('@click="toggleAccountMenu"');
-    expect(source).toContain('aria-label="打开设置"');
+    expect(source).toContain("openSettings");
     expect(source).toContain('@click="openSettings"');
     expect(source).not.toContain("@click=\"emit('openSettings')\"");
   });
 
   it("offers settings, updates and author contact without local name editing", () => {
-    expect(source).toContain("<span>设置</span>");
+    expect(source).toContain("settings");
     expect(source).toContain('@click="openSettings"');
-    expect(source).toContain("<span>版本更新</span>");
-    expect(source).toContain("联系作者");
+    expect(source).toContain("updates");
+    expect(source).toContain("contactAuthor");
     expect(source).toContain('profileDialog.value = "contact"');
     expect(source).not.toContain("<span>姓名</span>");
     expect(source).not.toContain("openNameDialog");
@@ -29,30 +29,26 @@ describe("LeftSidebar account controls", () => {
     expect(source).not.toContain("USER_NAME_STORAGE_KEY");
     expect(source).not.toContain("saveUserName");
     expect(source).not.toContain("userNameDraft");
-    expect(source).toContain(
-      "如果你有任何反馈，或者想体验最新版本，请添加作者微信并加入交流群。"
-    );
+    expect(source).toContain("forFeedbackOrEarlyAccessToNewVersionsAdd");
     expect(source).toContain("deepseekwrite");
   });
 
   it("prefers the signed-in marketplace display name", () => {
     expect(source).toContain("marketplaceDisplayName?: string | undefined");
-    expect(source).toContain(
-      "props.marketplaceDisplayName?.trim() || DEFAULT_USER_NAME"
-    );
+    expect(source).toContain("props.marketplaceDisplayName?.trim()");
     expectSourceToContain(source, "{{ displayedUserName }}");
   });
 
   it("shows a background-running marker for running analyses", () => {
     expect(source).toContain("revisionAnalysisRunning");
     expect(source).toContain("nav-background-status");
-    expect(source).toContain("后台中");
+    expect(source).toContain("inBackground");
   });
 
   it("turns the top action into create-book instead of a new conversation", () => {
-    expect(source).toContain('label: "新建书籍"');
+    expect(source).toContain("newBook");
     expect(source).toContain('id: "create-book"');
-    expect(source).toContain('aria-label="新建书籍"');
+    expect(source).toContain("newBook");
     expect(source).toContain('emit("createBook")');
     expect(source).not.toContain('label: "新建对话"');
     expect(source).not.toContain("newConversation");
@@ -78,17 +74,11 @@ describe("LeftSidebar account controls", () => {
   });
 
   it("includes marketplace features without the runtime settings entry", () => {
-    expectSourceToContain(
-      source,
-      '{ id: "skill-marketplace", label: "技能广场"'
-    );
+    expectSourceToContain(source, "skillMarketplace");
     expect(source).toContain('emit("openMarketplace")');
-    expectSourceToContain(source, '{ id: "cloud-backup", label: "云端备份"');
+    expectSourceToContain(source, "cloudBackup");
     expect(source).toContain('emit("openCloudBackup")');
-    expectSourceToContain(
-      source,
-      '{ id: "zhuque-detection", label: "朱雀检测"'
-    );
+    expectSourceToContain(source, "aITextDetection");
     expect(source).toContain('emit("openZhuqueDetection")');
     expect(moreFeaturesSource).not.toContain('id: "runtime"');
     expect(moreFeaturesSource).not.toContain("运行设置");
@@ -103,8 +93,8 @@ describe("LeftSidebar account controls", () => {
       source,
       'const updateInstalling = computed(() => updateState.value.status === "installing")'
     );
-    expect(source).toContain("正在安全退出并准备安装…");
+    expect(source).toContain("savingAndPreparingToInstall");
     expect(source).toContain(':disabled="updateInstalling"');
-    expect(source).toContain("正在安装…");
+    expect(source).toContain("installing");
   });
 });

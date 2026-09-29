@@ -6,7 +6,7 @@ import {
   validateRetryAttempt,
   validateTurnAttempt
 } from "./agent-events";
-import { AgentRuntimeRefSchema } from "./runtime";
+import { AgentRuntimeRefSchema } from "./agent-event-identity";
 
 export const SubagentEventBaseSchema = z.object({
   sessionId: z.string().min(1),

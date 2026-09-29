@@ -18,8 +18,7 @@ const plotPreset = {
   output: {
     domain: "material",
     kind: "plot",
-    stageId: "pacing",
-    libraryId: "plot-library"
+    stageId: "pacing"
   }
 } as const satisfies LongBookAnalysisPreset;
 

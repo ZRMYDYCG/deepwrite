@@ -1,3 +1,5 @@
+import { createScopedTranslator } from "../i18n";
+
 import type {
   LongBookSummary,
   LongWorkspaceIndexSnapshot,
@@ -8,6 +10,8 @@ import type {
   LongWorkspaceSelectionFile
 } from "./longWorkspace";
 import { indexedVolume, indexedChapterCard } from "./longIndexedChapter";
+
+const t = createScopedTranslator("workspace.selection");
 
 /**
  * Keeps chapter authoring and continuity review as two distinct entry points.
@@ -55,13 +59,17 @@ export function createLongContinuitySelection(
       return [
         {
           role: "current-state",
-          label: `${name} · 当前状态`,
+          get label() {
+            return t("namedCurrentState", { name: name });
+          },
           file: character.currentState,
           readOnly: committed
         },
         {
           role: "history",
-          label: `${name} · 历史轨迹`,
+          get label() {
+            return t("namedHistory", { name: name });
+          },
           file: character.history,
           readOnly: committed
         }
@@ -73,16 +81,20 @@ export function createLongContinuitySelection(
     continuityView: committed ? "history" : "inbox",
     chapterCardId: chapter.id,
     title: chapter.title || chapter.id,
-    breadcrumbs: [
-      summary.title,
-      "连续性账本",
-      volume.title,
-      chapter.title || chapter.id
-    ],
+    get breadcrumbs() {
+      return [
+        summary.title,
+        t("continuityLedger"),
+        volume.title,
+        chapter.title || chapter.id
+      ];
+    },
     files: [
       {
         role: "body",
-        label: "正文证据",
+        get label() {
+          return t("manuscriptEvidence");
+        },
         file: entry.body,
         readOnly: true
       },
@@ -91,7 +103,9 @@ export function createLongContinuitySelection(
         ? [
             {
               role: "world-reveals" as const,
-              label: "世界观揭露",
+              get label() {
+                return t("worldRevelations");
+              },
               file: entry.worldReveals,
               readOnly: committed
             }
@@ -101,7 +115,9 @@ export function createLongContinuitySelection(
         ? [
             {
               role: "foreshadowing-changes" as const,
-              label: "伏笔变化",
+              get label() {
+                return t("foreshadowingChanges");
+              },
               file: entry.foreshadowingChanges,
               readOnly: committed
             }
@@ -112,23 +128,29 @@ export function createLongContinuitySelection(
         : [
             {
               role: "character-state" as const,
-              label: "章末状态",
+              get label() {
+                return t("chapterEndState");
+              },
               file: entry.characterState,
               readOnly: committed
             },
             {
               role: "handoff" as const,
-              label: "接续包",
+              get label() {
+                return t("handoff");
+              },
               file: entry.handoff,
               readOnly: committed
             }
           ])
     ],
     preferredRole: "body",
-    description: importCheckpoint
-      ? "续写导入检查点仅表示历史正文已封存，不代表已经生成连续性事实、章末状态或接续包。"
-      : committed
-        ? "按章保留正文证据、人物状态与历史、世界观揭露、既有伏笔触点变化、章末状态和接续包。"
-        : "待处理章节；伏笔只核验总览中已关联本章的既有触点，没有候选时不生成伏笔记录。"
+    get description() {
+      return importCheckpoint
+        ? t("checkpointHelp")
+        : committed
+          ? t("chapterContinuityHelp")
+          : t("pendingContinuityHelp");
+    }
   };
 }

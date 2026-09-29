@@ -52,9 +52,9 @@ describe("independent chat assistant feature", () => {
     );
     expect(shellSource).toContain('<Teleport to="body">');
     expect(shellSource).toContain('v-if="chatAssistant.visible.value');
-    expect(headerSource).toContain('aria-label="最小化聊天助手"');
+    expect(headerSource).toContain("minimizeAssistant");
     expect(homeSource).toContain("visibleHistory");
-    expect(homeSource).toContain("查看全部");
+    expect(homeSource).toContain("viewAll");
     expect(homeSource).toContain("selectConversation(item.sessionId)");
     expect(overlaySource).toContain("useChatAssistantHistoryActions({");
     expect(historyActionsSource).toContain(
@@ -62,8 +62,8 @@ describe("independent chat assistant feature", () => {
     );
     expect(overlaySource).toContain("width: min(44vw");
     expect(overlaySource).toContain("height: min(88vh");
-    expect(overlaySource).toContain('aria-label="调整聊天窗口宽度"');
-    expect(overlaySource).toContain('aria-label="调整聊天窗口高度"');
+    expect(overlaySource).toContain("chatAssistant.resizeChatWidth");
+    expect(overlaySource).toContain("chatAssistant.resizeChatHeight");
     expect(overlaySource).toContain("chat-assistant-resize-edge is-left");
     expect(overlaySource).toContain("chat-assistant-resize-edge is-top");
     expect(overlaySource).not.toContain("chat-assistant-resize-handle");
@@ -130,21 +130,22 @@ describe("independent chat assistant feature", () => {
     expect(modeSource).toContain("controller.value.sendAssistantMessage(");
     expect(overlaySource).toContain("assistant.sendAssistantMessage(");
     expect(composerSource).toContain("emit('stop')");
-    expect(composerSource).toContain('accessible-label="聊天模型"');
+    expect(composerSource).toContain("chatAssistant.chatModel");
     expect(overlaySource).toContain("controller.value!.configuredModels.value");
-    expect(composerSource).toContain("附件功能后续开放");
-    expect(composerSource).toContain("语音功能后续开放");
+    expect(composerSource).toContain("chatAssistant.attachmentsComingSoon");
+    expect(composerSource).toContain("chatAssistant.voiceInput");
+    expect(composerSource).toContain("<VoiceInputBar");
   });
 
   it("adds a persisted DeepSeek-only web search toggle before the model selector", () => {
-    const searchIndex = composerSource.indexOf('aria-label="智能搜索"');
-    const modelIndex = composerSource.indexOf('accessible-label="聊天模型"');
+    const searchIndex = composerSource.indexOf("chatAssistant.smartSearch");
+    const modelIndex = composerSource.indexOf("chatAssistant.chatModel");
     expect(searchIndex).toBeGreaterThan(-1);
     expect(modelIndex).toBeGreaterThan(searchIndex);
     expect(composerSource).toContain("webSearchAvailable");
     expect(composerSource).toContain("is-active");
     expect(composerSource).toContain("var(--accent-soft)");
-    expect(composerSource).toContain("<span>智能搜索</span>");
+    expect(composerSource).toContain("chatAssistant.smartSearch");
     expect(composerSource).not.toContain('<AppIcon name="search"');
     expect(webSearchSource).toContain(
       '"deepwrite:chat-assistant-web-search:v1"'
@@ -156,25 +157,25 @@ describe("independent chat assistant feature", () => {
   });
 
   it("uses one context list and immutable book association in the project dialog", () => {
-    expect(headerSource).toContain('accessible-label="切换聊天上下文"');
+    expect(headerSource).toContain("switchContext");
     expect(overlaySource).toContain("context:normal");
-    expect(overlaySource).toContain("+ 添加新项目配置");
+    expect(overlaySource).toContain("chatAssistant.addProjectOption");
     expect(overlaySource).not.toContain('class="chat-assistant-mode-tabs"');
-    expect(overlaySource).toContain("编辑项目");
+    expect(overlaySource).toContain("editProject");
     expect(overlaySource).toContain('actionIcon: "edit"');
     expect(overlaySource).toContain('@edit-project="editContext"');
     expect(overlaySource).not.toContain(
       'class="chat-assistant-project-action"'
     );
-    expect(overlaySource).toContain('accessible-label="关联书籍"');
+    expect(overlaySource).toContain("chatAssistant.linkedBook");
     expect(overlaySource).toContain(
       "projectConfigMode === 'edit' || projectConfigPending"
     );
-    expect(overlaySource).toContain("关联书籍已锁定，不可更换");
+    expect(overlaySource).toContain("chatAssistant.bookLinkLocked");
     expect(modeSource).not.toContain("projectOptions.value[0].project");
-    expect(overlaySource).toContain("恢复默认");
+    expect(overlaySource).toContain("longBookAnalysis.restoreDefault");
     expect(overlaySource).toContain("uiMessage.success");
-    expect(overlaySource).toContain("可查询创作空间目录");
+    expect(overlaySource).toContain("chatAssistant.normalContext");
     expect(overlaySource).not.toContain('chat-assistant-context"');
     expect(overlaySource).toContain(
       "grid-template-rows: auto minmax(0, 1fr) auto"

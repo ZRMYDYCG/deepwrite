@@ -11,7 +11,7 @@ describe("LongManuscriptNavigation", () => {
     expect(source).toContain(
       'class="section-tabs-bar long-worldbuilding-tabs long-chapter-card-tabs"'
     );
-    expect(source).toContain('aria-label="章卡列表"');
+    expect(source).toContain("chapterCards");
     expect(source).toContain("actionMenuId");
     expect(source).toContain("runMenuAction");
     expect(source).toContain("const orderedItems = computed");

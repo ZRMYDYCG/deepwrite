@@ -1,0 +1,26 @@
+export default {
+  valueLinesValueValueValue: "{arg0}\nLines {arg1}–{arg2}\n\n{arg3}",
+  noMatchingContent: "No matching content",
+  thisAgentHasNoAvailableSkills: "This agent has no available skills",
+  thisAgentHasNoAvailableMaterials: "This agent has no available materials",
+  select: "Select",
+  insert: "Insert",
+  referencedManuscriptSelections: "Referenced manuscript selections",
+  goToValue: "Go to {arg0}",
+  removeManuscriptReferenceValue: "Remove manuscript reference {arg0}",
+  attachmentsToSend: "Attachments to send",
+  image: "Image",
+  pDFText: "PDF text",
+  text: "Text",
+  truncated: "· Truncated",
+  removeAttachmentValue: "Remove attachment {arg0}",
+  readingAttachments: "Reading attachments…",
+  agentMessage: "Agent message",
+  uploadAttachment: "Upload attachment",
+  uploadTXTMDPDFWordDocxOrImages:
+    "Upload TXT, MD, PDF, Word (.docx), or images",
+  selectManuscriptEditingPermission: "Select manuscript editing permission",
+  voiceInput: "Voice input",
+  sendMessage: "Send message",
+  stopGeneration: "Stop generation"
+};

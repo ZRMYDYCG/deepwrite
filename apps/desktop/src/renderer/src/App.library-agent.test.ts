@@ -13,7 +13,9 @@ describe("library management agent wiring", () => {
     expect(shortConversationSource).toContain(
       "function libraryEntryReferences("
     );
-    expect(shortConversationSource).toContain("按需加载的方法");
+    expect(shortConversationSource).toContain(
+      "shortConversationCoordinator.methodsLoadedOnDemand"
+    );
     expect(shortConversationSource).toContain(
       "await options.resource.ensureDocumentsLoaded("
     );

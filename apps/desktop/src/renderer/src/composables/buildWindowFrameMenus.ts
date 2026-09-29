@@ -1,22 +1,33 @@
+import { createScopedTranslator } from "../i18n";
 import type {
   WindowFrameMenu,
   WorkspaceWindowActions
 } from "./windowFrameMenus";
+
+const t = createScopedTranslator("workspace.buildWindowFrameMenus");
 export function buildWindowFrameMenus(
   actions: WorkspaceWindowActions
 ): WindowFrameMenu[] {
   return [
     {
-      label: "文件",
+      id: "file",
+      label: t("file"),
       options: [
         {
           value: "create",
-          label: "新建作品",
+          label: t("newProject"),
           description: "Ctrl+N",
           disabled: actions.busy()
         },
-        { value: "open", label: "打开作品…", disabled: actions.busy() },
-        { value: "settings", label: "设置…" }
+        {
+          value: "open",
+          label: t("openProject"),
+          disabled: actions.busy()
+        },
+        {
+          value: "settings",
+          label: t("settings")
+        }
       ],
       run(value) {
         if (value === "create" && !actions.busy()) actions.create();
@@ -25,18 +36,26 @@ export function buildWindowFrameMenus(
       }
     },
     {
-      label: "视图",
+      id: "view",
+      label: t("view"),
       options: [
         {
           value: "left",
-          label: actions.leftCollapsed() ? "显示目录侧栏" : "隐藏目录侧栏"
+          label: actions.leftCollapsed()
+            ? t("showDirectorySidebar")
+            : t("hideDirectorySidebar")
         },
         {
           value: "right",
-          label: actions.rightCollapsed() ? "显示文稿面板" : "隐藏文稿面板",
+          label: actions.rightCollapsed()
+            ? t("showManuscriptPanel")
+            : t("hideManuscriptPanel"),
           disabled: !actions.canToggleRight()
         },
-        { value: "appearance", label: "外观与主题…" }
+        {
+          value: "appearance",
+          label: t("appearanceAndTheme")
+        }
       ],
       run(value) {
         if (value === "left") actions.toggleLeft();
@@ -44,11 +63,6 @@ export function buildWindowFrameMenus(
           actions.toggleRight();
         if (value === "appearance") return actions.settings("appearance");
       }
-    },
-    {
-      label: "帮助",
-      options: [{ value: "keyboard", label: "键盘快捷键…" }],
-      run: () => actions.settings("keyboard")
     }
   ];
 }

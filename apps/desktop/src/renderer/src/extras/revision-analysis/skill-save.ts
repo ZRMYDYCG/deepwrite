@@ -1,3 +1,4 @@
+import { t } from "../../i18n";
 import { ref, type Ref } from "vue";
 import {
   RevisionAnalysisResultSchema,
@@ -25,7 +26,8 @@ export function createRevisionSkillSave(
     skillKey: key,
     async persistSkill(library: SkillLibrary) {
       if (saving.value) return false;
-      if (library.isBuiltin) throw new Error("请选择可写的非内置技能库。");
+      if (library.isBuiltin)
+        throw new Error(t("extras.revisionAnalysis.writableSkillRequired"));
       const draft = RevisionAnalysisResultSchema.parse(result.value);
       const currentKey = key();
       if (savedKey.value === currentKey) return false;

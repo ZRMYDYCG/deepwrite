@@ -1,3 +1,5 @@
+import { formatError, getErrorCode } from "../i18n/errors";
+import { createScopedTranslator } from "../i18n";
 import { ref, type Ref } from "vue";
 import {
   LongMutationProposalEventEnvelopeSchema,
@@ -23,6 +25,8 @@ import {
   continuityFinalizationKey,
   type LongContinuityFinalizationEvent
 } from "./longContinuityFinalization";
+
+const t = createScopedTranslator("workspace");
 
 export type LongWorkspaceProposalEvent = Extract<
   SystemEventEnvelope,
@@ -85,20 +89,19 @@ function isBatchProposal(
 }
 
 function isLongImpactMismatch(error: unknown): boolean {
-  return (
-    error instanceof Error &&
-    /impact_mismatch|关联.*变化|影响.*变化/iu.test(error.message)
-  );
+  return getErrorCode(error) === "long.operation.impact_mismatch";
 }
 
-const CONTINUITY_FILE_ROLE_LABELS: Record<LongContinuityFileRole, string> = {
-  foreshadowing_changes: "伏笔变化",
-  world_reveals: "世界观揭露",
-  character_current_state: "人物当前状态",
-  character_history: "人物历史轨迹",
-  chapter_end_state: "章末状态",
-  handoff: "接续包"
-};
+function continuityFileRoleLabels(): Record<LongContinuityFileRole, string> {
+  return {
+    foreshadowing_changes: t("longWorkspaceProposals.foreshadowingChanges"),
+    world_reveals: t("longWorkspaceResourceTree.worldRevelations"),
+    character_current_state: t("longWorkspaceProposals.currentCharacterState"),
+    character_history: t("longWorkspaceProposals.characterHistory"),
+    chapter_end_state: t("longWorkspaceProposals.chapterEndingState"),
+    handoff: t("longWorkspaceProposals.continuationPack")
+  };
+}
 
 interface LongContinuityFileTarget {
   chapterCardId: string;
@@ -115,13 +118,19 @@ function continuityFileTitle(
     ({ id }) => id === target.chapterCardId
   );
   if (!chapter) {
-    throw new Error("连续性提案指向了不存在的章卡。");
+    throw new Error(
+      t("longWorkspaceProposals.theContinuityProposalRefersToAChapterCardThat")
+    );
   }
   const isCharacterRole =
     target.role === "character_current_state" ||
     target.role === "character_history";
   if (isCharacterRole !== (target.characterId !== null)) {
-    throw new Error("连续性提案的人物文件身份不完整。");
+    throw new Error(
+      t(
+        "longWorkspaceProposals.theContinuityProposalHasAnIncompleteCharacterFileIdentity"
+      )
+    );
   }
   let characterName: string | null = null;
   if (target.characterId !== null) {
@@ -129,13 +138,17 @@ function continuityFileTitle(
       ({ id }) => id === target.characterId
     );
     if (!character) {
-      throw new Error("连续性提案指向了不存在的人物。");
+      throw new Error(
+        t(
+          "longWorkspaceProposals.theContinuityProposalRefersToACharacterThatDoes"
+        )
+      );
     }
     characterName = character.name;
   }
   return `${chapter.title} / ${
     characterName ? `${characterName} / ` : ""
-  }${CONTINUITY_FILE_ROLE_LABELS[target.role]}`;
+  }${continuityFileRoleLabels()[target.role]}`;
 }
 
 function continuityFileTargets(
@@ -144,7 +157,11 @@ function continuityFileTargets(
   const targets = new Map<string, LongContinuityFileTarget>();
   const add = (target: LongContinuityFileTarget): void => {
     if (targets.has(target.file.id)) {
-      throw new Error("长篇工作区包含重复的连续性文件标识。");
+      throw new Error(
+        t(
+          "longWorkspaceProposals.theNovelWorkspaceContainsDuplicateContinuityFileIdentifiers"
+        )
+      );
     }
     targets.set(target.file.id, target);
   };
@@ -245,7 +262,7 @@ function assertContinuityFileMetadata(
     change.title !== continuityFileTitle(index, target)
   ) {
     throw new Error(
-      "连续性提案的文件路径、章节、角色或人物与当前工作区不一致。"
+      t("longWorkspaceProposals.theContinuityProposalSFilePathChapterRoleOr")
     );
   }
 }
@@ -271,6 +288,7 @@ interface LongProposalNotifications {
 }
 
 export interface UseLongWorkspaceProposalsOptions {
+  queues?: Ref<Record<string, LongWorkspaceProposalItem[]>>;
   api: () => LongWorkspaceRendererApi | undefined;
   acceptsEvent: (event: LongWorkspaceProposalEvent) => boolean;
   approvalModeForEvent?: (
@@ -334,19 +352,14 @@ function isLongProposalEvent(
 }
 
 function errorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error ? error.message : fallback;
+  return formatError(error, fallback);
 }
 
 function isRetryableLongProposalError(error: unknown): boolean {
-  const message = errorMessage(error, "");
-  if (
-    message.startsWith("long.operation.") ||
-    message.includes("v4 连续性账本的文件清单与章节索引不一致") ||
-    message.includes("自动按当前文件覆盖旧 v4 连续性账本失败")
-  ) {
-    return false;
-  }
-  return true;
+  const code = getErrorCode(error);
+  return (
+    !code?.startsWith("long.operation.") && code !== "long.ledger.audit_failed"
+  );
 }
 
 function ipcSafeJson<T>(value: T): T {
@@ -356,7 +369,8 @@ function ipcSafeJson<T>(value: T): T {
 export function useLongWorkspaceProposals(
   options: UseLongWorkspaceProposalsOptions
 ): LongWorkspaceProposalController {
-  const queues = ref<Record<string, LongWorkspaceProposalItem[]>>({});
+  const queues =
+    options.queues ?? ref<Record<string, LongWorkspaceProposalItem[]>>({});
   const handledEventIds = new Set<string>();
   const handledProposalKeys = new Set<string>();
   const discardedBookIds = new Set<string>();
@@ -527,7 +541,9 @@ export function useLongWorkspaceProposals(
     if (!api) {
       updateItem(event.payload.bookId, event.id, {
         status: "error",
-        error: "当前环境未连接长篇工作区。",
+        error: t(
+          "longConversationCoordinator.theNovelWorkspaceIsNotConnectedInThisEnvironment"
+        ),
         errorPhase: "preview",
         errorRetryable: true,
         clearPreview: true
@@ -557,7 +573,11 @@ export function useLongWorkspaceProposals(
           latest.bookId !== event.payload.bookId ||
           latest.workspaceIndex.bookId !== event.payload.bookId
         ) {
-          throw new Error("长篇工作区索引返回了错误的项目。");
+          throw new Error(
+            t(
+              "longWorkspaceProposals.theNovelWorkspaceIndexReturnedTheWrongProject"
+            )
+          );
         }
         const continuityTargets =
           event.type === "long.continuity_file_proposal"
@@ -590,7 +610,10 @@ export function useLongWorkspaceProposals(
             if (file.operation === "create") {
               if (current || currentTarget) {
                 throw new Error(
-                  `目标连续性文件已存在，无法重复创建：${file.fileId}`
+                  t(
+                    "longWorkspaceProposals.theContinuityFileAlreadyExistsAndCannotBeCreated",
+                    { fileId: file.fileId }
+                  )
                 );
               }
               const createdTarget = createdContinuityFileTarget(
@@ -598,7 +621,11 @@ export function useLongWorkspaceProposals(
                 file.fileId
               );
               if (!createdTarget || file.beforeText !== "") {
-                throw new Error("连续性文件创建提案的身份或初始内容不一致。");
+                throw new Error(
+                  t(
+                    "longWorkspaceProposals.theContinuityCreationProposalHasAnInconsistentIdentityOr"
+                  )
+                );
               }
               assertContinuityFileMetadata(
                 latest.workspaceIndex,
@@ -608,7 +635,11 @@ export function useLongWorkspaceProposals(
               continue;
             }
             if (!current || !currentTarget) {
-              throw new Error(`目标连续性文件已经不存在：${file.fileId}`);
+              throw new Error(
+                t("longWorkspaceProposals.theContinuityFileNoLongerExists", {
+                  fileId: file.fileId
+                })
+              );
             }
             assertContinuityFileMetadata(
               latest.workspaceIndex,
@@ -619,10 +650,19 @@ export function useLongWorkspaceProposals(
           }
           if (file.operation === "create") {
             if (current) {
-              throw new Error(`目标文件已存在，无法重复创建：${file.filePath}`);
+              throw new Error(
+                t(
+                  "longWorkspaceProposals.theTargetFileAlreadyExistsAndCannotBeCreated",
+                  { filePath: file.filePath }
+                )
+              );
             }
           } else if (!current) {
-            throw new Error(`目标文件已经不存在：${file.filePath}`);
+            throw new Error(
+              t("longWorkspaceProposals.theTargetFileNoLongerExists", {
+                filePath: file.filePath
+              })
+            );
           }
         }
         const nextOrderByCategory = new Map<string, number>();
@@ -635,7 +675,11 @@ export function useLongWorkspaceProposals(
                 ({ id }) => id === operation.categoryId
               );
               if (!category || category.format !== "list") {
-                throw new Error("世界观条目的目标分类已不存在或不再是列表型。");
+                throw new Error(
+                  t(
+                    "longWorkspaceProposals.theTargetWorldbuildingCategoryNoLongerExistsOrIs"
+                  )
+                );
               }
               const nextOrder =
                 (nextOrderByCategory.get(category.id) ??
@@ -670,7 +714,11 @@ export function useLongWorkspaceProposals(
         })
       );
       if (result.bookId !== event.payload.bookId) {
-        throw new Error("结构影响预览返回了错误的长篇项目。");
+        throw new Error(
+          t(
+            "longWorkspaceProposals.theStructuralImpactPreviewReturnedTheWrongNovelProject"
+          )
+        );
       }
       if (!currentItem(event.payload.bookId, event.id)) return;
       updateItem(event.payload.bookId, event.id, {
@@ -683,7 +731,10 @@ export function useLongWorkspaceProposals(
       if (!currentItem(event.payload.bookId, event.id)) return;
       updateItem(event.payload.bookId, event.id, {
         status: "error",
-        error: errorMessage(error, "预览长篇结构影响失败。"),
+        error: errorMessage(
+          error,
+          t("longWorkspaceProposals.failedToPreviewNovelStructuralImpact")
+        ),
         errorPhase: "preview",
         errorRetryable: isRetryableLongProposalError(error),
         clearPreview: true
@@ -755,10 +806,18 @@ export function useLongWorkspaceProposals(
       });
       try {
         const api = options.api();
-        if (!api) throw new Error("当前环境未连接长篇工作区。");
+        if (!api)
+          throw new Error(
+            t(
+              "longConversationCoordinator.theNovelWorkspaceIsNotConnectedInThisEnvironment"
+            )
+          );
         await commitLongContinuityFinalization(api, event);
       } catch (error: unknown) {
-        const message = errorMessage(error, "连续性文件归档失败。");
+        const message = errorMessage(
+          error,
+          t("longWorkspaceProposals.failedToArchiveContinuityFiles")
+        );
         updateItem(bookId, event.id, {
           status: "error",
           error: message,
@@ -777,12 +836,24 @@ export function useLongWorkspaceProposals(
         status: "accepted",
         clearError: true
       });
-      options.notifications.success("本章连续性文件已完成归档。");
+      options.notifications.success(
+        t(
+          "longWorkspaceProposals.continuityFilesForThisChapterHaveBeenArchived"
+        )
+      );
       try {
         await options.onApplied?.(event);
       } catch (error: unknown) {
         options.notifications.warning(
-          `连续性文件已经归档，但后续刷新失败：${errorMessage(error, "请手动刷新长篇工作区。")}`
+          t(
+            "longWorkspaceProposals.continuityFilesWereArchivedButTheSubsequentRefreshFailed",
+            {
+              value: errorMessage(
+                error,
+                t("longWorkspaceProposals.refreshTheNovelWorkspaceManually")
+              )
+            }
+          )
         );
       }
     }
@@ -803,7 +874,9 @@ export function useLongWorkspaceProposals(
         } catch (error: unknown) {
           const message = errorMessage(
             error,
-            "长篇文件实时自动保存前检查失败。"
+            t(
+              "longWorkspaceProposals.thePreSaveCheckForAutomaticNovelFileSaving"
+            )
           );
           updateItem(event.payload.bookId, event.id, {
             status: "error",
@@ -837,7 +910,9 @@ export function useLongWorkspaceProposals(
           clearError: true
         });
         options.notifications.warning(
-          "该提案包含删除或解除关联影响，请核对后手动确认。"
+          t(
+            "longWorkspaceProposals.thisProposalDeletesItemsOrUnlinksRelatedRecordsReview"
+          )
         );
         return;
       }
@@ -847,7 +922,9 @@ export function useLongWorkspaceProposals(
         } catch (error: unknown) {
           const message = errorMessage(
             error,
-            "长篇提案实时自动保存前检查失败。"
+            t(
+              "longWorkspaceProposals.thePreSaveCheckForAutomaticNovelProposalSaving"
+            )
           );
           updateItem(event.payload.bookId, event.id, {
             status: "error",
@@ -941,7 +1018,9 @@ export function useLongWorkspaceProposals(
         return eventId;
       }
     }
-    throw new Error("无法为手工长篇结构提案生成唯一事件 ID。");
+    throw new Error(
+      t("longWorkspaceProposals.cannotGenerateAUniqueEventIdForTheManual")
+    );
   }
 
   async function enqueueManualMutation(
@@ -979,7 +1058,11 @@ export function useLongWorkspaceProposals(
     );
     activateBook(input.bookId);
     if (!(await enqueueProposalEvent(event, "request-approval"))) {
-      throw new Error("手工长篇结构提案事件 ID 冲突，请重试。");
+      throw new Error(
+        t(
+          "longWorkspaceProposals.theManualNovelStructureProposalEventIdConflictsPlease"
+        )
+      );
     }
     return event;
   }
@@ -1021,7 +1104,11 @@ export function useLongWorkspaceProposals(
     const api = options.api();
     if (!item || !api || item.status === "submitting") {
       if (!api) {
-        options.notifications.warning("当前环境未连接长篇工作区。");
+        options.notifications.warning(
+          t(
+            "longConversationCoordinator.theNovelWorkspaceIsNotConnectedInThisEnvironment"
+          )
+        );
       }
       return;
     }
@@ -1043,7 +1130,9 @@ export function useLongWorkspaceProposals(
           clearError: true
         });
         options.notifications.warning(
-          "关联影响已完成核对，请查看最新影响后再次确认。"
+          t(
+            "longWorkspaceProposals.relatedImpactsHaveBeenCheckedReviewTheLatestImpacts"
+          )
         );
       }
       return;
@@ -1083,7 +1172,9 @@ export function useLongWorkspaceProposals(
         );
       } else {
         throw new Error(
-          "章节正文必须通过会话 diff 审批卡保存，不能进入旧长篇提案队列。"
+          t(
+            "longWorkspaceProposals.chapterProseMustBeSavedThroughAConversationDiff"
+          )
         );
       }
     } catch (error: unknown) {
@@ -1101,19 +1192,29 @@ export function useLongWorkspaceProposals(
             clearError: true
           });
           options.notifications.warning(
-            "关联关系或删除影响已变化，请查看最新影响后再次确认。"
+            t(
+              "longWorkspaceProposals.relationshipsOrDeletionImpactsChangedReviewTheLatestImpacts"
+            )
           );
         }
         return;
       }
       updateItem(bookId, eventId, {
         status: "error",
-        error: errorMessage(error, "处理长篇提案失败。"),
+        error: errorMessage(
+          error,
+          t("longWorkspaceProposals.failedToProcessNovelProposal")
+        ),
         errorPhase: "apply",
         errorRetryable: isRetryableLongProposalError(error),
         clearPreview: true
       });
-      options.notifications.error(errorMessage(error, "处理长篇提案失败。"));
+      options.notifications.error(
+        errorMessage(
+          error,
+          t("longWorkspaceProposals.failedToProcessNovelProposal")
+        )
+      );
       return;
     }
 
@@ -1130,18 +1231,32 @@ export function useLongWorkspaceProposals(
     }
     options.notifications.success(
       item.event.type === "long.mutation_proposal"
-        ? "长篇结构提案已应用。"
+        ? t("longWorkspaceProposals.novelStructureProposalApplied")
         : item.event.type === "long.worldbuilding_file_proposal"
-          ? "世界观文件变更已保存到本地 Markdown。"
+          ? t(
+              "longWorkspaceProposals.worldbuildingFileChangesSavedToLocalMarkdown"
+            )
           : item.event.type === "long.character_file_proposal"
-            ? "人物文件变更已保存到本地 Markdown。"
-            : "本章连续性记录已保存到本地 Markdown。"
+            ? t(
+                "longWorkspaceProposals.characterFileChangesSavedToLocalMarkdown"
+              )
+            : t(
+                "longWorkspaceProposals.chapterContinuityRecordsSavedToLocalMarkdown"
+              )
     );
     try {
       await options.onApplied?.(item.event);
     } catch (error: unknown) {
       options.notifications.warning(
-        `长篇提案已经写入，但后续刷新失败：${errorMessage(error, "请手动刷新长篇工作区。")}`
+        t(
+          "longWorkspaceProposals.novelProposalSavedButTheSubsequentRefreshFailed",
+          {
+            value: errorMessage(
+              error,
+              t("longWorkspaceProposals.refreshTheNovelWorkspaceManually")
+            )
+          }
+        )
       );
     }
     if (isBatchProposal(item.event)) {
@@ -1192,7 +1307,9 @@ export function useLongWorkspaceProposals(
       for (const finalization of canceledFinalizations) {
         updateItem(bookId, finalization.id, {
           status: "error",
-          error: "前序连续性文件提案已被拒绝，本章账本未归档。",
+          error: t(
+            "longWorkspaceProposals.anEarlierContinuityFileProposalWasRejectedThisChapter"
+          ),
           errorPhase: "apply",
           errorRetryable: false
         });

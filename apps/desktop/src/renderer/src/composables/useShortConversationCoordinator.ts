@@ -1,3 +1,6 @@
+import { builtinAgentLabel } from "../i18n/builtinLabels";
+import { formatError } from "../i18n/errors";
+import { createScopedTranslator } from "../i18n";
 import {
   creationSkillReferences,
   creationMaterialReferences
@@ -44,15 +47,19 @@ import { buildLibraryAttachments } from "../utils/libraryAttachments";
 import { scopeBookLibrariesToReadAccess } from "../utils/shortWorkspaceLibraryScope";
 import { createConversationHistoryRewriteDispatcher } from "./agent-conversation/history-rewrite-dispatcher";
 
+const t = createScopedTranslator("workspace");
+
 function composerStageLabel(
   descriptor: ShortConversationDocumentDescriptor
 ): string {
-  if (descriptor.stageId === "character_design") return "人设";
-  if (descriptor.stageId === "draft") return "正文";
-  if (descriptor.stageId) return "剧情";
-  if (descriptor.domain === "skill") return "技能库";
-  if (descriptor.domain === "material") return "素材库";
-  return "未选择阶段";
+  if (descriptor.stageId === "character_design")
+    return t("catalogWorkspace.characterConcepts");
+  if (descriptor.stageId === "draft") return t("catalogWorkspace.manuscript");
+  if (descriptor.stageId) return t("catalogWorkspace.plot");
+  if (descriptor.domain === "skill") return t("catalogWorkspace.skillLibrary");
+  if (descriptor.domain === "material")
+    return t("catalogWorkspace.materialLibrary");
+  return t("shortConversationCoordinator.noStageSelected");
 }
 
 interface ShortConversationNotifications {
@@ -251,9 +258,22 @@ function libraryEntryReferences(
         detail:
           library.id === current.id
             ? group
-              ? `当前${domain === "skill" ? "技能" : "素材"}库 · ${group.title}`
-              : `当前${domain === "skill" ? "技能" : "素材"}库`
-            : `分组 · ${library.title}`
+              ? t("shortConversationCoordinator.currentLibrary", {
+                  value:
+                    domain === "skill"
+                      ? t("catalogWorkspace.skill")
+                      : t("catalogWorkspace.material"),
+                  title: group.title
+                })
+              : t("shortConversationCoordinator.currentLibrary2", {
+                  value:
+                    domain === "skill"
+                      ? t("catalogWorkspace.skill")
+                      : t("catalogWorkspace.material")
+                })
+            : t("shortConversationCoordinator.group", {
+                title: library.title
+              })
       });
     }
   }
@@ -331,7 +351,7 @@ export function useShortConversationCoordinator(
         .map((skill) => ({
           id: `library-agent-skill:${skill.id}`,
           label: skill.name,
-          detail: "按需加载的方法"
+          detail: t("shortConversationCoordinator.methodsLoadedOnDemand")
         }));
     }
     const workspaceId = activeDescriptor.value.workspaceId;
@@ -366,12 +386,21 @@ export function useShortConversationCoordinator(
       allowLiveEditReview: true,
       contextTitle: descriptor.title,
       bookTitle:
-        descriptor.workspaceTitle || descriptor.pathRoot || "未选择资源",
+        descriptor.workspaceTitle ||
+        descriptor.pathRoot ||
+        t("shortConversationCoordinator.noResourceSelected"),
       stageLabel: composerStageLabel(descriptor),
-      agentLabel:
-        activeShortAgentProfile.value?.label ??
-        activeLibraryAgentProfile.value?.label ??
-        "智能体对话",
+      agentLabel: activeShortAgentProfile.value
+        ? builtinAgentLabel(
+            descriptor.workspaceType === "script" ? "script" : "short",
+            activeShortAgentProfile.value.label
+          )
+        : activeLibraryDomain.value
+          ? builtinAgentLabel(
+              activeLibraryDomain.value,
+              activeLibraryAgentProfile.value?.label
+            )
+          : t("agentActivityDescriptors.agentConversation"),
       agentId,
       agentWorkspaceType:
         descriptor.workspaceType === "script"
@@ -476,7 +505,9 @@ export function useShortConversationCoordinator(
   function notifyCanceledSend(): void {
     if (disposed) return;
     options.notifications.info(
-      "当前资源、会话或输入内容已切换，本次发送已取消。"
+      t(
+        "shortConversationCoordinator.theCurrentResourceConversationOrInputChangedSendingWas"
+      )
     );
   }
 
@@ -488,7 +519,11 @@ export function useShortConversationCoordinator(
     invalidateSendTarget();
     const conversation = activeConversation.value;
     if (conversation.isBusy.value) {
-      options.notifications.warning("请先停止当前回复，再新建对话。");
+      options.notifications.warning(
+        t(
+          "shortConversationCoordinator.stopTheCurrentResponseBeforeStartingANewConversation"
+        )
+      );
       return;
     }
     if (
@@ -496,7 +531,11 @@ export function useShortConversationCoordinator(
       options.edits.acceptingWorkspaceIds.value.size > 0 ||
       options.edits.hasQueued()
     ) {
-      options.notifications.info("请等待智能体修改保存完成后再新建对话");
+      options.notifications.info(
+        t(
+          "shortConversationCoordinator.waitForAgentEditsToFinishSavingBeforeStarting"
+        )
+      );
       return;
     }
     options.showConversation();
@@ -512,15 +551,23 @@ export function useShortConversationCoordinator(
         options.edits.acceptingWorkspaceIds.value.size > 0 ||
         options.edits.hasQueued()
       ) {
-        options.notifications.info("请等待智能体修改保存完成后再切换对话");
+        options.notifications.info(
+          t(
+            "shortConversationCoordinator.waitForAgentEditsToFinishSavingBeforeSwitching"
+          )
+        );
         return false;
       }
       return !disposed;
     },
     current: () => activeConversation.value,
     warning: (message) => options.notifications.warning(message),
-    busyMessage: "请先停止当前回复，再切换历史对话",
-    unavailableMessage: "这条历史对话已不可用，请重新打开历史列表",
+    busyMessage: t(
+      "shortConversationCoordinator.stopTheCurrentResponseBeforeSwitchingConversations"
+    ),
+    unavailableMessage: t(
+      "shortConversationCoordinator.thisConversationIsUnavailableReopenTheHistoryList"
+    ),
     selected(conversation) {
       options.resource.clearEditorSelectionReferences();
       queueMicrotask(() => {
@@ -539,7 +586,11 @@ export function useShortConversationCoordinator(
   ): Promise<void> {
     if (disposed) return Promise.resolve();
     if (activeSend) {
-      options.notifications.info("正在准备上一条消息，请稍候。");
+      options.notifications.info(
+        t(
+          "shortConversationCoordinator.thePreviousMessageIsStillBeingPreparedPleaseWait"
+        )
+      );
       return Promise.resolve();
     }
     if (
@@ -549,7 +600,11 @@ export function useShortConversationCoordinator(
         options.edits.acceptingWorkspaceIds.value.size > 0 ||
         options.edits.hasQueued())
     ) {
-      options.notifications.info("请先等待当前回复、审批和修改保存全部完成。");
+      options.notifications.info(
+        t(
+          "shortConversationCoordinator.waitForTheCurrentResponseApprovalsAndEditsTo"
+        )
+      );
       return Promise.resolve();
     }
     const target = captureSendTarget();
@@ -640,7 +695,9 @@ export function useShortConversationCoordinator(
           !libraryAgentContext
         ) {
           options.notifications.warning(
-            "当前资料库上下文尚未就绪，请重新选择条目后再发送。"
+            t(
+              "shortConversationCoordinator.theLibraryContextIsNotReadySelectTheEntry"
+            )
           );
           return;
         }
@@ -650,7 +707,10 @@ export function useShortConversationCoordinator(
           options.notifications.warning(
             attachmentDiagnostics.length === 1
               ? first.message
-              : `${first.message}（另有 ${attachmentDiagnostics.length - 1} 项资料库提示）`
+              : t("shortConversationCoordinator.additionalLibraryNotices", {
+                  message: first.message,
+                  value: attachmentDiagnostics.length - 1
+                })
           );
         }
         const skillDiagnostics = librarySkillAttachments?.diagnostics ?? [];
@@ -659,7 +719,10 @@ export function useShortConversationCoordinator(
           options.notifications.warning(
             skillDiagnostics.length === 1
               ? first.message
-              : `${first.message}（另有 ${skillDiagnostics.length - 1} 项可用技能提示）`
+              : t("shortConversationCoordinator.additionalSkillNotices", {
+                  message: first.message,
+                  value: skillDiagnostics.length - 1
+                })
           );
         }
         target.conversation.selectApprovalMode(
@@ -704,9 +767,12 @@ export function useShortConversationCoordinator(
       } catch (error: unknown) {
         if (!disposed && sendTargetIsCurrent(target, { includeDraft: false })) {
           options.notifications.error(
-            error instanceof Error
-              ? error.message
-              : "发送消息失败，请稍后重试。"
+            formatError(
+              error,
+              t(
+                "shortConversationCoordinator.failedToSendMessagePleaseTryAgainShortly"
+              )
+            )
           );
         }
       }
@@ -726,12 +792,19 @@ export function useShortConversationCoordinator(
     const conversation = activeConversation.value;
     try {
       if (await conversation.stopGeneration()) {
-        options.notifications.info("已停止生成");
+        options.notifications.info(
+          t("shortConversationCoordinator.generationStopped")
+        );
       }
     } catch (error: unknown) {
       if (!disposed) {
         options.notifications.error(
-          error instanceof Error ? error.message : "停止生成失败，请稍后重试。"
+          formatError(
+            error,
+            t(
+              "shortConversationCoordinator.failedToStopGenerationPleaseTryAgainShortly"
+            )
+          )
         );
       }
     }

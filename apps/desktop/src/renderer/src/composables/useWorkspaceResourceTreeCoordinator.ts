@@ -1,3 +1,4 @@
+import { createScopedTranslator } from "../i18n";
 import type {
   LongBookSummary,
   LongListBooksResult,
@@ -21,6 +22,8 @@ import {
   projectLongWorkspaceNavigation
 } from "../utils/longWorkspaceResourceTree";
 import { createResourceTreeLookup } from "../utils/resourceTreeLookup";
+
+const t = createScopedTranslator("workspace");
 
 type LongCatalogDiagnostic = NonNullable<
   LongListBooksResult["diagnostics"]
@@ -111,7 +114,7 @@ export function useWorkspaceResourceTreeCoordinator(
           id: longBookResourceId(book.id),
           label: book.title,
           icon: "book" as const,
-          badge: "长篇",
+          badge: t("catalogWorkspace.novel"),
           workspaceType: "long" as const,
           longBookId: book.id,
           catalogNodeType: "long-book" as const,
@@ -121,12 +124,14 @@ export function useWorkspaceResourceTreeCoordinator(
       }),
       ...[...unavailable.values()].map((diagnostic) => ({
         id: longBookResourceId(diagnostic.bookId),
-        label: `不可用长篇 · ${diagnostic.bookId}`,
+        label: t("workspaceResourceTreeCoordinator.unavailableNovel", {
+          bookId: diagnostic.bookId
+        }),
         icon: "book" as const,
         badge:
           diagnostic.code === "invalid"
-            ? "长篇 · 项目读取失败"
-            : "长篇 · 暂不可用",
+            ? t("workspaceResourceTreeCoordinator.novelFailedToReadProject")
+            : t("workspaceResourceTreeCoordinator.novelTemporarilyUnavailable"),
         workspaceType: "long" as const,
         longBookId: diagnostic.bookId,
         catalogNodeType: "long-book" as const,
@@ -177,7 +182,11 @@ export function useWorkspaceResourceTreeCoordinator(
       if (!storage) throw new Error("Resource preference storage unavailable");
       storage.setItem(BOOK_RESOURCE_PREFERENCES_STORAGE_KEY, serialized);
     } catch {
-      options.notifications.warning("书籍设置暂时无法保存，但本次操作仍然有效");
+      options.notifications.warning(
+        t(
+          "workspaceResourceTreeCoordinator.bookSettingsCouldNotBeSavedButChangesAre"
+        )
+      );
     }
   }
 

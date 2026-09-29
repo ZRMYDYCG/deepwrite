@@ -1,9 +1,12 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import type {
   LongLedgerCommitRecord,
   LongWorkspaceIndexSnapshot
 } from "@deepwrite/contracts";
 import MarkdownContent from "./MarkdownContent.vue";
+
+const t = createScopedTranslator("components.longContinuityWorkspace");
 
 /**
  * Compatibility-only shell for callers kept across a rolling renderer update.
@@ -26,12 +29,17 @@ withDefaults(
 </script>
 
 <template>
-  <section class="continuity-text-preview" aria-label="连续性章节文本预览">
+  <section
+    class="continuity-text-preview"
+    :aria-label="t('continuityChapterTextPreview')"
+  >
     <MarkdownContent
       v-if="evidenceContent?.trim()"
       :content="evidenceContent"
     />
-    <p v-else>请从“待处理章节”或“章节记录”中选择一份 Markdown 文件。</p>
+    <p v-else>
+      {{ t("selectAMarkdownFileFromPendingChaptersOrChapter") }}
+    </p>
   </section>
 </template>
 

@@ -1,3 +1,4 @@
+import { syncDisplayTextSchema } from "./device-sync/display-text";
 import { z } from "zod";
 import { EnvelopeBaseSchema } from "./envelope";
 import {
@@ -53,7 +54,12 @@ export const DeviceSyncInventorySchema = z
     items: z.array(syncItemSchema),
     issues: z.array(
       z
-        .object({ key: z.string(), title: z.string(), message: z.string() })
+        .object({
+          key: z.string(),
+          title: z.string(),
+          message: z.string(),
+          messageText: syncDisplayTextSchema.optional()
+        })
         .strict()
     )
   })

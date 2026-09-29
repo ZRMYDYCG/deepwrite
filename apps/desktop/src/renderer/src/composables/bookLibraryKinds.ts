@@ -1,22 +1,97 @@
+import { createScopedTranslator } from "../i18n";
 import type { MaterialKind, SkillKind } from "@deepwrite/contracts";
+
+const t = createScopedTranslator("workspace");
 export const MATERIAL_KINDS: ReadonlyArray<{
   id: MaterialKind;
   label: string;
   description: string;
 }> = [
-  { id: "character", label: "人设素材库", description: "人物与关系设定" },
-  { id: "gimmick", label: "梗素材库", description: "核心创意与钩子" },
-  { id: "plot", label: "剧情素材库", description: "剧情、导语与细化" },
-  { id: "draft", label: "正文素材库", description: "正文片段与表达参考" },
-  { id: "other", label: "其他素材库", description: "未归入以上分类的素材" }
+  {
+    id: "character",
+    get label() {
+      return t("catalogWorkspace.characterMaterialLibrary");
+    },
+    get description() {
+      return t("bookLibraryKinds.charactersAndRelationships");
+    }
+  },
+  {
+    id: "gimmick",
+    get label() {
+      return t("catalogWorkspace.storyIdeaLibrary");
+    },
+    get description() {
+      return t("bookLibraryKinds.coreIdeasAndHooks");
+    }
+  },
+  {
+    id: "plot",
+    get label() {
+      return t("catalogWorkspace.plotMaterialLibrary");
+    },
+    get description() {
+      return t("bookLibraryKinds.plotOpeningAndRefinement");
+    }
+  },
+  {
+    id: "draft",
+    get label() {
+      return t("catalogWorkspace.proseMaterialLibrary");
+    },
+    get description() {
+      return t("bookLibraryKinds.proseExcerptsAndWritingReferences");
+    }
+  },
+  {
+    id: "other",
+    get label() {
+      return t("catalogWorkspace.otherMaterialLibrary");
+    },
+    get description() {
+      return t("bookLibraryKinds.materialsOutsideTheCategoriesAbove");
+    }
+  }
 ];
 export const SKILL_KINDS: ReadonlyArray<{
   id: SkillKind;
   label: string;
   description: string;
 }> = [
-  { id: "general", label: "通用技能库", description: "多个阶段均可使用" },
-  { id: "plot", label: "剧情设计技能库", description: "人物、剧情与大纲方法" },
-  { id: "style", label: "文风写作技能库", description: "正文与分节写作方法" },
-  { id: "other", label: "其他技能库", description: "自定义写作方法" }
+  {
+    id: "general",
+    get label() {
+      return t("catalogWorkspace.generalSkillLibrary");
+    },
+    get description() {
+      return t("bookLibraryKinds.availableAcrossMultipleStages");
+    }
+  },
+  {
+    id: "plot",
+    get label() {
+      return t("catalogWorkspace.plotDesignSkillLibrary");
+    },
+    get description() {
+      return t("bookLibraryKinds.characterPlotAndOutlineMethods");
+    }
+  },
+  {
+    id: "style",
+    get label() {
+      return t("catalogWorkspace.writingStyleSkillLibrary");
+    },
+    get description() {
+      return t("bookLibraryKinds.manuscriptAndSectionWritingMethods");
+    }
+  },
+  {
+    id: "other",
+    get label() {
+      return t("catalogWorkspace.otherSkillLibrary");
+    },
+    get description() {
+      return t("bookLibraryKinds.customWritingMethods");
+    }
+  }
 ];

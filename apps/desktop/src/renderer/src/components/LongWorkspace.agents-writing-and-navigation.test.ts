@@ -51,7 +51,7 @@ describe("long-form renderer vertical slice: agents-writing-and-navigation", () 
       longWorkspaceResourceTreeSource.indexOf("...(worldRevealSelection")
     );
     expect(resourceTreeCoordinatorSource).toContain("selectableBranch: true");
-    expect(resourceTreeCoordinatorSource).toContain('badge: "长篇"');
+    expect(resourceTreeCoordinatorSource).toContain("catalogWorkspace.novel");
     expect(resourceTreeCoordinatorSource).not.toContain(
       "badge: `长篇 · ${book.genre}`"
     );
@@ -63,11 +63,11 @@ describe("long-form renderer vertical slice: agents-writing-and-navigation", () 
     expect(treeNodeSource).toContain("<TreeNodeItem");
     expect(treeNodeSource).toContain(':depth="depth + 1"');
     for (const label of [
-      "世界观",
-      "人物设计",
-      "剧情设计",
-      "正文",
-      "连续性账本"
+      "longWorkspaceResourceTree.worldbuilding",
+      "longWorkspaceResourceTree.characterDesign",
+      "catalogWorkspace.plotDesign",
+      "catalogWorkspace.manuscript",
+      "longWorkspaceResourceTree.continuityLedger"
     ]) {
       expect(longWorkspaceResourceTreeSource).toContain(label);
     }
@@ -185,9 +185,9 @@ describe("long-form renderer vertical slice: agents-writing-and-navigation", () 
       "dependencies.stageLongDraftEditProposal(event);"
     );
     expect(proposalSource).toContain("long.ledger_commit_proposal");
-    expect(proposalSource).toContain("查看具体影响");
-    expect(proposalSource).toContain("删除实体");
-    expect(proposalSource).toContain("实体完整前后快照");
+    expect(proposalSource).toContain("viewDetailedImpact");
+    expect(proposalSource).toContain("deleteEntity");
+    expect(proposalSource).toContain("completeEntitySnapshotsMessage");
     expect(proposalSource).toContain("snapshotText(change.before)");
     expect(proposalSource).toContain("snapshotText(change.after)");
     expect(proposalSource).not.toContain(".slice(0, 80)");
@@ -195,7 +195,7 @@ describe("long-form renderer vertical slice: agents-writing-and-navigation", () 
     expect(proposalSource).not.toContain("查看提交内容");
     expect(proposalSource).not.toContain("本章六类连续性摘要");
     expect(proposalSource).toContain('item.approvalMode === "auto-approve"');
-    expect(proposalSource).toContain("自动保存中");
+    expect(proposalSource).toContain("autosaving");
     expect(proposalRuntimeSource).toContain(
       "approvalModeForEvent: proposalApprovalMode"
     );
@@ -236,7 +236,9 @@ describe("long-form renderer vertical slice: agents-writing-and-navigation", () 
       "state.refreshStatus.value = {"
     );
     expect(appSource).toContain("retryActiveLongWorkspaceRefresh");
-    expect(longWorkspaceModuleSource).toContain("长篇智能体已暂停发送");
+    expect(longWorkspaceModuleSource).toContain(
+      "theLatestWorkspaceIndexHasNotSyncedSendingTo"
+    );
     expect(longWorkspaceModuleSource).toContain('v-if="refreshStatus?.error"');
     expect(appSource).not.toContain(
       'activeLongWorkspaceRefreshStatus.pending\n                    ? "正在同步保存后的最新工作区索引…"'
@@ -286,7 +288,7 @@ describe("long-form renderer vertical slice: agents-writing-and-navigation", () 
       "conversation.hasPendingEditReview.value"
     );
     expect(presentationCoordinatorSource).toContain(
-      "正在保存并准备发送，编辑暂时锁定"
+      "savingAndPreparingToSendEditingIsTemporarilyLocked"
     );
     expect(presentationCoordinatorSource).not.toContain("版本冲突");
     expect(editorSource).toContain("lockedReason?: string");

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator, locale } from "../i18n";
 import { onBeforeUnmount, ref } from "vue";
 import { provideConversationDisclosureScope } from "../composables/conversationDisclosureState";
 import type { LongWorkspaceIndexSnapshot } from "@deepwrite/contracts";
@@ -21,6 +22,8 @@ import ConversationProcessingTimeline from "./ConversationProcessingTimeline.vue
 import ConversationUserMessageEditor from "./ConversationUserMessageEditor.vue";
 import LongProposalReview from "./LongProposalReview.vue";
 import StreamedContent from "./StreamedContent.vue";
+
+const t = createScopedTranslator("components.conversationMessageItem");
 
 const props = withDefaults(
   defineProps<{
@@ -68,7 +71,7 @@ let copiedTimer: number | undefined;
 function formatTime(value: string): string {
   const timestamp = Date.parse(value);
   if (!Number.isFinite(timestamp)) return value;
-  return new Date(timestamp).toLocaleTimeString("zh-CN", {
+  return new Date(timestamp).toLocaleTimeString(locale.value, {
     hour: "2-digit",
     minute: "2-digit"
   });
@@ -87,10 +90,10 @@ async function copyMessage(): Promise<void> {
       copied.value = false;
     }, 1_500);
     uiMessage.success(
-      props.message.role === "assistant" ? "已复制回复" : "已复制消息"
+      props.message.role === "assistant" ? t("replyCopied") : t("messageCopied")
     );
   } catch {
-    uiMessage.error("复制失败，请稍后重试。");
+    uiMessage.error(t("copyFailedTryAgainLater"));
   }
 }
 
@@ -156,7 +159,7 @@ onBeforeUnmount(() => {
           <div
             v-if="message.attachments?.length"
             class="message-attachment-list"
-            aria-label="本条消息的附件"
+            :aria-label="t('messageAttachments')"
           >
             <span
               v-for="attachment in message.attachments"
@@ -169,7 +172,7 @@ onBeforeUnmount(() => {
                 :size="14"
               />
               <span>{{ attachment.name }}</span>
-              <small v-if="attachment.truncated">已截断</small>
+              <small v-if="attachment.truncated">{{ t("truncated") }}</small>
             </span>
           </div>
           {{ message.content }}
@@ -189,7 +192,7 @@ onBeforeUnmount(() => {
           />
         </div>
         <div v-if="message.status === 'stopped'" class="message-stopped-copy">
-          已停止生成
+          {{ t("generationStopped") }}
         </div>
         <section
           v-if="
@@ -198,7 +201,7 @@ onBeforeUnmount(() => {
             approvalItemsForMessage(message, longProposalItems).length
           "
           class="approval-card-stack"
-          aria-label="本轮审批卡片"
+          :aria-label="t('approvalCardsForThisTurn')"
         >
           <template
             v-for="approval in approvalItemsForMessage(
@@ -242,7 +245,7 @@ onBeforeUnmount(() => {
         <button
           v-if="message.role === 'user' && editable"
           type="button"
-          aria-label="修改并重新发送"
+          :aria-label="t('editAndResend')"
           @click="requestEdit"
         >
           <AppIcon name="edit" :size="15" />
@@ -251,10 +254,10 @@ onBeforeUnmount(() => {
           type="button"
           :aria-label="
             copied
-              ? '已复制'
+              ? t('copied')
               : message.role === 'assistant'
-                ? '复制回复'
-                : '复制消息'
+                ? t('copyReply')
+                : t('copyMessage')
           "
           @click="copyMessage"
         >

@@ -11,6 +11,7 @@ import {
   createEnvelope,
   TEXT_CONTEXT_MENU_COMMAND_CHANNEL
 } from "@deepwrite/contracts";
+import { setNativeLanguage } from "./native-i18n";
 import { installTextContextMenu } from "./text-context-menu";
 
 vi.mock("electron", async () => {
@@ -101,10 +102,24 @@ describe("text menu lifecycle", () => {
     f = fixture();
   });
   afterEach(() => {
+    setNativeLanguage("zh-CN", "zh-CN");
     f.dispose();
     vi.useRealTimers();
   });
 
+  it("uses the current language for new menus and keeps actions stable", () => {
+    setNativeLanguage("en-US", "zh-CN");
+    const id = f.open();
+    f.reply(id, { phase: "prepared", context: f.context });
+    f.click("Copy");
+    f.reply(id, {
+      phase: "actionReady",
+      action: "copy",
+      allowed: true,
+      handled: false
+    });
+    expect(f.contents.copy).toHaveBeenCalledOnce();
+  });
   it("waits for target validation before pasting plain text", () => {
     const id = f.open();
     f.reply(id, { phase: "prepared", context: f.context });

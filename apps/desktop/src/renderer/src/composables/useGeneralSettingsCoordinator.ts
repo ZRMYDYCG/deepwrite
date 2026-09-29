@@ -8,7 +8,11 @@ import {
   type WorkspacePaneLayout
 } from "@deepwrite/contracts";
 import type { Ref } from "vue";
+import { locale, setAppLanguage, createScopedTranslator } from "../i18n";
+import { takeInitialGeneralSettings } from "../i18n/bootstrap";
 import { saveGeneralPreferences } from "../utils/generalPreferences";
+
+const t = createScopedTranslator("foundation");
 
 type GeneralSettingsApi = Pick<
   DeepWriteApi["generalSettings"],
@@ -50,6 +54,7 @@ export function useGeneralSettingsCoordinator(
   };
   options.autoSaveEnabled.value = options.settings.value.autoSave;
   let saveChain: Promise<void> = Promise.resolve();
+  let saveFailed = false;
   let disposed = false;
   let loading = false;
   let saveRequestedWhileLoading = false;
@@ -57,12 +62,8 @@ export function useGeneralSettingsCoordinator(
   let bodyTextPatch: Partial<GeneralSettings["bodyTextFormats"]> = {};
 
   function applyLanguage(language: GeneralSettings["language"]): void {
-    const browserLanguage = options.browserLanguage();
-    const resolvedLanguage =
-      language === "auto" && browserLanguage.toLowerCase().startsWith("zh")
-        ? browserLanguage
-        : "zh-CN";
-    options.documentRoot.lang = resolvedLanguage;
+    setAppLanguage(language, options.browserLanguage());
+    options.documentRoot.lang = locale.value;
     options.documentRoot.dataset.appLanguage = language;
   }
 
@@ -78,12 +79,14 @@ export function useGeneralSettingsCoordinator(
       .catch(() => undefined)
       .then(async () => {
         await api.save(snapshot);
+        saveFailed = false;
       });
     saveChain = operation.catch((error: unknown) => {
+      saveFailed = true;
       options.notifications.warning(
         error instanceof Error
-          ? `常规设置已在本次运行中生效，但写入本机失败：${error.message}`
-          : "常规设置已在本次运行中生效，但暂时无法写入本机"
+          ? t("saveFailedDetail", { message: error.message })
+          : t("saveFailed")
       );
     });
   }
@@ -104,7 +107,7 @@ export function useGeneralSettingsCoordinator(
     loading = true;
     try {
       let shouldPersistLegacyAutoSave = false;
-      const snapshot = await api.list();
+      const snapshot = takeInitialGeneralSettings() ?? (await api.list());
       shouldPersistLegacyAutoSave =
         !snapshot.persisted && options.legacyAutoSave;
       const settings = shouldPersistLegacyAutoSave
@@ -139,9 +142,7 @@ export function useGeneralSettingsCoordinator(
       applyLanguage(options.settings.value.language);
       options.applyApprovalMode(options.settings.value.permissionMode);
       options.notifications.warning(
-        error instanceof Error
-          ? error.message
-          : "加载常规设置失败，已使用默认设置"
+        error instanceof Error ? error.message : t("loadFailed")
       );
       options.publishLoaded(options.settings.value);
       if (shouldSave) queueSave();
@@ -168,9 +169,7 @@ export function useGeneralSettingsCoordinator(
     options.autoSaveEnabled.value = enabled;
     applyLocalPatch({ autoSave: enabled });
     if (!saveGeneralPreferences(options.storage, { autoSave: enabled })) {
-      options.notifications.warning(
-        "自动保存设置已生效，但暂时无法写入本机配置"
-      );
+      options.notifications.warning(t("autoSaveFailed"));
     }
     queueSave();
     if (enabled) options.scheduleDirtyAutoSave();
@@ -226,8 +225,19 @@ export function useGeneralSettingsCoordinator(
     queueSave();
   }
 
-  async function drain(): Promise<void> {
-    await saveChain;
+  async function drain(input: { strict?: boolean } = {}): Promise<void> {
+    if (input.strict && loading) {
+      throw new Error(t("settingsStillLoading"));
+    }
+    if (input.strict && saveFailed) queueSave();
+    let pending: Promise<void>;
+    do {
+      pending = saveChain;
+      await pending;
+    } while (pending !== saveChain);
+    if (input.strict && saveFailed) {
+      throw new Error(t("settingsNotSaved"));
+    }
   }
 
   async function dispose(): Promise<void> {

@@ -1,3 +1,4 @@
+import { nativeText } from "./native-i18n";
 import type { ContextMenuParams } from "electron";
 import type {
   TextContextMenuAction,
@@ -51,13 +52,13 @@ export function buildTextMenuItems(
   const separator = (): TextMenuItem => ({ type: "separator" });
   const copy = item(
     "copy",
-    "复制",
+    nativeText("copy"),
     selected && flags.canCopy && !context.password,
     "CommandOrControl+C"
   );
   const selectAll = item(
     "selectAll",
-    "全选",
+    nativeText("selectAll"),
     context.hasText,
     "CommandOrControl+A"
   );
@@ -66,31 +67,31 @@ export function buildTextMenuItems(
       ? [
           item(
             "undo",
-            "撤销",
+            nativeText("undo"),
             context.history?.canUndo ?? flags.canUndo,
             "CommandOrControl+Z"
           ),
           item(
             "redo",
-            "重做",
+            nativeText("redo"),
             context.history?.canRedo ?? flags.canRedo,
             platform === "darwin" ? "Command+Shift+Z" : "Control+Y"
           ),
           separator(),
           item(
             "cut",
-            "剪切",
+            nativeText("cut"),
             selected && flags.canCut && !context.password,
             "CommandOrControl+X"
           ),
           copy,
           item(
             "paste",
-            "粘贴",
+            nativeText("paste"),
             flags.canPaste && hasClipboardText,
             "CommandOrControl+V"
           ),
-          item("delete", "删除", selected && flags.canDelete),
+          item("delete", nativeText("delete"), selected && flags.canDelete),
           separator(),
           selectAll
         ]
@@ -98,7 +99,10 @@ export function buildTextMenuItems(
         ? [copy, separator(), selectAll]
         : [copy];
   if (context.canInsertReference && selected && !context.password) {
-    items.unshift(item("insertReference", "插入输入框", true), separator());
+    items.unshift(
+      item("insertReference", nativeText("insertReference"), true),
+      separator()
+    );
   }
   return items;
 }

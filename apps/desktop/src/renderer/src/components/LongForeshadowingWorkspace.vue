@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { formatError } from "../i18n/errors";
+import { createScopedTranslator } from "../i18n";
 import {
   computed,
   nextTick,
@@ -29,6 +31,8 @@ import PopupSelect, {
   type PopupSelectOption,
   type PopupSelectValue
 } from "./PopupSelect.vue";
+
+const t = createScopedTranslator("components.longForeshadowingWorkspace");
 
 type WorkspaceMode = "overview" | "volume" | "plotPoint";
 type PlannedSpan = "local" | "within_volume" | "cross_volume";
@@ -110,69 +114,142 @@ const emit = defineEmits<{
 }>();
 
 const spanLabels: Record<PlannedSpan, string> = {
-  local: "剧情点内",
-  within_volume: "卷内",
-  cross_volume: "跨卷"
+  get local() {
+    return t("withinPlotPoint");
+  },
+  get within_volume() {
+    return t("withinVolume");
+  },
+  get cross_volume() {
+    return t("acrossVolumes");
+  }
 };
 
 const lifecycleLabels: Record<LongForeshadowingStatus, string> = {
-  planned: "构思中",
-  open: "已埋设",
-  progressing: "发展中",
-  resolved: "已回收",
-  abandoned: "已废弃"
+  get planned() {
+    return t("planning");
+  },
+  get open() {
+    return t("planted");
+  },
+  get progressing() {
+    return t("developing");
+  },
+  get resolved() {
+    return t("resolved");
+  },
+  get abandoned() {
+    return t("abandoned");
+  }
 };
 
 const beatTypeLabels: Record<LongForeshadowingBeatType, string> = {
-  source: "真相源头",
-  plant: "埋设",
-  reinforce: "强化",
-  misdirect: "误导",
-  partial_reveal: "部分揭示",
-  reveal: "揭示",
-  payoff: "回收",
-  aftermath: "余波"
+  get source() {
+    return t("truthOrigin");
+  },
+  get plant() {
+    return t("plant");
+  },
+  get reinforce() {
+    return t("reinforce");
+  },
+  get misdirect() {
+    return t("misdirect");
+  },
+  get partial_reveal() {
+    return t("partialReveal");
+  },
+  get reveal() {
+    return t("reveal");
+  },
+  get payoff() {
+    return t("resolve");
+  },
+  get aftermath() {
+    return t("aftermath");
+  }
 };
 
 const executionStatusLabels: Record<LongExecutionStatus, string> = {
-  planned: "待写入",
-  written: "已写入",
-  committed: "已提交",
-  missed: "已错过"
+  get planned() {
+    return t("pendingWrite");
+  },
+  get written() {
+    return t("written");
+  },
+  get committed() {
+    return t("committed");
+  },
+  get missed() {
+    return t("missed");
+  }
 };
 
 const spanOptions: readonly PopupSelectOption[] = (
-  Object.entries(spanLabels) as Array<[PlannedSpan, string]>
-).map(([value, label]) => ({ value, label }));
+  Object.keys(spanLabels) as PlannedSpan[]
+).map((value) => ({
+  value,
+  get label() {
+    return spanLabels[value];
+  }
+}));
 
 const spanFilterOptions: readonly PopupSelectOption[] = [
-  { value: "all", label: "全部跨度" },
+  {
+    value: "all",
+    get label() {
+      return t("allScopes");
+    }
+  },
   ...spanOptions
 ];
 
 const lifecycleFilterOptions: readonly PopupSelectOption[] = [
-  { value: "all", label: "全部生命周期" },
-  ...(
-    Object.entries(lifecycleLabels) as Array<[LongForeshadowingStatus, string]>
-  ).map(([value, label]) => ({ value, label }))
+  {
+    value: "all",
+    get label() {
+      return t("allLifecycles");
+    }
+  },
+  ...(Object.keys(lifecycleLabels) as LongForeshadowingStatus[]).map(
+    (value) => ({
+      value,
+      get label() {
+        return lifecycleLabels[value];
+      }
+    })
+  )
 ];
 
 const editableLifecycleOptions: readonly PopupSelectOption[] = [
   {
     value: "planned",
-    label: lifecycleLabels.planned,
-    description: "尚未由正文提交产生实际触点"
+    get label() {
+      return lifecycleLabels.planned;
+    },
+    get description() {
+      return t("noActualTouchpointHasBeenProducedByAManuscript");
+    }
   },
   {
     value: "abandoned",
-    label: lifecycleLabels.abandoned,
-    description: "保留记录，但不再继续推进"
+    get label() {
+      return lifecycleLabels.abandoned;
+    },
+    get description() {
+      return t("keepTheRecordWithoutFurtherDevelopment");
+    }
   }
 ];
 
 const beatTypeOptions: readonly PopupSelectOption[] = (
-  Object.entries(beatTypeLabels) as Array<[LongForeshadowingBeatType, string]>
-).map(([value, label]) => ({ value, label }));
+  Object.keys(beatTypeLabels) as LongForeshadowingBeatType[]
+).map((value) => ({
+  value,
+  get label() {
+    return beatTypeLabels[value];
+  }
+}));
 
 const query = ref("");
 const lifecycleFilter = ref<FilterValue>("all");
@@ -296,7 +373,10 @@ const resolvedContextVolumeId = computed(
 );
 
 const volumeOptions = computed<PopupSelectOption[]>(() => [
-  { value: "", label: "暂不指定分卷" },
+  {
+    value: "",
+    label: t("noVolumeSpecified")
+  },
   ...[...props.snapshot.plot.volumes]
     .sort(
       (left, right) =>
@@ -312,7 +392,10 @@ const arcOptions = computed<PopupSelectOption[]>(() => {
   const scopedVolumeId =
     props.mode === "overview" ? undefined : resolvedContextVolumeId.value;
   return [
-    { value: "", label: "暂不指定剧情点" },
+    {
+      value: "",
+      label: t("noPlotPointSpecified")
+    },
     ...[...props.snapshot.plot.arcs]
       .filter((arc) => !scopedVolumeId || arc.volumeId === scopedVolumeId)
       .sort((left, right) => {
@@ -559,32 +642,32 @@ const volumeSummarySections = computed<VolumeSummarySection[]>(() => {
   return [
     {
       id: "plant",
-      title: "本卷新埋",
-      description: "真相源头与首次埋设",
+      title: t("plantedInThisVolume"),
+      description: t("truthOriginsAndFirstPlanting"),
       items: items.filter(
         ({ beat }) => beat.type === "source" || beat.type === "plant"
       )
     },
     {
       id: "progress",
-      title: "本卷推进",
-      description: "强化、误导与部分揭示",
+      title: t("developedInThisVolume"),
+      description: t("reinforcementMisdirectionAndPartialReveals"),
       items: items.filter(({ beat }) =>
         ["reinforce", "misdirect", "partial_reveal"].includes(beat.type)
       )
     },
     {
       id: "payoff",
-      title: "本卷回收",
-      description: "揭示真相或兑现回收",
+      title: t("resolvedInThisVolume"),
+      description: t("revealingTheTruthOrDeliveringThePayoff"),
       items: items.filter(
         ({ beat }) => beat.type === "reveal" || beat.type === "payoff"
       )
     },
     {
       id: "carry",
-      title: "带往后卷",
-      description: "本卷出现、但仍需继续推进的伏笔线",
+      title: t("carriedForward"),
+      description: t("threadsAppearingInThisVolumeThatNeedFurtherDevelopment"),
       items: carryItems
     }
   ];
@@ -592,27 +675,41 @@ const volumeSummarySections = computed<VolumeSummarySection[]>(() => {
 
 const workspaceTitle = computed(() => {
   if (props.mode === "volume") {
-    return `${currentVolume.value?.title ?? "当前分卷"} · 本卷伏笔`;
+    return t("valueVolumeForeshadowing", {
+      arg0: currentVolume.value?.title ?? t("currentVolume")
+    });
   }
   if (props.mode === "plotPoint") {
-    return `${currentPlotPoint.value?.title ?? "当前剧情点"} · 伏笔触点`;
+    return t("valueForeshadowingTouchpoints", {
+      arg0: currentPlotPoint.value?.title ?? t("currentPlotPoint")
+    });
   }
-  return "伏笔总览";
+  return t("foreshadowingOverview");
 });
 
 const workspaceDescription = computed(() => {
   if (props.mode === "volume") {
-    return "按本卷新埋、推进、回收和带往后卷自动汇总，无需重复维护。";
+    return t(
+      "automaticallySummarizesThreadsPlantedDevelopedResolvedOrCarriedForward"
+    );
   }
   if (props.mode === "plotPoint") {
-    return "这里只显示锚定到当前剧情点的触点，修改会同步回伏笔总览。";
+    return t("onlyTouchpointsAnchoredToTheCurrentPlotPointAppear");
   }
-  return "集中管理伏笔线的完整生命周期；每个触点仍锚定在卷或剧情点中。";
+  return t(
+    "manageCompleteThreadLifecyclesCentrallyEachTouchpointRemainsAnchored"
+  );
 });
 
 const formTitle = computed(() => {
-  const action = formMode.value === "create" ? "新建" : "编辑";
-  return `${action}${formKind.value === "thread" ? "伏笔线" : "伏笔触点"}`;
+  const action = formMode.value === "create" ? t("new") : t("edit");
+  return t("editorTitle", {
+    action: action,
+    kind:
+      formKind.value === "thread"
+        ? t("foreshadowingThread")
+        : t("foreshadowingTouchpoints")
+  });
 });
 
 watch(
@@ -648,11 +745,21 @@ watch(
 );
 
 function volumeTitle(volumeId: string): string {
-  return volumeById.value.get(volumeId)?.title ?? `缺失分卷（${volumeId}）`;
+  return (
+    volumeById.value.get(volumeId)?.title ??
+    t("missingVolumeValue", {
+      arg0: volumeId
+    })
+  );
 }
 
 function arcTitle(arcId: string): string {
-  return arcById.value.get(arcId)?.title ?? `缺失剧情点（${arcId}）`;
+  return (
+    arcById.value.get(arcId)?.title ??
+    t("missingPlotPointValue", {
+      arg0: arcId
+    })
+  );
 }
 
 function beatContextLabel(beat: ForeshadowingBeat): string {
@@ -669,13 +776,15 @@ function beatContextLabel(beat: ForeshadowingBeat): string {
   }
   const volumeIds = resolveBeatVolumeIds(beat);
   if (volumeIds.length) {
-    return `${volumeIds.map(volumeTitle).join(" / ")} · 待落到剧情点`;
+    return t("valueAwaitingPlotPointPlacement", {
+      arg0: volumeIds.map(volumeTitle).join(" / ")
+    });
   }
-  return beat.plannedScope || "尚未绑定卷或剧情点";
+  return beat.plannedScope || t("noVolumeOrPlotPointLinked");
 }
 
 function beatBody(beat: ForeshadowingBeat): string {
-  return beat.note || beat.plannedScope || "尚未补充呈现说明";
+  return beat.note || beat.plannedScope || t("noPresentationNotesYet");
 }
 
 function isThreadLocked(thread: ForeshadowingThread): boolean {
@@ -831,7 +940,7 @@ function openCreateThread(): void {
 function openEditThread(thread: ForeshadowingThread): void {
   if (mutationLocked.value) return;
   if (isThreadLocked(thread) && !canBackfillThreadMetadata(thread)) {
-    uiMessage.info("该伏笔线正在处理其它变更，请稍后重试。");
+    uiMessage.info(t("thisThreadHasAnotherChangeInProgressTryAgain"));
     return;
   }
   Object.assign(threadDraft, {
@@ -864,7 +973,7 @@ function openCreateBeat(thread?: ForeshadowingThread | null): void {
   if (mutationLocked.value) return;
   const targetThread = thread ?? activeThread.value ?? threads.value[0];
   if (!targetThread) {
-    uiMessage.info("请先在伏笔总览中新建一条伏笔线。");
+    uiMessage.info(t("createAThreadInTheForeshadowingOverviewFirst"));
     return;
   }
   Object.assign(beatDraft, {
@@ -885,7 +994,7 @@ function openEditBeat(
 ): void {
   if (mutationLocked.value) return;
   if (isBeatLocked(beat)) {
-    uiMessage.info("该触点正在处理其它变更，请稍后重试。");
+    uiMessage.info(t("thisTouchpointHasAnotherChangeInProgressTryAgain"));
     return;
   }
   // Keep legacy event/chapter/placement anchors untouched. The derived
@@ -960,7 +1069,7 @@ function emitMutation(
     return true;
   } catch (error: unknown) {
     uiMessage.warning(
-      error instanceof Error ? error.message : "无法生成伏笔结构变更。"
+      formatError(error, t("couldNotGenerateForeshadowingStructureChanges"))
     );
     return false;
   }
@@ -969,7 +1078,7 @@ function emitMutation(
 function submitThread(): void {
   const title = threadDraft.title.trim();
   if (!title) {
-    uiMessage.warning("请输入伏笔线名称。");
+    uiMessage.warning(t("enterAForeshadowingThreadName"));
     firstFormInput.value?.focus({ preventScroll: true });
     return;
   }
@@ -987,7 +1096,7 @@ function submitThread(): void {
     if (formMode.value === "create") {
       return builder.createForeshadowing(input);
     }
-    if (!threadDraft.id) throw new Error("缺少待编辑伏笔线的稳定 ID。");
+    if (!threadDraft.id) throw new Error(t("theThreadSStableIDIsMissing"));
     const originalThread = threads.value.find(
       (thread) => thread.id === threadDraft.id
     );
@@ -1008,7 +1117,7 @@ function submitThread(): void {
 
 function submitBeat(): void {
   if (!beatDraft.threadId) {
-    uiMessage.warning("请选择所属伏笔线。");
+    uiMessage.warning(t("selectAForeshadowingThread"));
     return;
   }
   const originalBeat =
@@ -1028,7 +1137,7 @@ function submitBeat(): void {
     !beatDraft.plannedScope.trim() &&
     !hasLegacyAnchor
   ) {
-    uiMessage.warning("请选择分卷或剧情点，或填写计划范围。");
+    uiMessage.warning(t("selectAVolumeOrPlotPointOrEnterA"));
     return;
   }
 
@@ -1044,7 +1153,7 @@ function submitBeat(): void {
     if (formMode.value === "create") {
       return builder.createForeshadowingBeat(input);
     }
-    if (!beatDraft.id) throw new Error("缺少待编辑触点的稳定 ID。");
+    if (!beatDraft.id) throw new Error(t("theTouchpointSStableIDIsMissing"));
     return builder.updateForeshadowingBeat(beatDraft.id, input);
   }, "form");
 }
@@ -1136,7 +1245,7 @@ onBeforeUnmount(() =>
           @click="openCreateThread"
         >
           <AppIcon name="plus" :size="15" />
-          新建伏笔线
+          {{ t("newForeshadowingThread") }}
         </button>
         <button
           v-else
@@ -1146,7 +1255,7 @@ onBeforeUnmount(() =>
           @click="openCreateBeat()"
         >
           <AppIcon name="plus" :size="15" />
-          新增触点
+          {{ t("addTouchpoint") }}
         </button>
       </div>
     </header>
@@ -1154,19 +1263,23 @@ onBeforeUnmount(() =>
     <section v-if="mode === 'overview'" class="overview-dashboard">
       <dl class="overview-stats">
         <div>
-          <dt>全部伏笔线</dt>
+          <dt>{{ t("allThreads") }}</dt>
           <dd>{{ overviewStats.total }}</dd>
         </div>
         <div>
-          <dt>正在推进</dt>
+          <dt>{{ t("inProgress") }}</dt>
           <dd>{{ overviewStats.active }}</dd>
         </div>
         <div>
-          <dt>已经回收</dt>
+          <dt>
+            {{ t("resolvedLabel") }}
+          </dt>
           <dd>{{ overviewStats.resolved }}</dd>
         </div>
         <div>
-          <dt>待写入触点</dt>
+          <dt>
+            {{ t("pendingTouchpoints") }}
+          </dt>
           <dd>{{ overviewStats.plannedBeats }}</dd>
         </div>
       </dl>
@@ -1177,14 +1290,14 @@ onBeforeUnmount(() =>
             v-model="query"
             type="search"
             autocomplete="off"
-            placeholder="搜索名称、问题、真相或触点"
-            aria-label="搜索伏笔"
+            :placeholder="t('searchNamesQuestionsTruthsOrTouchpoints')"
+            :aria-label="t('searchForeshadowing')"
           />
         </label>
         <PopupSelect
           :model-value="lifecycleFilter"
           :options="lifecycleFilterOptions"
-          accessible-label="按生命周期筛选伏笔"
+          :accessible-label="t('filterForeshadowingByLifecycle')"
           variant="compact"
           size="small"
           :disabled="mutationLocked"
@@ -1193,7 +1306,7 @@ onBeforeUnmount(() =>
         <PopupSelect
           :model-value="spanFilter"
           :options="spanFilterOptions"
-          accessible-label="按跨度筛选伏笔"
+          :accessible-label="t('filterForeshadowingByScope')"
           variant="compact"
           size="small"
           :disabled="mutationLocked"
@@ -1205,7 +1318,7 @@ onBeforeUnmount(() =>
     <section
       v-if="mode === 'volume'"
       class="volume-summary"
-      aria-label="本卷伏笔自动汇总"
+      :aria-label="t('automaticVolumeForeshadowingSummary')"
     >
       <article
         v-for="section in volumeSummarySections"
@@ -1234,27 +1347,32 @@ onBeforeUnmount(() =>
               {{ beatContextLabel(item.beat) }}
             </span>
             <span v-else>
-              {{ lifecycleLabels[item.thread.status] }} · 最近触点：{{
-                beatTypeLabels[item.beat.type]
+              {{
+                t("latestTouchpointMessage", {
+                  arg0: lifecycleLabels[item.thread.status] ?? "",
+                  arg1: beatTypeLabels[item.beat.type] ?? ""
+                })
               }}
             </span>
           </button>
         </div>
-        <p v-else class="summary-empty">暂无</p>
+        <p v-else class="summary-empty">
+          {{ t("none") }}
+        </p>
       </article>
     </section>
 
     <div class="foreshadow-layout">
-      <aside class="thread-pane" aria-label="伏笔线列表">
+      <aside class="thread-pane" :aria-label="t('foreshadowingThreads')">
         <header>
           <div>
             <strong>
               {{
                 mode === "overview"
-                  ? "伏笔线"
+                  ? t("foreshadowingThread")
                   : mode === "volume"
-                    ? "本卷涉及"
-                    : "当前剧情点涉及"
+                    ? t("inThisVolume")
+                    : t("inThisPlotPoint")
               }}
             </strong>
             <span>{{ visibleThreads.length }}</span>
@@ -1264,11 +1382,15 @@ onBeforeUnmount(() =>
             type="button"
             class="quiet-add-button"
             :disabled="mutationLocked"
-            title="新伏笔线请到伏笔总览创建"
-            @click="uiMessage.info('新伏笔线请在“伏笔总览”中创建。')"
+            :title="t('createNewThreadsInTheForeshadowingOverview')"
+            @click="
+              uiMessage.info(
+                t('createNewThreadsInTheForeshadowingOverviewLabel')
+              )
+            "
           >
             <AppIcon name="sparkles" :size="14" />
-            总览创建
+            {{ t("createInOverview") }}
           </button>
         </header>
 
@@ -1294,17 +1416,23 @@ onBeforeUnmount(() =>
                 </small>
               </span>
               <span class="thread-card-meta">
-                {{ spanLabels[derivedSpan(thread)] }} ·
-                {{ thread.beats.length }} 个触点
+                {{
+                  t("touchpointsMessage", {
+                    arg0: spanLabels[derivedSpan(thread)] ?? "",
+                    arg1: thread.beats.length ?? ""
+                  })
+                }}
               </span>
-              <span>{{ thread.coreQuestion || "尚未填写核心问题" }}</span>
+              <span>{{ thread.coreQuestion || t("noCoreQuestionYet") }}</span>
             </button>
             <div v-if="mode === 'overview'" class="thread-card-actions">
               <button
                 type="button"
                 :disabled="mutationLocked || isThreadLocked(thread)"
-                :aria-label="`编辑伏笔线${thread.title}`"
-                title="编辑伏笔线"
+                :aria-label="
+                  t('editForeshadowingThreadValue', { arg0: thread.title })
+                "
+                :title="t('editForeshadowingThread')"
                 @click="openEditThread(thread)"
               >
                 <AppIcon name="edit" :size="14" />
@@ -1313,8 +1441,10 @@ onBeforeUnmount(() =>
                 class="danger-ghost-button"
                 type="button"
                 :disabled="mutationLocked || isThreadLocked(thread)"
-                :aria-label="`删除伏笔线${thread.title}`"
-                title="删除伏笔线"
+                :aria-label="
+                  t('deleteForeshadowingThreadValue', { arg0: thread.title })
+                "
+                :title="t('deleteForeshadowingThread')"
                 @click="requestDeleteThread(thread)"
               >
                 <AppIcon name="trash" :size="14" />
@@ -1327,21 +1457,21 @@ onBeforeUnmount(() =>
           <strong>
             {{
               mode === "overview"
-                ? "没有符合条件的伏笔线"
-                : "当前范围还没有伏笔触点"
+                ? t("noMatchingForeshadowingThreads")
+                : t("noForeshadowingTouchpointsInThisScopeYet")
             }}
           </strong>
           <span>
             {{
               mode === "overview"
-                ? "调整筛选条件，或新建第一条伏笔线。"
-                : "从已有伏笔线新增触点后会自动出现在这里。"
+                ? t("adjustTheFiltersOrCreateYourFirstThread")
+                : t("addATouchpointToAnExistingThreadToSee")
             }}
           </span>
         </div>
       </aside>
 
-      <main class="thread-detail" aria-label="伏笔线详情">
+      <main class="thread-detail" :aria-label="t('foreshadowingThreadDetails')">
         <template v-if="activeThread">
           <header class="thread-detail-header">
             <div>
@@ -1365,8 +1495,8 @@ onBeforeUnmount(() =>
               >
                 {{
                   canBackfillThreadMetadata(activeThread)
-                    ? "补全伏笔信息"
-                    : "编辑伏笔线"
+                    ? t("completeForeshadowingDetails")
+                    : t("editForeshadowingThread")
                 }}
               </button>
               <button
@@ -1377,10 +1507,10 @@ onBeforeUnmount(() =>
               >
                 {{
                   pendingMutation?.surface === "background"
-                    ? "更新状态中…"
+                    ? t("updatingStatus")
                     : activeThread.status === "abandoned"
-                      ? "恢复伏笔线"
-                      : "标记废弃"
+                      ? t("restoreThread")
+                      : t("markAbandoned")
                 }}
               </button>
               <button
@@ -1390,23 +1520,35 @@ onBeforeUnmount(() =>
                 @click="openCreateBeat(activeThread)"
               >
                 <AppIcon name="plus" :size="14" />
-                新增触点
+                {{ t("addTouchpoint") }}
               </button>
             </div>
           </header>
 
           <dl class="thread-facts">
             <div>
-              <dt>核心问题</dt>
-              <dd>{{ activeThread.coreQuestion || "尚未填写" }}</dd>
+              <dt>
+                {{ t("coreQuestion") }}
+              </dt>
+              <dd>
+                {{ activeThread.coreQuestion || t("notProvided") }}
+              </dd>
             </div>
             <div>
-              <dt>隐藏真相</dt>
-              <dd>{{ activeThread.hiddenTruth || "尚未填写" }}</dd>
+              <dt>
+                {{ t("hiddenTruth") }}
+              </dt>
+              <dd>
+                {{ activeThread.hiddenTruth || t("notProvided") }}
+              </dd>
             </div>
             <div>
-              <dt>预期读者效果</dt>
-              <dd>{{ activeThread.expectedReaderEffect || "尚未填写" }}</dd>
+              <dt>
+                {{ t("intendedReaderResponse") }}
+              </dt>
+              <dd>
+                {{ activeThread.expectedReaderEffect || t("notProvided") }}
+              </dd>
             </div>
           </dl>
 
@@ -1416,16 +1558,20 @@ onBeforeUnmount(() =>
                 <h4>
                   {{
                     mode === "overview"
-                      ? "完整触点链"
+                      ? t("fullTouchpointChain")
                       : mode === "volume"
-                        ? "本卷触点"
-                        : "当前剧情点触点"
+                        ? t("touchpointsInThisVolume")
+                        : t("touchpointsInThisPlotPoint")
                   }}
                 </h4>
-                <span>{{ activeThreadBeats.length }} 个</span>
+                <span>{{
+                  t("itemsMessage", {
+                    arg0: activeThreadBeats.length ?? ""
+                  })
+                }}</span>
               </div>
               <small v-if="isThreadLocked(activeThread)">
-                当前伏笔线正在处理其它变更。
+                {{ t("thisThreadHasAnotherChangeInProgress") }}
               </small>
             </header>
 
@@ -1444,7 +1590,9 @@ onBeforeUnmount(() =>
                 <article>
                   <header>
                     <div>
-                      <span class="beat-order">触点 {{ beat.order }}</span>
+                      <span class="beat-order">{{
+                        t("touchpointMessage", { arg0: beat.order ?? "" })
+                      }}</span>
                       <strong>{{ beatTypeLabels[beat.type] }}</strong>
                     </div>
                     <span class="execution-pill" :class="`is-${beat.status}`">
@@ -1462,7 +1610,7 @@ onBeforeUnmount(() =>
                       :disabled="mutationLocked || isBeatLocked(beat)"
                       @click="openEditBeat(activeThread, beat)"
                     >
-                      编辑
+                      {{ t("edit") }}
                     </button>
                     <button
                       class="danger-text-button"
@@ -1470,29 +1618,37 @@ onBeforeUnmount(() =>
                       :disabled="mutationLocked || isBeatLocked(beat)"
                       @click="requestDeleteBeat(activeThread, beat)"
                     >
-                      删除
+                      {{ t("delete") }}
                     </button>
                   </div>
                 </article>
               </li>
             </ol>
             <div v-else class="beat-empty">
-              <strong>当前范围还没有触点</strong>
-              <span>新增后会自动出现在剧情点、本卷汇总和伏笔总览中。</span>
+              <strong>{{ t("noTouchpointsInThisScopeYet") }}</strong>
+              <span>{{
+                t(
+                  "newTouchpointsAppearAutomaticallyInPlotPointsVolumeSummaries"
+                )
+              }}</span>
               <button
                 type="button"
                 :disabled="mutationLocked"
                 @click="openCreateBeat(activeThread)"
               >
-                新增第一个触点
+                {{ t("addFirstTouchpoint") }}
               </button>
             </div>
           </section>
         </template>
         <div v-else class="detail-empty">
           <AppIcon name="sparkles" :size="26" />
-          <strong>选择一条伏笔线查看详情</strong>
-          <span>伏笔线集中管理，触点分布在卷与剧情点中。</span>
+          <strong>{{ t("selectAThreadToViewDetails") }}</strong>
+          <span>{{
+            t(
+              "threadsAreManagedCentrallyWithTouchpointsDistributedAcrossVolumes"
+            )
+          }}</span>
         </div>
       </main>
     </div>
@@ -1519,7 +1675,7 @@ onBeforeUnmount(() =>
               </div>
               <button
                 type="button"
-                aria-label="关闭伏笔编辑弹窗"
+                :aria-label="t('closeForeshadowingEditor')"
                 :disabled="mutationLocked"
                 @click="closeForm"
               >
@@ -1533,17 +1689,19 @@ onBeforeUnmount(() =>
                   v-if="editingCommittedThread"
                   class="committed-backfill-note"
                 >
-                  已提交触点仍锁定原有核心信息；这里只能补填旧项目中此前不存在的隐藏真相或计划跨度。
+                  {{
+                    t("committedTouchpointsRetainTheirLockedCoreDetailsYouCan")
+                  }}
                 </p>
                 <label class="form-field">
-                  <span>伏笔线名称</span>
+                  <span>{{ t("threadName") }}</span>
                   <input
                     ref="firstFormInput"
                     v-model="threadDraft.title"
                     :disabled="editingCommittedThread"
                     maxlength="256"
                     autocomplete="off"
-                    placeholder="例如：师父与旧城火灾的关系"
+                    :placeholder="t('forExampleTheMentorSConnectionToTheOld')"
                     required
                   />
                 </label>
@@ -1552,7 +1710,7 @@ onBeforeUnmount(() =>
                   :class="{ 'is-single': formMode === 'create' }"
                 >
                   <label class="form-field">
-                    <span>计划跨度</span>
+                    <span>{{ t("plannedScope") }}</span>
                     <PopupSelect
                       :model-value="threadDraft.plannedSpan"
                       :options="spanOptions"
@@ -1560,34 +1718,34 @@ onBeforeUnmount(() =>
                         editingCommittedThread &&
                         editingThread?.plannedSpan !== undefined
                       "
-                      accessible-label="选择伏笔计划跨度"
+                      :accessible-label="t('selectPlannedForeshadowingScope')"
                       :menu-z-index="2600"
                       @update:model-value="setThreadSpan"
                     />
                   </label>
                   <label v-if="formMode === 'edit'" class="form-field">
-                    <span>生命周期</span>
+                    <span>{{ t("lifecycle") }}</span>
                     <PopupSelect
                       :model-value="threadDraft.status"
                       :options="editableLifecycleOptions"
-                      accessible-label="选择伏笔生命周期"
+                      :accessible-label="t('selectForeshadowingLifecycle')"
                       :menu-z-index="2600"
                       @update:model-value="setThreadStatus"
                     />
                   </label>
                 </div>
                 <label class="form-field">
-                  <span>核心问题</span>
+                  <span>{{ t("coreQuestion") }}</span>
                   <textarea
                     v-model="threadDraft.coreQuestion"
                     :disabled="editingCommittedThread"
                     rows="3"
                     maxlength="200000"
-                    placeholder="读者会持续追问什么？"
+                    :placeholder="t('whatQuestionWillReadersKeepAsking')"
                   />
                 </label>
                 <label class="form-field">
-                  <span>隐藏真相</span>
+                  <span>{{ t("hiddenTruth") }}</span>
                   <textarea
                     v-model="threadDraft.hiddenTruth"
                     :disabled="
@@ -1596,82 +1754,90 @@ onBeforeUnmount(() =>
                     "
                     rows="4"
                     maxlength="200000"
-                    placeholder="作者掌握、但暂时不直接告诉读者的答案"
+                    :placeholder="t('theAnswerTheAuthorKnowsButHasNotYet')"
                   />
                 </label>
                 <label class="form-field">
-                  <span>预期读者效果</span>
+                  <span>{{ t("intendedReaderResponse") }}</span>
                   <textarea
                     v-model="threadDraft.expectedReaderEffect"
                     :disabled="editingCommittedThread"
                     rows="3"
                     maxlength="200000"
-                    placeholder="希望读者产生怎样的怀疑、误判或恍然大悟"
+                    :placeholder="
+                      t(
+                        'whatSuspicionMisjudgmentOrRealizationShouldReadersExperience'
+                      )
+                    "
                   />
                 </label>
               </template>
 
               <template v-else>
                 <label class="form-field">
-                  <span>所属伏笔线</span>
+                  <span>{{ t("parentThread") }}</span>
                   <PopupSelect
                     :model-value="beatDraft.threadId"
                     :options="threadOptions"
-                    accessible-label="选择触点所属伏笔线"
+                    :accessible-label="t('selectTheTouchpointSThread')"
                     :menu-z-index="2600"
                     @update:model-value="setBeatThread"
                   />
                 </label>
                 <label class="form-field">
-                  <span>触点作用</span>
+                  <span>{{ t("touchpointRole") }}</span>
                   <PopupSelect
                     :model-value="beatDraft.type"
                     :options="beatTypeOptions"
-                    accessible-label="选择伏笔触点作用"
+                    :accessible-label="t('selectTouchpointRole')"
                     :menu-z-index="2600"
                     @update:model-value="setBeatType"
                   />
                 </label>
                 <div class="form-grid">
                   <label class="form-field">
-                    <span>分卷待落点</span>
+                    <span>{{ t("volumeAwaitingPlacement") }}</span>
                     <PopupSelect
                       :model-value="beatDraft.volumeId"
                       :options="volumeOptions"
-                      accessible-label="选择触点所属分卷"
+                      :accessible-label="t('selectTheTouchpointSVolume')"
                       :menu-z-index="2600"
                       @update:model-value="setBeatVolume"
                     />
-                    <small>选择剧情点后，这里会自动清空。</small>
+                    <small>{{
+                      t("thisClearsAutomaticallyWhenYouSelectAPlotPoint")
+                    }}</small>
                   </label>
                   <label class="form-field">
-                    <span>剧情点</span>
+                    <span>{{ t("plotPoint") }}</span>
                     <PopupSelect
                       :model-value="beatDraft.arcId"
                       :options="arcOptions"
-                      accessible-label="选择触点所属剧情点"
+                      :accessible-label="t('selectTheTouchpointSPlotPoint')"
                       :menu-z-index="2600"
                       @update:model-value="setBeatArc"
                     />
-                    <small>精确到剧情点时只保存剧情点锚点。</small>
+                    <small>{{ t("whenPlacedAtAPlotPointOnlyThePlot") }}</small>
                   </label>
                 </div>
                 <label class="form-field">
-                  <span>计划范围</span>
+                  <span>{{ t("plannedRange") }}</span>
                   <input
                     v-model="beatDraft.plannedScope"
                     maxlength="1000"
                     autocomplete="off"
-                    placeholder="尚未确定具体落点时，可填写阶段或范围"
+                    :placeholder="t('enterAStageOrRangeIfTheExactPlacement')"
                   />
                 </label>
                 <label class="form-field">
-                  <span>呈现说明</span>
+                  <span>{{ t("presentationNotes") }}</span>
                   <textarea
                     v-model="beatDraft.note"
                     rows="4"
                     maxlength="4000"
-                    placeholder="读者实际看到什么，以及希望形成什么判断"
+                    :placeholder="
+                      t('whatReadersActuallySeeAndWhatTheyShouldInfer')
+                    "
                   />
                 </label>
               </template>
@@ -1683,7 +1849,7 @@ onBeforeUnmount(() =>
                 :disabled="mutationLocked"
                 @click="closeForm"
               >
-                取消
+                {{ t("cancel") }}
               </button>
               <button
                 class="primary-button"
@@ -1692,10 +1858,10 @@ onBeforeUnmount(() =>
               >
                 {{
                   pendingMutation?.surface === "form"
-                    ? "保存中…"
+                    ? t("saving")
                     : formMode === "create"
-                      ? "创建"
-                      : "保存修改"
+                      ? t("create")
+                      : t("saveChanges")
                 }}
               </button>
             </footer>

@@ -1,9 +1,12 @@
 <script setup lang="ts">
+import { createScopedTranslator, locale } from "../i18n";
 import { computed, watch } from "vue";
 import type { LongWorkspaceIndexSnapshot } from "@deepwrite/contracts";
 import type { LongDocumentState } from "../composables/useLongEditorDocumentSession";
 import type { LongWorkspaceSelectionFile } from "../types/longWorkspace";
 import { countNonWhitespaceCharacters } from "../utils/boundedTextHistory";
+
+const t = createScopedTranslator("components.longEditorFooterMeta");
 
 const props = defineProps<{
   bookId: string;
@@ -53,7 +56,11 @@ watch(
     if (files.length)
       void props
         .ensureDocumentsLoaded(
-          files.map((file) => ({ role: "body", label: "正文", file }))
+          files.map((file) => ({
+            role: "body",
+            label: t("manuscript"),
+            file
+          }))
         )
         .catch(() => {});
   },
@@ -77,18 +84,30 @@ const loadFailed = computed(() =>
 </script>
 <template>
   <span class="long-footer-meta">
-    {{ characterCount.toLocaleString("zh-CN") }} 字
+    {{
+      t("charactersMessage", {
+        arg0: characterCount.toLocaleString(locale) ?? ""
+      })
+    }}
     <template v-if="bodyFileId">
-      · 本卷
       {{
-        volumeCount === null
-          ? loadFailed
-            ? "字数暂不可用"
-            : "统计中…"
-          : `${volumeCount.toLocaleString("zh-CN")} 字`
+        t("thisVolumeMessage", {
+          arg0:
+            (volumeCount === null
+              ? loadFailed
+                ? t("characterCountUnavailable")
+                : t("counting")
+              : t("valueCharacters", {
+                  arg0: volumeCount.toLocaleString(locale)
+                })) ?? ""
+        })
       }}</template
     >
-    · 自动保存{{ autoSaveEnabled ? "开启" : "关闭" }}
+    {{
+      t("autosaveMessage", {
+        arg0: (autoSaveEnabled ? t("on") : t("off")) ?? ""
+      })
+    }}
   </span>
 </template>
 <style scoped>

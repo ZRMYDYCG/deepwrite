@@ -18,7 +18,7 @@ describe("App remote alerts", () => {
     expect(source).toContain("useSettingsFeatureCoordinator({");
     expect(modelCoordinatorSource).toContain("await api.get()");
     expect(settingsSource).toContain(
-      "官方模型已经上线！直连厂商！软件整体用量越多，折扣会越大！"
+      "officialModelsAreNowAvailableWithDirectProviderAccess"
     );
     expect(source).toContain(
       '@open-official-models="featureHost.openOfficialModelsSettings"'

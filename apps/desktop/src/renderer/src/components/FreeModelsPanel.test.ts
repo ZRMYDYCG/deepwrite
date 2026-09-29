@@ -18,10 +18,10 @@ describe("FreeModelsPanel", () => {
   it("shows cached current and deprecated models without refreshing on entry", () => {
     expect(source).toContain("deepwriteFreeModels");
     expect(source).toContain("deepwriteFreeDeprecatedModels");
-    expect(source).toContain("已废弃模型");
+    expect(source).toContain("retiredModels");
     expect(source).not.toContain("onMounted");
-    expect(source).toContain("刷新列表");
-    expect(source).toContain("需要更新目录时请点击");
+    expect(source).toContain("refreshList");
+    expect(source).toContain("chooseWhichFreeModelsAppearInModelSettingsAnd");
   });
 
   it("uses the persisted enabled ids for switches", () => {
@@ -33,9 +33,7 @@ describe("FreeModelsPanel", () => {
   it("lets users test every currently available model and shows its progress", () => {
     expect(source).toContain('v-if="isFreeModelAvailable(model)"');
     expect(source).toContain('emit("test", toModelInput(model))');
-    expect(source).toContain(
-      'testingModelId === model.id ? "测试中…" : "测试联通"'
-    );
+    expect(source).toContain("testing");
     expect(source).toContain("testingModelId !== null");
   });
 });

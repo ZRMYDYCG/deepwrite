@@ -1,9 +1,13 @@
+import { formatError } from "../i18n/errors";
+import { createScopedTranslator } from "../i18n";
 import type {
   CatalogLibraryProjectDomain,
   DeepWriteApi
 } from "@deepwrite/contracts";
 import type { Ref } from "vue";
 import { uiMessage } from "../ui-feedback";
+
+const t = createScopedTranslator("workspace");
 
 /** Loaded only when the existing directory menu requests a legacy import. */
 export async function importLegacyLibraryAction(
@@ -16,7 +20,11 @@ export async function importLegacyLibraryAction(
   }
 ): Promise<void> {
   if (!options.api) {
-    uiMessage.warning("浏览器预览不能导入旧版资料库，请使用桌面客户端。");
+    uiMessage.warning(
+      t(
+        "catalogProjectActions.theBrowserPreviewCannotImportLegacyLibrariesUseThe"
+      )
+    );
     return;
   }
   if (options.pending.value) return;
@@ -26,12 +34,21 @@ export async function importLegacyLibraryAction(
     if (!result) return;
     await options.refresh();
     options.selectLibrary(result.imported.at(-1)?.id);
-    const libraryLabel = domain === "material" ? "素材" : "技能";
+    const libraryLabel =
+      domain === "material"
+        ? t("catalogWorkspace.material")
+        : t("catalogWorkspace.skill");
     if (result.failures.length === 0) {
       uiMessage.success(
         result.imported.length === 1
-          ? `已导入旧版${libraryLabel}库“${result.imported[0]!.title}”并新建资料库`
-          : `已导入 ${result.imported.length} 个旧版${libraryLabel}库并新建资料库`
+          ? t("catalogProjectActions.importedLegacyLibraryAsANewLibrary", {
+              libraryLabel: libraryLabel,
+              value: result.imported[0]!.title
+            })
+          : t("catalogProjectActions.importedLegacyLibrariesAsNewLibraries", {
+              length: result.imported.length,
+              libraryLabel: libraryLabel
+            })
       );
     } else {
       const failureSummary = result.failures
@@ -39,13 +56,27 @@ export async function importLegacyLibraryAction(
         .join("；");
       if (result.imported.length > 0)
         uiMessage.warning(
-          `已导入 ${result.imported.length} 个旧版${libraryLabel}库，${result.failures.length} 个失败：${failureSummary}`
+          t("catalogProjectActions.importedLegacyLibrariesFailed", {
+            length: result.imported.length,
+            libraryLabel: libraryLabel,
+            length2: result.failures.length,
+            failureSummary: failureSummary
+          })
         );
-      else uiMessage.error(`导入旧版${libraryLabel}库失败：${failureSummary}`);
+      else
+        uiMessage.error(
+          t("catalogProjectActions.failedToImportLegacyLibraries", {
+            libraryLabel: libraryLabel,
+            failureSummary: failureSummary
+          })
+        );
     }
   } catch (error: unknown) {
     uiMessage.error(
-      error instanceof Error ? error.message : "导入旧版资料库失败。"
+      formatError(
+        error,
+        t("catalogProjectActions.failedToImportLegacyLibraries2")
+      )
     );
   } finally {
     options.pending.value = false;
@@ -66,7 +97,9 @@ export async function openCatalogProjectAction(
   }
 ): Promise<void> {
   if (!options.api) {
-    uiMessage.warning("浏览器预览不能打开本地文件夹，请使用桌面客户端。");
+    uiMessage.warning(
+      t("catalogProjectActions.theBrowserPreviewCannotOpenLocalFoldersUseThe")
+    );
     return;
   }
   if (options.pending.value) return;
@@ -77,11 +110,19 @@ export async function openCatalogProjectAction(
     await options.refresh();
     await options.select(opened);
     uiMessage.success(
-      `已打开${opened.domain === "book" ? "书籍" : opened.domain === "material" ? "素材库" : "技能库"}“${opened.title}”`
+      t("catalogProjectActions.opened", {
+        value:
+          opened.domain === "book"
+            ? t("catalogProjectActions.book")
+            : opened.domain === "material"
+              ? t("catalogWorkspace.materialLibrary")
+              : t("catalogWorkspace.skillLibrary"),
+        title: opened.title
+      })
     );
   } catch (error: unknown) {
     uiMessage.error(
-      error instanceof Error ? error.message : "打开本地项目失败。"
+      formatError(error, t("catalogProjectActions.failedToOpenLocalProject"))
     );
   } finally {
     options.pending.value = false;

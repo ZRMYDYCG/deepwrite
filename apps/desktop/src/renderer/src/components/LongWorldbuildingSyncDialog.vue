@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import { computed } from "vue";
 import type { LongWorldbuildingSyncPreparedChange } from "../types/longWorkspace";
 import type { LongWorldbuildingSyncBookOption } from "../utils/longWorldbuildingSync";
@@ -7,6 +8,8 @@ import PopupSelect, {
   type PopupSelectOption,
   type PopupSelectValue
 } from "./PopupSelect.vue";
+
+const t = createScopedTranslator("components.longWorldbuildingSyncDialog");
 
 const props = withDefaults(
   defineProps<{
@@ -38,7 +41,10 @@ const selectOptions = computed<PopupSelectOption[]>(() =>
       value: book.id,
       label:
         book.categoryCount > 0
-          ? `${book.title}（${book.categoryCount} 个分类）`
+          ? t("valueValueCategories", {
+              arg0: book.title,
+              arg1: book.categoryCount
+            })
           : book.title
     }))
 );
@@ -69,12 +75,14 @@ function selectBook(value: PopupSelectValue): void {
         <header>
           <div>
             <span>SYNC</span>
-            <h3 id="long-structure-sync-title">加载其他书籍世界观</h3>
+            <h3 id="long-structure-sync-title">
+              {{ t("loadWorldbuildingFromAnotherBook") }}
+            </h3>
           </div>
           <button
             class="close-button"
             type="button"
-            aria-label="关闭"
+            :aria-label="t('close')"
             :disabled="locked"
             @click="emit('close')"
           >
@@ -83,37 +91,45 @@ function selectBook(value: PopupSelectValue): void {
         </header>
         <fieldset :disabled="locked">
           <p id="long-structure-sync-description">
-            同步会用来源长篇的全部可编辑世界观覆盖当前书籍；迁移证据只读分类会保留。请先核对精确影响，再决定是否覆盖。
+            {{ t("syncReplacesAllEditableWorldbuildingInThisBookWith") }}
           </p>
           <label>
-            <span>选择来源长篇</span>
+            <span>{{ t("selectSourceNovel") }}</span>
             <PopupSelect
               :model-value="selectedBookId"
               :options="selectOptions"
-              accessible-label="选择要同步世界观的长篇书籍"
+              :accessible-label="t('selectANovelToSyncWorldbuildingFrom')"
               :menu-z-index="2300"
               @update:model-value="selectBook"
             />
           </label>
           <p v-if="selectedBook" class="summary">
-            将读取「{{ selectedBook.title }}」的
-            {{ selectedBook.categoryCount }} 个世界观分类及其全部内容。
+            {{
+              t("readAllContentFromTheWorldbuildingCategoriesMessage", {
+                arg0: selectedBook.title ?? "",
+                arg1: selectedBook.categoryCount ?? ""
+              })
+            }}
           </p>
           <template v-if="prepared">
             <p class="summary">
-              将新增 {{ prepared.createdCategoryCount }} 个分类、删除
-              {{ prepared.deletedCategoryCount }} 个现有分类，并写入
-              {{ prepared.writtenFileCount }} 份正文。
+              {{
+                t("categoriesToAddCategoriesToDeleteContentMessage", {
+                  arg0: prepared.createdCategoryCount ?? "",
+                  arg1: prepared.deletedCategoryCount ?? "",
+                  arg2: prepared.writtenFileCount ?? ""
+                })
+              }}
             </p>
             <LongImpactConfirmationDetails
               :confirmation="prepared.confirmation"
-              fallback="同步不会改变当前长篇中的关联关系。"
+              :fallback="t('syncWillNotChangeLinksInTheCurrentNovel')"
             />
           </template>
         </fieldset>
         <footer>
           <button type="button" :disabled="locked" @click="emit('close')">
-            取消
+            {{ t("cancel") }}
           </button>
           <button
             :class="{ 'danger-button': Boolean(prepared) }"
@@ -124,11 +140,11 @@ function selectBook(value: PopupSelectValue): void {
             {{
               pending
                 ? prepared
-                  ? "同步中…"
-                  : "核对中…"
+                  ? t("syncing")
+                  : t("checking")
                 : prepared
-                  ? "确认按上述影响覆盖"
-                  : "核对同步影响"
+                  ? t("overwriteWithTheImpactShown")
+                  : t("reviewSyncImpact")
             }}
           </button>
         </footer>

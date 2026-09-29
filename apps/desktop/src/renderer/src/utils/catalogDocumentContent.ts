@@ -1,9 +1,13 @@
+import { patchCatalogDocument } from "./patchCatalogDocument";
+import { createScopedTranslator } from "../i18n";
 import type {
   CatalogReadDocumentInput,
   CatalogReadDocumentResult,
   CatalogSnapshot
 } from "@deepwrite/contracts";
 import type { WorkspaceDocument } from "../types/workspace";
+
+const t = createScopedTranslator("workspace.catalogDocumentContent");
 
 export interface CatalogDocumentReadDescriptor {
   input: CatalogReadDocumentInput;
@@ -68,7 +72,7 @@ export function applyCatalogDocumentResult(
 ): WorkspaceDocument {
   const descriptor = catalogDocumentReadDescriptor(document);
   if (!descriptor || descriptor.input.projectId !== result.projectId) {
-    throw new Error("Catalog 正文与工作区文档不匹配。");
+    throw new Error(t("catalogContentDoesNotMatchTheWorkspaceDocument"));
   }
   if (
     descriptor.input.target !== result.target ||
@@ -76,15 +80,14 @@ export function applyCatalogDocumentResult(
       (result.target !== "document" ||
         descriptor.input.documentId !== result.documentId))
   ) {
-    throw new Error("Catalog 正文目标与工作区文档不匹配。");
+    throw new Error(t("theCatalogContentTargetDoesNotMatchTheWorkspace"));
   }
-  return {
-    ...document,
+  return patchCatalogDocument(document, {
     content: result.content,
     catalogContentBytes: result.contentBytes,
     catalogContentLoaded: true,
     catalogProjectRevision: result.projectRevision
-  };
+  });
 }
 
 /**

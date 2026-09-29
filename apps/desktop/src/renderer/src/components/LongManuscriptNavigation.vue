@@ -1,9 +1,12 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import type { LongChapterCardId } from "@deepwrite/contracts";
 import { handleHorizontalOverflowWheel } from "../utils/horizontalOverflow";
 import { orderLongChapterNavigationItems } from "../utils/orderLongChapterNavigationItems";
 import AppIcon from "./AppIcon.vue";
+
+const t = createScopedTranslator("components.longManuscriptNavigation");
 
 export interface LongManuscriptNavigationItem {
   id: LongChapterCardId;
@@ -101,8 +104,8 @@ onBeforeUnmount(() => {
     <button
       class="long-worldbuilding-add"
       type="button"
-      aria-label="新增章卡"
-      title="新增章卡"
+      :aria-label="t('addChapterCard')"
+      :title="t('addChapterCard')"
       :disabled="locked"
       @click="emit('createChapter')"
     >
@@ -111,13 +114,13 @@ onBeforeUnmount(() => {
     <button
       class="long-worldbuilding-remove"
       type="button"
-      aria-label="删除当前章卡"
+      :aria-label="t('deleteCurrentChapterCard')"
       :title="
         committed
-          ? '删除当前章卡及对应正文和连续性记录'
+          ? t('deleteThisChapterCardAndItsManuscriptAndContinuity')
           : activeChapter
-            ? '删除当前章卡'
-            : '请先选择一张章卡'
+            ? t('deleteCurrentChapterCard')
+            : t('selectAChapterCardFirst')
       "
       :disabled="locked || !activeChapter"
       @click="activeChapter && emit('deleteChapter', activeChapter.id)"
@@ -129,18 +132,18 @@ onBeforeUnmount(() => {
   <aside
     v-else
     class="long-story-plot-pane long-entry-list-pane"
-    aria-label="章卡列表"
+    :aria-label="t('chapterCards')"
   >
     <header>
       <div>
-        <strong>章卡</strong>
+        <strong>{{ t("chapterCard") }}</strong>
         <span>{{ orderedItems.length }}</span>
       </div>
       <div class="long-entry-list-actions">
         <button
           type="button"
-          aria-label="新增章卡"
-          title="新增章卡"
+          :aria-label="t('addChapterCard')"
+          :title="t('addChapterCard')"
           :disabled="locked"
           @click="emit('createChapter')"
         >
@@ -148,7 +151,7 @@ onBeforeUnmount(() => {
         </button>
         <button
           type="button"
-          aria-label="删除当前章卡"
+          :aria-label="t('deleteCurrentChapterCard')"
           :disabled="locked || !activeChapter"
           @click="activeChapter && emit('deleteChapter', activeChapter.id)"
         >
@@ -185,7 +188,11 @@ onBeforeUnmount(() => {
             class="long-story-plot-more-button"
             :class="{ 'is-active': actionMenuId === chapter.id }"
             type="button"
-            :aria-label="`${chapter.label}更多操作`"
+            :aria-label="
+              t('moreActionsForValue', {
+                arg0: chapter.label
+              })
+            "
             :aria-expanded="actionMenuId === chapter.id"
             aria-haspopup="menu"
             :disabled="locked"
@@ -210,7 +217,7 @@ onBeforeUnmount(() => {
               @click.stop="runMenuAction(chapter.id, 'up')"
             >
               <AppIcon name="arrow-up" :size="14" />
-              <span>上移</span>
+              <span>{{ t("moveUp") }}</span>
             </button>
             <button
               class="long-story-plot-action-menu-item"
@@ -224,7 +231,7 @@ onBeforeUnmount(() => {
                 name="arrow-up"
                 :size="14"
               />
-              <span>下移</span>
+              <span>{{ t("moveDown") }}</span>
             </button>
             <button
               class="long-story-plot-action-menu-item is-danger"
@@ -234,7 +241,7 @@ onBeforeUnmount(() => {
               @click.stop="runMenuAction(chapter.id, 'delete')"
             >
               <AppIcon name="trash" :size="14" />
-              <span>删除</span>
+              <span>{{ t("delete") }}</span>
             </button>
           </div>
         </div>

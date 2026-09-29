@@ -1,5 +1,8 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
+
+const t = createScopedTranslator("components.createCustomProviderDialog");
 
 const props = defineProps<{
   open: boolean;
@@ -49,13 +52,15 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
       >
         <header>
           <div>
-            <span class="dialog-eyebrow">模型配置</span>
-            <h2 id="create-custom-provider-title">新建提供商</h2>
+            <span class="dialog-eyebrow">{{ t("modelSettings") }}</span>
+            <h2 id="create-custom-provider-title">
+              {{ t("newProvider") }}
+            </h2>
           </div>
           <button
             class="dialog-close"
             type="button"
-            aria-label="关闭"
+            :aria-label="t('close')"
             @click="requestClose"
           >
             ×
@@ -64,19 +69,19 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
 
         <form class="dialog-content" @submit.prevent="submit">
           <label class="book-resource-name-field">
-            <span>名称</span>
+            <span>{{ t("name") }}</span>
             <input
               ref="nameInput"
               v-model="nameDraft"
               type="text"
               maxlength="120"
               autocomplete="off"
-              aria-label="提供商名称"
-              placeholder="例如：硅基流动"
+              :aria-label="t('providerName')"
+              :placeholder="t('forExampleSiliconFlow')"
             />
           </label>
           <p class="book-resource-help">
-            名称用于设置页分组和再次选择，API 类型与地址仍按每个模型填写。
+            {{ t("thisNameIdentifiesTheProviderGroupInSettingsConfigure") }}
           </p>
 
           <div class="dialog-actions">
@@ -85,9 +90,11 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
               type="button"
               @click="requestClose"
             >
-              取消
+              {{ t("cancel") }}
             </button>
-            <button class="dialog-primary-button" type="submit">创建</button>
+            <button class="dialog-primary-button" type="submit">
+              {{ t("create") }}
+            </button>
           </div>
         </form>
       </section>

@@ -1,3 +1,4 @@
+import { syncDisplayText } from "../../../localization/sync-display-text";
 import {
   sameSyncContent,
   stableSyncJson,
@@ -47,13 +48,16 @@ export async function transferSyncItem(input: {
       key,
       initial,
       identity.title,
-      "同步前的版本"
+      syncDisplayText("beforeSync").text
     );
     input.applying();
     await options.workspace.apply(key, initial, plan.item);
   }
   if (!sameSyncContent(metadata.baselines[key]?.item ?? null, plan.item)) {
     const received = !sameSyncContent(initial, plan.item);
+    const device = plan.candidates.find(
+      (entry) => !sameSyncContent(initial, entry.item)
+    )?.deviceName;
     metadata = await preserveSync(
       options,
       metadata,
@@ -61,8 +65,10 @@ export async function transferSyncItem(input: {
       plan.item,
       identity.title,
       received
-        ? `从${plan.candidates.find((entry) => !sameSyncContent(initial, entry.item))?.deviceName ?? "网盘"}取回修改`
-        : "已准备上传本机修改"
+        ? device
+          ? syncDisplayText("receivedChanges", { device }).text
+          : syncDisplayText("receivedRemote").text
+        : syncDisplayText("preparedUpload").text
     );
   }
   return { metadata, revision };

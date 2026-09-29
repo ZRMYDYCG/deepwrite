@@ -1,3 +1,4 @@
+import { t } from "../../i18n";
 import {
   catalogDraftBodyDocumentId,
   catalogDraftCharacterStateDocumentId,
@@ -124,7 +125,9 @@ export function createProvisionalSectionHelpers(ctx: ProposalLaneContext) {
             : createShortWorkspaceContentRevision(realDocument.content),
           statusMessage:
             proposal.statusMessage ??
-            "已关联到新创建的章节文件，接受后将写入正文。"
+            t(
+              "workspace.proposalCoordinator.linkedToTheNewlyCreatedChapterFileContentWill"
+            )
         });
         break;
       }

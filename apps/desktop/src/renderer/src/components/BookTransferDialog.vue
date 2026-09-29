@@ -1,6 +1,9 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import { computed, onBeforeUnmount, onMounted } from "vue";
 import AppIcon from "./AppIcon.vue";
+
+const t = createScopedTranslator("components.bookTransferDialog");
 
 export type BookTransferDialogMode = "open" | "import";
 export type BookTransferAction =
@@ -22,22 +25,22 @@ const options = computed(() =>
         {
           action: "open-book" as const,
           icon: "folder" as const,
-          title: "普通书籍或剧本",
-          description: "打开 DeepWrite 短篇或剧本项目文件夹"
+          title: t("shortStoryOrScreenplay"),
+          description: t("openADeepWriteShortStoryOrScreenplayProjectFolder")
         },
         {
           action: "open-long-book" as const,
           icon: "book" as const,
-          title: "长篇作品",
-          description: "打开 DeepWrite 长篇作品文件夹"
+          title: t("novel"),
+          description: t("openADeepWriteNovelProjectFolder")
         }
       ]
     : [
         {
           action: "import-continuation-long-book" as const,
           icon: "edit" as const,
-          title: "续写导入（TXT 章节）",
-          description: "从章节文件夹新建长篇，并封存除最后一章外的历史正文"
+          title: t("importForContinuationTXTChapters"),
+          description: t("createANovelFromAChapterFolderAndSeal")
         }
       ]
 );
@@ -65,15 +68,19 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
       >
         <header>
           <div>
-            <span class="dialog-eyebrow">创作空间</span>
+            <span class="dialog-eyebrow">{{ t("workspace") }}</span>
             <h2 id="book-transfer-title">
-              {{ mode === "open" ? "打开已有作品" : "导入已有作品" }}
+              {{
+                mode === "open"
+                  ? t("openExistingWork")
+                  : t("importExistingWork")
+              }}
             </h2>
           </div>
           <button
             class="dialog-close"
             type="button"
-            aria-label="关闭"
+            :aria-label="t('close')"
             :disabled="pending"
             @click="requestClose"
           >
@@ -83,9 +90,12 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
 
         <div class="dialog-content book-transfer-content">
           <p>
-            请选择{{
-              mode === "open" ? "作品类型" : "来源格式"
-            }}，随后将在系统窗口中选择对应文件。
+            {{
+              t("selectTheThenChooseTheFileInMessage", {
+                arg0:
+                  (mode === "open" ? t("workType") : t("sourceFormat")) ?? ""
+              })
+            }}
           </p>
           <div class="book-transfer-options">
             <button

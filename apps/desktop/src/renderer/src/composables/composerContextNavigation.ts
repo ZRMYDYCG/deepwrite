@@ -1,3 +1,5 @@
+import { formatError } from "../i18n/errors";
+import { t } from "../i18n";
 import { computed, ref, type Ref } from "vue";
 import type { ResourceTreeNode, ResourceTreeSection } from "../types/workspace";
 
@@ -104,7 +106,10 @@ export function createComposerContextNavigation(options: {
       return contains(node, options.selectedResourceId.value);
     } catch (error) {
       options.error(
-        error instanceof Error ? error.message : "切换失败，请重试"
+        formatError(
+          error,
+          t("workspace.composerContextNavigation.couldNotSwitchPleaseTryAgain")
+        )
       );
       return false;
     } finally {

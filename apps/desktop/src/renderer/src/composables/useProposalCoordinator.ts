@@ -1,3 +1,5 @@
+import { formatError } from "../i18n/errors";
+import { createScopedTranslator } from "../i18n";
 import { createLongWorldbuildingProposalLane } from "./proposal-coordinator/long-worldbuilding-lane";
 import { createLibraryProposalStager } from "./proposal-coordinator/library-staging";
 import { nextTick, type ComputedRef, type Ref, type ShallowRef } from "vue";
@@ -65,6 +67,8 @@ import { shortAgentDirectDocumentWrite } from "./proposal-coordinator/short-dire
 import { createAcceptedEditDiscardCoordinator } from "./accepted-edit-discard";
 import type { AgentConversationController } from "./useAgentConversation";
 import type { LongWorkspaceProposalEvent } from "./useLongWorkspaceProposals";
+
+const t = createScopedTranslator("workspace");
 
 type LongChapterWriteProposalEvent = Extract<
   SystemEventEnvelope,
@@ -221,7 +225,7 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
     priority: autoApproveEditPriority,
     reportUnexpectedError: (error) => {
       uiMessage.error(
-        error instanceof Error ? error.message : "批准智能体修改失败。"
+        formatError(error, t("proposalCoordinator.failedToApproveAgentEdits"))
       );
     }
   });
@@ -323,7 +327,9 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
       target.operation !== "create" ||
       typeof proposal.proposedText !== "string"
     ) {
-      const message = "待审阅的新条目缺少完整内容，请重新生成。";
+      const message = t(
+        "proposalCoordinator.thePendingNewEntryIsMissingCompleteContentGenerate"
+      );
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: "error",
         statusMessage: message
@@ -333,7 +339,7 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
     }
     const currentApi = api();
     if (!currentApi) {
-      const message = "桌面文件服务当前不可用。";
+      const message = t("short.theDesktopFileServiceIsUnavailable");
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: "error",
         statusMessage: message
@@ -348,7 +354,9 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
         "isBuiltin" in library &&
         library.isBuiltin);
     if (readOnly) {
-      const message = "目标资料库已不可用或只读，无法创建条目。";
+      const message = t(
+        "proposalCoordinator.theDestinationLibraryIsUnavailableOrReadOnlyThe"
+      );
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: "conflict",
         statusMessage: message
@@ -359,7 +367,9 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
     if (
       !currentLibraryProjectRevisionMatches(proposal, library.projectRevision)
     ) {
-      const message = "资料库目录已发生变化，未创建条目，请重新生成。";
+      const message = t(
+        "proposalCoordinator.theLibraryDirectoryChangedNoEntryWasCreatedGenerate"
+      );
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: "conflict",
         statusMessage: message
@@ -368,15 +378,19 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
       return;
     }
     if (acceptingAgentEditWorkspaceIds.value.has(proposal.workspaceId)) {
-      uiMessage.info("同一资料库正在保存其他修改，请稍候再接受");
+      uiMessage.info(
+        t("proposalCoordinator.otherEditsToThisLibraryAreBeingSavedWait")
+      );
       return;
     }
 
     conversation.updateEditProposal(request.runId, request.proposalId, {
       status: "accepting",
       statusMessage: automatic
-        ? "正在自动批准并创建资料库条目…"
-        : "正在校验资料库版本并创建条目…"
+        ? t(
+            "proposalCoordinator.automaticallyApprovingAndCreatingTheLibraryEntry"
+          )
+        : t("proposalCoordinator.checkingTheLibraryVersionAndCreatingTheEntry")
     });
     setAgentEditWorkspaceAccepting(proposal.workspaceId, true);
     try {
@@ -429,22 +443,31 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
           entryId: created.id
         },
         statusMessage: automatic
-          ? "已自动批准并创建资料库条目。"
-          : "已创建并保存到本地 Markdown。"
+          ? t("proposalCoordinator.libraryEntryAutomaticallyApprovedAndCreated")
+          : t("proposalCoordinator.createdAndSavedToLocalMarkdown")
       });
       if (createdDocument && !target.managementScope) {
         selectedResourceId.value = createdDocument.id;
         rightCollapsed.value = false;
       }
       uiMessage.success(
-        automatic ? "已自动批准并创建资料库条目" : "已创建资料库条目"
+        automatic
+          ? t(
+              "proposalCoordinator.libraryEntryAutomaticallyApprovedAndCreated2"
+            )
+          : t("proposalCoordinator.libraryEntryCreated")
       );
     } catch (error: unknown) {
       const message = isCatalogConflict(error)
-        ? "资料库已在外部更新，未创建条目；请重新生成。"
-        : error instanceof Error
-          ? error.message
-          : "创建资料库条目失败。";
+        ? t(
+            "proposalCoordinator.theLibraryWasUpdatedExternallyNoEntryWasCreated"
+          )
+        : formatError(
+            error,
+            t(
+              "catalogLibraryTransactionsCoordinator.failedToCreateLibraryEntry"
+            )
+          );
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: isCatalogConflict(error) ? "conflict" : "error",
         statusMessage: message
@@ -580,7 +603,9 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
             : createShortWorkspaceContentRevision(realDocument.content),
           statusMessage:
             proposal.statusMessage ??
-            "已关联到新创建的章节文件，接受后将写入正文。"
+            t(
+              "proposalCoordinator.linkedToTheNewlyCreatedChapterFileContentWill"
+            )
         });
         break;
       }
@@ -739,10 +764,14 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
     proposal: AgentEditProposal | undefined
   ): string | undefined {
     if (proposal?.status === "rejected") {
-      return "前序修改已被拒绝；为避免把被拒内容随后续全文重新带回，本次变更已阻断。";
+      return t(
+        "proposalCoordinator.anEarlierEditWasRejectedThisChangeIsBlocked"
+      );
     }
     if (proposal?.status === "conflict") {
-      return "前序修改存在冲突，本次后续变更已阻断，未覆盖当前文稿。";
+      return t(
+        "proposalCoordinator.anEarlierEditHasConflictsThisSubsequentChangeIs"
+      );
     }
     return undefined;
   }
@@ -783,8 +812,9 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
       conversation.updateEditProposal(candidate.runId, candidate.id, {
         status: "conflict",
         proposedText: undefined,
-        statusMessage:
-          "前序正文修改已被拒绝；这项后续修改继承了被拒内容，因此未写入本地文件。"
+        statusMessage: t(
+          "proposalCoordinator.anEarlierManuscriptEditWasRejectedThisSubsequentEdit"
+        )
       });
     }
   }
@@ -807,7 +837,9 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
     const book = catalogBook(proposal.workspaceId);
     const currentApi = api();
     if (!target || !book || !currentApi) {
-      const message = "人物结构目标已不可用，无法应用本次变更。";
+      const message = t(
+        "proposalCoordinator.theTargetCharacterStructureIsUnavailableThisChangeCannot"
+      );
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: "conflict",
         statusMessage: message
@@ -820,7 +852,9 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
         ? target.mutation.itemId
         : undefined;
     if (target.mutation.type === "createItem" && !createdItemId) {
-      const message = "人物创建缺少稳定条目 id，无法完成顺序写入。";
+      const message = t(
+        "proposalCoordinator.characterCreationIsMissingAStableEntryIdOrdered"
+      );
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: "error",
         statusMessage: message
@@ -830,7 +864,9 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
     }
     conversation.updateEditProposal(request.runId, request.proposalId, {
       status: "accepting",
-      statusMessage: automatic ? "正在自动保存人物结构…" : "正在保存人物结构…"
+      statusMessage: automatic
+        ? t("proposalCoordinator.automaticallySavingCharacterStructure")
+        : t("proposalCoordinator.savingCharacterStructure")
     });
     setAgentEditWorkspaceAccepting(proposal.workspaceId, true);
     try {
@@ -863,7 +899,7 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
         )
       ) {
         throw new Error(
-          "人物条目已创建，但刷新工作区后仍无法定位人物文件；请重试以完成正文映射。"
+          t("proposalCoordinator.characterEntryCreatedButItsFileCouldNotBe")
         );
       }
       conversation.updateEditProposal(request.runId, request.proposalId, {
@@ -878,14 +914,21 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
               }
             }),
         statusMessage: automatic
-          ? "已自动批准并保存人物结构变更。"
-          : "人物结构变更已保存到本地。"
+          ? t(
+              "proposalCoordinator.characterStructureChangesAutomaticallyApprovedAndSaved"
+            )
+          : t("proposalCoordinator.characterStructureChangesSavedLocally")
       });
-      if (!automatic) uiMessage.success("人物结构变更已保存");
+      if (!automatic)
+        uiMessage.success(
+          t("proposalCoordinator.characterStructureChangesSaved")
+        );
     } catch (error) {
       await loadCatalogSnapshot();
-      const message =
-        error instanceof Error ? error.message : "人物结构变更保存失败。";
+      const message = formatError(
+        error,
+        t("proposalCoordinator.failedToSaveCharacterStructureChanges")
+      );
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: isCatalogConflict(error) ? "conflict" : "error",
         statusMessage: message
@@ -951,7 +994,9 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
     if (mutationTarget?.kind === "character-structure") {
       const book = catalogBook(event.payload.workspaceId);
       if (!book || book.characterStructure.format !== "list") {
-        const message = "当前人物结构不是条目样式，本次条目操作未进入审阅。";
+        const message = t(
+          "proposalCoordinator.theCurrentCharacterStructureIsNotListBasedThis"
+        );
         sourceConversation.markToolConflict(
           event.payload.runId,
           event.payload.toolCallId,
@@ -1020,12 +1065,25 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
         documentId,
         title:
           source.type === "createItem"
-            ? `创建人物条目：${source.title}`
+            ? t("proposalCoordinator.createCharacterEntry", {
+                title: source.title
+              })
             : source.type === "updateItem"
-              ? `修改人物名称：${previousItemTitle} → ${source.title}`
+              ? t("proposalCoordinator.renameCharacter", {
+                  previousItemTitle: previousItemTitle ?? "",
+                  title: source.title
+                })
               : source.type === "moveItem"
-                ? `${source.direction === "up" ? "上移" : "下移"}人物条目：${source.title}`
-                : `删除人物条目：${source.title}`,
+                ? t("proposalCoordinator.characterEntry", {
+                    value:
+                      source.direction === "up"
+                        ? t("proposalCoordinator.moveUp")
+                        : t("proposalCoordinator.moveDown"),
+                    title: source.title
+                  })
+                : t("proposalCoordinator.deleteCharacterEntry", {
+                    title: source.title
+                  }),
         summary: event.payload.summary,
         status: "pending",
         baseRevision: event.payload.baseRevision,
@@ -1072,7 +1130,9 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
       );
       const book = catalogBook(event.payload.workspaceId);
       if (!directory || !book) {
-        const message = "目标正文目录已不可用，本次章节创建未进入审阅。";
+        const message = t(
+          "proposalCoordinator.theManuscriptDirectoryIsUnavailableChapterCreationWasNot"
+        );
         sourceConversation.markToolConflict(
           event.payload.runId,
           event.payload.toolCallId,
@@ -1107,7 +1167,9 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
         workspaceId: event.payload.workspaceId,
         stageId: "draft",
         documentId,
-        title: `创建 ${mutationTarget.sections.length} 个空白章节`,
+        title: t("proposalCoordinator.createBlankChapters", {
+          length: mutationTarget.sections.length
+        }),
         summary: event.payload.summary,
         status: "pending",
         baseRevision: event.payload.baseRevision,
@@ -1160,7 +1222,9 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
         (candidate) => candidate.id === mutationTarget.sectionId
       );
       if (!directory || !book || !section) {
-        const message = "目标章节已不可用，本次章节改名未进入审阅。";
+        const message = t(
+          "proposalCoordinator.theTargetChapterIsUnavailableRenamingWasNotSubmitted"
+        );
         sourceConversation.markToolConflict(
           event.payload.runId,
           event.payload.toolCallId,
@@ -1197,7 +1261,10 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
         workspaceId: event.payload.workspaceId,
         stageId: "draft",
         documentId,
-        title: `修改章节名称：${mutationTarget.previousTitle} → ${mutationTarget.title}`,
+        title: t("proposalCoordinator.renameChapter", {
+          previousTitle: mutationTarget.previousTitle,
+          title: mutationTarget.title
+        }),
         summary: event.payload.summary,
         status: "pending",
         baseRevision: event.payload.baseRevision,
@@ -1240,10 +1307,13 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
       );
       const draftUnit =
         directory?.workspaceType === "script" || book?.bookType === "script"
-          ? "剧集"
-          : "章节";
+          ? t("workspaceResourceCoordinator.episode")
+          : t("proposalCoordinator.chapter");
       if (!directory || !book || !section) {
-        const message = `目标${draftUnit}已不可用，本次${draftUnit}删除未进入审阅。`;
+        const message = t(
+          "proposalCoordinator.theTargetIsUnavailableDeletingTheWasNotSubmitted",
+          { draftUnit: draftUnit, draftUnit2: draftUnit }
+        );
         sourceConversation.markToolConflict(
           event.payload.runId,
           event.payload.toolCallId,
@@ -1277,7 +1347,10 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
         workspaceId: event.payload.workspaceId,
         stageId: "draft",
         documentId,
-        title: `删除${draftUnit}：${mutationTarget.title}`,
+        title: t("proposalCoordinator.delete", {
+          draftUnit: draftUnit,
+          title: mutationTarget.title
+        }),
         summary: event.payload.summary,
         status: "pending",
         baseRevision: event.payload.baseRevision,
@@ -1363,8 +1436,9 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
             document.draftFileKind === expectedDraftFileKind
         );
         if (!realTarget || realTarget.readOnly) {
-          const message =
-            "目标章节尚未创建或已失效，本次智能体变更未进入审阅。";
+          const message = t(
+            "proposalCoordinator.theTargetChapterHasNotBeenCreatedOrIs"
+          );
           sourceConversation.markToolConflict(
             event.payload.runId,
             event.payload.toolCallId,
@@ -1472,7 +1546,11 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
           hunks: diff.hunks,
           ...(diff.truncated ? { truncated: true } : {}),
           ...(noChanges
-            ? { statusMessage: "文本没有实际变化，无需保存。" }
+            ? {
+                statusMessage: t(
+                  "proposalCoordinator.theTextHasNotChangedNoSaveIsNeeded"
+                )
+              }
             : {}),
           createdAt:
             identity.coalescesExisting && existing
@@ -1502,7 +1580,9 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
       }
 
       if (stagingMode === "unavailable" || !creation) {
-        const message = "目标章节尚未创建或已失效，本次智能体变更未进入审阅。";
+        const message = t(
+          "proposalCoordinator.theTargetChapterHasNotBeenCreatedOrIs"
+        );
         sourceConversation.markToolConflict(
           event.payload.runId,
           event.payload.toolCallId,
@@ -1575,10 +1655,12 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
       const sectionTitle =
         creation.draftSectionCreationTarget?.sections.find(
           (section) => section.provisionalSectionId === mutationTarget.sectionId
-        )?.title ?? "新章节";
+        )?.title ?? t("proposalCoordinator.newChapter");
       const title =
         mutationTarget.fileKind === "characterState"
-          ? `${sectionTitle} · 人物状态`
+          ? t("proposalCoordinator.characterState", {
+              sectionTitle: sectionTitle
+            })
           : sectionTitle;
       const proposal: AgentEditProposal = {
         id: identity.id,
@@ -1611,7 +1693,13 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
         deletions: diff.deletions,
         hunks: diff.hunks,
         ...(diff.truncated ? { truncated: true } : {}),
-        ...(noChanges ? { statusMessage: "文本没有实际变化，无需保存。" } : {}),
+        ...(noChanges
+          ? {
+              statusMessage: t(
+                "proposalCoordinator.theTextHasNotChangedNoSaveIsNeeded"
+              )
+            }
+          : {}),
         createdAt:
           identity.coalescesExisting && existing
             ? existing.createdAt
@@ -1645,8 +1733,9 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
       );
       const creationMutation = creation?.characterStructureTarget?.mutation;
       if (!creation || creationMutation?.type !== "createItem") {
-        const message =
-          "目标人物条目尚未创建或已失效，本次智能体变更未进入审阅。";
+        const message = t(
+          "proposalCoordinator.theTargetCharacterEntryHasNotBeenCreatedOr"
+        );
         sourceConversation.markToolConflict(
           event.payload.runId,
           event.payload.toolCallId,
@@ -1756,7 +1845,9 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
     }
 
     if (!target || target.readOnly) {
-      const message = "目标文稿不可写，本次智能体变更未进入审阅。";
+      const message = t(
+        "proposalCoordinator.theTargetManuscriptIsNotWritableThisAgentChange"
+      );
       sourceConversation.markToolConflict(
         event.payload.runId,
         event.payload.toolCallId,
@@ -1861,7 +1952,13 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
       deletions: diff.deletions,
       hunks: diff.hunks,
       ...(diff.truncated ? { truncated: true } : {}),
-      ...(noChanges ? { statusMessage: "文本没有实际变化，无需保存。" } : {}),
+      ...(noChanges
+        ? {
+            statusMessage: t(
+              "proposalCoordinator.theTextHasNotChangedNoSaveIsNeeded"
+            )
+          }
+        : {}),
       createdAt:
         identity.coalescesExisting && existing
           ? existing.createdAt
@@ -1947,7 +2044,7 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
       workspaceId,
       stageId: "long-plot-design",
       documentId: "plot-design",
-      title: "剧情设计变更",
+      title: t("proposalCoordinator.plotDesignChanges"),
       summary: event.payload.summary,
       status: "pending",
       proposedText: proposalText,
@@ -1985,8 +2082,9 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
     const file = event.payload.files[0];
     const batch = longWorldbuildingBatchForFile(event);
     if (!file || !batch) {
-      const message =
-        "世界观文件工具必须一次只形成一个独立文件变更，本次结果未进入审批。";
+      const message = t(
+        "proposalCoordinator.worldbuildingFileToolsMustProduceOneIndependentFileChange"
+      );
       sourceConversation.markToolConflict(
         event.payload.runId,
         event.payload.toolCallId,
@@ -2061,7 +2159,13 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
       deletions: diff.deletions,
       hunks: diff.hunks,
       ...(diff.truncated ? { truncated: true } : {}),
-      ...(noChanges ? { statusMessage: "文本没有实际变化，无需保存。" } : {}),
+      ...(noChanges
+        ? {
+            statusMessage: t(
+              "proposalCoordinator.theTextHasNotChangedNoSaveIsNeeded"
+            )
+          }
+        : {}),
       createdAt: event.timestamp,
       updatedAt: event.timestamp,
       longWorldbuildingTarget: {
@@ -2092,8 +2196,9 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
     const files = event.payload.files;
     const batch = longCharacterBatchForFiles(event);
     if (!files.length || !batch) {
-      const message =
-        "人物文件工具必须形成一名人物的完整创建变更，或一次只修改一份人物档案；本次结果未进入审批。";
+      const message = t(
+        "proposalCoordinator.characterFileToolsMustCreateOneCompleteCharacterOr"
+      );
       sourceConversation.markToolConflict(
         event.payload.runId,
         event.payload.toolCallId,
@@ -2168,7 +2273,9 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
       stageId: "long-character",
       documentId: laneDocumentId,
       title: isCreation
-        ? `${primaryFile.characterName} / 新建人物`
+        ? t("proposalCoordinator.newCharacter", {
+            characterName: primaryFile.characterName
+          })
         : primaryFile.title,
       summary: event.payload.summary,
       status: noChanges ? "accepted" : "pending",
@@ -2178,7 +2285,13 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
       deletions: diff.deletions,
       hunks: diff.hunks,
       ...(diff.truncated ? { truncated: true } : {}),
-      ...(noChanges ? { statusMessage: "文本没有实际变化，无需保存。" } : {}),
+      ...(noChanges
+        ? {
+            statusMessage: t(
+              "proposalCoordinator.theTextHasNotChangedNoSaveIsNeeded"
+            )
+          }
+        : {}),
       createdAt: event.timestamp,
       updatedAt: event.timestamp,
       longCharacterTarget: {
@@ -2246,7 +2359,9 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
       workspaceId,
       stageId: "long-draft",
       documentId: file.fileId,
-      title: `${file.chapterTitle} / 正文`,
+      title: t("proposalCoordinator.manuscript", {
+        chapterTitle: file.chapterTitle
+      }),
       summary: event.payload.summary,
       status: noChanges ? "accepted" : "pending",
       ...(noChanges ? {} : { proposedText: file.afterText }),
@@ -2255,7 +2370,13 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
       deletions: diff.deletions,
       hunks: diff.hunks,
       ...(diff.truncated ? { truncated: true } : {}),
-      ...(noChanges ? { statusMessage: "正文没有实际变化，无需保存。" } : {}),
+      ...(noChanges
+        ? {
+            statusMessage: t(
+              "proposalCoordinator.theManuscriptHasNotChangedNoSaveIsNeeded"
+            )
+          }
+        : {}),
       createdAt: event.timestamp,
       updatedAt: event.timestamp,
       longDraftTarget: {
@@ -2301,7 +2422,9 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
     }
     const target = proposal.draftSectionCreationTarget;
     if (!target || target.sections.length === 0) {
-      const message = "待审阅的章节创建缺少完整参数，请重新生成。";
+      const message = t(
+        "proposalCoordinator.thePendingChapterCreationIsMissingRequiredParametersGenerate"
+      );
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: "error",
         statusMessage: message
@@ -2311,7 +2434,7 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
     }
     const currentApi = api();
     if (!currentApi) {
-      const message = "桌面文件服务当前不可用。";
+      const message = t("short.theDesktopFileServiceIsUnavailable");
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: "error",
         statusMessage: message
@@ -2324,7 +2447,9 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
     );
     const book = catalogBook(proposal.workspaceId);
     if (!directory || !book) {
-      const message = "目标正文目录已不可用，无法创建章节。";
+      const message = t(
+        "proposalCoordinator.theManuscriptDirectoryIsUnavailableChaptersCannotBeCreated"
+      );
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: "conflict",
         statusMessage: message
@@ -2341,8 +2466,10 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
       : undefined;
     if (acceptingAgentEditWorkspaceIds.value.has(proposal.workspaceId)) {
       const message = automatic
-        ? "检测到作品正在保存其他内容，实时自动建章已暂停，请稍后人工重试。"
-        : "同一作品正在保存其他修改，请稍候再接受";
+        ? t(
+            "proposalCoordinator.otherContentInThisProjectIsBeingSavedAutomatic"
+          )
+        : t("proposalCoordinator.otherEditsToThisProjectAreBeingSavedWait");
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: automatic ? "error" : "pending",
         statusMessage: message
@@ -2354,8 +2481,10 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
     conversation.updateEditProposal(request.runId, request.proposalId, {
       status: "accepting",
       statusMessage: automatic
-        ? "正在自动批准并创建空白章节文件…"
-        : "正在创建章节文件…"
+        ? t(
+            "proposalCoordinator.automaticallyApprovingAndCreatingBlankChapterFiles"
+          )
+        : t("proposalCoordinator.creatingChapterFiles")
     });
     setAgentEditWorkspaceAccepting(proposal.workspaceId, true);
     let lastCreatedSectionId: string | undefined;
@@ -2400,7 +2529,7 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
         !createdDraftSectionsAreVisible(refreshedDirectory, created.sections)
       ) {
         throw new Error(
-          "章节已创建，但刷新工作区后仍无法定位新章节；请重试以完成正文映射。"
+          t("proposalCoordinator.chaptersCreatedButTheNewChaptersCouldNotBe")
         );
       }
       remapProvisionalExpertSectionFileProposals(
@@ -2440,17 +2569,29 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
           }))
         },
         statusMessage: automatic
-          ? `已自动批准并创建 ${createdCount} 个章节；随创建提交的正文与人物状态已一并保存。`
-          : `已创建 ${createdCount} 个章节，并保存随创建提交的正文与人物状态。`
+          ? t(
+              "proposalCoordinator.automaticallyApprovedAndCreatedChaptersIncludingTheirSubmittedProse",
+              { createdCount: createdCount }
+            )
+          : t(
+              "proposalCoordinator.createdChaptersAndSavedTheirSubmittedProseAndCharacter",
+              { createdCount: createdCount }
+            )
       });
       if (!automatic) {
-        uiMessage.success(`已创建 ${createdCount} 个空白章节文件`);
+        uiMessage.success(
+          t("proposalCoordinator.createdBlankChapterFiles", {
+            createdCount: createdCount
+          })
+        );
       }
     } catch (error: unknown) {
       await loadCatalogSnapshot();
       const conflict = isCatalogConflict(error);
-      const message =
-        error instanceof Error ? error.message : "创建空白章节失败。";
+      const message = formatError(
+        error,
+        t("proposalCoordinator.failedToCreateBlankChapters")
+      );
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: conflict ? "conflict" : "error",
         statusMessage: message
@@ -2460,14 +2601,16 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
           conversation,
           request.runId,
           target.sections.map((section) => section.provisionalSectionId),
-          "关联的空白章节确认未能创建，相关正文写入已取消。"
+          t(
+            "proposalCoordinator.theAssociatedBlankChapterCouldNotBeCreatedRelated"
+          )
         );
       } else {
         pauseDependentProvisionalFileProposals(
           conversation,
           request.runId,
           target.sections.map((section) => section.provisionalSectionId),
-          "章节创建结果尚未确认，正文内容已保留；请先重试章节创建。"
+          t("proposalCoordinator.chapterCreationHasNotBeenConfirmedTheProseIs")
         );
       }
       uiMessage.error(message);
@@ -2493,7 +2636,9 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
     }
     const target = proposal.draftSectionRenameTarget;
     if (!target) {
-      const message = "待审阅的章节改名缺少完整参数，请重新生成。";
+      const message = t(
+        "proposalCoordinator.thePendingChapterRenameIsMissingRequiredParametersGenerate"
+      );
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: "error",
         statusMessage: message
@@ -2503,7 +2648,7 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
     }
     const currentApi = api();
     if (!currentApi) {
-      const message = "桌面文件服务当前不可用。";
+      const message = t("short.theDesktopFileServiceIsUnavailable");
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: "error",
         statusMessage: message
@@ -2524,7 +2669,9 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
         document.catalogDocumentId
     );
     if (!directory || !book || !bodyDocument?.catalogDocumentId) {
-      const message = "目标章节已不可用，无法修改名称。";
+      const message = t(
+        "proposalCoordinator.theTargetChapterIsUnavailableAndCannotBeRenamed"
+      );
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: "conflict",
         statusMessage: message
@@ -2536,7 +2683,9 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
       (candidate) => candidate.id === target.sectionId
     );
     if (!section) {
-      const message = "目标章节已不存在，无法修改名称。";
+      const message = t(
+        "proposalCoordinator.theTargetChapterNoLongerExistsAndCannotBe"
+      );
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: "conflict",
         statusMessage: message
@@ -2546,8 +2695,10 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
     }
     if (acceptingAgentEditWorkspaceIds.value.has(proposal.workspaceId)) {
       const message = automatic
-        ? "检测到作品正在保存其他内容，实时自动改名已暂停，请稍后人工重试。"
-        : "同一作品正在保存其他修改，请稍候再接受";
+        ? t(
+            "proposalCoordinator.otherContentInThisProjectIsBeingSavedAutomatic2"
+          )
+        : t("proposalCoordinator.otherEditsToThisProjectAreBeingSavedWait");
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: automatic ? "error" : "pending",
         statusMessage: message
@@ -2559,8 +2710,8 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
     conversation.updateEditProposal(request.runId, request.proposalId, {
       status: "accepting",
       statusMessage: automatic
-        ? "正在自动批准并修改章节名称…"
-        : "正在修改章节名称…"
+        ? t("proposalCoordinator.automaticallyApprovingAndRenamingTheChapter")
+        : t("proposalCoordinator.renamingTheChapter")
     });
     setAgentEditWorkspaceAccepting(proposal.workspaceId, true);
     try {
@@ -2626,17 +2777,29 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
         status: "accepted",
         proposedText: undefined,
         statusMessage: automatic
-          ? `已自动批准并将章节「${target.previousTitle}」改名为「${target.title}」。`
-          : `已将章节「${target.previousTitle}」改名为「${target.title}」并保存到本机。`
+          ? t("proposalCoordinator.automaticallyApprovedAndRenamedChapterTo", {
+              previousTitle: target.previousTitle,
+              title: target.title
+            })
+          : t("proposalCoordinator.renamedChapterToAndSavedItLocally", {
+              previousTitle: target.previousTitle,
+              title: target.title
+            })
       });
       if (!automatic) {
-        uiMessage.success(`已将章节改名为「${target.title}」`);
+        uiMessage.success(
+          t("proposalCoordinator.chapterRenamedTo", {
+            title: target.title
+          })
+        );
       }
     } catch (error: unknown) {
       await loadCatalogSnapshot();
       const conflict = isCatalogConflict(error);
-      const message =
-        error instanceof Error ? error.message : "修改章节名称失败。";
+      const message = formatError(
+        error,
+        t("proposalCoordinator.failedToRenameChapter")
+      );
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: conflict ? "conflict" : "error",
         statusMessage: message
@@ -2698,11 +2861,14 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
     }
     const draftUnit =
       catalogBook(proposal.workspaceId)?.bookType === "script"
-        ? "剧集"
-        : "章节";
+        ? t("workspaceResourceCoordinator.episode")
+        : t("proposalCoordinator.chapter");
     const target = proposal.draftSectionDeletionTarget;
     if (!target) {
-      const message = `待审阅的${draftUnit}删除缺少完整参数，请重新生成。`;
+      const message = t(
+        "proposalCoordinator.thePendingDeletionIsMissingRequiredParametersGenerateIt",
+        { draftUnit: draftUnit }
+      );
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: "error",
         statusMessage: message
@@ -2712,7 +2878,7 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
     }
     const currentApi = api();
     if (!currentApi) {
-      const message = "桌面文件服务当前不可用。";
+      const message = t("short.theDesktopFileServiceIsUnavailable");
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: "error",
         statusMessage: message
@@ -2725,7 +2891,10 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
     );
     const book = catalogBook(proposal.workspaceId);
     if (!directory || !book) {
-      const message = `目标正文目录已不可用，无法删除${draftUnit}。`;
+      const message = t(
+        "proposalCoordinator.theManuscriptDirectoryIsUnavailableTheCannotBeDeleted",
+        { draftUnit: draftUnit }
+      );
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: "conflict",
         statusMessage: message
@@ -2740,19 +2909,28 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: "accepted",
         proposedText: undefined,
-        statusMessage: `${draftUnit}「${target.title}」已不存在，无需重复删除。`
+        statusMessage: t(
+          "proposalCoordinator.noLongerExistsNoFurtherDeletionIsNeeded",
+          { draftUnit: draftUnit, title: target.title }
+        )
       });
       conflictDependentDeletedSectionProposals(
         conversation,
         request.runId,
         target.sectionId,
-        `目标${draftUnit}已删除，相关正文变更无法落盘。`,
+        t(
+          "proposalCoordinator.theTargetWasDeletedRelatedProseChangesCannotBe",
+          { draftUnit: draftUnit }
+        ),
         request.proposalId
       );
       return;
     }
     if (directory.sections.length <= 1) {
-      const message = `正文至少需要保留一个${draftUnit}，未删除。`;
+      const message = t(
+        "proposalCoordinator.atLeastOneMustRemainInTheManuscriptNothing",
+        { draftUnit: draftUnit }
+      );
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: "conflict",
         statusMessage: message
@@ -2762,8 +2940,10 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
     }
     if (acceptingAgentEditWorkspaceIds.value.has(proposal.workspaceId)) {
       const message = automatic
-        ? "检测到作品正在保存其他内容，实时自动删除已暂停，请稍后人工重试。"
-        : "同一作品正在保存其他修改，请稍候再接受";
+        ? t(
+            "proposalCoordinator.otherContentInThisProjectIsBeingSavedAutomatic3"
+          )
+        : t("proposalCoordinator.otherEditsToThisProjectAreBeingSavedWait");
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: automatic ? "error" : "pending",
         statusMessage: message
@@ -2775,8 +2955,10 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
     conversation.updateEditProposal(request.runId, request.proposalId, {
       status: "accepting",
       statusMessage: automatic
-        ? `正在自动批准并删除${draftUnit}…`
-        : `正在删除${draftUnit}…`
+        ? t("proposalCoordinator.automaticallyApprovingAndDeleting", {
+            draftUnit: draftUnit
+          })
+        : t("proposalCoordinator.deleting", { draftUnit: draftUnit })
     });
     setAgentEditWorkspaceAccepting(proposal.workspaceId, true);
     try {
@@ -2794,7 +2976,12 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
         force: true
       });
       if (!deleted.deleted) {
-        throw new Error(`${draftUnit}「${target.title}」已经不存在。`);
+        throw new Error(
+          t("proposalCoordinator.noLongerExists", {
+            draftUnit: draftUnit,
+            title: target.title
+          })
+        );
       }
       const nextDrafts = { ...editorDrafts.value };
       delete nextDrafts[section.bodyDocumentId];
@@ -2825,26 +3012,42 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
         conversation,
         request.runId,
         target.sectionId,
-        `目标${draftUnit}已删除，相关正文变更无法落盘。`,
+        t(
+          "proposalCoordinator.theTargetWasDeletedRelatedProseChangesCannotBe",
+          { draftUnit: draftUnit }
+        ),
         request.proposalId
       );
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: "accepted",
         proposedText: undefined,
         statusMessage: automatic
-          ? `已自动批准并删除${draftUnit}「${target.title}」及其正文与人物状态文件。`
-          : `已删除${draftUnit}「${target.title}」及其正文与人物状态文件。`
+          ? t(
+              "proposalCoordinator.automaticallyApprovedAndDeletedAndItsManuscriptAndCharacter",
+              { draftUnit: draftUnit, title: target.title }
+            )
+          : t(
+              "proposalCoordinator.deletedAndItsManuscriptAndCharacterStateFiles",
+              { draftUnit: draftUnit, title: target.title }
+            )
       });
       if (!automatic) {
         uiMessage.success(
-          `已删除${draftUnit}“${target.title}”及对应人物状态文件`
+          t("proposalCoordinator.deletedAndItsCharacterStateFile", {
+            draftUnit: draftUnit,
+            title: target.title
+          })
         );
       }
     } catch (error: unknown) {
       await loadCatalogSnapshot();
       const conflict = isCatalogConflict(error);
-      const message =
-        error instanceof Error ? error.message : `删除${draftUnit}失败。`;
+      const message = formatError(
+        error,
+        t("proposalCoordinator.failedToDelete", {
+          draftUnit: draftUnit
+        })
+      );
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: conflict ? "conflict" : "error",
         statusMessage: message
@@ -2916,7 +3119,9 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
     const target = proposal.longPlotDesignTarget;
     const api = resolveLongWorkspaceApi();
     if (!target || !api) {
-      const message = "长篇剧情设计服务当前不可用。";
+      const message = t(
+        "proposalCoordinator.theNovelPlotDesignServiceIsUnavailable"
+      );
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: "error",
         statusMessage: message
@@ -2926,8 +3131,8 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
     }
     if (acceptingAgentEditWorkspaceIds.value.has(proposal.workspaceId)) {
       const message = automatic
-        ? "检测到本书正在保存其他内容，剧情设计实时自动落盘已暂停，请稍后重试。"
-        : "同一本书正在保存其他修改，请稍候再接受";
+        ? t("proposalCoordinator.otherContentInThisBookIsBeingSavedAutomatic")
+        : t("proposalCoordinator.otherEditsToThisBookAreBeingSavedWait");
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: automatic ? "error" : "pending",
         statusMessage: message
@@ -2939,8 +3144,10 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
     conversation.updateEditProposal(request.runId, request.proposalId, {
       status: "accepting",
       statusMessage: automatic
-        ? "正在自动批准、校验影响并保存剧情设计…"
-        : "正在校验影响并保存剧情设计…"
+        ? t(
+            "proposalCoordinator.automaticallyApprovingCheckingImpactsAndSavingPlotDesign"
+          )
+        : t("proposalCoordinator.checkingImpactsAndSavingPlotDesign")
     });
     setAgentEditWorkspaceAccepting(proposal.workspaceId, true);
     let applied = false;
@@ -2949,7 +3156,9 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
       if (activeLongBookId.value === target.bookId) {
         await nextTick();
         if (!(await saveActiveLongEditorChanges())) {
-          throw new Error("当前长篇编辑内容尚未保存，未覆盖剧情设计。");
+          throw new Error(
+            t("proposalCoordinator.currentNovelEditsAreUnsavedPlotDesignWasNot")
+          );
         }
       }
       const batch = LongWorkspaceOperationBatchSchema.parse(target.batch);
@@ -2960,7 +3169,7 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
           api,
           target.bookId,
           batch,
-          "剧情设计"
+          t("catalogWorkspace.plotDesign")
         );
       }
       if (
@@ -2975,9 +3184,12 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
           patch: {
             longPlotDesignTarget: { ...target, batch, expectedImpact }
           },
-          statusMessage:
-            "已读取本次结构与关联影响，请核对下方影响后再次确认保存。",
-          notificationMessage: "请核对剧情设计及关联影响后再次确认保存",
+          statusMessage: t(
+            "proposalCoordinator.structuralAndRelatedImpactsHaveBeenLoadedReviewThe"
+          ),
+          notificationMessage: t(
+            "proposalCoordinator.reviewThePlotDesignAndRelatedImpactsBeforeConfirming"
+          ),
           removeQueued: removeQueuedAgentEdit,
           notify: uiMessage.info
         })
@@ -2998,11 +3210,17 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
         status: "accepted",
         proposedText: undefined,
         statusMessage: refreshed
-          ? `${automatic ? "已自动批准并" : "已接受并"}保存剧情设计。`
-          : "剧情设计已保存，但界面刷新失败；请手动刷新长篇工作区。"
+          ? t("proposalCoordinator.savedPlotDesign", {
+              value: automatic
+                ? t("proposalCoordinator.automaticallyApprovedAnd")
+                : t("proposalCoordinator.acceptedAnd")
+            })
+          : t(
+              "proposalCoordinator.plotDesignSavedButTheInterfaceRefreshFailedRefresh"
+            )
       });
       if (!automatic) {
-        uiMessage.success("已接受并保存剧情设计");
+        uiMessage.success(t("proposalCoordinator.plotDesignAcceptedAndSaved"));
       }
     } catch (error: unknown) {
       let currentError = error;
@@ -3017,7 +3235,7 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
             api,
             target.bookId,
             attemptedBatch,
-            "剧情设计"
+            t("catalogWorkspace.plotDesign")
           );
           moveLongProposalToManualReview({
             conversation,
@@ -3030,9 +3248,12 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
                 expectedImpact
               }
             },
-            statusMessage:
-              "关联影响已变化，已更新下方影响；请重新核对并再次确认保存。",
-            notificationMessage: "剧情设计的关联影响已变化，请重新确认",
+            statusMessage: t(
+              "proposalCoordinator.relatedImpactsChangedAndHaveBeenUpdatedBelowReview"
+            ),
+            notificationMessage: t(
+              "proposalCoordinator.plotDesignImpactsChangedConfirmAgain"
+            ),
             removeQueued: removeQueuedAgentEdit,
             notify: uiMessage.warning
           });
@@ -3041,18 +3262,24 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
           currentError = previewError;
         }
       }
-      const message =
-        currentError instanceof Error
-          ? currentError.message
-          : "保存剧情设计失败，当前结构保持不变。";
+      const message = formatError(
+        currentError,
+        t("proposalCoordinator.failedToSavePlotDesignTheCurrentStructureIs")
+      );
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: applied ? "accepted" : "error",
         statusMessage: applied
-          ? `剧情设计已经保存，但刷新失败：${message}`
+          ? t("proposalCoordinator.plotDesignSavedButRefreshFailed", {
+              message: message
+            })
           : message
       });
       if (applied) {
-        uiMessage.warning(`剧情设计已经保存，但刷新失败：${message}`);
+        uiMessage.warning(
+          t("proposalCoordinator.plotDesignSavedButRefreshFailed", {
+            message: message
+          })
+        );
       } else {
         uiMessage.error(message);
       }
@@ -3082,7 +3309,9 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
     const target = proposal.longCharacterTarget;
     const api = resolveLongWorkspaceApi();
     if (!target || !api) {
-      const message = "长篇人物文件服务当前不可用。";
+      const message = t(
+        "proposalCoordinator.theNovelCharacterFileServiceIsUnavailable"
+      );
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: "error",
         statusMessage: message
@@ -3092,8 +3321,8 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
     }
     if (acceptingAgentEditWorkspaceIds.value.has(proposal.workspaceId)) {
       const message = automatic
-        ? "检测到本书正在保存其他内容，实时自动落盘已暂停，请稍后重试。"
-        : "同一本书正在保存其他修改，请稍候再接受";
+        ? t("proposalCoordinator.otherContentInThisBookIsBeingSavedAutomatic2")
+        : t("proposalCoordinator.otherEditsToThisBookAreBeingSavedWait");
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: automatic ? "error" : "pending",
         statusMessage: message
@@ -3109,11 +3338,15 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
       status: "accepting",
       statusMessage: isCreation
         ? automatic
-          ? "正在自动批准并创建人物档案…"
-          : "正在创建人物档案…"
+          ? t(
+              "proposalCoordinator.automaticallyApprovingAndCreatingCharacterProfiles"
+            )
+          : t("proposalCoordinator.creatingCharacterProfiles")
         : automatic
-          ? "正在自动批准并保存人物档案…"
-          : "正在保存人物档案…"
+          ? t(
+              "proposalCoordinator.automaticallyApprovingAndSavingCharacterProfiles"
+            )
+          : t("proposalCoordinator.savingCharacterProfiles")
     });
     setAgentEditWorkspaceAccepting(proposal.workspaceId, true);
     let applied = false;
@@ -3122,7 +3355,11 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
       if (activeLongBookId.value === target.bookId) {
         await nextTick();
         if (!(await saveActiveLongEditorChanges())) {
-          throw new Error("当前长篇编辑内容尚未保存，未覆盖人物档案。");
+          throw new Error(
+            t(
+              "proposalCoordinator.currentNovelEditsAreUnsavedCharacterProfilesWereNot"
+            )
+          );
         }
       }
       const latest = await api.getWorkspaceIndex({ bookId: target.bookId });
@@ -3142,7 +3379,9 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
       ]);
       if (isCreation) {
         if (target.files.some((file) => currentFiles.has(file.fileId))) {
-          const message = "人物目录已存在同一人物的部分档案，未重复创建。";
+          const message = t(
+            "proposalCoordinator.someProfilesForThisCharacterAlreadyExistNoDuplicate"
+          );
           conversation.updateEditProposal(request.runId, request.proposalId, {
             status: "conflict",
             statusMessage: message
@@ -3155,7 +3394,9 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
           (file) => !currentFiles.has(file.fileId)
         );
         if (missing) {
-          const message = "目标人物档案已经不存在，无法保存本次修改。";
+          const message = t(
+            "proposalCoordinator.theTargetCharacterProfileNoLongerExistsTheseChanges"
+          );
           conversation.updateEditProposal(request.runId, request.proposalId, {
             status: "conflict",
             statusMessage: message
@@ -3195,7 +3436,7 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
           api,
           target.bookId,
           batch,
-          "人物档案"
+          t("proposalCoordinator.characterProfile")
         );
       }
       if (
@@ -3210,9 +3451,12 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
           patch: {
             longCharacterTarget: { ...target, batch, expectedImpact }
           },
-          statusMessage:
-            "已读取本次档案与关联影响，请核对下方影响后再次确认保存。",
-          notificationMessage: "请核对人物档案及关联影响后再次确认保存",
+          statusMessage: t(
+            "proposalCoordinator.profileAndRelatedImpactsHaveBeenLoadedReviewThe"
+          ),
+          notificationMessage: t(
+            "proposalCoordinator.reviewTheCharacterProfileAndRelatedImpactsBeforeConfirming"
+          ),
           removeQueued: removeQueuedAgentEdit,
           notify: uiMessage.info
         })
@@ -3234,15 +3478,27 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
         proposedText: undefined,
         statusMessage: isCreation
           ? automatic
-            ? "已自动批准并创建人物及两份档案。"
-            : "已创建人物及两份档案并保存到本地 Markdown。"
+            ? t(
+                "proposalCoordinator.characterAndBothProfilesAutomaticallyApprovedAndCreated"
+              )
+            : t(
+                "proposalCoordinator.characterAndBothProfilesCreatedAndSavedToLocal"
+              )
           : refreshed
-            ? `${automatic ? "已自动批准并" : "已接受并"}保存到本地 Markdown。`
-            : "已保存到本地 Markdown，但界面刷新失败；请手动刷新长篇工作区。"
+            ? t("proposalCoordinator.savedToLocalMarkdown", {
+                value: automatic
+                  ? t("proposalCoordinator.automaticallyApprovedAnd")
+                  : t("proposalCoordinator.acceptedAnd")
+              })
+            : t(
+                "proposalCoordinator.savedToLocalMarkdownButTheInterfaceRefreshFailed"
+              )
       });
       if (!automatic) {
         uiMessage.success(
-          isCreation ? "已创建人物档案" : "已接受并保存人物档案"
+          isCreation
+            ? t("proposalCoordinator.characterProfilesCreated")
+            : t("proposalCoordinator.characterProfilesAcceptedAndSaved")
         );
       }
     } catch (error: unknown) {
@@ -3258,7 +3514,7 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
             api,
             target.bookId,
             attemptedBatch,
-            "人物档案"
+            t("proposalCoordinator.characterProfile")
           );
           moveLongProposalToManualReview({
             conversation,
@@ -3271,9 +3527,12 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
                 expectedImpact
               }
             },
-            statusMessage:
-              "关联影响已变化，已更新下方影响；请重新核对并再次确认保存。",
-            notificationMessage: "人物档案的关联影响已变化，请重新确认",
+            statusMessage: t(
+              "proposalCoordinator.relatedImpactsChangedAndHaveBeenUpdatedBelowReview"
+            ),
+            notificationMessage: t(
+              "proposalCoordinator.characterProfileImpactsChangedConfirmAgain"
+            ),
             removeQueued: removeQueuedAgentEdit,
             notify: uiMessage.warning
           });
@@ -3282,18 +3541,26 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
           currentError = previewError;
         }
       }
-      const message =
-        currentError instanceof Error
-          ? currentError.message
-          : "保存人物档案失败，原文件保持不变。";
+      const message = formatError(
+        currentError,
+        t(
+          "proposalCoordinator.failedToSaveCharacterProfilesTheOriginalFilesAre"
+        )
+      );
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: applied ? "accepted" : "error",
         statusMessage: applied
-          ? `人物档案已经保存，但刷新失败：${message}`
+          ? t("proposalCoordinator.characterProfilesSavedButRefreshFailed", {
+              message: message
+            })
           : message
       });
       if (applied) {
-        uiMessage.warning(`人物档案已经保存，但刷新失败：${message}`);
+        uiMessage.warning(
+          t("proposalCoordinator.characterProfilesSavedButRefreshFailed", {
+            message: message
+          })
+        );
       } else {
         uiMessage.error(message);
       }
@@ -3311,7 +3578,9 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
     const target = proposal.longDraftTarget;
     const api = resolveLongWorkspaceApi();
     if (!target || !api) {
-      const message = "长篇正文服务当前不可用。";
+      const message = t(
+        "proposalCoordinator.theNovelManuscriptServiceIsUnavailable"
+      );
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: "error",
         statusMessage: message
@@ -3321,8 +3590,8 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
     }
     if (acceptingAgentEditWorkspaceIds.value.has(proposal.workspaceId)) {
       const message = automatic
-        ? "检测到本书正在保存其他内容，正文实时自动落盘已暂停，请稍后重试。"
-        : "同一本书正在保存其他修改，请稍候再接受";
+        ? t("proposalCoordinator.otherContentInThisBookIsBeingSavedAutomatic3")
+        : t("proposalCoordinator.otherEditsToThisBookAreBeingSavedWait");
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: automatic ? "error" : "pending",
         statusMessage: message
@@ -3334,8 +3603,8 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
     conversation.updateEditProposal(request.runId, request.proposalId, {
       status: "accepting",
       statusMessage: automatic
-        ? "正在自动批准并保存章节正文…"
-        : "正在保存章节正文…"
+        ? t("proposalCoordinator.automaticallyApprovingAndSavingChapterProse")
+        : t("proposalCoordinator.savingChapterProse")
     });
     setAgentEditWorkspaceAccepting(proposal.workspaceId, true);
     let applied = false;
@@ -3344,7 +3613,11 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
       if (activeLongBookId.value === target.bookId) {
         await nextTick();
         if (!(await saveActiveLongEditorChanges())) {
-          throw new Error("当前长篇编辑内容尚未保存，未覆盖章节正文。");
+          throw new Error(
+            t(
+              "proposalCoordinator.currentNovelEditsAreUnsavedChapterProseWasNot"
+            )
+          );
         }
       }
       const latest = await api.getWorkspaceIndex({ bookId: target.bookId });
@@ -3352,7 +3625,9 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
         ({ chapterCardId }) => chapterCardId === target.file.chapterCardId
       );
       if (!chapter || chapter.body.id !== target.file.fileId) {
-        const message = "目标章卡或章节正文已经不存在，未保存本次修改。";
+        const message = t(
+          "proposalCoordinator.theTargetChapterCardOrProseNoLongerExists"
+        );
         conversation.updateEditProposal(request.runId, request.proposalId, {
           status: "conflict",
           statusMessage: message
@@ -3368,7 +3643,7 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
           api,
           target.bookId,
           batch,
-          "章节正文"
+          t("proposalCoordinator.chapterProse")
         );
       }
       if (
@@ -3383,9 +3658,12 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
           patch: {
             longDraftTarget: { ...target, batch, expectedImpact }
           },
-          statusMessage:
-            "已读取本次正文与关联影响，请核对下方影响后再次确认保存。",
-          notificationMessage: "请核对章节正文及关联影响后再次确认保存",
+          statusMessage: t(
+            "proposalCoordinator.manuscriptAndRelatedImpactsHaveBeenLoadedReviewThe"
+          ),
+          notificationMessage: t(
+            "proposalCoordinator.reviewTheChapterProseAndRelatedImpactsBeforeConfirming"
+          ),
           removeQueued: removeQueuedAgentEdit,
           notify: uiMessage.info
         })
@@ -3406,11 +3684,19 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
         status: "accepted",
         proposedText: undefined,
         statusMessage: refreshed
-          ? `${automatic ? "已自动批准并" : "已接受并"}保存章节正文到本地 Markdown。`
-          : "章节正文已保存，但界面刷新失败；请手动刷新长篇工作区。"
+          ? t("proposalCoordinator.savedChapterProseToLocalMarkdown", {
+              value: automatic
+                ? t("proposalCoordinator.automaticallyApprovedAnd")
+                : t("proposalCoordinator.acceptedAnd")
+            })
+          : t(
+              "proposalCoordinator.chapterProseSavedButTheInterfaceRefreshFailedRefresh"
+            )
       });
       if (!automatic) {
-        uiMessage.success("已接受并保存章节正文");
+        uiMessage.success(
+          t("proposalCoordinator.chapterProseAcceptedAndSaved")
+        );
       }
     } catch (error: unknown) {
       let currentError = error;
@@ -3425,7 +3711,7 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
             api,
             target.bookId,
             attemptedBatch,
-            "章节正文"
+            t("proposalCoordinator.chapterProse")
           );
           moveLongProposalToManualReview({
             conversation,
@@ -3438,9 +3724,12 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
                 expectedImpact
               }
             },
-            statusMessage:
-              "关联影响已变化，已更新下方影响；请重新核对并再次确认保存。",
-            notificationMessage: "章节正文的关联影响已变化，请重新确认",
+            statusMessage: t(
+              "proposalCoordinator.relatedImpactsChangedAndHaveBeenUpdatedBelowReview"
+            ),
+            notificationMessage: t(
+              "proposalCoordinator.chapterProseImpactsChangedConfirmAgain"
+            ),
             removeQueued: removeQueuedAgentEdit,
             notify: uiMessage.warning
           });
@@ -3449,18 +3738,24 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
           currentError = previewError;
         }
       }
-      const message =
-        currentError instanceof Error
-          ? currentError.message
-          : "保存章节正文失败，原文件保持不变。";
+      const message = formatError(
+        currentError,
+        t("proposalCoordinator.failedToSaveChapterProseTheOriginalFilesAre")
+      );
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: applied ? "accepted" : "error",
         statusMessage: applied
-          ? `章节正文已经保存，但刷新失败：${message}`
+          ? t("proposalCoordinator.chapterProseSavedButRefreshFailed", {
+              message: message
+            })
           : message
       });
       if (applied) {
-        uiMessage.warning(`章节正文已经保存，但刷新失败：${message}`);
+        uiMessage.warning(
+          t("proposalCoordinator.chapterProseSavedButRefreshFailed", {
+            message: message
+          })
+        );
       } else {
         uiMessage.error(message);
       }
@@ -3483,7 +3778,9 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
       request.proposalId
     );
     if (!proposal) {
-      uiMessage.error("待审阅的智能体变更已不存在，请重新生成修改。");
+      uiMessage.error(
+        t("proposalCoordinator.thePendingAgentChangeNoLongerExistsGenerateIt")
+      );
       return;
     }
     const reserved = Boolean(
@@ -3497,7 +3794,9 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
       return;
     }
     if (conversation.isBusy.value && !canReviewAgentEditDuringRun(proposal)) {
-      uiMessage.info("请等待本轮智能体完成后再审阅文稿变更");
+      uiMessage.info(
+        t("proposalCoordinator.waitForTheCurrentAgentTurnToFinishBefore")
+      );
       return;
     }
 
@@ -3509,10 +3808,10 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
         status: "rejected",
         proposedText: undefined,
         statusMessage: proposal.longPlotDesignTarget
-          ? "已拒绝，剧情设计保持不变。"
+          ? t("proposalCoordinator.rejectedPlotDesignIsUnchanged")
           : proposal.longDraftTarget
-            ? "已拒绝，章节正文保持不变。"
-            : "已拒绝，原文保持不变。"
+            ? t("proposalCoordinator.rejectedChapterProseIsUnchanged")
+            : t("proposalCoordinator.rejectedTheOriginalTextIsUnchanged")
       });
       if (proposal.draftSectionCreationTarget) {
         conflictDependentProvisionalFileProposals(
@@ -3521,14 +3820,18 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
           proposal.draftSectionCreationTarget.sections.map(
             (section) => section.provisionalSectionId
           ),
-          "空白章节创建已被拒绝，相关正文写入无法落盘。"
+          t(
+            "proposalCoordinator.creationOfTheEmptyChapterWasRejectedItsManuscript"
+          )
         );
       }
       if (proposal.longWorldbuildingTarget?.file.operation === "create") {
         conflictDependentLongWorldbuildingProposals(
           conversation,
           proposal,
-          "空白世界观文件创建已被拒绝，相关正文写入无法落盘。"
+          t(
+            "proposalCoordinator.creationOfTheEmptyWorldbuildingFileWasRejectedIts"
+          )
         );
       }
       if (
@@ -3539,16 +3842,24 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
         conflictDependentLongCharacterProposals(
           conversation,
           proposal,
-          "人物创建已被拒绝，相关人物档案写入无法落盘。"
+          t(
+            "proposalCoordinator.characterCreationWasRejectedTheAssociatedCharacterProfileCannot"
+          )
         );
       }
       blockLaterAgentEditGenerations(conversation, proposal);
       uiMessage.info(
         proposal.longPlotDesignTarget
-          ? "已拒绝剧情设计变更，当前结构未改变"
+          ? t(
+              "proposalCoordinator.plotDesignChangesRejectedTheCurrentStructureIsUnchanged"
+            )
           : proposal.longDraftTarget
-            ? "已拒绝章节正文变更，当前正文未改变"
-            : "已拒绝智能体修改，原文未改变"
+            ? t(
+                "proposalCoordinator.chapterChangesRejectedTheManuscriptIsUnchanged"
+              )
+            : t(
+                "proposalCoordinator.agentEditsRejectedTheOriginalTextIsUnchanged"
+              )
       );
       return;
     }
@@ -3573,8 +3884,9 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
         predecessor.status === "conflict" ||
         predecessor.status === "error"
       ) {
-        const message =
-          "前序智能体修改未能落盘，当前这项依赖已阻断，没有覆盖当前文稿。";
+        const message = t(
+          "proposalCoordinator.anEarlierAgentEditCouldNotBeSavedThis"
+        );
         conversation.updateEditProposal(request.runId, request.proposalId, {
           status: "conflict",
           proposedText: undefined,
@@ -3585,7 +3897,9 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
       if (predecessor.status !== "accepted") {
         conversation.updateEditProposal(request.runId, request.proposalId, {
           status: "pending",
-          statusMessage: "正在等待前序修改完成落盘…"
+          statusMessage: t(
+            "proposalCoordinator.waitingForEarlierEditsToFinishSaving"
+          )
         });
         return;
       }
@@ -3694,7 +4008,9 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
     if (proposal.provisionalExpertSection) {
       const parsedDocumentId = parseCatalogDraftDocumentId(proposal.documentId);
       if (!parsedDocumentId) {
-        const message = "待审阅的临时章节文件标识无效，请重新生成。";
+        const message = t(
+          "proposalCoordinator.theTemporaryChapterAwaitingReviewHasAnInvalidFile"
+        );
         conversation.updateEditProposal(request.runId, request.proposalId, {
           status: "error",
           statusMessage: message
@@ -3713,8 +4029,12 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
           status: "pending",
           statusMessage:
             creation.status === "error"
-              ? "章节创建结果尚未确认，正文内容已保留；请先重试章节创建。"
-              : "正在等待关联章节创建完成…"
+              ? t(
+                  "proposalCoordinator.chapterCreationHasNotBeenConfirmedTheProseIs"
+                )
+              : t(
+                  "proposalCoordinator.waitingForTheAssociatedChapterToBeCreated"
+                )
         });
         return;
       }
@@ -3735,9 +4055,12 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
             runId: request.runId,
             proposalId: request.proposalId,
             creationProposalId: creation.id,
-            waitingMessage:
-              "章节创建结果尚未确认，正文内容已保留；请先重试章节创建。",
-            blockedMessage: "关联的空白章节确认未能创建，相关正文写入已取消。"
+            waitingMessage: t(
+              "proposalCoordinator.chapterCreationHasNotBeenConfirmedTheProseIs"
+            ),
+            blockedMessage: t(
+              "proposalCoordinator.theAssociatedBlankChapterCouldNotBeCreatedRelated"
+            )
           })
         ) {
           return;
@@ -3768,9 +4091,13 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
           if (inFlight) {
             conversation.updateEditProposal(request.runId, request.proposalId, {
               status: "pending",
-              statusMessage: "正在等待关联章节创建完成…"
+              statusMessage: t(
+                "proposalCoordinator.waitingForTheAssociatedChapterToBeCreated"
+              )
             });
-            uiMessage.info("同一作品正在保存其他修改，请稍候再接受");
+            uiMessage.info(
+              t("proposalCoordinator.otherEditsToThisProjectAreBeingSavedWait")
+            );
             return;
           }
         }
@@ -3780,13 +4107,16 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
         request.proposalId
       );
       if (!remapped) {
-        uiMessage.error("待审阅的智能体变更已不存在，请重新生成修改。");
+        uiMessage.error(
+          t("proposalCoordinator.thePendingAgentChangeNoLongerExistsGenerateIt")
+        );
         return;
       }
       proposal = remapped;
       if (proposal.provisionalExpertSection) {
-        const message =
-          "目标空白章节尚未落盘，无法写入正文。请先接受章节创建，或重新生成。";
+        const message = t(
+          "proposalCoordinator.theEmptyTargetChapterHasNotBeenSavedYet"
+        );
         conversation.updateEditProposal(request.runId, request.proposalId, {
           status: "conflict",
           statusMessage: message
@@ -3807,8 +4137,12 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
           status: "pending",
           statusMessage:
             creation.status === "error"
-              ? "人物条目创建结果尚未确认，正文内容已保留；请先重试创建操作。"
-              : "正在等待关联人物条目创建完成…"
+              ? t(
+                  "proposalCoordinator.characterCreationHasNotBeenConfirmedTheContentHas"
+                )
+              : t(
+                  "proposalCoordinator.waitingForTheAssociatedCharacterEntryToBeCreated"
+                )
         });
         return;
       }
@@ -3829,9 +4163,12 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
             runId: request.runId,
             proposalId: request.proposalId,
             creationProposalId: creation.id,
-            waitingMessage:
-              "人物条目创建结果尚未确认，正文内容已保留；请先重试创建操作。",
-            blockedMessage: "关联人物条目未能创建，相关正文写入已取消。"
+            waitingMessage: t(
+              "proposalCoordinator.characterCreationHasNotBeenConfirmedTheContentHas"
+            ),
+            blockedMessage: t(
+              "proposalCoordinator.theAssociatedCharacterEntryCouldNotBeCreatedIts"
+            )
           })
         ) {
           return;
@@ -3843,8 +4180,9 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
           document.catalogDocumentId === proposal.provisionalCharacterItemId
       );
       if (!createdTarget) {
-        const message =
-          "目标人物条目尚未落盘，无法写入正文。请先接受人物条目创建，或重新生成。";
+        const message = t(
+          "proposalCoordinator.theTargetCharacterEntryHasNotBeenSavedYet"
+        );
         conversation.updateEditProposal(request.runId, request.proposalId, {
           status: "conflict",
           statusMessage: message
@@ -3861,7 +4199,9 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
       (document) => document.id === proposal.documentId
     );
     if (!target || !persistedDocument || target.readOnly) {
-      const message = "目标文稿已不可用，无法接受这项智能体修改。";
+      const message = t(
+        "proposalCoordinator.theTargetManuscriptIsNoLongerAvailableThisAgent"
+      );
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: "error",
         statusMessage: message
@@ -3879,7 +4219,9 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
         !library ||
         !currentLibraryProjectRevisionMatches(proposal, library.projectRevision)
       ) {
-        const message = "资料库目录已在审阅期间发生变化，未接受智能体修改。";
+        const message = t(
+          "proposalCoordinator.theLibraryDirectoryChangedDuringReviewTheAgentEdit"
+        );
         conversation.updateEditProposal(request.runId, request.proposalId, {
           status: "conflict",
           statusMessage: message
@@ -3901,8 +4243,10 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
       )
     ) {
       const message = automatic
-        ? "检测到作品正在保存其他内容，实时自动落盘已暂停，请稍后人工重试。"
-        : "同一作品正在保存其他修改，请稍候再接受";
+        ? t(
+            "proposalCoordinator.theProjectIsSavingOtherContentAutomaticSavingIs"
+          )
+        : t("proposalCoordinator.otherEditsToThisProjectAreBeingSavedWait");
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: automatic ? "error" : "pending",
         statusMessage: message
@@ -3933,17 +4277,25 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
         proposedText: undefined,
         statusMessage:
           currentDraft && !staleRecoveryDraft
-            ? "修改已在本地 Markdown 中；检测到另一份未保存草稿，已为你保留。"
-            : "修改已经存在于本地 Markdown 中。"
+            ? t(
+                "proposalCoordinator.theseEditsAreAlreadyInTheLocalMarkdownFile"
+              )
+            : t(
+                "proposalCoordinator.theseEditsAreAlreadyInTheLocalMarkdownFile2"
+              )
       });
       if (!automatic) {
-        uiMessage.success("智能体修改已经保存在本地文稿中");
+        uiMessage.success(
+          t("proposalCoordinator.theAgentEditsAreAlreadySavedInTheLocal")
+        );
       }
       return;
     }
 
     if (typeof proposal.proposedText !== "string") {
-      const message = "待审阅变更缺少完整修改稿，请重新生成修改。";
+      const message = t(
+        "proposalCoordinator.thePendingChangesAreMissingTheCompleteRevisedText"
+      );
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: "error",
         statusMessage: message
@@ -3955,8 +4307,9 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
       proposal.libraryTarget &&
       classifyAgentEditAcceptance(proposal, target.content) === "conflict"
     ) {
-      const message =
-        "资料库内容已在审阅期间发生变化，未接受智能体修改，也没有覆盖最新内容。";
+      const message = t(
+        "proposalCoordinator.theLibraryContentChangedDuringReviewTheAgentEdit"
+      );
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: "conflict",
         statusMessage: message
@@ -3974,8 +4327,10 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
     conversation.updateEditProposal(request.runId, request.proposalId, {
       status: "accepting",
       statusMessage: automatic
-        ? "正在自动批准并保存到本地 Markdown…"
-        : "正在保存到本地 Markdown…"
+        ? t(
+            "proposalCoordinator.automaticallyApprovingAndSavingToLocalMarkdown"
+          )
+        : t("proposalCoordinator.savingToLocalMarkdown")
     });
     setAgentEditDocumentAccepting(target.id, true);
     setAgentEditWorkspaceAccepting(proposal.workspaceId, true);
@@ -3990,7 +4345,7 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
         persistedDocument.catalogDocumentId
       ) {
         if (!currentApi) {
-          throw new Error("桌面文件服务当前不可用。");
+          throw new Error(t("short.theDesktopFileServiceIsUnavailable"));
         }
         const saved = await currentApi.catalog.saveDocument(
           shortAgentDirectDocumentWrite({
@@ -4028,7 +4383,7 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
           persistedDocument.domain === "skill")
       ) {
         if (!currentApi) {
-          throw new Error("桌面文件服务当前不可用。");
+          throw new Error(t("short.theDesktopFileServiceIsUnavailable"));
         }
         const updated = await currentApi.catalog.updateLibrary({
           ...(proposal.libraryTarget.managementScope
@@ -4069,14 +4424,14 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
           persistedDocument.domain === "skill")
       ) {
         if (!currentApi) {
-          throw new Error("桌面文件服务当前不可用。");
+          throw new Error(t("short.theDesktopFileServiceIsUnavailable"));
         }
         const library = findCatalogLibrary(
           persistedDocument.domain,
           persistedDocument.libraryId
         );
         if (!library) {
-          throw new Error("目标资料库已不存在。");
+          throw new Error(t("short.theTargetLibraryNoLongerExists"));
         }
         const projectRevision = library.projectRevision;
         const saved = await currentApi.catalog.saveLibraryEntry({
@@ -4125,23 +4480,46 @@ export function useProposalCoordinator(context: ProposalCoordinatorContext) {
         status: "accepted",
         proposedText: undefined,
         statusMessage: newerDraftPreserved
-          ? `${automatic ? "已自动批准并" : "已"}保存审阅时的智能体修改；保存期间出现的更新草稿已保留。`
+          ? t(
+              "proposalCoordinator.savedTheReviewedAgentEditsNewerChangesMadeDuring",
+              {
+                value: automatic
+                  ? t("proposalCoordinator.automaticallyApprovedAnd")
+                  : t("proposalCoordinator.successfully")
+              }
+            )
           : persisted
-            ? `${automatic ? "已自动批准并" : "已接受并"}保存到本地文件。`
-            : `${automatic ? "已自动批准并写入" : "已接受到"}当前工作区；该预览资源没有对应的本地文件。`
+            ? t("proposalCoordinator.savedToTheLocalFile", {
+                value: automatic
+                  ? t("proposalCoordinator.automaticallyApprovedAnd")
+                  : t("proposalCoordinator.acceptedAnd")
+              })
+            : t(
+                "proposalCoordinator.theCurrentWorkspaceThisPreviewHasNoCorrespondingLocal",
+                {
+                  value: automatic
+                    ? t("proposalCoordinator.automaticallyApprovedAndWrittenTo")
+                    : t("proposalCoordinator.acceptedInto")
+                }
+              )
       });
       if (!automatic) {
         uiMessage.success(
-          persisted ? "已接受并保存智能体修改" : "已接受智能体修改"
+          persisted
+            ? t("proposalCoordinator.agentEditsAcceptedAndSaved")
+            : t("proposalCoordinator.agentEditsAccepted")
         );
       }
     } catch (error: unknown) {
       const conflict = isCatalogConflict(error);
       const message = conflict
-        ? "本地 Markdown 已在其他位置更新，未保存智能体修改；请基于最新文稿重新生成。"
-        : error instanceof Error
-          ? error.message
-          : "保存智能体修改失败，原文保持不变。";
+        ? t(
+            "proposalCoordinator.theLocalMarkdownFileWasUpdatedElsewhereTheAgent"
+          )
+        : formatError(
+            error,
+            t("proposalCoordinator.couldNotSaveTheAgentEditsTheOriginalText")
+          );
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: conflict ? "conflict" : "error",
         statusMessage: message

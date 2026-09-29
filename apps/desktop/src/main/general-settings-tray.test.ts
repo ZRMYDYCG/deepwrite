@@ -10,8 +10,8 @@ describe("general settings native behavior", () => {
     expect(source).toContain("cachedGeneralSettings.showInMenuBar");
     expect(source).toContain("event.preventDefault();");
     expect(source).toContain("window.hide();");
-    expect(source).toContain('label: "显示 DeepWrite"');
-    expect(source).toContain('label: "退出"');
+    expect(source).toContain('label: nativeText("showApp")');
+    expect(source).toContain('label: nativeText("quit")');
   });
 
   it("destroys the tray immediately when the setting is disabled", () => {

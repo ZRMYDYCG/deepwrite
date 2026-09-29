@@ -53,7 +53,6 @@ function fixture() {
   c.setConfiguredModels([model]);
   c.beforeText.value = "开头\n原句\n结尾";
   c.afterText.value = "开头\n改句\n结尾";
-  c.compare();
   return { c, run: fake.run, save: fake.save, abort, createLibraryEntry };
 }
 function event(
@@ -82,6 +81,27 @@ function revisionInput(request: ExtrasAgentRunRequest) {
   return request.task.input;
 }
 describe("revision analysis controller", () => {
+  it("compares the current documents when starting without a separate preview", async () => {
+    const f = fixture();
+    expect(f.c.changes.value).toEqual([]);
+    expect(f.c.canStart.value).toBe(true);
+    await f.c.start();
+    expect(f.c.comparisonCurrent.value).toBe(true);
+    expect(revisionInput(f.run.mock.calls[0]![0]).changes).toMatchObject([
+      { before: "原句", after: "改句", reason: "" }
+    ]);
+    f.c.dispose();
+  });
+  it("does not submit a model task when the documents have no paragraph differences", async () => {
+    const f = fixture();
+    f.c.afterText.value = f.c.beforeText.value;
+    await expect(f.c.start()).rejects.toThrow("未发现正文段落差异");
+    expect(f.run).not.toHaveBeenCalled();
+    expect(f.save).not.toHaveBeenCalled();
+    expect(f.c.status.value).toBe("idle");
+    expect(f.c.comparisonCurrent.value).toBe(true);
+    f.c.dispose();
+  });
   it.each(["before", "after", "none"])(
     "accepts a three-field draft with report text %s the tool call",
     async (order) => {
@@ -162,15 +182,20 @@ describe("revision analysis controller", () => {
     expect(f.c.status.value).toBe("error");
     f.c.dispose();
   });
-  it("requires another comparison after editing text, and ignores obsolete events after stop/retry", async () => {
+  it("refreshes differences after editing text, and ignores obsolete events after stop/retry", async () => {
     const f = fixture();
-    f.c.beforeText.value += "\n新增";
-    expect(f.c.canStart.value).toBe(false);
-    await expect(f.c.start()).rejects.toThrow("先比较");
     f.c.compare();
+    f.c.changes.value[0]!.reason = "更凝练";
+    f.c.beforeText.value += "\n新增";
+    expect(f.c.canStart.value).toBe(true);
+    expect(f.c.comparisonCurrent.value).toBe(false);
     await f.c.start();
     await nextTick();
     const old = f.run.mock.calls[0]![0];
+    expect(revisionInput(old).changes).toMatchObject([
+      { before: "原句", after: "改句", reason: "更凝练" },
+      { before: "新增", after: "", reason: "" }
+    ]);
     await f.c.stop();
     await nextTick();
     expect(f.c.status.value).toBe("stopped");
@@ -183,6 +208,39 @@ describe("revision analysis controller", () => {
     await nextTick();
     expect(f.c.status.value).toBe("completed");
     expect(f.abort).toHaveBeenCalledOnce();
+    f.c.dispose();
+  });
+  it("labels a retained result during same-input reruns and blocks saving it until the run ends", async () => {
+    const f = fixture();
+    await f.c.start();
+    await nextTick();
+    finish(f);
+    await nextTick();
+    expect(f.c.isPreviousResult.value).toBe(false);
+    await f.c.start();
+    expect(f.c.isStale.value).toBe(false);
+    expect(f.c.isPreviousResult.value).toBe(true);
+    expect(f.c.result.value).toEqual(result);
+    await expect(f.c.persistSkill(library)).rejects.toThrow("分析运行中");
+    expect(f.createLibraryEntry).not.toHaveBeenCalled();
+    await nextTick();
+    f.c.handleEvent(
+      event("agent.error", f.run.mock.calls[1]![0], { message: "测试失败" })
+    );
+    await nextTick();
+    expect(f.c.isPreviousResult.value).toBe(true);
+    expect(f.c.result.value).toEqual(result);
+    f.c.retry();
+    await nextTick();
+    const next = f.run.mock.calls[2]![0];
+    f.c.handleEvent(draft(next, { ...result, title: "新修改方向" }));
+    f.c.handleEvent(event("agent.message_completed", next));
+    await nextTick();
+    expect(f.c.isPreviousResult.value).toBe(false);
+    await f.c.persistSkill(library);
+    expect(f.createLibraryEntry).toHaveBeenLastCalledWith(
+      expect.objectContaining({ title: "新修改方向" })
+    );
     f.c.dispose();
   });
   it("fails cleanly for missing structured output and worker restarts", async () => {

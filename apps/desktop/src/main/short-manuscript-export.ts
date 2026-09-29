@@ -1,3 +1,4 @@
+import { nativeText } from "./native-i18n";
 import { randomUUID } from "node:crypto";
 import { writeFile } from "node:fs/promises";
 import { extname } from "node:path";
@@ -362,23 +363,25 @@ function ensureFormatExtension(
   return `${filePath}${desired}`;
 }
 
-const FORMAT_DIALOG: Record<
+function formatDialog(): Record<
   ShortManuscriptExportFormat,
   Pick<SaveDialogOptions, "title" | "filters">
-> = {
-  docx: {
-    title: "导出正文为 DOCX",
-    filters: [{ name: "Word 文档", extensions: ["docx"] }]
-  },
-  txt: {
-    title: "导出正文为 TXT",
-    filters: [{ name: "纯文本文档", extensions: ["txt"] }]
-  },
-  epub: {
-    title: "导出正文为 EPUB",
-    filters: [{ name: "EPUB 电子书", extensions: ["epub"] }]
-  }
-};
+> {
+  return {
+    docx: {
+      title: nativeText("exportDocx"),
+      filters: [{ name: nativeText("wordDocument"), extensions: ["docx"] }]
+    },
+    txt: {
+      title: nativeText("exportTxt"),
+      filters: [{ name: nativeText("textDocument"), extensions: ["txt"] }]
+    },
+    epub: {
+      title: nativeText("exportEpub"),
+      filters: [{ name: nativeText("epubBook"), extensions: ["epub"] }]
+    }
+  };
+}
 
 export async function exportShortManuscript(
   window: BrowserWindow,
@@ -386,8 +389,8 @@ export async function exportShortManuscript(
 ): Promise<ExportShortManuscriptResult> {
   const input = ExportShortManuscriptInputSchema.parse(rawInput);
   const selection = await dialog.showSaveDialog(window, {
-    ...FORMAT_DIALOG[input.format],
-    buttonLabel: "导出",
+    ...formatDialog()[input.format],
+    buttonLabel: nativeText("export"),
     defaultPath: `${safeManuscriptFileName(input.title)}-正文.${input.format}`,
     properties: ["createDirectory", "showOverwriteConfirmation"]
   });

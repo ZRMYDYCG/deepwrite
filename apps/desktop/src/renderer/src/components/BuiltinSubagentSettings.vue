@@ -1,11 +1,22 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import { nextTick, ref } from "vue";
 import {
-  BUILTIN_SUBAGENT_NAMES,
   defaultBuiltinSubagentSettings,
   type BuiltinSubagentSettings
 } from "@deepwrite/contracts/renderer";
 import { useBuiltinSubagentSettings } from "../composables/useBuiltinSubagentSettings";
+
+const t = createScopedTranslator("components.builtinSubagentSettings");
+
+const BUILTIN_SUBAGENT_NAMES = {
+  get skill() {
+    return t("skillManager");
+  },
+  get material() {
+    return t("materialManager");
+  }
+};
 
 const props = defineProps<{
   settings: BuiltinSubagentSettings;
@@ -40,10 +51,17 @@ async function saveDomain(domain: Domain): Promise<void> {
 </script>
 
 <template>
-  <section class="builtin-managers" aria-label="内置管理子智能体">
+  <section
+    class="builtin-managers"
+    :aria-label="t('builtInManagementSubagents')"
+  >
     <header>
-      <h2>内置管理子智能体</h2>
-      <p>普通模式和团队模式共用，仅在你主动要求创建或修改绑定库内容时调用。</p>
+      <h2>
+        {{ t("builtInManagementSubagents") }}
+      </h2>
+      <p>
+        {{ t("sharedByStandardAndTeamModesCalledOnlyWhen") }}
+      </p>
     </header>
     <div class="manager-grid">
       <article v-for="domain in domains" :key="domain">
@@ -56,20 +74,24 @@ async function saveDomain(domain: Domain): Promise<void> {
                 :class="{ 'is-enabled': settings[domain].enabled }"
                 aria-hidden="true"
               />
-              {{ settings[domain].enabled ? "已启用" : "已停用" }}
+              {{ settings[domain].enabled ? t("enabled") : t("disabled") }}
             </span>
           </div>
           <button
             :id="`builtin-${domain}-edit`"
             type="button"
             class="secondary-button"
-            :aria-label="`编辑${BUILTIN_SUBAGENT_NAMES[domain]}`"
+            :aria-label="
+              t('editValue', {
+                arg0: BUILTIN_SUBAGENT_NAMES[domain]
+              })
+            "
             :aria-expanded="editing === domain"
             :aria-controls="`builtin-${domain}-editor`"
             :disabled="disabled || saving || editing !== null"
             @click="startEditing(domain)"
           >
-            {{ editing === domain ? "编辑中" : "编辑" }}
+            {{ editing === domain ? t("editing") : t("edit") }}
           </button>
         </div>
         <form
@@ -84,9 +106,11 @@ async function saveDomain(domain: Domain): Promise<void> {
               type="checkbox"
               :disabled="disabled || saving"
             />
-            启用此子智能体
+            {{ t("enableThisSubagent") }}
           </label>
-          <label :for="`builtin-${domain}-description`">调用描述</label>
+          <label :for="`builtin-${domain}-description`">{{
+            t("invocationDescription")
+          }}</label>
           <textarea
             :id="`builtin-${domain}-description`"
             v-model="draft[domain].description"
@@ -101,14 +125,14 @@ async function saveDomain(domain: Domain): Promise<void> {
               :disabled="saving"
               @click="closeEditor(domain)"
             >
-              取消
+              {{ t("cancel") }}
             </button>
             <button
               type="submit"
               class="primary-button"
               :disabled="disabled || saving"
             >
-              {{ saving ? "保存中…" : "保存" }}
+              {{ saving ? t("saving") : t("save") }}
             </button>
           </div>
         </form>

@@ -2,7 +2,7 @@ import { z } from "zod";
 import { MaterialMetadataSchema } from "../material-metadata";
 import { MaterialCatalogContextSchema } from "../material-query";
 import { SHORT_WORKSPACE_FILE_MAX_CHARACTERS } from "../expert-draft";
-import { LongWorkspaceRuntimeContextSchema } from "../long-workspace-api";
+import { LongWorkspaceRuntimeContextSchema } from "../long-workspace-runtime/context";
 import { LibraryAgentWorkspaceSnapshotSchema } from "../library-agent";
 import { SubagentAuthoringRuntimeContextSchema } from "../subagent-authoring";
 import { ScriptWorkspaceSnapshotSchema } from "../script-workspace";
@@ -23,17 +23,10 @@ export type AgentWriteApprovalMode = z.infer<
 export const AgentTeamRunModeSchema = z.enum(["normal", "team"]);
 export type AgentTeamRunMode = z.infer<typeof AgentTeamRunModeSchema>;
 
-export const AgentRuntimeRefSchema = z.object({
-  provider: z.string().min(1),
-  model: z.string().min(1),
-  mode: z.enum(["local-faux", "provider"]),
-  /**
-   * The local model-configuration id that resolved this runtime. It is kept
-   * optional for the built-in faux runtime and for historical event payloads.
-   */
-  configId: z.string().trim().min(1).max(120).optional()
-});
-export type AgentRuntimeRef = z.infer<typeof AgentRuntimeRefSchema>;
+export {
+  AgentRuntimeRefSchema,
+  type AgentRuntimeRef
+} from "./agent-event-identity";
 
 export const ActiveResourceSnapshotSchema = z
   .object({

@@ -1,3 +1,4 @@
+import { patchCatalogDocument } from "../utils/patchCatalogDocument";
 import type {
   CatalogReadDocumentInput,
   CatalogReadDocumentResult,
@@ -202,11 +203,10 @@ export function useCatalogDocumentLoader(
         }
       } else if (savedBody.kind === "retain") {
         retainedBodyIds.push(projected.id);
-        return {
-          ...projected,
+        return patchCatalogDocument(projected, {
           content: savedBody.content,
           catalogContentLoaded: true
-        };
+        });
       }
       const previous = previousById.get(projected.id);
       if (
@@ -217,11 +217,10 @@ export function useCatalogDocumentLoader(
         return projected;
       }
       retainedBodyIds.push(projected.id);
-      return {
-        ...projected,
+      return patchCatalogDocument(projected, {
         content: previous.content,
         catalogContentLoaded: true
-      };
+      });
     });
 
     projectedDocumentsById = nextProjectedById;

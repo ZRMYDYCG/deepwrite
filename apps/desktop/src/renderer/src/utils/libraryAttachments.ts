@@ -1,3 +1,4 @@
+import { t } from "../i18n";
 import type { CatalogSnapshot, Book } from "@deepwrite/contracts/renderer";
 import {
   collectMaterialCandidates,
@@ -52,7 +53,10 @@ export function buildLibraryAttachments(
   if (!book) {
     diagnostics.push({
       code: "book-not-found",
-      message: `无法为不存在的书籍“${bookId}”构建素材与技能附件。`,
+      message: t(
+        "workspace.libraryAttachments.cannotBuildMaterialAndSkillAttachmentsForMissingBook",
+        { bookId: bookId }
+      ),
       bookId
     });
     return {

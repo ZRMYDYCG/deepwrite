@@ -10,12 +10,12 @@ const editorImplementationSource = [editorSource, documentSessionSource].join(
 
 describe("LongManuscriptEditor", () => {
   it("owns the chapter body writing and preview surface", () => {
-    expect(source).toContain('aria-label="章节正文编辑区"');
+    expect(source).toContain("chapterManuscriptEditor");
     expect(source).toContain('class="long-document-title-input"');
     expect(source).toContain('class="long-document-editor"');
     expect(source).toContain('class="long-document-preview"');
     expect(source).toContain("<MarkdownContent");
-    expect(source).toContain("暂无正文");
+    expect(source).toContain("noManuscriptYet");
   });
 
   it("accepts a narrow manuscript projection and emits user intent", () => {

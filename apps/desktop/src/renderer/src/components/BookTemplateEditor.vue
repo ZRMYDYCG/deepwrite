@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import { plotStageLabel } from "../i18n/plotStageLabels";
+import { formatError } from "../i18n/errors";
+import { genreLabel } from "./catalogLabels";
+import { createScopedTranslator } from "../i18n";
 import { computed, reactive, ref, toRaw } from "vue";
 import {
   loadBookTemplateDraftSchema,
@@ -16,6 +20,8 @@ import PopupSelect from "./PopupSelect.vue";
 import BookLibraryBindings from "./BookLibraryBindings.vue";
 import { bookTemplateReferenceError } from "../utils/bookTemplateReferences";
 import { uiMessage } from "../ui-feedback";
+
+const t = createScopedTranslator("components.bookTemplateEditor");
 const props = defineProps<{
   workspaceType: "short" | "script";
   template?: BookTemplate | undefined;
@@ -60,7 +66,12 @@ const genres = computed(() =>
   (props.workspaceType === "short"
     ? SHORT_BOOK_GENRES
     : SCRIPT_BOOK_GENRES
-  ).map((value) => ({ value, label: value }))
+  ).map((value) => ({
+    value,
+    get label() {
+      return genreLabel(value);
+    }
+  }))
 );
 const invalidStages = computed(() =>
   draft.defaultPlotStageIds.filter(
@@ -87,8 +98,8 @@ async function submit() {
     if (!result.success) {
       uiMessage.warning(
         !draft.name.trim()
-          ? "请输入模板名称"
-          : "请至少选择一个剧情阶段，并检查模板配置。"
+          ? t("enterATemplateName")
+          : t("selectAtLeastOnePlotStageAndCheckThe")
       );
       return;
     }
@@ -103,7 +114,7 @@ async function submit() {
     });
   } catch (error) {
     uiMessage.error(
-      error instanceof Error ? error.message : "加载模板校验失败，请重试。"
+      formatError(error, t("templateValidationCouldNotLoadTryAgain"))
     );
   } finally {
     validating.value = false;
@@ -125,13 +136,14 @@ async function submit() {
       >
         <header>
           <h2 id="template-editor-title">
-            {{ template ? "编辑模板" : "新建模板配置" }} ·
-            {{ workspaceType === "short" ? "短篇" : "剧本" }}
+            {{ template ? t("editTemplate") : t("newTemplateSettings") }}
+            ·
+            {{ workspaceType === "short" ? t("shortStory") : t("screenplay") }}
           </h2>
           <button
             class="dialog-close"
             :disabled="busy"
-            aria-label="关闭"
+            :aria-label="t('close')"
             @click="emit('close')"
           >
             ×
@@ -142,34 +154,45 @@ async function submit() {
           @submit.prevent="submit"
         >
           <label
-            >模板名称<input
+            >{{ t("templateName")
+            }}<input
               v-model="draft.name"
               maxlength="80"
               :disabled="busy"
               autofocus
           /></label>
           <label
-            >题材<PopupSelect
+            >{{ t("genre")
+            }}<PopupSelect
               :model-value="draft.genre"
               :options="genres"
-              accessible-label="模板题材"
+              :accessible-label="t('templateGenre')"
               :disabled="busy"
               @update:model-value="
                 draft.genre = $event as BookTemplateDraft['genre']
               "
           /></label>
           <label
-            >人物默认样式<PopupSelect
+            >{{ t("defaultCharacterStyle")
+            }}<PopupSelect
               v-model="draft.characterFormat"
               :options="[
-                { value: 'text', label: '文本样式' },
-                { value: 'list', label: '条目样式' }
+                {
+                  value: 'text',
+                  label: t('textStyle')
+                },
+                {
+                  value: 'list',
+                  label: t('entryStyle')
+                }
               ]"
-              accessible-label="人物默认样式"
+              :accessible-label="t('defaultCharacterStyle')"
               :disabled="busy"
           /></label>
           <fieldset>
-            <legend>默认启用的剧情阶段</legend>
+            <legend>
+              {{ t("plotStagesEnabledByDefault") }}
+            </legend>
             <label
               v-for="stage in catalog.creativePlotStages"
               :key="stage.id"
@@ -184,7 +207,7 @@ async function submit() {
                     ($event.target as HTMLInputElement).checked
                   )
                 "
-              />{{ stage.title }}</label
+              />{{ plotStageLabel(stage) }}</label
             >
             <label v-for="id in invalidStages" :key="id" class="template-stage"
               ><input
@@ -192,7 +215,9 @@ async function submit() {
                 checked
                 :disabled="busy"
                 @change="toggleStage(id, false)"
-              />已失效阶段：{{ id }}（取消选择后保存）</label
+              />{{
+                t("unavailableStageDeselectAndSaveMessage", { arg0: id ?? "" })
+              }}</label
             >
           </fieldset>
           <BookLibraryBindings
@@ -214,13 +239,13 @@ async function submit() {
               :disabled="busy"
               @click="emit('close')"
             >
-              取消</button
+              {{ t("cancel") }}</button
             ><button
               class="dialog-primary-button"
               type="submit"
               :disabled="busy"
             >
-              {{ busy ? "保存中…" : "保存模板" }}
+              {{ busy ? t("saving") : t("saveTemplate") }}
             </button>
           </div>
         </form>

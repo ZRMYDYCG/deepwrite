@@ -1,3 +1,4 @@
+import { createScopedTranslator } from "../../i18n";
 import {
   LONG_BOOK_ANALYSIS_DEFAULT_CONTEXT_WINDOW,
   type LongBookAnalysisChapter,
@@ -5,6 +6,8 @@ import {
   type LongBookAnalysisSegment,
   type ModelConfig
 } from "@deepwrite/contracts/renderer";
+
+const t = createScopedTranslator("extras.longBookAnalysis");
 
 const OUTPUT_RESERVE_TOKENS = 16_000;
 const TOOL_CONTEXT_RESERVE_TOKENS = 4_000;
@@ -35,9 +38,7 @@ export function resolveAnalysisInputBudget(
     estimateAnalysisTokens(systemPrompt);
   const budget = Math.floor(remaining * 0.6);
   if (budget < MIN_INPUT_BUDGET_TOKENS) {
-    throw new Error(
-      "当前模型上下文不足以运行长篇拆书，请选择更大上下文的模型。"
-    );
+    throw new Error(t("novelContextInsufficient"));
   }
   return budget;
 }
@@ -150,7 +151,11 @@ export function splitAnalysisNotesForBudget(
     return parts.map((text, index) => ({
       ...note,
       id: `${note.id}_chunk_${index + 1}`,
-      label: `${note.label}（片段 ${index + 1}/${parts.length}）`,
+      label: t("chapterFragment", {
+        title: note.label,
+        part: index + 1,
+        total: parts.length
+      }),
       text
     }));
   });

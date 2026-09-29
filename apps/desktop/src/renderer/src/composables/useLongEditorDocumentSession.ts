@@ -1,3 +1,5 @@
+import { formatError } from "../i18n/errors";
+import { createScopedTranslator } from "../i18n";
 import {
   computed,
   nextTick,
@@ -23,6 +25,8 @@ import {
   type LongWorkspaceSelectionFile
 } from "../types/longWorkspace";
 import type { LongEditorRecoveryRecord } from "./useLongEditorRecovery";
+
+const t = createScopedTranslator("workspace.longEditorDocumentSession");
 
 export interface LongDocumentState {
   bookId: string;
@@ -51,12 +55,14 @@ interface EditorViewportSnapshot {
 }
 
 const DOCUMENT_PAGE_CHARACTERS = 256 * 1024;
+const AUTO_SAVE_DELAY_MS = 800;
 
 export function useLongEditorDocumentSession(options: {
   props: {
     bookId: string;
     selection: LongWorkspaceSelection | null;
     locked?: boolean;
+    autoSaveEnabled: boolean;
   };
   emit: {
     (event: "saved", result: LongWriteDocumentResult): void;
@@ -320,7 +326,7 @@ export function useLongEditorDocumentSession(options: {
       first.file.updatedAt !== next.file.updatedAt ||
       first.totalCharacters !== next.totalCharacters
     ) {
-      throw new Error("长篇文件在分页读取期间发生变化，请重新打开。");
+      throw new Error(t("theLongFormFileChangedWhileItsPagesWere"));
     }
   }
 
@@ -346,7 +352,9 @@ export function useLongEditorDocumentSession(options: {
     }
     const api = resolveLongWorkspaceApi();
     if (!api) {
-      uiMessage.warning("当前环境未连接长篇工作区，请使用桌面客户端。");
+      uiMessage.warning(
+        t("theLongFormWorkspaceIsUnavailableInThisEnvironment")
+      );
       return;
     }
 
@@ -389,7 +397,7 @@ export function useLongEditorDocumentSession(options: {
           });
           if (requestClockByFile.get(key) !== ownRequest) return;
           if (page.file.id !== selectedFile.file.id) {
-            throw new Error("长篇文档读取结果与所选文件不一致。");
+            throw new Error(t("theLoadedLongFormDocumentDoesNotMatchThe"));
           }
           if (firstPage) {
             assertSameReadSnapshot(firstPage, page);
@@ -399,7 +407,9 @@ export function useLongEditorDocumentSession(options: {
           contentChunks.push(page.content);
           if (page.nextOffset === null) break;
           if (page.nextOffset <= offset) {
-            throw new Error("长篇文档分页游标无效。");
+            throw new Error(
+              t("theLongFormDocumentHasAnInvalidPaginationCursor")
+            );
           }
           offset = page.nextOffset;
         }
@@ -431,7 +441,9 @@ export function useLongEditorDocumentSession(options: {
           options.clearRecoveryRecordForKey(key, bookId, firstPage.file.id);
         } else if (recovery) {
           uiMessage.info(
-            `已恢复“${props.selection?.title ?? firstPage.file.path}”的本机未保存内容。`
+            t("restoredUnsavedLocalContentFor", {
+              value: props.selection?.title ?? firstPage.file.path
+            })
           );
         }
         if (
@@ -446,8 +458,7 @@ export function useLongEditorDocumentSession(options: {
       } catch (error: unknown) {
         const latest = documentStates.value[key];
         if (requestClockByFile.get(key) === ownRequest && latest) {
-          const message =
-            error instanceof Error ? error.message : "读取长篇文件失败。";
+          const message = formatError(error, t("couldNotReadTheLongFormFile"));
           replaceDocumentState(key, {
             ...latest,
             loading: false,
@@ -547,7 +558,9 @@ export function useLongEditorDocumentSession(options: {
       state.content === state.savedContent
     ) {
       if (!api) {
-        uiMessage.warning("当前环境未连接长篇工作区，请使用桌面客户端。");
+        uiMessage.warning(
+          t("theLongFormWorkspaceIsUnavailableInThisEnvironment")
+        );
       }
       return Boolean(api && state && !state.loading && !state.saving);
     }
@@ -590,10 +603,12 @@ export function useLongEditorDocumentSession(options: {
       if (announceSuccess) {
         if (savedState?.content === savedState?.savedContent) {
           uiMessage.success(
-            `已保存“${props.selection?.title ?? state.file.path}”`
+            t("saved", {
+              value: props.selection?.title ?? state.file.path
+            })
           );
         } else {
-          uiMessage.info("已保存提交时内容；保存期间的新修改仍待保存。");
+          uiMessage.info(t("theSubmittedContentWasSavedNewEditsMadeDuring"));
         }
       }
       return true;
@@ -602,8 +617,7 @@ export function useLongEditorDocumentSession(options: {
       if (latest) {
         replaceDocumentState(key, { ...latest, saving: false });
       }
-      const message =
-        error instanceof Error ? error.message : "保存长篇文件失败。";
+      const message = formatError(error, t("couldNotSaveTheLongFormFile"));
       uiMessage.error(message);
       return false;
     }
@@ -661,11 +675,8 @@ export function useLongEditorDocumentSession(options: {
     }
   }
 
-  /**
-   * App.vue calls this before changing books or unmounting the long editor.
-   * Writes are sequential so leaving a workspace has deterministic completion.
-   */
-  async function saveAllChanges(): Promise<boolean> {
+  /** Writes all dirty long-form drafts through the existing serialized save lane. */
+  async function persistAllChanges(announceResult: boolean): Promise<boolean> {
     if (activeSavePromise && !(await activeSavePromise)) {
       return false;
     }
@@ -732,17 +743,101 @@ export function useLongEditorDocumentSession(options: {
         )
       );
     });
-    if (saved) {
+    if (saved && announceResult) {
       const savedCount =
         dirtyKeys.length +
         dirtyVolumeIds.length +
         dirtyPlotPointSummaryIds.length;
-      uiMessage.success(`离开前已自动保存 ${savedCount} 项长篇修改`);
-    } else {
-      uiMessage.warning("长篇修改尚未保存，已取消切换以保留当前内容。");
+      uiMessage.success(
+        t("automaticallySavedLongFormChangesBeforeLeaving", {
+          savedCount: savedCount
+        })
+      );
+    } else if (!saved && announceResult) {
+      uiMessage.warning(
+        t("longFormChangesAreStillUnsavedNavigationWasCanceled")
+      );
     }
     return saved;
   }
+
+  async function saveAllChanges(): Promise<boolean> {
+    return persistAllChanges(true);
+  }
+
+  let autoSaveTimer: ReturnType<typeof setTimeout> | undefined;
+  let disposed = false;
+
+  function cancelAutoSave(): void {
+    if (autoSaveTimer !== undefined) clearTimeout(autoSaveTimer);
+    autoSaveTimer = undefined;
+  }
+
+  function scheduleAutoSave(): void {
+    cancelAutoSave();
+    if (disposed || !props.autoSaveEnabled || props.locked) return;
+    const bookId = props.bookId;
+    const hasDirtyChanges =
+      Object.entries(documentStates.value).some(
+        ([key, state]) =>
+          key.startsWith(`${bookId}\u0000`) &&
+          state.loaded &&
+          state.content !== state.savedContent
+      ) ||
+      Object.values(options.volumeOutlineDrafts.value).some(
+        (draft) => draft.content !== draft.savedContent
+      ) ||
+      Object.values(options.plotPointSummaryDrafts.value).some(
+        (draft) => draft.content !== draft.savedContent
+      );
+    if (!hasDirtyChanges) return;
+    autoSaveTimer = setTimeout(() => {
+      autoSaveTimer = undefined;
+      void (async () => {
+        if (activeSavePromise) await activeSavePromise;
+        if (
+          disposed ||
+          !props.autoSaveEnabled ||
+          props.locked ||
+          props.bookId !== bookId
+        ) {
+          return;
+        }
+        await persistAllChanges(false);
+      })();
+    }, AUTO_SAVE_DELAY_MS);
+  }
+
+  watch(
+    () => [
+      props.bookId,
+      ...Object.entries(documentStates.value)
+        .filter(
+          ([key, state]) =>
+            key.startsWith(`${props.bookId}\u0000`) && state.loaded
+        )
+        .flatMap(([key, state]) => [key, state.content]),
+      ...Object.entries(options.volumeOutlineDrafts.value).flatMap(
+        ([key, draft]) => [key, draft.content]
+      ),
+      ...Object.entries(options.plotPointSummaryDrafts.value).flatMap(
+        ([key, draft]) => [key, draft.content]
+      )
+    ],
+    (next, previous) => {
+      if (
+        previous &&
+        next.length === previous.length &&
+        next.every((value, index) => value === previous[index])
+      ) {
+        return;
+      }
+      scheduleAutoSave();
+    },
+    { immediate: true }
+  );
+
+  watch(() => [props.autoSaveEnabled, props.locked] as const, scheduleAutoSave);
 
   watch(
     () => props.bookId,
@@ -849,6 +944,8 @@ export function useLongEditorDocumentSession(options: {
   );
 
   onBeforeUnmount(() => {
+    disposed = true;
+    cancelAutoSave();
     worldbuildingPrefetchRequest += 1;
     selectionPrefetchRequest += 1;
     requestClockByFile.clear();

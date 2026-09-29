@@ -35,8 +35,12 @@ describe("LongWorkspaceEditor continuity text-file integration", () => {
   });
 
   it("lists only pending chapters and chapter records in the continuity tree", () => {
-    expect(resourceTreeSource).toContain('title: "待处理章节"');
-    expect(resourceTreeSource).toContain('title: "章节记录"');
+    expect(resourceTreeSource).toContain(
+      "longWorkspaceContinuityTree.pendingChapters"
+    );
+    expect(resourceTreeSource).toContain(
+      "longWorkspaceContinuityTree.chapterRecords"
+    );
     expect(resourceTreeSource).not.toContain('key: "continuity-view:snapshot"');
     expect(resourceTreeSource).not.toContain(
       'key: "continuity-view:execution"'

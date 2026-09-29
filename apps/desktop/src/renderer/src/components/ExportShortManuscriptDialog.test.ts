@@ -4,24 +4,32 @@ import source from "./ExportShortManuscriptDialog.vue?raw";
 
 describe("ExportShortManuscriptDialog", () => {
   it("shows type-specific export-scope reminders above the format choices", () => {
-    const reminder = source.indexOf("导出范围提醒");
-    const choices = source.indexOf("选择导出格式");
+    const reminder = source.indexOf("exportScope");
+    const choices = source.indexOf("selectExportFormat");
     expect(reminder).toBeGreaterThan(-1);
     expect(choices).toBeGreaterThan(reminder);
-    expect(source).toContain("导语和全部小节正文");
-    expect(source).toContain("全部剧集正文");
+    expect(source).toContain(
+      "exportsTheIntroductionAndAllManuscriptSectionsOnlyExcluding"
+    );
+    expect(source).toContain(
+      "exportsAllEpisodeManuscriptsOnlyExcludingCharacterStatePlot"
+    );
     expect(source).toContain("workspaceType === 'script'");
-    expect(source).toContain("不包含人物状态、剧情设计和大纲等内容");
-    expect(source).toContain("尚未保存的编辑内容也会一并导出");
+    expect(source).toContain(
+      "exportsAllEpisodeManuscriptsOnlyExcludingCharacterStatePlot"
+    );
+    expect(source).toContain(
+      "exportsAllEpisodeManuscriptsOnlyExcludingCharacterStatePlot"
+    );
   });
 
   it("offers file exports and direct manuscript copying as selectable cards", () => {
-    expectSourceToContain(source, '{ id: "docx", label: "DOCX 文档"');
-    expectSourceToContain(source, '{ id: "txt", label: "TXT 纯文本"');
-    expectSourceToContain(source, '{ id: "epub", label: "EPUB 电子书"');
+    expectSourceToContain(source, "dOCXDocument");
+    expectSourceToContain(source, "tXTPlainText");
+    expectSourceToContain(source, "ePUBEbook");
     expect(source).toContain('id: "clipboard"');
-    expect(source).toContain('label: "复制正文"');
-    expect(source).toContain("复制全部正文，可自由选择粘贴位置");
+    expect(source).toContain("copyManuscript");
+    expect(source).toContain("copyTheFullManuscriptToPasteAnywhere");
     expect(source).toContain('type="radio"');
     expect(source).toContain('emit("export", selectedTarget.value)');
     expect(source).toContain("selectedTarget === 'clipboard'");

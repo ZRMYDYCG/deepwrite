@@ -252,6 +252,20 @@ function createDeferredApi(): {
       else reject(queued.error);
     });
   const api: DeepWriteApi = {
+    voice: {
+      getSettings: vi.fn(async () => {
+        throw new Error("not used");
+      }),
+      saveSettings: vi.fn(async () => {
+        throw new Error("not used");
+      }),
+      getUsage: vi.fn(async () => []),
+      transcribe: vi.fn(async () => {
+        throw new Error("not used");
+      }),
+      cancel: vi.fn(async () => {}),
+      requestMicrophoneAccess: vi.fn(async () => false)
+    },
     bookTemplates: {
       list: vi.fn(async () => []),
       save: vi.fn(async () => {

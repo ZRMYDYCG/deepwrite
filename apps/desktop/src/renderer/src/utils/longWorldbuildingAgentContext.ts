@@ -1,3 +1,4 @@
+import { createScopedTranslator } from "../i18n";
 import {
   LONG_WORLDBUILDING_FOCUS_MAX_CHARACTERS,
   LONG_WORLDBUILDING_DIRECTORY_MAX_CATEGORIES,
@@ -12,6 +13,8 @@ import {
   type LongWorldbuildingFocusSnapshot
 } from "@deepwrite/contracts";
 import type { LongWorkspaceSelection } from "../types/longWorkspace";
+
+const t = createScopedTranslator("workspace");
 
 type ReadLongDocument = (
   input: LongReadDocumentInput
@@ -87,7 +90,11 @@ async function readFocusText(
     maxCharacters: maximum
   });
   if (page.bookId !== bookId || page.file.id !== fileId || page.offset !== 0) {
-    throw new Error("长篇世界观阶段读取结果与当前选择不一致。");
+    throw new Error(
+      t(
+        "longWorldbuildingAgentContext.theWorldbuildingStageResponseDoesNotMatchTheCurrent"
+      )
+    );
   }
   return snapshotText(page, maximum);
 }
@@ -166,7 +173,7 @@ export async function buildLongWorldbuildingFocusSnapshot(input: {
     format: "list",
     currentStage: {
       kind: "overview",
-      title: "概览",
+      title: t("catalogWorkspace.overview"),
       text: await readFocusText(
         readDocument,
         bookId,

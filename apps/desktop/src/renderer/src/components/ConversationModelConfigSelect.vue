@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import {
   computed,
   nextTick,
@@ -12,6 +13,8 @@ import type { ThinkingLevel } from "@deepwrite/contracts/renderer";
 import { createId } from "@deepwrite/shared";
 import AppIcon from "./AppIcon.vue";
 import { scrollSelectedIntoView } from "../utils/scrollSelectedIntoView";
+
+const t = createScopedTranslator("components.conversationModelConfigSelect");
 
 type ConfigPage = "main" | "thinking" | "temperature";
 type ConfigValue = string | number;
@@ -57,7 +60,7 @@ const menuId = createId("conversation-model-config");
 const selectedModelLabel = computed(
   () =>
     props.modelOptions.find((option) => option.value === props.selectedModelId)
-      ?.label ?? "选择模型"
+      ?.label ?? t("selectModel")
 );
 const modelGroups = computed(() => {
   const groups = new Map<
@@ -85,7 +88,7 @@ const modelGroups = computed(() => {
 const thinkingLabel = computed(
   () =>
     props.thinkingOptions.find((option) => option.value === props.thinkingLevel)
-      ?.label ?? "关闭"
+      ?.label ?? t("off")
 );
 const temperatureLabel = computed(
   () =>
@@ -95,12 +98,14 @@ const temperatureLabel = computed(
 );
 const activeParameterLabel = computed(() =>
   props.showsTemperature
-    ? `温度 ${temperatureLabel.value}`
+    ? t("temperatureValue", {
+        arg0: temperatureLabel.value
+      })
     : thinkingLabel.value
 );
 const submenuTitle = computed(() => {
-  if (page.value === "thinking") return "思考等级";
-  return "温度";
+  if (page.value === "thinking") return t("reasoningLevel");
+  return t("temperature");
 });
 const submenuOptions = computed<ConfigOption[]>(() => {
   if (page.value === "thinking") return props.thinkingOptions;
@@ -112,9 +117,10 @@ const selectedSubmenuValue = computed<ConfigValue>(() => {
   return props.temperature;
 });
 const webSearchTitle = computed(() => {
-  if (props.responding) return "当前回复完成或停止后，才能切换联网";
+  if (props.responding)
+    return t("changeWebAccessAfterTheCurrentReplyFinishesOr");
   if (!props.webSearchAvailable) return props.webSearchDisabledReason;
-  return props.webSearchEnabled ? "关闭联网" : "开启联网";
+  return props.webSearchEnabled ? t("disableWebAccess") : t("enableWebAccess");
 });
 
 function positionMenu(): void {
@@ -288,7 +294,7 @@ onBeforeUnmount(() => {
       class="conversation-model-config-trigger"
       type="button"
       aria-haspopup="dialog"
-      aria-label="模型配置"
+      :aria-label="t('modelSettings')"
       :title="`${selectedModelLabel} · ${activeParameterLabel}`"
       :aria-controls="open ? menuId : undefined"
       :aria-expanded="open"
@@ -327,14 +333,14 @@ onBeforeUnmount(() => {
           class="conversation-model-config-menu"
           :style="menuStyle"
           role="dialog"
-          aria-label="模型配置"
+          :aria-label="t('modelSettings')"
           @keydown="handleMenuKeydown"
         >
           <div v-if="page === 'main'" class="conversation-model-config-main">
             <div
               class="conversation-model-config-models"
               role="listbox"
-              aria-label="模型"
+              :aria-label="t('model')"
             >
               <div
                 v-for="group in modelGroups"
@@ -369,10 +375,10 @@ onBeforeUnmount(() => {
             <div class="conversation-model-config-footer">
               <button
                 type="button"
-                aria-label="思考等级"
+                :aria-label="t('reasoningLevel')"
                 @click="showPage('thinking')"
               >
-                <span>思考等级</span>
+                <span>{{ t("reasoningLevel") }}</span>
                 <span class="conversation-model-config-value">{{
                   thinkingLabel
                 }}</span>
@@ -383,7 +389,7 @@ onBeforeUnmount(() => {
                 type="button"
                 @click="showPage('temperature')"
               >
-                <span>温度</span>
+                <span>{{ t("temperature") }}</span>
                 <span class="conversation-model-config-value">{{
                   temperatureLabel
                 }}</span>
@@ -395,13 +401,13 @@ onBeforeUnmount(() => {
                 type="button"
                 :disabled="responding || !webSearchAvailable"
                 :title="webSearchTitle"
-                aria-label="联网"
+                :aria-label="t('webAccess')"
                 :aria-pressed="webSearchEnabled"
                 @click="emit('toggleWebSearch', !webSearchEnabled)"
               >
-                <span>联网</span>
+                <span>{{ t("webAccess") }}</span>
                 <span class="conversation-model-config-value">
-                  {{ webSearchEnabled ? "开启" : "关闭" }}
+                  {{ webSearchEnabled ? t("on") : t("off") }}
                 </span>
                 <span
                   class="conversation-model-config-switch"
@@ -417,7 +423,7 @@ onBeforeUnmount(() => {
             <header>
               <button
                 type="button"
-                :aria-label="`返回模型配置`"
+                :aria-label="t('backToModelSettings')"
                 @click="showMainPage"
               >
                 <AppIcon name="chevron" :size="16" />

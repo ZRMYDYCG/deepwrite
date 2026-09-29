@@ -10,7 +10,9 @@ describe("LongLegacySyncDialog", () => {
     expect(dialogSource).toContain('id: "plot"');
     expect(dialogSource).toContain(".filter(({ count }) => count > 0)");
     expect(dialogSource).toContain("selected.length === 0");
-    expect(dialogSource).toContain("现有内容不会删除或覆盖");
+    expect(dialogSource).toContain(
+      "chooseContentToAppendToThisNovelExistingContent"
+    );
   });
 
   it("emits cloneable selections and uses the shared dialog actions", () => {

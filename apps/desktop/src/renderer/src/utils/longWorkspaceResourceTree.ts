@@ -1,3 +1,4 @@
+import { createScopedTranslator } from "../i18n";
 import type {
   LongBookSummary,
   LongCharacterGroup,
@@ -12,27 +13,59 @@ import {
   createLongChapterCardVolumeSelection,
   isLongMigrationEvidenceCategoryId,
   longBookResourceId,
+  longCharacterGroupLabel,
   reconcileLongWorkspaceSelection,
   type LongWorkspaceSelection
 } from "../types/longWorkspace";
 
+const t = createScopedTranslator("workspace");
+
 export const LONG_WORKSPACE_ROOT_LABELS = {
-  worldbuilding: "世界观",
-  character_design: "人物设计",
-  plot_design: "剧情设计",
-  draft: "正文",
-  continuity_ledger: "连续性账本"
+  get worldbuilding() {
+    return t("longWorkspaceResourceTree.worldbuilding");
+  },
+  get character_design() {
+    return t("longWorkspaceResourceTree.characterDesign");
+  },
+  get plot_design() {
+    return t("catalogWorkspace.plotDesign");
+  },
+  get draft() {
+    return t("catalogWorkspace.manuscript");
+  },
+  get continuity_ledger() {
+    return t("longWorkspaceResourceTree.continuityLedger");
+  }
 } as const;
 export const LONG_WORKSPACE_ROOT_DESCRIPTIONS: Record<
   LongWorkspaceRoot,
   string
 > = {
-  worldbuilding: "维护世界规则、势力、地理、历史、术语、境界与物品。",
-  character_design: "维护人物核心档案与关系，查看最新状态和历史轨迹。",
-  plot_design: "维护全书故事线、分卷、剧情点与章节卡。",
-  draft: "按分卷和章卡顺序编辑正文。",
-  continuity_ledger:
-    "按单章或连续章节批次核验正文；批次只在末章留存汇总人物状态与历史、世界观揭露、既有伏笔触点变化、章末状态和接续包。"
+  get worldbuilding() {
+    return t(
+      "longWorkspaceResourceTree.manageWorldRulesFactionsGeographyHistoryTerminologyProgressionSystems"
+    );
+  },
+  get character_design() {
+    return t(
+      "longWorkspaceResourceTree.manageCharacterProfilesAndRelationshipsAndReviewCurrentStates"
+    );
+  },
+  get plot_design() {
+    return t(
+      "longWorkspaceResourceTree.manageTheOverallStorylineVolumesPlotPointsAndChapter"
+    );
+  },
+  get draft() {
+    return t(
+      "longWorkspaceResourceTree.editTheManuscriptInVolumeAndChapterCardOrder"
+    );
+  },
+  get continuity_ledger() {
+    return t(
+      "longWorkspaceResourceTree.checkContinuityForOneChapterOrAConsecutiveBatch"
+    );
+  }
 };
 
 export function longNavigationNodeId(bookId: string, key: string): string {
@@ -117,11 +150,17 @@ export function projectLongWorkspaceNavigation(
   const worldRevealSelection = reconcile({
     key: "worldbuilding:reveals",
     root: "worldbuilding",
-    title: "世界观揭露",
-    breadcrumbs: [book.title, "世界观", "世界观揭露"],
+    title: t("longWorkspaceResourceTree.worldRevelations"),
+    breadcrumbs: [
+      book.title,
+      t("longWorkspaceResourceTree.worldbuilding"),
+      t("longWorkspaceResourceTree.worldRevelations")
+    ],
     files: [],
     preferredRole: "world-reveals",
-    description: "映射最近一次已提交章节记录中的世界观揭露。"
+    description: t(
+      "longWorkspaceResourceTree.showsWorldRevelationsFromTheMostRecentlyCommittedChapter"
+    )
   });
   const worldChildren = [
     ...[...book.navigation.worldbuilding]
@@ -131,11 +170,17 @@ export function projectLongWorkspaceNavigation(
           key: `worldbuilding:${category.id}`,
           root: "worldbuilding",
           title: category.title,
-          breadcrumbs: [book.title, "世界观", category.title],
+          breadcrumbs: [
+            book.title,
+            t("longWorkspaceResourceTree.worldbuilding"),
+            category.title
+          ],
           files: [],
           preferredRole: "content",
           description:
-            category.format === "list" ? "列表型世界设定。" : "文本型世界设定。"
+            category.format === "list"
+              ? t("longWorkspaceResourceTree.listBasedWorldbuilding")
+              : t("longWorkspaceResourceTree.textBasedWorldbuilding")
         };
         const selection = reconcile(baseSelection);
         const indexedCategory = index?.worldbuilding.find(
@@ -156,7 +201,7 @@ export function projectLongWorkspaceNavigation(
                         node(overviewSelection, {
                           nodeKey: `worldbuilding:${category.id}:overview`,
                           icon: "file",
-                          label: "概览",
+                          label: t("catalogWorkspace.overview"),
                           readOnly: readonly
                         })
                       ]
@@ -201,7 +246,10 @@ export function projectLongWorkspaceNavigation(
           ? [
               node(selection, {
                 icon: "file",
-                badge: category.format === "list" ? "列表" : "文本",
+                badge:
+                  category.format === "list"
+                    ? t("longWorkspaceResourceTree.list")
+                    : t("longWorkspaceResourceTree.text"),
                 ...(itemChildren ? { children: itemChildren } : {}),
                 ...(worldbuildingUsesLeftTree &&
                 indexedCategory?.format === "list" &&
@@ -221,7 +269,7 @@ export function projectLongWorkspaceNavigation(
       ? [
           node(worldRevealSelection, {
             icon: "file",
-            label: "世界观揭露"
+            label: t("longWorkspaceResourceTree.worldRevelations")
           })
         ]
       : [])
@@ -230,26 +278,41 @@ export function projectLongWorkspaceNavigation(
   const characterOverviewSelection = reconcile({
     key: "character-overview",
     root: "character_design",
-    title: "概览",
-    breadcrumbs: [book.title, "人物设计", "概览"],
+    title: t("catalogWorkspace.overview"),
+    breadcrumbs: [
+      book.title,
+      t("longWorkspaceResourceTree.characterDesign"),
+      t("catalogWorkspace.overview")
+    ],
     files: [],
     preferredRole: "overview",
-    description:
-      "人物设计阶段概览；统计全部人物的简单信息，供智能体先读后定位。"
+    description: t(
+      "longWorkspaceResourceTree.characterDesignOverviewASummaryOfAllCharactersTo"
+    )
   });
   const characterGroupChildren = [...book.navigation.characterTypes]
     .sort((left, right) => left.order - right.order)
     .map((group) => {
+      const groupLabel = longCharacterGroupLabel(
+        group.id,
+        book.navigation.characterTypes
+      );
       const characterCount = characterCountByGroup.get(group.id) ?? 0;
       const baseSelection: LongWorkspaceSelection = {
         key: `character-group:${group.id}`,
         root: "character_design",
         characterGroup: group.id,
-        title: group.title,
-        breadcrumbs: [book.title, "人物设计", group.title],
+        title: groupLabel,
+        breadcrumbs: [
+          book.title,
+          t("longWorkspaceResourceTree.characterDesign"),
+          groupLabel
+        ],
         files: [],
         preferredRole: "core-profile",
-        description: `管理${group.title}人物。`
+        description: t("longWorkspaceResourceTree.manageCharactersOfType", {
+          title: groupLabel
+        })
       };
       const selection = reconcile(baseSelection);
       const groupSelection = selection ?? baseSelection;
@@ -265,7 +328,12 @@ export function projectLongWorkspaceNavigation(
               ...baseSelection,
               characterId: character.id,
               title: character.name,
-              breadcrumbs: [book.title, "人物设计", group.title, character.name]
+              breadcrumbs: [
+                book.title,
+                t("longWorkspaceResourceTree.characterDesign"),
+                groupLabel,
+                character.name
+              ]
             });
             return characterSelection
               ? [
@@ -285,7 +353,7 @@ export function projectLongWorkspaceNavigation(
         : undefined;
       return node(groupSelection, {
         icon: "folder",
-        label: group.title,
+        label: groupLabel,
         badge: String(characterCount),
         longCharacterGroup: group.id,
         ...(children ? { children } : {}),
@@ -304,7 +372,7 @@ export function projectLongWorkspaceNavigation(
       ? [
           node(characterOverviewSelection, {
             icon: "file",
-            label: "概览"
+            label: t("catalogWorkspace.overview")
           })
         ]
       : []),
@@ -314,11 +382,15 @@ export function projectLongWorkspaceNavigation(
   const bookLineBaseSelection: LongWorkspaceSelection = {
     key: "plot-design:book-line",
     root: "plot_design",
-    title: "全书故事线",
-    breadcrumbs: [book.title, "剧情设计", "全书故事线"],
+    title: t("approvalNavigation.overallStoryline"),
+    breadcrumbs: [
+      book.title,
+      t("catalogWorkspace.plotDesign"),
+      t("approvalNavigation.overallStoryline")
+    ],
     files: [],
     preferredRole: "book-line",
-    description: "全书级情节主线。"
+    description: t("longWorkspaceResourceTree.theMainStorylineOfTheEntireNovel")
   };
   const bookLineSelection = reconcile({
     ...bookLineBaseSelection,
@@ -336,7 +408,7 @@ export function projectLongWorkspaceNavigation(
                 node(overviewSelection, {
                   nodeKey: "plot-design:book-line:overview",
                   icon: "file",
-                  label: "全书总纲"
+                  label: t("longWorkspaceResourceTree.overallOutline")
                 })
               ]
             : [];
@@ -366,11 +438,17 @@ export function projectLongWorkspaceNavigation(
   const foreshadowingSelection = reconcile({
     key: "plot-design:foreshadowing",
     root: "plot_design",
-    title: "伏笔总览",
-    breadcrumbs: [book.title, "剧情设计", "伏笔总览"],
+    title: t("approvalNavigation.foreshadowingOverview"),
+    breadcrumbs: [
+      book.title,
+      t("catalogWorkspace.plotDesign"),
+      t("approvalNavigation.foreshadowingOverview")
+    ],
     files: [],
     preferredRole: "book-line",
-    description: "集中管理伏笔线，并查看各卷、各剧情点中的伏笔触点。"
+    description: t(
+      "longWorkspaceResourceTree.manageForeshadowingThreadsAndReviewBeatsAcrossVolumesAnd"
+    )
   });
   const plotPointVolumeChildren: ResourceTreeNode[] = sortedVolumes.map(
     (volume) => {
@@ -380,10 +458,18 @@ export function projectLongWorkspaceNavigation(
         root: "plot_design",
         plotPointVolumeId: volume.id,
         title: volume.title,
-        breadcrumbs: [book.title, "剧情设计", "剧情点", volume.title],
+        breadcrumbs: [
+          book.title,
+          t("catalogWorkspace.plotDesign"),
+          t("longImpactConfirmation.plotPoint"),
+          volume.title
+        ],
         files: [],
         preferredRole: "book-line",
-        description: `${volume.title}共有 ${plotPointCount} 个剧情点。`
+        description: t("longWorkspaceResourceTree.containsPlotPoints", {
+          title: volume.title,
+          plotPointCount: plotPointCount
+        })
       };
       const selection = reconcile(baseSelection);
       const volumeSelection = selection ?? baseSelection;
@@ -419,7 +505,9 @@ export function projectLongWorkspaceNavigation(
       return node(volumeSelection, {
         icon: "folder",
         label: volume.title,
-        badge: `${plotPointCount} 点`,
+        badge: t("longWorkspaceResourceTree.points", {
+          plotPointCount: plotPointCount
+        }),
         ...(children ? { children } : {}),
         ...(plotUsesLeftTree
           ? {
@@ -449,8 +537,8 @@ export function projectLongWorkspaceNavigation(
         title: chapters[0]?.title ?? volume.title,
         breadcrumbs: [
           book.title,
-          "剧情设计",
-          "章卡",
+          t("catalogWorkspace.plotDesign"),
+          t("longImpactConfirmation.chapterCard"),
           volume.title,
           ...(chapters[0] ? [chapters[0].title] : [])
         ],
@@ -458,7 +546,10 @@ export function projectLongWorkspaceNavigation(
         preferredRole: "book-line",
         description: chapters.length
           ? `${volume.title} · ${chapters[0]!.title}`
-          : `${volume.title}还没有章卡，请使用右侧章卡标签栏的加号新建。`
+          : t(
+              "longWorkspaceResourceTree.hasNoChapterCardsYetUseThePlusButton",
+              { title: volume.title }
+            )
       };
       const selection =
         (index
@@ -492,7 +583,9 @@ export function projectLongWorkspaceNavigation(
       return node(selection, {
         icon: "folder",
         label: volume.title,
-        badge: `${chapters.length} 章`,
+        badge: t("longWorkspaceResourceTree.chapters", {
+          length: chapters.length
+        }),
         ...(children ? { children } : {}),
         ...(plotUsesLeftTree
           ? {
@@ -511,7 +604,7 @@ export function projectLongWorkspaceNavigation(
       ? [
           node(bookLineSelection, {
             icon: "file",
-            badge: "故事线",
+            badge: t("longWorkspaceResourceTree.storyline"),
             ...(bookLineChildren ? { children: bookLineChildren } : {}),
             ...(plotUsesLeftTree
               ? {
@@ -527,11 +620,17 @@ export function projectLongWorkspaceNavigation(
       {
         key: "root:plot-points",
         root: "plot_design",
-        title: "剧情点",
-        breadcrumbs: [book.title, "剧情设计", "剧情点"],
+        title: t("longImpactConfirmation.plotPoint"),
+        breadcrumbs: [
+          book.title,
+          t("catalogWorkspace.plotDesign"),
+          t("longImpactConfirmation.plotPoint")
+        ],
         files: [],
         preferredRole: "book-line",
-        description: "按分卷管理剧情点；一卷可以包含多个剧情点。"
+        description: t(
+          "longWorkspaceResourceTree.organizePlotPointsByVolumeEachVolumeCanContain"
+        )
       },
       {
         icon: "history",
@@ -551,11 +650,17 @@ export function projectLongWorkspaceNavigation(
       {
         key: "root:plot-chapter-cards",
         root: "plot_design",
-        title: "章卡",
-        breadcrumbs: [book.title, "剧情设计", "章卡"],
+        title: t("longImpactConfirmation.chapterCard"),
+        breadcrumbs: [
+          book.title,
+          t("catalogWorkspace.plotDesign"),
+          t("longImpactConfirmation.chapterCard")
+        ],
         files: [],
         preferredRole: "book-line",
-        description: "直接管理长篇章节卡；正文仍在“正文”中编辑。"
+        description: t(
+          "longWorkspaceResourceTree.manageNovelChapterCardsHereEditProseInManuscript"
+        )
       },
       {
         icon: "file",
@@ -594,7 +699,7 @@ export function projectLongWorkspaceNavigation(
     }),
     node(createLongRootSelection(book, "draft"), {
       icon: "edit",
-      label: "正文",
+      label: t("catalogWorkspace.manuscript"),
       badge: String(counts.chapterCards),
       children: draftChildren,
       longTreeCollection: {

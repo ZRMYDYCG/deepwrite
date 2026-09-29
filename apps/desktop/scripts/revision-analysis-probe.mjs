@@ -38,6 +38,8 @@ if (process.argv.includes("--electron")) {
         ["dark", 14, 1200, 950, false],
         ["light", 24, 640, 800, false],
         ["dark", 24, 640, 800, false],
+        ["light", 14, 1200, 950, false, "process"],
+        ["dark", 24, 640, 800, false, "process"],
         ["light", 14, 1200, 950, false, "results"],
         ["dark", 24, 640, 800, false, "results"],
         ["light", 24, 640, 800, true, "menu"]
@@ -96,9 +98,13 @@ if (process.argv.includes("--electron")) {
       [fileURLToPath(import.meta.url), output, "--electron", url.href],
       { stdio: "inherit" }
     );
-    process.exitCode = Number(
-      await new Promise((resolve) => child.once("exit", resolve))
-    );
+    await new Promise((resolve, reject) => {
+      child.once("error", reject);
+      child.once("exit", (code, signal) => {
+        if (code === 0) resolve();
+        else reject(new Error(`Electron probe exited: ${signal ?? code}`));
+      });
+    });
   } finally {
     await server.close();
   }

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import { computed } from "vue";
 import type { AgentEditProposal, ChatMessage } from "../types/conversation";
 import { longImpactConfirmationLines } from "../utils/longImpactConfirmation";
@@ -11,6 +12,8 @@ import {
   approvalDiscardVisualStatus,
   shouldShowApprovalDiscardButton
 } from "./approvalDiscardPresentation";
+
+const t = createScopedTranslator("components.agentEditProposalCard");
 
 const props = withDefaults(
   defineProps<{
@@ -38,21 +41,45 @@ const emit = defineEmits<{
 }>();
 
 const proposalStatusLabels: Record<AgentEditProposal["status"], string> = {
-  pending: "待审阅",
-  accepting: "正在应用",
-  accepted: "已接受",
-  rejected: "已拒绝",
-  conflict: "变更冲突",
-  error: "应用失败"
+  get pending() {
+    return t("awaitingReview");
+  },
+  get accepting() {
+    return t("applying");
+  },
+  get accepted() {
+    return t("accepted");
+  },
+  get rejected() {
+    return t("rejected");
+  },
+  get conflict() {
+    return t("changeConflict");
+  },
+  get error() {
+    return t("failedToApply");
+  }
 };
 
 const proposalStatusMessages: Record<AgentEditProposal["status"], string> = {
-  pending: "接受后将应用到当前文稿并自动保存到本机。",
-  accepting: "正在应用变更并保存……",
-  accepted: "变更已应用并保存到本机。",
-  rejected: "已保留当前文稿，未应用这次变更。",
-  conflict: "变更无法应用，未覆盖当前内容。",
-  error: "变更未能应用，请检查运行详情。"
+  get pending() {
+    return t("acceptToApplyTheChangesToTheCurrentManuscript");
+  },
+  get accepting() {
+    return t("applyingAndSavingChanges");
+  },
+  get accepted() {
+    return t("changesAppliedAndSavedLocally");
+  },
+  get rejected() {
+    return t("theCurrentManuscriptWasKeptTheseChangesWereNot");
+  },
+  get conflict() {
+    return t("theChangesCouldNotBeAppliedCurrentContentWas");
+  },
+  get error() {
+    return t("theChangesCouldNotBeAppliedCheckTheRun");
+  }
 };
 
 function proposalStatusLabel(): string {
@@ -62,12 +89,12 @@ function proposalStatusLabel(): string {
     props.proposal.status === "pending" &&
     props.proposal.approvalMode === "auto-approve"
   ) {
-    return "待自动保存";
+    return t("awaitingAutosave");
   }
   if (isLongProposal()) {
-    if (props.proposal.status === "accepting") return "正在保存";
-    if (props.proposal.status === "conflict") return "内容已变化";
-    if (props.proposal.status === "error") return "保存失败";
+    if (props.proposal.status === "accepting") return t("saving");
+    if (props.proposal.status === "conflict") return t("contentChanged");
+    if (props.proposal.status === "error") return t("saveFailed");
   }
   return proposalStatusLabels[props.proposal.status];
 }
@@ -87,12 +114,16 @@ function showDiscardButton(): boolean {
 }
 
 function proposalAcceptLabel(): string {
-  if (props.proposal.status === "accepting") return "保存中…";
+  if (props.proposal.status === "accepting") return t("savingLabel");
   if (isLongProposal()) {
-    if (!longExpectedImpact.value) return "核对影响";
-    return props.proposal.status === "error" ? "重新确认" : "确认并保存";
+    if (!longExpectedImpact.value) return t("reviewImpact");
+    return props.proposal.status === "error"
+      ? t("confirmAgain")
+      : t("confirmAndSave");
   }
-  return props.proposal.status === "error" ? "重试接受并保存" : "接受并保存";
+  return props.proposal.status === "error"
+    ? t("retryAcceptingAndSaving")
+    : t("acceptAndSave");
 }
 
 function isLongProposal(): boolean {
@@ -163,13 +194,13 @@ function proposalStatusMessage(): string {
   if (discardMessage) return discardMessage;
   if (!proposal.statusMessage && isLongProposal()) {
     if (proposal.status === "accepting") {
-      return "正在直接保存这项长篇修改……";
+      return t("savingThisNovelChange");
     }
     if (proposal.status === "conflict") {
-      return "目标内容或关联关系已经变化，本次修改尚未保存。";
+      return t("theTargetContentOrItsLinksHaveChangedThis");
     }
     if (proposal.status === "error") {
-      return "这项长篇修改未能保存，请检查运行详情。";
+      return t("thisNovelChangeCouldNotBeSavedCheckThe");
     }
   }
   if (
@@ -178,14 +209,14 @@ function proposalStatusMessage(): string {
     proposal.approvalMode === "auto-approve" &&
     canReviewProposalWhileStreaming()
   ) {
-    return "本项已生成，正在进入实时自动保存队列；智能体仍在继续。";
+    return t("thisItemIsReadyAndIsEnteringTheAutosave");
   }
   if (
     props.messageStatus === "streaming" &&
     proposal.status === "pending" &&
     canReviewProposalWhileStreaming()
   ) {
-    return "本项已生成，可立即审阅；智能体仍在继续。";
+    return t("thisItemIsReadyForReviewTheAgentIs");
   }
   if (
     props.messageStatus === "streaming" &&
@@ -193,8 +224,7 @@ function proposalStatusMessage(): string {
     canReviewProposalWhileStreaming()
   ) {
     return (
-      proposal.statusMessage ??
-      "实时保存失败，可立即重试或拒绝；智能体仍在继续。"
+      proposal.statusMessage ?? t("autosaveFailedYouCanRetryOrRejectNowThe")
     );
   }
   if (
@@ -202,13 +232,13 @@ function proposalStatusMessage(): string {
     proposal.status === "pending" &&
     proposal.approvalMode === "auto-approve"
   ) {
-    return "本项已生成，已加入实时自动保存队列。";
+    return t("thisItemIsReadyAndHasBeenAddedTo");
   }
   if (
     props.messageStatus === "streaming" &&
     (proposal.status === "pending" || proposal.status === "error")
   ) {
-    return "生成完成后可审阅。";
+    return t("availableForReviewWhenGenerationFinishes");
   }
   if (
     !proposal.statusMessage &&
@@ -216,29 +246,29 @@ function proposalStatusMessage(): string {
     proposal.libraryTarget
   ) {
     return proposal.libraryTarget.operation === "create"
-      ? "接受后将创建资料库条目并保存到本机。"
-      : "接受后将更新资料库条目并保存到本机。";
+      ? t("acceptToCreateTheLibraryEntryAndSaveIt")
+      : t("acceptToUpdateTheLibraryEntryAndSaveIt");
   }
   if (
     !proposal.statusMessage &&
     proposal.status === "pending" &&
     proposal.draftSectionCreationTarget
   ) {
-    return "接受后将批量创建空白正文与人物状态文件并保存到本机。";
+    return t("acceptToCreateBlankManuscriptAndCharacterStateFiles");
   }
   if (
     !proposal.statusMessage &&
     proposal.status === "pending" &&
     proposal.draftSectionRenameTarget
   ) {
-    return "接受后将修改章节名称并保存到本机；正文内容保持不变。";
+    return t("acceptToRenameTheChapterAndSaveLocallyIts");
   }
   if (
     !proposal.statusMessage &&
     proposal.status === "pending" &&
     proposal.draftSectionDeletionTarget
   ) {
-    return "接受后将永久删除该章节及其正文与人物状态文件。";
+    return t("acceptToPermanentlyDeleteThisChapterItsManuscriptAnd");
   }
   if (
     !proposal.statusMessage &&
@@ -246,8 +276,8 @@ function proposalStatusMessage(): string {
     proposal.longWorldbuildingTarget
   ) {
     return proposal.longWorldbuildingTarget.file.operation === "create"
-      ? "接受后将创建一个空白世界观文件并保存到本机。"
-      : "接受后将写入世界观文件并保存到本机。";
+      ? t("acceptToCreateABlankWorldbuildingFileAndSave")
+      : t("acceptToWriteTheWorldbuildingFileAndSaveIt");
   }
   if (
     !proposal.statusMessage &&
@@ -257,22 +287,22 @@ function proposalStatusMessage(): string {
     return proposal.longCharacterTarget.files.every(
       ({ operation }) => operation === "create"
     )
-      ? "接受后将创建人物及其两份档案并保存到本机。"
-      : "接受后将写入人物档案并保存到本机。";
+      ? t("acceptToCreateTheCharacterAndBothProfilesAnd")
+      : t("acceptToWriteTheCharacterProfileAndSaveIt");
   }
   if (
     !proposal.statusMessage &&
     proposal.status === "pending" &&
     proposal.longPlotDesignTarget
   ) {
-    return "接受后将校验结构影响并保存剧情设计。";
+    return t("acceptToValidateStructuralImpactAndSaveThePlot");
   }
   if (
     !proposal.statusMessage &&
     proposal.status === "pending" &&
     proposal.longDraftTarget
   ) {
-    return "接受后将把当前章正文保存到该章节独立的 Markdown 文件。";
+    return t("acceptToSaveTheCurrentChapterManuscriptToIts");
   }
   return (
     proposal.statusMessage?.trim() || proposalStatusMessages[proposal.status]
@@ -315,8 +345,8 @@ function review(decision: "accept" | "reject"): void {
             v-if="proposal.status === 'accepted'"
             class="approval-target-button"
             type="button"
-            title="跳转到目标文件"
-            aria-label="跳转到目标文件"
+            :title="t('goToTargetFile')"
+            :aria-label="t('goToTargetFile')"
             @click.stop="
               emit('locate', {
                 runId: proposal.runId,
@@ -324,7 +354,7 @@ function review(decision: "accept" | "reject"): void {
               })
             "
           >
-            跳转到目标文件
+            {{ t("goToTargetFile") }}
           </button>
           <ApprovalDiscardButton
             v-if="showDiscardButton()"
@@ -338,18 +368,29 @@ function review(decision: "accept" | "reject"): void {
           />
         </div>
         <p v-if="proposal.libraryTarget">
-          目标{{
-            proposal.libraryTarget.domain === "skill" ? "技能库" : "素材库"
-          }}：{{
-            proposal.libraryTarget.libraryTitle ??
-            proposal.libraryTarget.libraryId
+          {{
+            t("targetMessage", {
+              arg0:
+                (proposal.libraryTarget.domain === "skill"
+                  ? t("skillLibrary")
+                  : t("materialLibrary")) ?? "",
+              arg1:
+                proposal.libraryTarget.libraryTitle ??
+                proposal.libraryTarget.libraryId ??
+                ""
+            })
           }}
         </p>
         <p>{{ proposal.summary }}</p>
       </div>
       <div
         class="edit-proposal-stats"
-        :aria-label="`增加 ${proposal.additions} 行，删除 ${proposal.deletions} 行`"
+        :aria-label="
+          t('valueLinesAddedValueLinesRemoved', {
+            arg0: proposal.additions,
+            arg1: proposal.deletions
+          })
+        "
       >
         <span class="is-addition">+{{ proposal.additions }}</span>
         <span class="is-deletion">−{{ proposal.deletions }}</span>
@@ -361,15 +402,17 @@ function review(decision: "accept" | "reject"): void {
     <section
       v-if="longExpectedImpact"
       class="long-proposal-impact"
-      aria-label="本次长篇修改的精确影响"
+      :aria-label="t('exactImpactOfThisNovelChange')"
     >
-      <strong>本次结构与关联影响</strong>
+      <strong>{{ t("structuralAndLinkChanges") }}</strong>
       <ul v-if="longExpectedImpactLines.length">
         <li v-for="line in longExpectedImpactLines" :key="line">
           {{ line }}
         </li>
       </ul>
-      <p v-else>没有额外关联变化，仅保存提案中的文件内容。</p>
+      <p v-else>
+        {{ t("noAdditionalLinksWillChangeOnlyTheProposedFile") }}
+      </p>
     </section>
 
     <footer class="edit-proposal-footer">
@@ -381,7 +424,7 @@ function review(decision: "accept" | "reject"): void {
           :disabled="proposalReviewDisabled('reject')"
           @click="review('reject')"
         >
-          拒绝
+          {{ t("reject") }}
         </button>
         <button
           v-if="proposal.status !== 'conflict'"

@@ -1,3 +1,5 @@
+import { getErrorCode } from "../../i18n/errors";
+import { t } from "../../i18n";
 import type {
   LongWorkspaceImpactConfirmation,
   LongWorkspaceOperationBatch
@@ -61,10 +63,7 @@ export function holdLongProposalForManualReview(
 }
 
 export function isLongImpactMismatch(error: unknown): boolean {
-  return (
-    error instanceof Error &&
-    /impact_mismatch|关联.*变化|影响.*变化/iu.test(error.message)
-  );
+  return getErrorCode(error) === "long.operation.impact_mismatch";
 }
 
 export async function previewLongProposalImpact(
@@ -75,7 +74,12 @@ export async function previewLongProposalImpact(
 ): Promise<LongWorkspaceImpactConfirmation> {
   const preview = await api.previewOperations({ bookId, batch });
   if (preview.bookId !== bookId) {
-    throw new Error(`${label}影响预览与当前作品不匹配。`);
+    throw new Error(
+      t(
+        "workspace.longImpactApproval.theImpactPreviewForDoesNotMatchTheCurrent",
+        { label: label }
+      )
+    );
   }
   return preview.preview.confirmation;
 }

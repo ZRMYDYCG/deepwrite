@@ -1,3 +1,4 @@
+import { createScopedTranslator } from "../i18n";
 import { createConversationRegistryHistory } from "./conversationRegistryHistory";
 import { canonicalBookConversationKey } from "../utils/bookConversationKey";
 import type { ConversationRuntimeRegistryCoordinatorOptions } from "./conversationRuntimeRegistryTypes";
@@ -9,6 +10,10 @@ export type {
 import type { AgentConversationController } from "./useAgentConversation";
 import { createConversationRegistryPreferences } from "./conversationRegistryPreferences";
 import { conversationHistoryPersistenceKey } from "../utils/conversationPersistence";
+
+const t = createScopedTranslator(
+  "workspace.conversationRuntimeRegistryCoordinator"
+);
 
 /**
  * Owns the shared conversation-controller registry, persisted hydration, and
@@ -51,7 +56,7 @@ export function useConversationRuntimeRegistryCoordinator(
 
   options.store.configurePersistenceAdapter(options.persistenceAdapter, {
     onError: () => {
-      warnPersistenceOnce("历史对话暂时无法保存到本机，本次运行中仍可继续切换");
+      warnPersistenceOnce(t("conversationHistoryCouldNotBeSavedLocallyYouCan"));
     }
   });
 
@@ -115,7 +120,9 @@ export function useConversationRuntimeRegistryCoordinator(
         await options.persistenceAdapter?.prepareHistory?.(key);
       } catch {
         failed = true;
-        warnPersistenceOnce("历史对话迁移暂未完成，原始记录已保留");
+        warnPersistenceOnce(
+          t("conversationHistoryMigrationIsIncompleteTheOriginalRecordsHave")
+        );
       }
       if (!controllerIsCurrent(key, conversation, generation)) return;
       const history = histories.get(conversation);
@@ -140,7 +147,9 @@ export function useConversationRuntimeRegistryCoordinator(
     } catch {
       failed = true;
       if (controllerIsCurrent(key, conversation, generation)) {
-        warnPersistenceOnce("历史对话暂时无法读取，本次运行仍可正常使用");
+        warnPersistenceOnce(
+          t("conversationHistoryCouldNotBeReadYouCanContinue")
+        );
       }
     } finally {
       hydratingControllers.delete(conversation);
@@ -156,7 +165,7 @@ export function useConversationRuntimeRegistryCoordinator(
     scope = "general"
   ): AgentConversationController {
     if (disposed) {
-      throw new Error("会话运行时注册表已经关闭。");
+      throw new Error(t("theConversationRuntimeRegistryHasBeenClosed"));
     }
     key = canonicalBookConversationKey(key, scope);
     const existing = options.store.controllerForKey(key);

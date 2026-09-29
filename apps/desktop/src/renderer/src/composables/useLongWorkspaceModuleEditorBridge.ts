@@ -1,3 +1,4 @@
+import { t } from "../i18n";
 import { onBeforeUnmount, type ComponentPublicInstance } from "vue";
 import {
   isLongWorkspaceEditorPort,
@@ -24,7 +25,11 @@ export function useLongWorkspaceModuleEditorBridge(options: {
     reference: EditorTextReference
   ): Promise<void> {
     if (await currentEditorPort?.locateEditorReference(reference)) return;
-    options.warn("引用的长篇文本已不在当前编辑区，请重新选择后插入");
+    options.warn(
+      t(
+        "workspace.longWorkspaceModuleEditorBridge.theReferencedNovelTextIsNoLongerInThe"
+      )
+    );
   }
 
   onBeforeUnmount(() => {

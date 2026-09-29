@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator, locale } from "../i18n";
 import { computed, ref } from "vue";
 import {
   type ModelConfig,
@@ -13,6 +14,8 @@ import SiteOfficialQuotaMergeDialog from "./SiteOfficialQuotaMergeDialog.vue";
 import { useSettingsStore } from "../stores/settingsStore";
 import { useSiteOfficialQuotaMerge } from "../composables/useSiteOfficialQuotaMerge";
 import { toModelInput } from "./modelSettingsDraft";
+
+const t = createScopedTranslator("components.siteOfficialModelsPanel");
 
 const props = defineProps<{
   settings: ModelSettings | null;
@@ -77,7 +80,7 @@ function closeTokenEditor(): void {
 function submitToken(): void {
   const apiKey = tokenDraft.value.trim();
   if (!apiKey) {
-    uiMessage.warning("请输入新官方小站模型密钥。");
+    uiMessage.warning(t("enterAnOfficialSiteModelKey"));
     return;
   }
   emit("saveToken", apiKey);
@@ -101,7 +104,7 @@ function formatPrice(value: number | undefined): string {
 
 function formatQuota(value: number | null | undefined): string {
   if (value === undefined || value === null) return "--";
-  return new Intl.NumberFormat("zh-CN", {
+  return new Intl.NumberFormat(locale.value, {
     style: "currency",
     currency: "CNY",
     minimumFractionDigits: 2,
@@ -112,11 +115,13 @@ function formatQuota(value: number | null | undefined): string {
 function quotaSummary(): string {
   if (!props.quota) {
     return tokenConfigured.value
-      ? "额度信息暂不可用，可点击右上角刷新页面重试。"
-      : "添加模型密钥后即可查看额度进度。";
+      ? t("quotaInformationIsUnavailableRefreshThePageUsingThe")
+      : t("addAModelKeyToViewQuotaProgress");
   }
-  if (props.quota.unlimited) return "当前密钥为无限额度。";
-  return `额度已使用 ${quotaUsedPercentage.value.toFixed(1)}%`;
+  if (props.quota.unlimited) return t("theCurrentKeyHasUnlimitedQuota");
+  return t("valueOfQuotaUsed", {
+    arg0: quotaUsedPercentage.value.toFixed(1)
+  });
 }
 </script>
 
@@ -125,12 +130,14 @@ function quotaSummary(): string {
     <header class="site-models-header">
       <div>
         <span class="site-models-kicker">
-          <AppIcon name="model" :size="15" /> DeepWrite 新官方小站
+          <AppIcon name="model" :size="15" />
+          {{ t("deepWriteOfficialSite") }}
         </span>
-        <h2 id="site-models-title">新官方小站模型与密钥</h2>
+        <h2 id="site-models-title">
+          {{ t("officialSiteModelsAndKey") }}
+        </h2>
         <p>
-          使用新官方小站签发的模型密钥连接 DeepWriteApi
-          网关。密钥由你自行配置，保存后模型才会出现在模型配置与选择器中。
+          {{ t("connectToTheDeepWriteApiGatewayUsingAModelKey") }}
         </p>
       </div>
       <div class="site-models-header-actions">
@@ -139,10 +146,10 @@ function quotaSummary(): string {
           href="https://pay.ldxp.cn/shop/UKGFTY58"
           target="_blank"
           rel="noopener noreferrer"
-          title="在浏览器中打开小站店铺"
+          :title="t('openSiteStoreInBrowser')"
         >
           <AppIcon name="globe" :size="15" />
-          小站店铺
+          {{ t("siteStore") }}
         </a>
         <button
           class="site-models-refresh"
@@ -151,7 +158,7 @@ function quotaSummary(): string {
           @click="emit('refresh')"
         >
           <AppIcon name="history" :size="15" />
-          {{ refreshing ? "刷新中…" : "刷新页面" }}
+          {{ refreshing ? t("refreshing") : t("refreshPage") }}
         </button>
       </div>
     </header>
@@ -166,18 +173,20 @@ function quotaSummary(): string {
         </span>
         <div>
           <strong>{{
-            tokenConfigured ? "新小站密钥已添加" : "添加你的新小站密钥"
+            tokenConfigured ? t("siteKeyAdded") : t("addYourSiteKey")
           }}</strong>
           <small>
             {{
               tokenConfigured
-                ? `已启用 ${enabledModelCount} 个模型，密钥明文不会回传到页面。`
-                : "保存密钥后，相关模型才会加入模型列表。"
+                ? t("valueModelsEnabledTheKeyIsNeverReturnedTo", {
+                    arg0: enabledModelCount
+                  })
+                : t("relatedModelsJoinTheListAfterYouSaveA")
             }}
           </small>
         </div>
         <span class="site-token-badge">
-          {{ tokenConfigured ? "已配置" : "未配置" }}
+          {{ tokenConfigured ? t("configured") : t("notConfigured") }}
         </span>
       </div>
 
@@ -187,12 +196,12 @@ function quotaSummary(): string {
         @submit.prevent="submitToken"
       >
         <label>
-          <span>模型密钥</span>
+          <span>{{ t("modelKey") }}</span>
           <input
             v-model="tokenDraft"
             type="password"
             autocomplete="new-password"
-            placeholder="请输入新官方小站模型密钥"
+            :placeholder="t('enterOfficialSiteModelKey')"
             :disabled="controlsBusy"
           />
         </label>
@@ -202,10 +211,16 @@ function quotaSummary(): string {
             :disabled="controlsBusy"
             @click="closeTokenEditor"
           >
-            取消
+            {{ t("cancel") }}
           </button>
           <button class="is-primary" type="submit" :disabled="controlsBusy">
-            {{ saving ? "保存中…" : tokenConfigured ? "更新密钥" : "添加密钥" }}
+            {{
+              saving
+                ? t("saving")
+                : tokenConfigured
+                  ? t("updateKey")
+                  : t("addKey")
+            }}
           </button>
         </div>
       </form>
@@ -218,7 +233,7 @@ function quotaSummary(): string {
           @click="openTokenEditor"
         >
           <AppIcon name="plus" :size="15" />
-          {{ tokenConfigured ? "更换密钥" : "添加密钥" }}
+          {{ tokenConfigured ? t("replaceKey") : t("addKey") }}
         </button>
         <button
           v-if="tokenConfigured"
@@ -227,25 +242,29 @@ function quotaSummary(): string {
           :disabled="controlsBusy"
           @click="emit('clearToken')"
         >
-          移除密钥
+          {{ t("removeKey") }}
         </button>
       </div>
     </section>
 
-    <section class="site-quota-card" aria-label="新官方小站密钥额度">
+    <section class="site-quota-card" :aria-label="t('officialSiteKeyQuota')">
       <div class="site-quota-heading">
         <div>
-          <span>当前密钥剩余额度</span>
+          <span>{{ t("currentKeyBalance") }}</span>
           <strong>{{
-            quota?.unlimited ? "无限额度" : formatQuota(quota?.remaining)
+            quota?.unlimited
+              ? t("unlimitedQuota")
+              : formatQuota(quota?.remaining)
           }}</strong>
         </div>
         <div>
-          <span>已使用 / 总额度</span>
+          <span>{{ t("usedTotalQuota") }}</span>
           <strong>
             {{
               quota?.unlimited
-                ? `${formatQuota(quota.used)} / 无限`
+                ? t("valueUnlimited", {
+                    arg0: formatQuota(quota.used)
+                  })
                 : `${formatQuota(quota?.used)} / ${formatQuota(quota?.total)}`
             }}
           </strong>
@@ -255,7 +274,7 @@ function quotaSummary(): string {
         v-if="!quota?.unlimited"
         class="site-quota-track"
         role="progressbar"
-        aria-label="当前密钥额度使用进度"
+        :aria-label="t('currentKeyQuotaProgress')"
         :aria-valuenow="quota ? quotaUsedPercentage : undefined"
         aria-valuemin="0"
         aria-valuemax="100"
@@ -268,10 +287,12 @@ function quotaSummary(): string {
           class="site-models-refresh"
           type="button"
           :disabled="!!mergeDisabledReason || controlsBusy"
-          :title="mergeDisabledReason || '将来源 Key 的剩余额度转入当前密钥'"
+          :title="
+            mergeDisabledReason || t('transferTheSourceKeySRemainingQuotaToThe')
+          "
           @click="quotaMerge.show"
         >
-          增加额度
+          {{ t("addQuota") }}
         </button>
       </div>
     </section>
@@ -279,14 +300,18 @@ function quotaSummary(): string {
     <section class="site-model-card" aria-labelledby="site-model-list-title">
       <header>
         <div>
-          <span>模型目录</span>
-          <h3 id="site-model-list-title">新小站提供模型</h3>
+          <span>{{ t("modelCatalog") }}</span>
+          <h3 id="site-model-list-title">
+            {{ t("modelsFromTheOfficialSite") }}
+          </h3>
         </div>
         <span>
           {{
             configuredModels.length
-              ? `${configuredModels.length} 个模型`
-              : "等待配置"
+              ? t("valueModels", {
+                  arg0: configuredModels.length
+                })
+              : t("awaitingConfiguration")
           }}
         </span>
       </header>
@@ -302,16 +327,20 @@ function quotaSummary(): string {
         <div class="site-model-details">
           <div class="site-model-title-row">
             <strong>{{ model.label }}</strong>
-            <span class="site-model-available">可用</span>
+            <span class="site-model-available">{{ t("available") }}</span>
           </div>
           <small>
             {{ model.provider }} · {{ model.modelId }} · {{ model.api }}
           </small>
           <small>{{ model.baseUrl }}</small>
           <small>
-            输入 {{ formatPrice(model.input) }} / 输出
-            {{ formatPrice(model.output) }} / 缓存
-            {{ formatPrice(model.cache) }}（每百万 Token）
+            {{
+              t("inputOutputCachePerMillionTokensMessage", {
+                arg0: formatPrice(model.input) ?? "",
+                arg1: formatPrice(model.output) ?? "",
+                arg2: formatPrice(model.cache) ?? ""
+              })
+            }}
           </small>
         </div>
         <div class="site-model-actions">
@@ -321,14 +350,20 @@ function quotaSummary(): string {
             :disabled="controlsBusy || testingModelId !== null"
             @click="testModel(model)"
           >
-            {{ testingModelId === model.id ? "测试中…" : "测试联通" }}
+            {{
+              testingModelId === model.id ? t("testing") : t("testConnection")
+            }}
           </button>
           <button
             class="site-model-toggle"
             type="button"
             role="switch"
             :aria-checked="model.enabled !== false"
-            :aria-label="`${model.label}启用状态`"
+            :aria-label="
+              t('valueEnabledStatus', {
+                arg0: model.label
+              })
+            "
             :disabled="controlsBusy"
             @click="toggleModel(model)"
           >
@@ -337,7 +372,7 @@ function quotaSummary(): string {
         </div>
       </article>
       <p v-if="configuredModels.length === 0" class="site-model-empty">
-        添加模型密钥后，新官方小站的相关模型会在这里出现。
+        {{ t("officialSiteModelsAppearHereAfterYouAddA") }}
       </p>
     </section>
     <SiteOfficialQuotaMergeDialog

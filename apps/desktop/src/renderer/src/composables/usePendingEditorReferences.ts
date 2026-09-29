@@ -1,6 +1,9 @@
+import { createScopedTranslator } from "../i18n";
 import { ref } from "vue";
 import { PROMPT_ATTACHMENT_MAX_ITEMS } from "@deepwrite/contracts";
 import type { EditorTextReference } from "../types/conversation";
+
+const t = createScopedTranslator("workspace.pendingEditorReferences");
 
 export interface PendingEditorReferenceNotifications {
   info(message: string): void;
@@ -25,7 +28,7 @@ export function usePendingEditorReferences(
         item.text === reference.text
     );
     if (duplicate) {
-      notifications.info("这段正文已经插入输入框");
+      notifications.info(t("thisPassageIsAlreadyInTheInput"));
       return;
     }
     if (
@@ -33,7 +36,9 @@ export function usePendingEditorReferences(
       PROMPT_ATTACHMENT_MAX_ITEMS
     ) {
       notifications.warning(
-        `每条消息最多插入 ${PROMPT_ATTACHMENT_MAX_ITEMS} 段正文引用`
+        t("eachMessageCanIncludeUpToManuscriptReferences", {
+          PROMPT_ATTACHMENT_MAX_ITEMS: PROMPT_ATTACHMENT_MAX_ITEMS
+        })
       );
       return;
     }

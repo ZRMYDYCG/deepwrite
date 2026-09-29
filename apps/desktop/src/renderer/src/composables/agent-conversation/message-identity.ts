@@ -1,7 +1,10 @@
+import { createScopedTranslator } from "../../i18n";
 import type { AgentConversationContext } from "./context";
 import type { AgentRuntimeRef } from "@deepwrite/contracts";
 import type { ChatMessage } from "../../types/conversation";
 import { id } from "./shared";
+
+const t = createScopedTranslator("workspace.messageIdentity");
 
 type MessageIdentityContext = Pick<
   AgentConversationContext,
@@ -120,7 +123,7 @@ export function ensureAssistantMessage(
     ) {
       ctx.failProtocol(
         runId,
-        "智能体为同一运行返回了不一致的消息标识。",
+        t("theAgentReturnedInconsistentMessageIdsForTheSame"),
         eventRuntime
       );
       return undefined;
@@ -138,7 +141,7 @@ export function ensureAssistantMessage(
     if (existing.role !== "assistant" || existing.runId !== runId) {
       ctx.failProtocol(
         runId,
-        "智能体消息标识与现有消息发生冲突。",
+        t("theAgentMessageIdConflictsWithAnExistingMessage"),
         eventRuntime
       );
       return undefined;

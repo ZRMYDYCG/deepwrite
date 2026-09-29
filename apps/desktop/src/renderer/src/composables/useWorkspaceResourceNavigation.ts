@@ -1,3 +1,4 @@
+import { t } from "../i18n";
 import { computed, provide } from "vue";
 import {
   useWorkspaceResourceCoordinator,
@@ -27,7 +28,11 @@ export function useWorkspaceResourceNavigation(
         )
         .catch(() => {
           navigation = undefined;
-          options.notifications.error("加载选择列表失败，请重试");
+          options.notifications.error(
+            t(
+              "workspace.workspaceResourceNavigation.couldNotLoadTheSelectionListTryAgain"
+            )
+          );
           return null;
         });
       return navigation;

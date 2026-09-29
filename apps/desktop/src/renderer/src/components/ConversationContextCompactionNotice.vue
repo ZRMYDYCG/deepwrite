@@ -1,17 +1,32 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import { computed } from "vue";
 import type { ChatContextCompaction } from "../types/conversation";
 import { formatContextTokens } from "../utils/contextWindowUsage";
 import ConversationDetails from "./ConversationDetails.vue";
 
+const t = createScopedTranslator(
+  "components.conversationContextCompactionNotice"
+);
+
 const props = defineProps<{ compactions: readonly ChatContextCompaction[] }>();
 
 const REASON_LABELS: Record<ChatContextCompaction["reason"], string> = {
-  threshold: "上下文接近工作预算",
-  overflow: "模型提示上下文过长",
-  manual: "手动压缩",
-  idle: "为下一轮整理上下文",
-  run_limit: "本轮工作过长"
+  get threshold() {
+    return t("contextIsApproachingTheWorkingBudget");
+  },
+  get overflow() {
+    return t("theModelReportedExcessiveContextLength");
+  },
+  get manual() {
+    return t("manualCompaction");
+  },
+  get idle() {
+    return t("prepareContextForTheNextTurn");
+  },
+  get run_limit() {
+    return t("thisTurnHasBecomeTooLong");
+  }
 };
 
 /** Prune-only passes that changed nothing are not worth a divider. */
@@ -29,17 +44,21 @@ function tokens(item: ChatContextCompaction): string {
   if (item.tokensBefore === undefined || item.tokensAfter === undefined) {
     return "";
   }
-  return `约 ${formatContextTokens(item.tokensBefore)} → ${formatContextTokens(
-    item.tokensAfter
-  )} tokens`;
+  return t("aboutValueValueTokens", {
+    arg0: formatContextTokens(item.tokensBefore),
+    arg1: formatContextTokens(item.tokensAfter)
+  });
 }
 
 function title(item: ChatContextCompaction): string {
-  if (item.status === "running") return "正在整理较早的对话…";
-  if (item.status === "failed") return "上下文压缩未完成，本轮使用完整上下文";
-  if (item.level === "summary") return "较早的对话已压缩为检查点";
-  if (item.reason === "manual") return "对话较短，已精简旧工具结果";
-  return "已精简旧的读取结果与工作区快照";
+  if (item.status === "running") return t("summarizingEarlierMessages");
+  if (item.status === "failed")
+    return t("contextCompactionDidNotFinishUsingFullContextFor");
+  if (item.level === "summary")
+    return t("earlierMessagesHaveBeenSummarizedIntoACheckpoint");
+  if (item.reason === "manual")
+    return t("conversationIsShortOldToolResultsWereTrimmed");
+  return t("oldReadResultsAndWorkspaceSnapshotsWereTrimmed");
 }
 </script>
 
@@ -47,7 +66,7 @@ function title(item: ChatContextCompaction): string {
   <div
     v-if="visible.length"
     class="context-compaction-notices"
-    aria-label="上下文压缩"
+    :aria-label="t('contextCompaction')"
   >
     <div
       v-for="item in visible"
@@ -64,7 +83,7 @@ function title(item: ChatContextCompaction): string {
           <span class="context-compaction-meta">
             {{ REASON_LABELS[item.reason] }}
             <template v-if="tokens(item)"> · {{ tokens(item) }}</template>
-            · 查看摘要
+            {{ t("viewSummary") }}
           </span>
         </template>
         <pre class="context-compaction-summary">{{

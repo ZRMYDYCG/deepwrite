@@ -1,3 +1,4 @@
+import { createScopedTranslator } from "../i18n";
 import { computed, ref } from "vue";
 import {
   BUILT_IN_REASONING_LEVELS,
@@ -31,6 +32,8 @@ import {
   resolveCustomProviderName
 } from "../utils/customModelProvider";
 import { useRemoteModelListing } from "./useRemoteModelListing";
+
+const t = createScopedTranslator("workspace");
 
 export interface ModelEditorSavePayload {
   model: DraftModel;
@@ -81,23 +84,51 @@ export function useModelEditor(
   const toolSchemaProfileOptions = [
     {
       value: "auto",
-      label: "自动（推荐）",
-      description: "Ollama 自动使用兼容模式，其它服务使用 PI 原生结构"
+      get label() {
+        return t("modelEditor.automaticRecommended");
+      },
+      get description() {
+        return t(
+          "modelEditor.ollamaUsesCompatibilityModeOtherProvidersUseTheNative"
+        );
+      }
     },
     {
       value: "native",
-      label: "PI 原生",
-      description: "保留完整参数约束，适合官方和能力完整的服务"
+      get label() {
+        return t("modelEditor.piNative");
+      },
+      get description() {
+        return t(
+          "modelEditor.keepAllParameterConstraintsForOfficialAndFullyCompatible"
+        );
+      }
     },
     {
       value: "portable",
-      label: "兼容模式",
-      description: "简化容易导致本地模型语法失败的参数约束"
+      get label() {
+        return t("modelEditor.compatibilityMode");
+      },
+      get description() {
+        return t(
+          "modelEditor.simplifyParameterConstraintsThatMayCauseLocalModelGrammar"
+        );
+      }
     }
   ] as const;
   const modelModeOptions = [
-    { value: "reasoning", label: "思考模式" },
-    { value: "temperature", label: "不思考模式" }
+    {
+      value: "reasoning",
+      get label() {
+        return t("modelEditor.thinkingMode");
+      }
+    },
+    {
+      value: "temperature",
+      get label() {
+        return t("modelEditor.nonThinkingMode");
+      }
+    }
   ] as const;
   const defaultThinkingOptions = computed(() =>
     editor.value.thinkingLevelOptions.map((level) => ({
@@ -162,7 +193,9 @@ export function useModelEditor(
     const input = event.target as HTMLInputElement;
     if (!input.checked && editor.value.thinkingLevelOptions.length === 1) {
       input.checked = true;
-      uiMessage.warning("思考模式至少需要保留一个思考等级。");
+      uiMessage.warning(
+        t("modelEditor.thinkingModeRequiresAtLeastOneReasoningLevel")
+      );
       return;
     }
     const selected = new Set(editor.value.thinkingLevelOptions);
@@ -214,11 +247,11 @@ export function useModelEditor(
       remoteListing.canSelectRemoteModel.value &&
       !remoteListing.selectedRemoteModels.value.length
     ) {
-      uiMessage.warning("请至少选择一个要保存的模型。");
+      uiMessage.warning(t("batchModelSettings.selectAtLeastOneModelToSave"));
       return;
     }
     if (!editor.value.provider.trim() || !editor.value.modelId.trim()) {
-      uiMessage.warning("请填写 Provider 和模型 ID。");
+      uiMessage.warning(t("modelEditor.enterTheProviderAndModelId"));
       return;
     }
     const customThinkingLevel = editor.value.customThinkingLevel?.trim() ?? "";
@@ -227,7 +260,7 @@ export function useModelEditor(
       !isValidCustomThinkingLevel(customThinkingLevel)
     ) {
       uiMessage.warning(
-        "自定义思考等级不能与内置等级重复，且只能包含英文字母、数字、点、下划线或连字符。"
+        t("modelEditor.customReasoningLevelsMustDifferFromBuiltInLevels")
       );
       return;
     }
@@ -240,7 +273,7 @@ export function useModelEditor(
         new Set(editor.value.temperatureOptions).size !==
           editor.value.temperatureOptions.length)
     ) {
-      uiMessage.warning("请填写 3 个不同的温度值，范围为 0 到 2。");
+      uiMessage.warning(t("modelEditor.enterDifferentTemperaturesBetweenAnd"));
       return;
     }
     if (
@@ -250,7 +283,9 @@ export function useModelEditor(
           editor.value.defaultThinkingLevel as ReasoningLevel
         ))
     ) {
-      uiMessage.warning("请配置至少一个思考等级，并选择有效的默认等级。");
+      uiMessage.warning(
+        t("modelEditor.configureAtLeastOneReasoningLevelAndChooseA")
+      );
       return;
     }
     const {
@@ -286,7 +321,9 @@ export function useModelEditor(
 
   function test(): void {
     if (!editor.value.provider.trim() || !editor.value.modelId.trim()) {
-      uiMessage.warning("请先填写 Provider 和模型 ID，再测试连接。");
+      uiMessage.warning(
+        t("modelEditor.enterTheProviderAndModelIdBeforeTestingThe")
+      );
       return;
     }
     actions.test(

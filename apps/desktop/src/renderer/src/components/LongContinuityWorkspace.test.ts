@@ -5,7 +5,7 @@ describe("LongContinuityWorkspace", () => {
   it("is only a text-preview compatibility shell", () => {
     expect(source).toContain("Compatibility-only shell");
     expect(source).toContain("<MarkdownContent");
-    expect(source).toContain("连续性章节文本预览");
+    expect(source).toContain("continuityChapterTextPreview");
     expect(source).not.toContain("continuity-view-tabs");
     expect(source).not.toContain("LongContinuityProjectionPanel");
     expect(source).not.toContain("JSON.parse");

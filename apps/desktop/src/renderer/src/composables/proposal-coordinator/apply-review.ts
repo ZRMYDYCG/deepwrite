@@ -1,3 +1,5 @@
+import { formatError } from "../../i18n/errors";
+import { createScopedTranslator } from "../../i18n";
 import {
   createShortWorkspaceContentRevision,
   isProvisionalExpertDraftSectionId,
@@ -21,6 +23,8 @@ import type {
   ProposalLaneContext,
   WorkspaceEditorMutationEvent
 } from "./types";
+
+const t = createScopedTranslator("workspace");
 
 export function createApplyReview(ctx: ProposalLaneContext) {
   const {
@@ -220,8 +224,9 @@ export function createApplyReview(ctx: ProposalLaneContext) {
             document.draftFileKind === expectedDraftFileKind
         );
         if (!realTarget || realTarget.readOnly) {
-          const message =
-            "目标章节尚未创建或已失效，本次智能体变更未进入审阅。";
+          const message = t(
+            "proposalCoordinator.theTargetChapterHasNotBeenCreatedOrIs"
+          );
           sourceConversation.markToolConflict(
             event.payload.runId,
             event.payload.toolCallId,
@@ -324,7 +329,11 @@ export function createApplyReview(ctx: ProposalLaneContext) {
           hunks: diff.hunks,
           ...(diff.truncated ? { truncated: true } : {}),
           ...(noChanges
-            ? { statusMessage: "文本没有实际变化，无需保存。" }
+            ? {
+                statusMessage: t(
+                  "proposalCoordinator.theTextHasNotChangedNoSaveIsNeeded"
+                )
+              }
             : {}),
           createdAt:
             identity.coalescesExisting && existing
@@ -354,7 +363,9 @@ export function createApplyReview(ctx: ProposalLaneContext) {
       }
 
       if (stagingMode === "unavailable" || !creation) {
-        const message = "目标章节尚未创建或已失效，本次智能体变更未进入审阅。";
+        const message = t(
+          "proposalCoordinator.theTargetChapterHasNotBeenCreatedOrIs"
+        );
         sourceConversation.markToolConflict(
           event.payload.runId,
           event.payload.toolCallId,
@@ -432,10 +443,13 @@ export function createApplyReview(ctx: ProposalLaneContext) {
         (!existing ||
           existing.status === "accepted" ||
           identity.coalescesExisting);
-      const sectionTitle = creationSection?.title ?? "新章节";
+      const sectionTitle =
+        creationSection?.title ?? t("proposalCoordinator.newChapter");
       const title =
         mutationTarget.fileKind === "characterState"
-          ? `${sectionTitle} · 人物状态`
+          ? t("proposalCoordinator.characterState", {
+              sectionTitle: sectionTitle
+            })
           : sectionTitle;
       const proposal: AgentEditProposal = {
         id: identity.id,
@@ -468,7 +482,13 @@ export function createApplyReview(ctx: ProposalLaneContext) {
         deletions: diff.deletions,
         hunks: diff.hunks,
         ...(diff.truncated ? { truncated: true } : {}),
-        ...(noChanges ? { statusMessage: "文本没有实际变化，无需保存。" } : {}),
+        ...(noChanges
+          ? {
+              statusMessage: t(
+                "proposalCoordinator.theTextHasNotChangedNoSaveIsNeeded"
+              )
+            }
+          : {}),
         createdAt:
           identity.coalescesExisting && existing
             ? existing.createdAt
@@ -502,8 +522,9 @@ export function createApplyReview(ctx: ProposalLaneContext) {
       );
       const creationMutation = creation?.characterStructureTarget?.mutation;
       if (!creation || creationMutation?.type !== "createItem") {
-        const message =
-          "目标人物条目尚未创建或已失效，本次智能体变更未进入审阅。";
+        const message = t(
+          "proposalCoordinator.theTargetCharacterEntryHasNotBeenCreatedOr"
+        );
         sourceConversation.markToolConflict(
           event.payload.runId,
           event.payload.toolCallId,
@@ -615,7 +636,9 @@ export function createApplyReview(ctx: ProposalLaneContext) {
     }
 
     if (!target || target.readOnly) {
-      const message = "目标文稿不可写，本次智能体变更未进入审阅。";
+      const message = t(
+        "proposalCoordinator.theTargetManuscriptIsNotWritableThisAgentChange"
+      );
       sourceConversation.markToolConflict(
         event.payload.runId,
         event.payload.toolCallId,
@@ -718,7 +741,13 @@ export function createApplyReview(ctx: ProposalLaneContext) {
       deletions: diff.deletions,
       hunks: diff.hunks,
       ...(diff.truncated ? { truncated: true } : {}),
-      ...(noChanges ? { statusMessage: "文本没有实际变化，无需保存。" } : {}),
+      ...(noChanges
+        ? {
+            statusMessage: t(
+              "proposalCoordinator.theTextHasNotChangedNoSaveIsNeeded"
+            )
+          }
+        : {}),
       createdAt:
         identity.coalescesExisting && existing
           ? existing.createdAt
@@ -758,7 +787,9 @@ export function createApplyReview(ctx: ProposalLaneContext) {
       request.proposalId
     );
     if (!proposal) {
-      uiMessage.error("待审阅的智能体变更已不存在，请重新生成修改。");
+      uiMessage.error(
+        t("proposalCoordinator.thePendingAgentChangeNoLongerExistsGenerateIt")
+      );
       return;
     }
     const reserved = Boolean(
@@ -772,7 +803,9 @@ export function createApplyReview(ctx: ProposalLaneContext) {
       return;
     }
     if (conversation.isBusy.value && !canReviewAgentEditDuringRun(proposal)) {
-      uiMessage.info("请等待本轮智能体完成后再审阅文稿变更");
+      uiMessage.info(
+        t("proposalCoordinator.waitForTheCurrentAgentTurnToFinishBefore")
+      );
       return;
     }
 
@@ -784,10 +817,10 @@ export function createApplyReview(ctx: ProposalLaneContext) {
         status: "rejected",
         proposedText: undefined,
         statusMessage: proposal.longPlotDesignTarget
-          ? "已拒绝，剧情设计保持不变。"
+          ? t("proposalCoordinator.rejectedPlotDesignIsUnchanged")
           : proposal.longDraftTarget
-            ? "已拒绝，章节正文保持不变。"
-            : "已拒绝，原文保持不变。"
+            ? t("proposalCoordinator.rejectedChapterProseIsUnchanged")
+            : t("proposalCoordinator.rejectedTheOriginalTextIsUnchanged")
       });
       if (proposal.draftSectionCreationTarget) {
         conflictDependentProvisionalFileProposals(
@@ -796,14 +829,18 @@ export function createApplyReview(ctx: ProposalLaneContext) {
           proposal.draftSectionCreationTarget.sections.map(
             (section) => section.provisionalSectionId
           ),
-          "空白章节创建已被拒绝，相关正文写入无法落盘。"
+          t(
+            "proposalCoordinator.creationOfTheEmptyChapterWasRejectedItsManuscript"
+          )
         );
       }
       if (proposal.longWorldbuildingTarget?.file.operation === "create") {
         conflictDependentLongWorldbuildingProposals(
           conversation,
           proposal,
-          "空白世界观文件创建已被拒绝，相关正文写入无法落盘。"
+          t(
+            "proposalCoordinator.creationOfTheEmptyWorldbuildingFileWasRejectedIts"
+          )
         );
       }
       if (
@@ -814,16 +851,24 @@ export function createApplyReview(ctx: ProposalLaneContext) {
         conflictDependentLongCharacterProposals(
           conversation,
           proposal,
-          "人物创建已被拒绝，相关人物档案写入无法落盘。"
+          t(
+            "proposalCoordinator.characterCreationWasRejectedTheAssociatedCharacterProfileCannot"
+          )
         );
       }
       blockLaterAgentEditGenerations(conversation, proposal);
       uiMessage.info(
         proposal.longPlotDesignTarget
-          ? "已拒绝剧情设计变更，当前结构未改变"
+          ? t(
+              "proposalCoordinator.plotDesignChangesRejectedTheCurrentStructureIsUnchanged"
+            )
           : proposal.longDraftTarget
-            ? "已拒绝章节正文变更，当前正文未改变"
-            : "已拒绝智能体修改，原文未改变"
+            ? t(
+                "proposalCoordinator.chapterChangesRejectedTheManuscriptIsUnchanged"
+              )
+            : t(
+                "proposalCoordinator.agentEditsRejectedTheOriginalTextIsUnchanged"
+              )
       );
       return;
     }
@@ -848,8 +893,9 @@ export function createApplyReview(ctx: ProposalLaneContext) {
         predecessor.status === "conflict" ||
         predecessor.status === "error"
       ) {
-        const message =
-          "前序智能体修改未能落盘，当前这项依赖已阻断，没有覆盖当前文稿。";
+        const message = t(
+          "proposalCoordinator.anEarlierAgentEditCouldNotBeSavedThis"
+        );
         conversation.updateEditProposal(request.runId, request.proposalId, {
           status: "conflict",
           proposedText: undefined,
@@ -860,7 +906,9 @@ export function createApplyReview(ctx: ProposalLaneContext) {
       if (predecessor.status !== "accepted") {
         conversation.updateEditProposal(request.runId, request.proposalId, {
           status: "pending",
-          statusMessage: "正在等待前序修改完成落盘…"
+          statusMessage: t(
+            "proposalCoordinator.waitingForEarlierEditsToFinishSaving"
+          )
         });
         return;
       }
@@ -958,7 +1006,9 @@ export function createApplyReview(ctx: ProposalLaneContext) {
     if (proposal.provisionalExpertSection) {
       const parsedDocumentId = parseCatalogDraftDocumentId(proposal.documentId);
       if (!parsedDocumentId) {
-        const message = "待审阅的临时章节文件标识无效，请重新生成。";
+        const message = t(
+          "proposalCoordinator.theTemporaryChapterAwaitingReviewHasAnInvalidFile"
+        );
         conversation.updateEditProposal(request.runId, request.proposalId, {
           status: "error",
           statusMessage: message
@@ -977,8 +1027,12 @@ export function createApplyReview(ctx: ProposalLaneContext) {
           status: "pending",
           statusMessage:
             creation.status === "error"
-              ? "章节创建结果尚未确认，正文内容已保留；请先重试章节创建。"
-              : "正在等待关联章节创建完成…"
+              ? t(
+                  "proposalCoordinator.chapterCreationHasNotBeenConfirmedTheProseIs"
+                )
+              : t(
+                  "proposalCoordinator.waitingForTheAssociatedChapterToBeCreated"
+                )
         });
         return;
       }
@@ -999,9 +1053,12 @@ export function createApplyReview(ctx: ProposalLaneContext) {
             runId: request.runId,
             proposalId: request.proposalId,
             creationProposalId: creation.id,
-            waitingMessage:
-              "章节创建结果尚未确认，正文内容已保留；请先重试章节创建。",
-            blockedMessage: "关联的空白章节确认未能创建，相关正文写入已取消。"
+            waitingMessage: t(
+              "proposalCoordinator.chapterCreationHasNotBeenConfirmedTheProseIs"
+            ),
+            blockedMessage: t(
+              "proposalCoordinator.theAssociatedBlankChapterCouldNotBeCreatedRelated"
+            )
           })
         ) {
           return;
@@ -1032,9 +1089,13 @@ export function createApplyReview(ctx: ProposalLaneContext) {
           if (inFlight) {
             conversation.updateEditProposal(request.runId, request.proposalId, {
               status: "pending",
-              statusMessage: "正在等待关联章节创建完成…"
+              statusMessage: t(
+                "proposalCoordinator.waitingForTheAssociatedChapterToBeCreated"
+              )
             });
-            uiMessage.info("同一作品正在保存其他修改，请稍候再接受");
+            uiMessage.info(
+              t("proposalCoordinator.otherEditsToThisProjectAreBeingSavedWait")
+            );
             return;
           }
         }
@@ -1044,13 +1105,16 @@ export function createApplyReview(ctx: ProposalLaneContext) {
         request.proposalId
       );
       if (!remapped) {
-        uiMessage.error("待审阅的智能体变更已不存在，请重新生成修改。");
+        uiMessage.error(
+          t("proposalCoordinator.thePendingAgentChangeNoLongerExistsGenerateIt")
+        );
         return;
       }
       proposal = remapped;
       if (proposal.provisionalExpertSection) {
-        const message =
-          "目标空白章节尚未落盘，无法写入正文。请先接受章节创建，或重新生成。";
+        const message = t(
+          "proposalCoordinator.theEmptyTargetChapterHasNotBeenSavedYet"
+        );
         conversation.updateEditProposal(request.runId, request.proposalId, {
           status: "conflict",
           statusMessage: message
@@ -1071,8 +1135,12 @@ export function createApplyReview(ctx: ProposalLaneContext) {
           status: "pending",
           statusMessage:
             creation.status === "error"
-              ? "人物条目创建结果尚未确认，正文内容已保留；请先重试创建操作。"
-              : "正在等待关联人物条目创建完成…"
+              ? t(
+                  "proposalCoordinator.characterCreationHasNotBeenConfirmedTheContentHas"
+                )
+              : t(
+                  "proposalCoordinator.waitingForTheAssociatedCharacterEntryToBeCreated"
+                )
         });
         return;
       }
@@ -1093,9 +1161,12 @@ export function createApplyReview(ctx: ProposalLaneContext) {
             runId: request.runId,
             proposalId: request.proposalId,
             creationProposalId: creation.id,
-            waitingMessage:
-              "人物条目创建结果尚未确认，正文内容已保留；请先重试创建操作。",
-            blockedMessage: "关联人物条目未能创建，相关正文写入已取消。"
+            waitingMessage: t(
+              "proposalCoordinator.characterCreationHasNotBeenConfirmedTheContentHas"
+            ),
+            blockedMessage: t(
+              "proposalCoordinator.theAssociatedCharacterEntryCouldNotBeCreatedIts"
+            )
           })
         ) {
           return;
@@ -1107,8 +1178,9 @@ export function createApplyReview(ctx: ProposalLaneContext) {
           document.catalogDocumentId === proposal.provisionalCharacterItemId
       );
       if (!createdTarget) {
-        const message =
-          "目标人物条目尚未落盘，无法写入正文。请先接受人物条目创建，或重新生成。";
+        const message = t(
+          "proposalCoordinator.theTargetCharacterEntryHasNotBeenSavedYet"
+        );
         conversation.updateEditProposal(request.runId, request.proposalId, {
           status: "conflict",
           statusMessage: message
@@ -1125,7 +1197,9 @@ export function createApplyReview(ctx: ProposalLaneContext) {
       (document) => document.id === proposal.documentId
     );
     if (!target || !persistedDocument || target.readOnly) {
-      const message = "目标文稿已不可用，无法接受这项智能体修改。";
+      const message = t(
+        "proposalCoordinator.theTargetManuscriptIsNoLongerAvailableThisAgent"
+      );
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: "error",
         statusMessage: message
@@ -1143,7 +1217,9 @@ export function createApplyReview(ctx: ProposalLaneContext) {
         !library ||
         !currentLibraryProjectRevisionMatches(proposal, library.projectRevision)
       ) {
-        const message = "资料库目录已在审阅期间发生变化，未接受智能体修改。";
+        const message = t(
+          "proposalCoordinator.theLibraryDirectoryChangedDuringReviewTheAgentEdit"
+        );
         conversation.updateEditProposal(request.runId, request.proposalId, {
           status: "conflict",
           statusMessage: message
@@ -1165,8 +1241,10 @@ export function createApplyReview(ctx: ProposalLaneContext) {
       )
     ) {
       const message = automatic
-        ? "检测到作品正在保存其他内容，实时自动落盘已暂停，请稍后人工重试。"
-        : "同一作品正在保存其他修改，请稍候再接受";
+        ? t(
+            "proposalCoordinator.theProjectIsSavingOtherContentAutomaticSavingIs"
+          )
+        : t("proposalCoordinator.otherEditsToThisProjectAreBeingSavedWait");
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: automatic ? "error" : "pending",
         statusMessage: message
@@ -1197,17 +1275,25 @@ export function createApplyReview(ctx: ProposalLaneContext) {
         proposedText: undefined,
         statusMessage:
           currentDraft && !staleRecoveryDraft
-            ? "修改已在本地 Markdown 中；检测到另一份未保存草稿，已为你保留。"
-            : "修改已经存在于本地 Markdown 中。"
+            ? t(
+                "proposalCoordinator.theseEditsAreAlreadyInTheLocalMarkdownFile"
+              )
+            : t(
+                "proposalCoordinator.theseEditsAreAlreadyInTheLocalMarkdownFile2"
+              )
       });
       if (!automatic) {
-        uiMessage.success("智能体修改已经保存在本地文稿中");
+        uiMessage.success(
+          t("proposalCoordinator.theAgentEditsAreAlreadySavedInTheLocal")
+        );
       }
       return;
     }
 
     if (typeof proposal.proposedText !== "string") {
-      const message = "待审阅变更缺少完整修改稿，请重新生成修改。";
+      const message = t(
+        "proposalCoordinator.thePendingChangesAreMissingTheCompleteRevisedText"
+      );
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: "error",
         statusMessage: message
@@ -1219,8 +1305,9 @@ export function createApplyReview(ctx: ProposalLaneContext) {
       proposal.libraryTarget &&
       classifyAgentEditAcceptance(proposal, target.content) === "conflict"
     ) {
-      const message =
-        "资料库内容已在审阅期间发生变化，未接受智能体修改，也没有覆盖最新内容。";
+      const message = t(
+        "proposalCoordinator.theLibraryContentChangedDuringReviewTheAgentEdit"
+      );
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: "conflict",
         statusMessage: message
@@ -1238,8 +1325,10 @@ export function createApplyReview(ctx: ProposalLaneContext) {
     conversation.updateEditProposal(request.runId, request.proposalId, {
       status: "accepting",
       statusMessage: automatic
-        ? "正在自动批准并保存到本地 Markdown…"
-        : "正在保存到本地 Markdown…"
+        ? t(
+            "proposalCoordinator.automaticallyApprovingAndSavingToLocalMarkdown"
+          )
+        : t("proposalCoordinator.savingToLocalMarkdown")
     });
     setAgentEditDocumentAccepting(target.id, true);
     setAgentEditWorkspaceAccepting(proposal.workspaceId, true);
@@ -1254,7 +1343,7 @@ export function createApplyReview(ctx: ProposalLaneContext) {
         persistedDocument.catalogDocumentId
       ) {
         if (!currentApi) {
-          throw new Error("桌面文件服务当前不可用。");
+          throw new Error(t("short.theDesktopFileServiceIsUnavailable"));
         }
         const saved = await currentApi.catalog.saveDocument({
           bookId: persistedDocument.workspaceId,
@@ -1291,7 +1380,7 @@ export function createApplyReview(ctx: ProposalLaneContext) {
           persistedDocument.domain === "skill")
       ) {
         if (!currentApi) {
-          throw new Error("桌面文件服务当前不可用。");
+          throw new Error(t("short.theDesktopFileServiceIsUnavailable"));
         }
         const updated = await currentApi.catalog.updateLibrary({
           domain: persistedDocument.domain,
@@ -1329,14 +1418,14 @@ export function createApplyReview(ctx: ProposalLaneContext) {
           persistedDocument.domain === "skill")
       ) {
         if (!currentApi) {
-          throw new Error("桌面文件服务当前不可用。");
+          throw new Error(t("short.theDesktopFileServiceIsUnavailable"));
         }
         const library = findCatalogLibrary(
           persistedDocument.domain,
           persistedDocument.libraryId
         );
         if (!library) {
-          throw new Error("目标资料库已不存在。");
+          throw new Error(t("short.theTargetLibraryNoLongerExists"));
         }
         const projectRevision = library.projectRevision;
         const saved = await currentApi.catalog.saveLibraryEntry({
@@ -1382,23 +1471,46 @@ export function createApplyReview(ctx: ProposalLaneContext) {
         status: "accepted",
         proposedText: undefined,
         statusMessage: newerDraftPreserved
-          ? `${automatic ? "已自动批准并" : "已"}保存审阅时的智能体修改；保存期间出现的更新草稿已保留。`
+          ? t(
+              "proposalCoordinator.savedTheReviewedAgentEditsNewerChangesMadeDuring",
+              {
+                value: automatic
+                  ? t("proposalCoordinator.automaticallyApprovedAnd")
+                  : t("proposalCoordinator.successfully")
+              }
+            )
           : persisted
-            ? `${automatic ? "已自动批准并" : "已接受并"}保存到本地文件。`
-            : `${automatic ? "已自动批准并写入" : "已接受到"}当前工作区；该预览资源没有对应的本地文件。`
+            ? t("proposalCoordinator.savedToTheLocalFile", {
+                value: automatic
+                  ? t("proposalCoordinator.automaticallyApprovedAnd")
+                  : t("proposalCoordinator.acceptedAnd")
+              })
+            : t(
+                "proposalCoordinator.theCurrentWorkspaceThisPreviewHasNoCorrespondingLocal",
+                {
+                  value: automatic
+                    ? t("proposalCoordinator.automaticallyApprovedAndWrittenTo")
+                    : t("proposalCoordinator.acceptedInto")
+                }
+              )
       });
       if (!automatic) {
         uiMessage.success(
-          persisted ? "已接受并保存智能体修改" : "已接受智能体修改"
+          persisted
+            ? t("proposalCoordinator.agentEditsAcceptedAndSaved")
+            : t("proposalCoordinator.agentEditsAccepted")
         );
       }
     } catch (error: unknown) {
       const conflict = isCatalogConflict(error);
       const message = conflict
-        ? "本地 Markdown 已在其他位置更新，未保存智能体修改；请基于最新文稿重新生成。"
-        : error instanceof Error
-          ? error.message
-          : "保存智能体修改失败，原文保持不变。";
+        ? t(
+            "proposalCoordinator.theLocalMarkdownFileWasUpdatedElsewhereTheAgent"
+          )
+        : formatError(
+            error,
+            t("proposalCoordinator.couldNotSaveTheAgentEditsTheOriginalText")
+          );
       conversation.updateEditProposal(request.runId, request.proposalId, {
         status: conflict ? "conflict" : "error",
         statusMessage: message

@@ -1,3 +1,5 @@
+import { formatError } from "../i18n/errors";
+import { createScopedTranslator } from "../i18n";
 import type {
   DeepWriteApi,
   ModelConfigInput,
@@ -8,6 +10,8 @@ import type {
 import { useSettingsStore } from "../stores/settingsStore";
 import { selectableModelSettings } from "../utils/selectableModelSettings";
 import { useSiteOfficialModelSettings } from "./useSiteOfficialModelSettings";
+
+const t = createScopedTranslator("workspace.modelSettingsCoordinator");
 
 export interface ModelSettingsNotifications {
   error(message: string): void;
@@ -24,7 +28,7 @@ export interface ModelSettingsCoordinatorContext {
 }
 
 function errorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error ? error.message : fallback;
+  return formatError(error, fallback);
 }
 
 export function useModelSettingsCoordinator(
@@ -112,7 +116,10 @@ export function useModelSettingsCoordinator(
       settingsStore.modelUsageQuery = query;
     } catch (error: unknown) {
       if (requestSequence !== modelUsageRequestSequence) return;
-      settingsStore.modelUsageError = errorMessage(error, "加载模型用量失败。");
+      settingsStore.modelUsageError = errorMessage(
+        error,
+        t("failedToLoadModelUsage")
+      );
       uiMessage.warning(settingsStore.modelUsageError);
     } finally {
       if (requestSequence === modelUsageRequestSequence) {
@@ -129,7 +136,9 @@ export function useModelSettingsCoordinator(
     try {
       return await api.models.queryOfficialBalance();
     } catch (error: unknown) {
-      uiMessage.warning(errorMessage(error, "查询官方模型消费信息失败。"));
+      uiMessage.warning(
+        errorMessage(error, t("failedToQueryOfficialModelSpending"))
+      );
       return null;
     }
   }
@@ -150,7 +159,7 @@ export function useModelSettingsCoordinator(
       );
       applyLoadedModelSettings(snapshot.settings);
     } catch (error: unknown) {
-      uiMessage.error(errorMessage(error, "加载官方模型失败。"));
+      uiMessage.error(errorMessage(error, t("failedToLoadOfficialModels")));
     }
   }
 
@@ -170,9 +179,11 @@ export function useModelSettingsCoordinator(
         balance
       });
       applyLoadedModelSettings(settings);
-      uiMessage.success("官方令牌已安全保存，官方模型现在可以直接使用。");
+      uiMessage.success(
+        t("officialTokenSavedSecurelyOfficialModelsAreReadyTo")
+      );
     } catch (error: unknown) {
-      uiMessage.error(errorMessage(error, "保存官方令牌失败。"));
+      uiMessage.error(errorMessage(error, t("failedToSaveOfficialToken")));
     } finally {
       settingsStore.officialModelsSaving = false;
     }
@@ -194,9 +205,9 @@ export function useModelSettingsCoordinator(
         balance
       });
       applyLoadedModelSettings(settings);
-      uiMessage.info("官方令牌已移除，历史用量仍保留在本机账本中。");
+      uiMessage.info(t("officialTokenRemovedUsageHistoryRemainsInTheLocal"));
     } catch (error: unknown) {
-      uiMessage.error(errorMessage(error, "移除官方令牌失败。"));
+      uiMessage.error(errorMessage(error, t("failedToRemoveOfficialToken")));
     } finally {
       settingsStore.officialModelsSaving = false;
     }
@@ -222,11 +233,11 @@ export function useModelSettingsCoordinator(
       applyLoadedModelSettings(settings);
       uiMessage.success(
         enabled
-          ? "模型已启用，并显示在模型配置中。"
-          : "模型已停用，并从模型配置中隐藏。"
+          ? t("modelEnabledAndAddedToModelSettings")
+          : t("modelDisabledAndHiddenFromModelSettings")
       );
     } catch (error: unknown) {
-      uiMessage.error(errorMessage(error, "更新模型启用状态失败。"));
+      uiMessage.error(errorMessage(error, t("failedToUpdateModelStatus")));
     } finally {
       settingsStore.officialModelsSaving = false;
     }
@@ -243,10 +254,15 @@ export function useModelSettingsCoordinator(
     try {
       const saved = await api.models.save(settings);
       applyLoadedModelSettings(saved);
-      settingsStore.modelTestMessage = "模型配置已保存，并已同步到后续对话。";
+      settingsStore.modelTestMessage = t(
+        "modelSettingsSavedAndAppliedToSubsequentConversations"
+      );
       uiMessage.success(settingsStore.modelTestMessage);
     } catch (error: unknown) {
-      settingsStore.modelError = errorMessage(error, "保存模型配置失败。");
+      settingsStore.modelError = errorMessage(
+        error,
+        t("failedToSaveModelSettings")
+      );
       uiMessage.error(settingsStore.modelError);
     } finally {
       settingsStore.modelSaving = false;
@@ -261,9 +277,12 @@ export function useModelSettingsCoordinator(
     try {
       const settings = await api.models.refreshFree();
       applyLoadedModelSettings(settings);
-      uiMessage.success("免费模型列表已刷新。");
+      uiMessage.success(t("freeModelListRefreshed"));
     } catch (error: unknown) {
-      settingsStore.modelError = errorMessage(error, "刷新免费模型配置失败。");
+      settingsStore.modelError = errorMessage(
+        error,
+        t("failedToRefreshFreeModelSettings")
+      );
       uiMessage.error(settingsStore.modelError);
     } finally {
       settingsStore.freeModelsRefreshing = false;
@@ -282,11 +301,11 @@ export function useModelSettingsCoordinator(
       applyLoadedModelSettings(settings);
       uiMessage.success(
         enabled
-          ? "免费模型已启用，并显示在模型配置中。"
-          : "免费模型已停用，并从模型配置中隐藏。"
+          ? t("freeModelEnabledAndAddedToModelSettings")
+          : t("freeModelDisabledAndHiddenFromModelSettings")
       );
     } catch (error: unknown) {
-      uiMessage.error(errorMessage(error, "更新免费模型启用状态失败。"));
+      uiMessage.error(errorMessage(error, t("failedToUpdateFreeModelStatus")));
     } finally {
       settingsStore.freeModelsSaving = false;
     }
@@ -313,7 +332,10 @@ export function useModelSettingsCoordinator(
       }
       uiMessage.success(result.message);
     } catch (error: unknown) {
-      settingsStore.modelError = errorMessage(error, "模型连接测试失败。");
+      settingsStore.modelError = errorMessage(
+        error,
+        t("modelConnectionTestFailed")
+      );
       uiMessage.error(settingsStore.modelError);
     } finally {
       settingsStore.testingModelId = null;

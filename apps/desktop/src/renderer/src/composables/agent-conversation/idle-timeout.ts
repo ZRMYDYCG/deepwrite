@@ -1,3 +1,4 @@
+import { t } from "../../i18n";
 import type { AgentRuntimeRef } from "@deepwrite/contracts";
 import { discardPendingAssistantMessage } from "./message-identity";
 import type { AgentConversationState } from "./context";
@@ -52,7 +53,9 @@ export function expireIdleConversation(
   )
     return;
 
-  const message = "智能体长时间没有返回新事件，请稍后重试。";
+  const message = t(
+    "workspace.idleTimeout.theAgentHasNotReturnedNewEventsForAn"
+  );
   if (scope.runId) {
     failRun(scope.runId, message, state.runtime.value ?? undefined);
     if (state.activeRunId.value === scope.runId) state.activeRunId.value = null;

@@ -1,7 +1,10 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import type { LongForeshadowingDeleteTarget } from "../composables/useLongForeshadowingDeleteConfirmation";
 import LongImpactConfirmationDetails from "./LongImpactConfirmationDetails.vue";
+
+const t = createScopedTranslator("components.longForeshadowingDeleteDialog");
 
 const props = withDefaults(
   defineProps<{
@@ -90,15 +93,18 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
         </header>
         <div class="body">
           <p v-if="target.previewPending" id="foreshadow-delete-description">
-            正在核对关联关系与删除影响…
+            {{ t("checkingLinksAndDeletionImpact") }}
           </p>
           <LongImpactConfirmationDetails
             v-else-if="target.expectedImpact"
             :confirmation="target.expectedImpact"
             :fallback="
               target.kind === 'thread'
-                ? `这会同时删除该伏笔线下全部 ${target.thread.beats.length} 个从属触点。`
-                : '这会删除该触点，其他卷和剧情点中的同一伏笔线不会被删除。'
+                ? t(
+                    'allValueTouchpointsBelongingToThisForeshadowingThreadWill',
+                    { arg0: target.thread.beats.length }
+                  )
+                : t('thisDeletesOnlyThisTouchpointTheSameThreadIn')
             "
           />
         </div>
@@ -109,7 +115,7 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
             :disabled="locked || target.previewPending"
             @click="emit('close')"
           >
-            取消
+            {{ t("cancel") }}
           </button>
           <button
             class="danger-button"
@@ -121,12 +127,12 @@ onBeforeUnmount(() => document.removeEventListener("keydown", handleKeydown));
           >
             {{
               pending
-                ? "删除中…"
+                ? t("deleting")
                 : target.previewPending
-                  ? "核对中…"
+                  ? t("checking")
                   : target.kind === "thread" && target.thread.beats.length
-                    ? "确认删除伏笔线及触点"
-                    : "确认删除"
+                    ? t("deleteForeshadowingThreadAndTouchpoints")
+                    : t("delete")
             }}
           </button>
         </footer>

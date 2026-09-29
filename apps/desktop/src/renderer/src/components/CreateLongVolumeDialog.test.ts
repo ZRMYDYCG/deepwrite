@@ -4,10 +4,10 @@ import source from "./CreateLongVolumeDialog.vue?raw";
 
 describe("CreateLongVolumeDialog", () => {
   it("uses a focused create form instead of the full structure manager", () => {
-    expect(source).toContain("新建分卷");
-    expect(source).toContain("分卷名称");
-    expect(source).toContain("卷纲");
-    expect(source).toContain('uiMessage.warning("请输入分卷名称。")');
+    expect(source).toContain("newVolume");
+    expect(source).toContain("volumeName");
+    expect(source).toContain("volumeOutline");
+    expect(source).toContain("enterAVolumeName");
     expect(source).toContain('<Teleport to="body">');
     expect(source).not.toContain("LongStructureManager");
   });
@@ -15,17 +15,9 @@ describe("CreateLongVolumeDialog", () => {
   it("warns that creating from the manuscript tree also creates the plot outline", () => {
     expect(source).toContain('source?: "book-line" | "draft"');
     expect(source).toContain('props.source === "draft"');
-    expectSourceToContain(
-      source,
-      'fromDraft ? "正文" : "剧情设计 · 全书故事线"'
-    );
-    expectSourceToContain(
-      source,
-      "确认后，剧情阶段会同步生成对应卷纲。可在「剧情设计 → 全书故事线」中继续完善。"
-    );
-    expect(source).toContain(
-      'pending ? "创建中…" : fromDraft ? "确认新建" : "创建分卷"'
-    );
+    expectSourceToContain(source, "plotDesignOverallStoryline");
+    expectSourceToContain(source, "aMatchingVolumeOutlineWillBeCreatedInThe");
+    expect(source).toContain("creating");
     expect(source).not.toContain("is-danger");
   });
 

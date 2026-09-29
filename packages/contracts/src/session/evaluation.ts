@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { AgentEventIdentitySchema } from "./agent-events";
+import { AgentEventIdentitySchema } from "./agent-event-identity";
 
 export const AgentEvaluationToolConfigurationSchema = z.object({
   name: z.string().trim().min(1),

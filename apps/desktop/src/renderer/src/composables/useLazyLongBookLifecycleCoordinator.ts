@@ -1,3 +1,5 @@
+import { formatError } from "../i18n/errors";
+import { t } from "../i18n";
 import type {
   CreateLongBookInput,
   LongImportContinuationInput,
@@ -101,9 +103,12 @@ export function useLazyLongBookLifecycleCoordinator(
     if (disposed || loadFailureReported) return;
     loadFailureReported = true;
     context.notifications.error(
-      error instanceof Error
-        ? error.message
-        : "加载长篇作品生命周期协调器失败。"
+      formatError(
+        error,
+        t(
+          "workspace.lazyLongBookLifecycleCoordinator.failedToLoadTheNovelLifecycleCoordinator"
+        )
+      )
     );
   }
 

@@ -1,0 +1,41 @@
+export default {
+  characterMaterials: "人物素材",
+  characterDesignReferences: "人物设定类素材",
+  hookMaterials: "卖点素材",
+  genreHooksAndCreativeIdeas: "题材卖点与创意钩子",
+  plotMaterials: "剧情素材",
+  plotStructuresAndSceneReferences: "剧情结构与桥段参考",
+  manuscriptMaterials: "正文素材",
+  manuscriptExcerptsAndProseReferences: "正文片段与行文参考",
+  otherMaterials: "其他素材",
+  materialsOutsideTheCategoriesAbove: "未归入以上分类的素材",
+  generalSkills: "通用技能",
+  reusableCapabilitiesAcrossStages: "跨阶段可复用的通用能力",
+  plotSkills: "剧情技能",
+  characterPlotAndStructuralDesign: "人物、剧情与结构设计能力",
+  styleSkills: "文风技能",
+  proseAndWritingStyleExecution: "正文行文与风格执行能力",
+  otherSkills: "其他技能",
+  skillsOutsideTheCategoriesAbove: "未归入以上分类的技能",
+  systemPrompt: "系统提示词",
+  theWorkCurrentStageAndToolBoundariesAreAdded:
+    "作品、当前阶段和工具边界会在每轮运行时自动补充。",
+  characters: "字符",
+  welcomeShortcuts: "欢迎快捷按钮",
+  threeQuickPromptsShownWhenAConversationIsEmpty:
+    "空对话欢迎区显示的三个快捷提问。",
+  button: "按钮",
+  readAccess: "读取范围",
+  selectedAndLinkedMaterialsAndSkillsCanBeLoaded:
+    "已勾选并绑定的素材和技能可在所有阶段按需加载。",
+  materialLibrary: "素材库",
+  skillLibrary: "技能库",
+  defaultPlotStages: "剧情默认阶段配置",
+  choosePlotStagesToCreateAndEnableForThe:
+    "设置下一本新建短篇默认创建并打开的剧情阶段。",
+  createValueByDefault: "{arg0}默认创建",
+  restoreDefaults: "恢复默认",
+  saving: "保存中…",
+  charactersMessage: "{arg0} 字符",
+  buttonMessage: "按钮 {arg0}"
+};

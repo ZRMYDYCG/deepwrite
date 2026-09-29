@@ -1,3 +1,4 @@
+import type { SyncDisplayText } from "./display-text";
 import type {
   SyncInitializationPreview,
   SyncInitializationWorkspacePort
@@ -33,6 +34,7 @@ export interface SyncProgress {
   completed: number;
   total: number;
   title: string;
+  titleText?: SyncDisplayText | undefined;
   filesCompleted?: number | undefined;
   filesTotal?: number | undefined;
 }
@@ -43,6 +45,8 @@ export interface SyncIssue {
   reason:
     "conflict" | "delete" | "unsupported" | "busy" | "failed" | "first-sync";
   message: string;
+  messageText?: SyncDisplayText | undefined;
+  titleText?: SyncDisplayText | undefined;
   paths: string[];
   local: SyncItem | null;
   base?: SyncItem | null | undefined;
@@ -90,7 +94,12 @@ export interface SyncWorkspacePort {
   initialization?: SyncInitializationWorkspacePort;
   list(): Promise<{
     items: SyncItem[];
-    issues: { key: string; title: string; message: string }[];
+    issues: {
+      key: string;
+      title: string;
+      message: string;
+      messageText?: SyncDisplayText | undefined;
+    }[];
   }>;
   /** The implementation must compare expected while holding its project write queue. */
   apply(

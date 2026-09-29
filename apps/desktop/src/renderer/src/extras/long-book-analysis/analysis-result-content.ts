@@ -1,3 +1,4 @@
+import { t } from "../../i18n";
 import {
   LongBookAnalysisResultSchema,
   parseSkillMarkdown,
@@ -13,9 +14,7 @@ export function analysisResultEntry(
 ): { title: string; content: string } {
   const result = LongBookAnalysisResultSchema.safeParse(draft);
   if (!result.success) {
-    throw new Error(
-      "请填写结果名称、描述和正文；名称最多 256 字符，描述最多 1,000 字符，正文最多 200,000 字符。"
-    );
+    throw new Error(t("extras.longBookAnalysis.resultFieldsRequired"));
   }
   const { name, description, content } = result.data;
   const updated = (

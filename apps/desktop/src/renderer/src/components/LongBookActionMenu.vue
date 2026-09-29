@@ -1,6 +1,9 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import type { LongBookResourceNodeAction } from "../types/workspace";
 import AppIcon from "./AppIcon.vue";
+
+const t = createScopedTranslator("components.longBookActionMenu");
 defineProps<{
   unavailable?: boolean | undefined;
   pending?: boolean | undefined;
@@ -19,7 +22,7 @@ function activateLongBookAction(action: LongBookResourceNodeAction): void {
       @click.stop="activateLongBookAction('manage-structure')"
     >
       <AppIcon name="settings" :size="16" />
-      <span>结构管理</span>
+      <span>{{ t("manageStructure") }}</span>
     </button>
     <button
       class="tree-node-action-menu-item"
@@ -28,7 +31,7 @@ function activateLongBookAction(action: LongBookResourceNodeAction): void {
       @click.stop="activateLongBookAction('rename')"
     >
       <AppIcon name="edit" :size="16" />
-      <span>修改名称</span>
+      <span>{{ t("rename") }}</span>
     </button>
     <button
       class="tree-node-action-menu-item"
@@ -37,7 +40,7 @@ function activateLongBookAction(action: LongBookResourceNodeAction): void {
       @click.stop="activateLongBookAction('duplicate')"
     >
       <AppIcon name="copy" :size="16" />
-      <span>复制</span>
+      <span>{{ t("duplicate") }}</span>
     </button>
     <button
       class="tree-node-action-menu-item"
@@ -46,7 +49,7 @@ function activateLongBookAction(action: LongBookResourceNodeAction): void {
       @click.stop="activateLongBookAction('bind-skill')"
     >
       <AppIcon name="library" :size="16" />
-      <span>技能库绑定</span>
+      <span>{{ t("skillLibraryLinks") }}</span>
     </button>
     <button
       class="tree-node-action-menu-item"
@@ -55,7 +58,7 @@ function activateLongBookAction(action: LongBookResourceNodeAction): void {
       @click.stop="activateLongBookAction('bind-material')"
     >
       <AppIcon name="archive" :size="16" />
-      <span>素材库绑定</span>
+      <span>{{ t("materialLibraryLinks") }}</span>
     </button>
     <button
       class="tree-node-action-menu-item"
@@ -64,7 +67,7 @@ function activateLongBookAction(action: LongBookResourceNodeAction): void {
       @click.stop="activateLongBookAction('export')"
     >
       <AppIcon name="download" :size="16" />
-      <span>导出</span>
+      <span>{{ t("export") }}</span>
     </button>
     <button
       class="tree-node-action-menu-item"
@@ -73,7 +76,7 @@ function activateLongBookAction(action: LongBookResourceNodeAction): void {
       @click.stop="activateLongBookAction('sync-legacy')"
     >
       <AppIcon name="history" :size="16" />
-      <span>同步旧版本</span>
+      <span>{{ t("syncLegacyVersion") }}</span>
     </button>
   </template>
   <button
@@ -81,11 +84,11 @@ function activateLongBookAction(action: LongBookResourceNodeAction): void {
     type="button"
     role="menuitem"
     :disabled="pending"
-    title="保留磁盘上的修改，解决文件冲突并刷新工作区"
+    :title="t('keepChangesOnDiskResolveFileConflictsAndRefresh')"
     @click.stop="activateLongBookAction('resolve-conflicts')"
   >
     <AppIcon name="history" :size="16" />
-    <span>解决冲突</span>
+    <span>{{ t("resolveConflicts") }}</span>
   </button>
   <div class="tree-node-action-menu-divider" role="separator" />
   <button
@@ -95,7 +98,7 @@ function activateLongBookAction(action: LongBookResourceNodeAction): void {
     @click.stop="activateLongBookAction('unregister')"
   >
     <AppIcon name="trash" :size="16" />
-    <span>移除（保留文件）</span>
+    <span>{{ t("removeKeepFiles") }}</span>
   </button>
   <button
     v-if="!unavailable"
@@ -105,7 +108,7 @@ function activateLongBookAction(action: LongBookResourceNodeAction): void {
     @click.stop="activateLongBookAction('delete')"
   >
     <AppIcon name="trash" :size="16" />
-    <span>删除本地长篇</span>
+    <span>{{ t("deleteLocalNovel") }}</span>
   </button>
 </template>
 <style scoped>

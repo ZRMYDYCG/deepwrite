@@ -1,5 +1,10 @@
 <script setup lang="ts">
 import {
+  builtinAgentLabel,
+  builtinAgentDescription
+} from "../i18n/builtinLabels";
+import { createScopedTranslator } from "../i18n";
+import {
   DEFAULT_SCRIPT_WORKSPACE_AGENT_PROFILES,
   ScriptWorkspaceAgentSettingsInputSchema,
   type ScriptWorkspaceAgentSettings,
@@ -8,6 +13,8 @@ import {
 import { ref, watch } from "vue";
 import { uiMessage } from "../ui-feedback";
 import WorkspaceAgentProfileForm from "./WorkspaceAgentProfileForm.vue";
+
+const t = createScopedTranslator("components.scriptAgentSettingsPanel");
 
 type EditableAgent = ScriptWorkspaceAgentSettingsInput["agents"][number];
 
@@ -66,7 +73,7 @@ function reset(): void {
   const builtin = DEFAULT_SCRIPT_WORKSPACE_AGENT_PROFILES[0];
   if (!builtin) return;
   draft.value = cloneAgent(builtin);
-  uiMessage.info("剧本智能体已恢复内置默认值；点击保存后生效。");
+  uiMessage.info(t("screenplayAgentResetToBuiltInDefaultsSaveTo"));
 }
 
 function save(): void {
@@ -83,9 +90,7 @@ function save(): void {
     ]
   });
   if (!parsed.success) {
-    uiMessage.warning(
-      parsed.error.issues[0]?.message ?? "剧本智能体设置不完整"
-    );
+    uiMessage.warning(t("screenplayAgentSettingsAreIncomplete"));
     return;
   }
   emit("save", parsed.data);
@@ -93,19 +98,23 @@ function save(): void {
 </script>
 
 <template>
-  <div v-if="loading" class="panel-state">正在加载剧本智能体设置…</div>
+  <div v-if="loading" class="panel-state">
+    {{ t("loadingScreenplayAgentSettings") }}
+  </div>
   <div v-else-if="!settings || !draft" class="panel-state">
-    暂无可用的剧本智能体设置。
+    {{ t("noScreenplayAgentSettingsAvailable") }}
   </div>
   <WorkspaceAgentProfileForm
     v-else
     :agent="draft"
-    :label="settings.agents[0]?.label ?? '剧本智能体'"
-    :description="settings.agents[0]?.description ?? ''"
-    eyebrow="统一智能体"
+    :label="builtinAgentLabel('script', settings.agents[0]?.label)"
+    :description="
+      builtinAgentDescription('script', settings.agents[0]?.description)
+    "
+    :eyebrow="t('unifiedAgent')"
     :disabled="saving || !runtimeAvailable"
     :saving="saving"
-    save-label="保存剧本智能体设置"
+    :save-label="t('saveScreenplayAgentSettings')"
     @prompt="draft.systemPrompt = $event"
     @shortcut="patchShortcut"
     @access="patchAccess"

@@ -1,3 +1,5 @@
+import { formatError } from "../i18n/errors";
+import { createScopedTranslator } from "../i18n";
 import { computed, ref, watch } from "vue";
 import {
   BUILT_IN_REASONING_LEVELS,
@@ -22,6 +24,8 @@ import {
   type ModelConfigRow
 } from "../components/modelSettingsDraft";
 import type { ModelEditorSavePayload } from "./useModelEditor";
+
+const t = createScopedTranslator("workspace");
 
 export interface ModelSettingsDraftProps {
   active: boolean;
@@ -175,14 +179,16 @@ export function useModelSettingsDraft(
       );
     } catch (error) {
       uiMessage.warning(
-        error instanceof Error ? error.message : "模型配置无效。"
+        formatError(error, t("modelSettingsDraft.invalidModelConfiguration"))
       );
     }
   }
 
   function testDraftModel(model: DraftModel): void {
     if (!model.provider.trim() || !model.modelId.trim()) {
-      uiMessage.warning("请先填写 Provider 和模型 ID，再测试连接。");
+      uiMessage.warning(
+        t("modelEditor.enterTheProviderAndModelIdBeforeTestingThe")
+      );
       return;
     }
     actions.testModel(

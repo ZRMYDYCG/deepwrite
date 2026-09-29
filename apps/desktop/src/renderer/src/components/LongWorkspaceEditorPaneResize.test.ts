@@ -10,8 +10,8 @@ describe("LongWorkspaceEditor internal pane resizing", () => {
     expect(source).toContain(
       'class="long-editor-internal-resizer long-story-plot-resizer"'
     );
-    expect(source).toContain('aria-label="调整右侧条目列表宽度"');
-    expect(source).toContain('aria-label="调整当前剧情点涉及列表宽度"');
+    expect(source).toContain("resizeRightEntryList");
+    expect(source).toContain("resizeCurrentPlotPointEventList");
     expect(source.match(/role="separator"/g)).toHaveLength(2);
     expect(source).toContain("handleLongEditorPaneResizeKeydown");
   });

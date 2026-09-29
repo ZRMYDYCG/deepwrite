@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator, locale } from "../i18n";
 import type { AgentToolTrace } from "../types/conversation";
 import type { LongWorkspaceIndexSnapshot } from "@deepwrite/contracts";
 import type { ProcessingDisplayItem } from "./conversationToolPresentation";
@@ -21,6 +22,8 @@ import ConversationStatusIcon from "./ConversationStatusIcon.vue";
 import AgentEditProposalCard from "./AgentEditProposalCard.vue";
 import LongProposalReview from "./LongProposalReview.vue";
 import StreamedContent from "./StreamedContent.vue";
+
+const t = createScopedTranslator("components.conversationProcessingItem");
 
 const props = withDefaults(
   defineProps<{
@@ -56,8 +59,8 @@ const emit = defineEmits<{
 
 function writeToolFallback(tool: AgentToolTrace): string {
   return tool.status === "preparing" || tool.status === "running"
-    ? "正在等待写入内容……"
-    : "没有写入内容";
+    ? t("waitingForContentToWrite")
+    : t("noContentToWrite");
 }
 
 function detailId(id: string): string {
@@ -74,7 +77,7 @@ function detailId(id: string): string {
     <template #summary>
       <span class="processing-status-label">
         <ConversationStatusIcon kind="thinking" />
-        <span>{{ streaming ? "思考中" : "思考过程" }}</span>
+        <span>{{ streaming ? t("thinking") : t("reasoning") }}</span>
       </span>
       <AppIcon name="chevron" :size="13" />
     </template>
@@ -134,12 +137,11 @@ function detailId(id: string): string {
           <small v-if="writeToolTarget(item.tool)">{{
             writeToolTarget(item.tool)
           }}</small>
-          <small
-            >{{
-              writeToolText(item.tool).length.toLocaleString("zh-CN")
-            }}
-            字符</small
-          >
+          <small>{{
+            t("charactersMessage", {
+              arg0: writeToolText(item.tool).length.toLocaleString(locale) ?? ""
+            })
+          }}</small>
         </div>
         <pre
           class="write-tool-output"
@@ -149,11 +151,11 @@ function detailId(id: string): string {
           >{{ writeToolText(item.tool) || writeToolFallback(item.tool) }}</pre>
       </div>
       <div v-else-if="formatToolPayload(visibleToolArguments(item.tool))">
-        <span>调用参数</span>
+        <span>{{ t("arguments") }}</span>
         <pre>{{ formatToolPayload(visibleToolArguments(item.tool)) }}</pre>
       </div>
       <div v-if="item.tool.resultSummary">
-        <span>执行结果</span>
+        <span>{{ t("result") }}</span>
         <p>{{ item.tool.resultSummary }}</p>
       </div>
     </div>
@@ -197,7 +199,10 @@ function detailId(id: string): string {
       </span>
       <AppIcon name="chevron" :size="13" />
     </template>
-    <div class="processing-live-body tool-call-list" aria-label="工具调用列表">
+    <div
+      class="processing-live-body tool-call-list"
+      :aria-label="t('toolCalls')"
+    >
       <ConversationDetails
         v-for="tool in item.tools"
         :key="tool.id"
@@ -216,11 +221,11 @@ function detailId(id: string): string {
         </template>
         <div class="processing-live-body tool-detail">
           <div v-if="formatToolPayload(visibleToolArguments(tool))">
-            <span>调用参数</span>
+            <span>{{ t("arguments") }}</span>
             <pre>{{ formatToolPayload(visibleToolArguments(tool)) }}</pre>
           </div>
           <div v-if="tool.resultSummary">
-            <span>执行结果</span>
+            <span>{{ t("result") }}</span>
             <p>{{ tool.resultSummary }}</p>
           </div>
         </div>

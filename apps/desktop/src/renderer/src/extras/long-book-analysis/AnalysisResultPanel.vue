@@ -1,10 +1,13 @@
 <script setup lang="ts">
+import { presetLabel } from "../analysis-ui/preset-labels";
+import { createScopedTranslator } from "../../i18n";
 import { computed, ref, watch } from "vue";
 import type {
   CatalogSnapshot,
   LongBookAnalysisPreset,
   LongBookAnalysisResult
 } from "@deepwrite/contracts/renderer";
+import MarkdownContent from "../../components/MarkdownContent.vue";
 import PopupSelect, {
   type PopupSelectOption
 } from "../../components/PopupSelect.vue";
@@ -14,12 +17,15 @@ import {
   compatibleAnalysisLibraries
 } from "./task-options";
 
+const t = createScopedTranslator("extras");
+
 const props = defineProps<{
   result: LongBookAnalysisResult;
   preset: LongBookAnalysisPreset;
   catalogSnapshot: CatalogSnapshot | null;
-  targetLibraryId: string;
   saving: boolean;
+  previous?: boolean;
+  context?: string;
 }>();
 const emit = defineEmits<{
   update: [result: LongBookAnalysisResult];
@@ -32,6 +38,7 @@ const emit = defineEmits<{
 }>();
 
 const targetId = ref("");
+const editing = ref(false);
 const compatibleLibraries = computed(() =>
   compatibleAnalysisLibraries(props.preset, props.catalogSnapshot)
 );
@@ -46,16 +53,14 @@ const targetLibrary = computed(() => {
 const outputTypeLabel = computed(() => analysisOutputTypeLabel(props.preset));
 
 watch(
-  [() => props.targetLibraryId, compatibleLibraries],
-  ([preferredId, libraries]) => {
-    if (libraries.some((library) => library.id === targetId.value)) return;
-    const presetDefaultId = props.preset.output.libraryId ?? "";
-    targetId.value =
-      [preferredId, presetDefaultId].find((id) =>
-        libraries.some((library) => library.id === id)
-      ) ??
-      libraries[0]?.id ??
-      "";
+  [() => props.preset, compatibleLibraries],
+  ([preset, libraries], previous) => {
+    // A newly completed result always requires an explicit destination choice.
+    if (
+      preset !== previous[0] ||
+      !libraries.some((library) => library.id === targetId.value)
+    )
+      targetId.value = "";
   },
   { immediate: true }
 );
@@ -93,57 +98,86 @@ function save(): void {
   <section class="analysis-card result-card">
     <header class="analysis-card-heading">
       <div>
-        <p class="analysis-eyebrow">分析与结果</p>
-        <h2>“{{ preset.name }}”生成结果</h2>
+        <p class="analysis-eyebrow">
+          {{
+            previous
+              ? t("longBookAnalysis.previousCompletedResult")
+              : t("longBookAnalysis.analysisResult")
+          }}
+        </p>
+        <h2>{{ result.name }}</h2>
+        <p class="analysis-result-origin">
+          {{ context }} · {{ presetLabel(preset) }}
+        </p>
       </div>
-      <span
-        >{{ preset.output.domain === "material" ? "素材" : "技能" }} ·
-        {{ outputTypeLabel }}</span
-      >
+      <button type="button" :aria-pressed="editing" @click="editing = !editing">
+        {{
+          editing
+            ? t("longBookAnalysis.finishEditing")
+            : t("longBookAnalysis.editResult")
+        }}
+      </button>
     </header>
-    <input
-      class="result-title"
-      :value="result.name"
-      maxlength="256"
-      aria-label="结果名称"
-      @input="updateName"
-    />
-    <textarea
-      class="result-description"
-      :value="result.description"
-      maxlength="1000"
-      rows="3"
-      aria-label="结果描述"
-      placeholder="简要说明用途、适用场景和何时使用"
-      @input="updateDescription"
-    />
-    <textarea
-      class="result-body"
-      :value="result.content"
-      maxlength="200000"
-      aria-label="Markdown 结果正文"
-      @input="updateContent"
-    />
+    <div v-if="editing" class="analysis-result-editor">
+      <input
+        class="result-title"
+        :value="result.name"
+        maxlength="256"
+        :aria-label="t('longBookAnalysis.resultName')"
+        @input="updateName"
+      />
+      <textarea
+        class="result-description"
+        :value="result.description"
+        maxlength="1000"
+        rows="3"
+        :aria-label="t('longBookAnalysis.resultDescription')"
+        :placeholder="t('longBookAnalysis.resultDescriptionPlaceholder')"
+        @input="updateDescription"
+      />
+      <textarea
+        class="result-body"
+        :value="result.content"
+        maxlength="200000"
+        :aria-label="t('longBookAnalysis.resultMarkdown')"
+        @input="updateContent"
+      />
+    </div>
+    <div v-else class="analysis-result-reading">
+      <p v-if="result.description" class="analysis-result-description">
+        {{ result.description }}
+      </p>
+      <MarkdownContent :content="result.content" />
+    </div>
     <div class="result-save-row">
       <div class="result-target-library">
         <label>
-          <span
-            >写入到{{
-              preset.output.domain === "material" ? "素材库" : "技能库"
-            }}</span
-          >
+          <span>{{
+            t("longBookAnalysis.saveToLibrary", {
+              library:
+                preset.output.domain === "material"
+                  ? t("cloudBackup.materialLibrary")
+                  : t("cloudBackup.skillLibrary")
+            })
+          }}</span>
           <PopupSelect
             v-model="targetId"
             :options="targetOptions"
-            accessible-label="结果写入目标资料库"
+            :accessible-label="t('longBookAnalysis.resultTargetLibrary')"
             :placeholder="
-              targetOptions.length ? '选择具体资料库' : '没有兼容的资料库'
+              targetOptions.length
+                ? t('longBookAnalysis.chooseLibrary')
+                : t('longBookAnalysis.noCompatibleLibrary')
             "
             :disabled="saving || targetOptions.length === 0"
             :menu-min-width="280"
           />
         </label>
-        <small>{{ outputTypeLabel }} · 生成后可随时更换目标库</small>
+        <small>{{
+          t("longBookAnalysis.targetCanChange", {
+            type: outputTypeLabel
+          })
+        }}</small>
       </div>
       <button
         class="analysis-primary-button"
@@ -153,14 +187,24 @@ function save(): void {
       >
         {{
           saving
-            ? "写入中…"
-            : `写入${preset.output.domain === "material" ? "素材库" : "技能库"}`
+            ? t("longBookAnalysis.writing")
+            : t("longBookAnalysis.writeLibrary", {
+                library:
+                  preset.output.domain === "material"
+                    ? t("cloudBackup.materialLibrary")
+                    : t("cloudBackup.skillLibrary")
+              })
         }}
       </button>
     </div>
     <p class="analysis-help">
-      保存时会自动在正文顶部添加 name 和 description
-      说明头部。结果会一直保留在当前预览中；每次写入只创建新条目，不会覆盖已有内容。
+      {{
+        t("longBookAnalysis.saveCreatesEntry", {
+          description: previous
+            ? t("longBookAnalysis.previousResultDescription")
+            : t("longBookAnalysis.editBeforeSaving")
+        })
+      }}
     </p>
   </section>
 </template>
@@ -169,6 +213,23 @@ function save(): void {
 .result-card {
   display: grid;
   gap: 12px;
+}
+.analysis-result-editor {
+  display: grid;
+  gap: 12px;
+}
+.analysis-result-origin,
+.analysis-result-description {
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+.analysis-result-origin {
+  margin: 6px 0 0;
+  font-size: 0.785714rem;
+}
+.analysis-result-reading {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .result-title,
 .result-description,

@@ -1,0 +1,20 @@
+export default {
+  readFile: "Read file",
+  listScope: "List scope",
+  createFile: "Create file",
+  editContent: "Edit content",
+  deleteObject: "Delete object",
+  loadSkill: "Load skill",
+  queryMaterials: "Query materials",
+  askUser: "Ask user",
+  commitContinuity: "Commit continuity",
+  smartSearch: "Smart search",
+  switchStage: "Switch stage",
+  assigningTask: "Assigning task",
+  searchContent: "Search content",
+  queryReferences: "Query references",
+  runTool: "Run tool",
+  finished: "Finished",
+  thinking: "Thinking",
+  subagentRunning: "Subagent running"
+};

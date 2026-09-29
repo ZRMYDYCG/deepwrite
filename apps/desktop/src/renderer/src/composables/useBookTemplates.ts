@@ -1,3 +1,5 @@
+import { formatError } from "../i18n/errors";
+import { createScopedTranslator } from "../i18n";
 import { onMounted, ref, shallowRef } from "vue";
 import type {
   BookTemplate,
@@ -5,6 +7,8 @@ import type {
   SaveBookTemplateInput
 } from "@deepwrite/contracts";
 import { uiMessage } from "../ui-feedback";
+
+const t = createScopedTranslator("workspace.bookTemplates");
 export function useBookTemplates() {
   const templates = ref<BookTemplate[]>([]);
   const catalog = shallowRef<CatalogIndexSnapshot | null>(null);
@@ -24,7 +28,7 @@ export function useBookTemplates() {
       catalog.value = index;
     } catch (error) {
       failed.value = true;
-      uiMessage.error(error instanceof Error ? error.message : "加载模板失败");
+      uiMessage.error(formatError(error, t("failedToLoadTemplates")));
     } finally {
       loading.value = false;
     }
@@ -38,10 +42,10 @@ export function useBookTemplates() {
         ...templates.value.filter((item) => item.id !== saved.id),
         saved
       ];
-      uiMessage.success("模板已保存");
+      uiMessage.success(t("templateSaved"));
       return true;
     } catch (error) {
-      uiMessage.error(error instanceof Error ? error.message : "保存模板失败");
+      uiMessage.error(formatError(error, t("failedToSaveTemplate")));
       return false;
     } finally {
       saving.value = false;
@@ -53,10 +57,10 @@ export function useBookTemplates() {
     try {
       await window.deepwrite.bookTemplates.delete({ id });
       templates.value = templates.value.filter((item) => item.id !== id);
-      uiMessage.success("模板已删除");
+      uiMessage.success(t("templateDeleted"));
       return true;
     } catch (error) {
-      uiMessage.error(error instanceof Error ? error.message : "删除模板失败");
+      uiMessage.error(formatError(error, t("failedToDeleteTemplate")));
       return false;
     } finally {
       saving.value = false;

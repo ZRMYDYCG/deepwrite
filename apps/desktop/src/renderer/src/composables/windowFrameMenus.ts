@@ -2,6 +2,7 @@ import { type InjectionKey, type Ref } from "vue";
 import type { PopupSelectOption } from "../types/popupSelect";
 
 export interface WindowFrameMenu {
+  id: "file" | "view" | "help";
   label: string;
   options: readonly PopupSelectOption[];
   run(value: string): void | Promise<void>;

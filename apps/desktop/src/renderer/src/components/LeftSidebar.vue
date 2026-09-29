@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import { onBeforeUnmount, ref } from "vue";
 import type {
   BookResourceDialogMode,
@@ -16,6 +17,8 @@ import AppIcon from "./AppIcon.vue";
 import SidebarResourceList from "./SidebarResourceList.vue";
 import SidebarProfileMenu from "./SidebarProfileMenu.vue";
 import { createTransientScrollbarController } from "../utils/transientScrollbar";
+
+const t = createScopedTranslator("components.leftSidebar");
 
 const props = defineProps<{
   sections: ResourceTreeSection[];
@@ -87,7 +90,9 @@ function openSettings(): void {
 
 const newBookItem = {
   id: "create-book",
-  label: "新建书籍",
+  get label() {
+    return t("newBook");
+  },
   icon: "plus",
   shortcut: "Ctrl N"
 } as const;
@@ -98,7 +103,15 @@ const navItems: Array<{
   id: PrimaryFeatureId;
   label: string;
   icon: "directory" | "model" | "wand" | "message" | "brain";
-}> = [{ id: "agent-teams", label: "智能体团队", icon: "brain" }];
+}> = [
+  {
+    id: "agent-teams",
+    get label() {
+      return t("agentTeams");
+    },
+    icon: "brain"
+  }
+];
 
 const moreExpanded = ref(false);
 
@@ -168,12 +181,15 @@ function activateNav(id: "create-book" | PrimaryFeatureId): void {
 </script>
 
 <template>
-  <aside class="left-sidebar" aria-label="DeepWrite 导航与资源树">
+  <aside
+    class="left-sidebar"
+    :aria-label="t('deepWriteNavigationAndResources')"
+  >
     <header class="sidebar-brand-row">
       <button
         class="brand-button"
         type="button"
-        aria-label="DeepWrite 工作区菜单"
+        :aria-label="t('deepWriteWorkspaceMenu')"
       >
         <span class="brand-mark"><AppIcon name="logo" :size="19" /></span>
         <span class="brand-name">DeepWrite</span>
@@ -181,14 +197,14 @@ function activateNav(id: "create-book" | PrimaryFeatureId): void {
       <button
         class="icon-button"
         type="button"
-        aria-label="收起左侧栏"
+        :aria-label="t('collapseSidebar')"
         @click="emit('collapse')"
       >
         <AppIcon name="panel-left" :size="18" />
       </button>
     </header>
 
-    <nav class="primary-nav new-book-nav" aria-label="新建书籍">
+    <nav class="primary-nav new-book-nav" :aria-label="t('newBook')">
       <button
         class="nav-row"
         type="button"
@@ -205,7 +221,10 @@ function activateNav(id: "create-book" | PrimaryFeatureId): void {
       class="sidebar-scroll transient-scrollbar"
       @scroll.passive="handleSidebarScroll"
     >
-      <nav class="primary-nav scrollable-primary-nav" aria-label="主要功能">
+      <nav
+        class="primary-nav scrollable-primary-nav"
+        :aria-label="t('mainFeatures')"
+      >
         <button
           v-for="item in navItems"
           :key="item.id"
@@ -232,7 +251,7 @@ function activateNav(id: "create-book" | PrimaryFeatureId): void {
           @click="moreExpanded = !moreExpanded"
         >
           <AppIcon name="more" :size="17" />
-          <span>更多功能</span>
+          <span>{{ t("moreFeatures") }}</span>
           <AppIcon class="more-toggle-chevron" name="chevron" :size="13" />
         </button>
 
@@ -273,13 +292,13 @@ function activateNav(id: "create-book" | PrimaryFeatureId): void {
               class="nav-background-status"
               :title="
                 feature.id === 'revision-analysis'
-                  ? '修改分析正在后台运行'
+                  ? t('revisionAnalysisIsRunningInTheBackground')
                   : feature.id === 'short-book-analysis'
-                    ? '短篇拆书正在后台运行'
-                    : '长篇拆书正在后台运行'
+                    ? t('shortStoryAnalysisIsRunningInTheBackground')
+                    : t('novelAnalysisIsRunningInTheBackground')
               "
             >
-              <i aria-hidden="true" />后台中
+              <i aria-hidden="true" />{{ t("inBackground") }}
             </span>
           </button>
         </div>

@@ -1,3 +1,5 @@
+import { plotStageLabel } from "../i18n/plotStageLabels";
+import { createScopedTranslator } from "../i18n";
 import { MATERIAL_STAGE_KINDS } from "@deepwrite/contracts/renderer";
 import {
   MATERIAL_KINDS,
@@ -21,40 +23,86 @@ import type {
   WorkspaceDocument
 } from "../types/workspace";
 
+const t = createScopedTranslator("workspace");
+
 export const MATERIAL_KIND_LABELS: Record<MaterialLibraryKind, string> = {
-  character: "人设素材库",
-  gimmick: "梗素材库",
-  plot: "剧情素材库",
-  draft: "正文素材库",
-  other: "其他素材库",
-  mixed: "综合素材库"
+  get character() {
+    return t("catalogWorkspace.characterMaterialLibrary");
+  },
+  get gimmick() {
+    return t("catalogWorkspace.storyIdeaLibrary");
+  },
+  get plot() {
+    return t("catalogWorkspace.plotMaterialLibrary");
+  },
+  get draft() {
+    return t("catalogWorkspace.proseMaterialLibrary");
+  },
+  get other() {
+    return t("catalogWorkspace.otherMaterialLibrary");
+  },
+  get mixed() {
+    return t("catalogWorkspace.generalMaterialLibrary");
+  }
 };
 
 export const MATERIAL_STAGE_LABELS: Record<MaterialStageId, string> = {
-  gimmick: "梗",
-  character: "人设",
-  pacing: "剧情设计",
-  intro: "导语设计",
-  plot_refine: "剧情细化",
-  draft_excerpt: "优秀正文片段",
-  other: "其他素材"
+  get gimmick() {
+    return t("catalogWorkspace.storyIdeas");
+  },
+  get character() {
+    return t("catalogWorkspace.characterConcepts");
+  },
+  get pacing() {
+    return t("catalogWorkspace.plotDesign");
+  },
+  get intro() {
+    return t("catalogWorkspace.openingDesign");
+  },
+  get plot_refine() {
+    return t("catalogWorkspace.plotRefinement");
+  },
+  get draft_excerpt() {
+    return t("catalogWorkspace.proseExcerpts");
+  },
+  get other() {
+    return t("catalogWorkspace.otherMaterials");
+  }
 };
 
 export { MATERIAL_STAGE_KINDS } from "@deepwrite/contracts/renderer";
 
 export const SKILL_KIND_LABELS: Record<SkillKind, string> = {
-  general: "通用技能库",
-  plot: "剧情设计技能库",
-  style: "文风写作技能库",
-  other: "其他技能库"
+  get general() {
+    return t("catalogWorkspace.generalSkillLibrary");
+  },
+  get plot() {
+    return t("catalogWorkspace.plotDesignSkillLibrary");
+  },
+  get style() {
+    return t("catalogWorkspace.writingStyleSkillLibrary");
+  },
+  get other() {
+    return t("catalogWorkspace.otherSkillLibrary");
+  }
 };
 
 export const SKILL_STAGE_LABELS: Record<SkillStageId, string> = {
-  character_design: "人物技能",
-  plot_design: "剧情技能",
-  outline: "大纲技能",
-  draft: "正文专家编写技能",
-  expert_section_writer: "分节写手技能"
+  get character_design() {
+    return t("catalogWorkspace.characterSkills");
+  },
+  get plot_design() {
+    return t("catalogWorkspace.plotSkills");
+  },
+  get outline() {
+    return t("catalogWorkspace.outlineSkills");
+  },
+  get draft() {
+    return t("catalogWorkspace.proseWritingSkills");
+  },
+  get expert_section_writer() {
+    return t("catalogWorkspace.sectionWritingSkills");
+  }
 };
 
 const MATERIAL_TREE_KIND_ORDER: readonly MaterialKind[] = [
@@ -66,24 +114,48 @@ const MATERIAL_TREE_KIND_ORDER: readonly MaterialKind[] = [
 ];
 
 const MATERIAL_TREE_KIND_LABELS: Record<MaterialKind, string> = {
-  character: "人设",
-  plot: "剧情",
-  gimmick: "梗",
-  draft: "正文",
-  other: "其他"
+  get character() {
+    return t("catalogWorkspace.characterConcepts");
+  },
+  get plot() {
+    return t("catalogWorkspace.plot");
+  },
+  get gimmick() {
+    return t("catalogWorkspace.storyIdeas");
+  },
+  get draft() {
+    return t("catalogWorkspace.manuscript");
+  },
+  get other() {
+    return t("catalogWorkspace.other");
+  }
 };
 
 const SKILL_KIND_TAG_LABELS: Record<SkillKind, string> = {
-  general: "通用",
-  plot: "剧情",
-  style: "文风",
-  other: "其他"
+  get general() {
+    return t("catalogWorkspace.general");
+  },
+  get plot() {
+    return t("catalogWorkspace.plot");
+  },
+  get style() {
+    return t("catalogWorkspace.writingStyle");
+  },
+  get other() {
+    return t("catalogWorkspace.other");
+  }
 };
 
 const LIBRARY_TYPE_LABELS = {
-  short: "短篇",
-  long: "长篇",
-  script: "剧本"
+  get short() {
+    return t("catalogWorkspace.shortStory");
+  },
+  get long() {
+    return t("catalogWorkspace.novel");
+  },
+  get script() {
+    return t("catalogWorkspace.screenplay");
+  }
 } as const;
 
 export interface CatalogWorkspaceProjection {
@@ -453,34 +525,53 @@ function createBookDocument(
   plotStageIndex: number,
   characterItem?: { id: string; title: string; order: number }
 ): WorkspaceDocument {
-  const stageLabel =
+  const stageLabel = () =>
     stageId === "character_design"
       ? (characterItem?.title ??
-        (book.characterStructure.format === "list" ? "概览" : "人物"))
-      : (plotStage?.title ?? document.title);
-  const path = plotStage
-    ? [book.title, "剧情", plotStage.title]
-    : stageId === "character_design"
-      ? characterItem
-        ? [book.title, "人物", characterItem.title]
-        : book.characterStructure.format === "list"
-          ? [book.title, "人物", "概览"]
-          : [book.title, "人物"]
-      : [book.title, "剧情", document.title];
-  const documentTitle =
+        (book.characterStructure.format === "list"
+          ? t("catalogWorkspace.overview")
+          : t("catalogWorkspace.characters")))
+      : plotStage
+        ? plotStageLabel(plotStage)
+        : document.title;
+  const documentPath = () =>
+    plotStage
+      ? [book.title, t("catalogWorkspace.plot"), plotStageLabel(plotStage)]
+      : stageId === "character_design"
+        ? characterItem
+          ? [book.title, t("catalogWorkspace.characters"), characterItem.title]
+          : book.characterStructure.format === "list"
+            ? [
+                book.title,
+                t("catalogWorkspace.characters"),
+                t("catalogWorkspace.overview")
+              ]
+            : [book.title, t("catalogWorkspace.characters")]
+        : [book.title, t("catalogWorkspace.plot"), document.title];
+  const documentTitle = () =>
     stageId === "character_design" &&
     !characterItem &&
     book.characterStructure.format === "list"
-      ? "概览"
-      : document.title;
+      ? t("catalogWorkspace.overview")
+      : plotStage && document.title === plotStage.title
+        ? plotStageLabel(plotStage)
+        : document.title;
   return {
     id: bookDocumentId(book.id, document.id),
     domain: "creation",
-    title: documentTitle,
-    eyebrow: stageId
-      ? `${LIBRARY_TYPE_LABELS[book.bookType]} · ${stageLabel}`
-      : `${LIBRARY_TYPE_LABELS[book.bookType]} · 其他文稿`,
-    path,
+    get title() {
+      return documentTitle();
+    },
+    get eyebrow() {
+      return stageId
+        ? `${LIBRARY_TYPE_LABELS[book.bookType]} · ${stageLabel()}`
+        : t("catalogWorkspace.otherDocuments", {
+            value: LIBRARY_TYPE_LABELS[book.bookType]
+          });
+    },
+    get path() {
+      return documentPath();
+    },
     content: document.content,
     ...catalogContentState(document),
     format: stageId === "draft" ? "正文" : "设定",
@@ -529,16 +620,32 @@ function createDraftFileDocument(
   fileKind: "body" | "character-state"
 ): WorkspaceDocument {
   const source = fileKind === "body" ? section.body : section.characterState;
-  const fileLabel = fileKind === "body" ? "正文" : "人物状态";
+  const fileLabel = () =>
+    fileKind === "body"
+      ? t("catalogWorkspace.manuscript")
+      : t("catalogWorkspace.characterState");
   return {
     id: bookDocumentId(book.id, source.id),
     domain: "creation",
-    title: fileKind === "body" ? section.title : source.title,
-    eyebrow:
-      fileKind === "body"
-        ? `${LIBRARY_TYPE_LABELS[book.bookType]} · ${book.bookType === "script" ? "剧集正文" : "小节正文"}`
-        : `${LIBRARY_TYPE_LABELS[book.bookType]} · 人物状态`,
-    path: [book.title, book.draft.title, section.title, fileLabel],
+    get title() {
+      return fileKind === "body" ? section.title : source.title;
+    },
+    get eyebrow() {
+      return fileKind === "body"
+        ? t("catalogWorkspace.message", {
+            value: LIBRARY_TYPE_LABELS[book.bookType],
+            value2:
+              book.bookType === "script"
+                ? t("catalogWorkspace.episodeScript")
+                : t("catalogWorkspace.sectionManuscript")
+          })
+        : t("catalogWorkspace.characterState2", {
+            value: LIBRARY_TYPE_LABELS[book.bookType]
+          });
+    },
+    get path() {
+      return [book.title, book.draft.title, section.title, fileLabel()];
+    },
     content: source.content,
     ...catalogContentState(source),
     format: fileKind === "body" ? "正文" : "账本",
@@ -610,7 +717,11 @@ function createBookProjection(book: Book): {
   for (const item of projected) {
     const node: ResourceTreeNode = {
       id: item.document.id,
-      label: item.stageId === "character_design" ? "人物" : item.document.title,
+      get label() {
+        return item.stageId === "character_design"
+          ? t("catalogWorkspace.characters")
+          : item.document.title;
+      },
       icon: "file",
       catalogNodeType: "document",
       stageCategoryId: item.stageId ?? "other",
@@ -641,10 +752,14 @@ function createBookProjection(book: Book): {
     id: draftDirectoryId,
     workspaceId: book.id,
     workspaceType: book.bookType,
-    title: book.draft.title,
+    get title() {
+      return book.draft.title;
+    },
     sections: book.draft.sections.map((section) => ({
       id: section.id,
-      title: section.title,
+      get title() {
+        return section.title;
+      },
       wordCountRequirement: section.wordCountRequirement,
       bodyDocumentId: bookDocumentId(book.id, section.body.id),
       characterStateDocumentId: bookDocumentId(
@@ -655,7 +770,9 @@ function createBookProjection(book: Book): {
   };
   stageNodes.set("draft", {
     id: draftDirectoryId,
-    label: book.draft.title,
+    get label() {
+      return book.draft.title;
+    },
     icon: "folder",
     catalogNodeType: "category",
     stageCategoryId: "draft",
@@ -670,7 +787,9 @@ function createBookProjection(book: Book): {
         book.draft.id,
         section.id
       ),
-      label: section.title,
+      get label() {
+        return section.title;
+      },
       icon: "file",
       catalogNodeType: "document",
       stageCategoryId: "draft",
@@ -695,7 +814,9 @@ function createBookProjection(book: Book): {
         )
         .map((item) => ({
           id: item.document.id,
-          label: item.characterItem!.title,
+          get label() {
+            return item.characterItem!.title;
+          },
           icon: "file" as const,
           catalogNodeType: "document" as const,
           stageCategoryId: "character_design",
@@ -708,7 +829,9 @@ function createBookProjection(book: Book): {
         }));
       children.push({
         id: catalogNodeId("book-category", book.id, "character"),
-        label: "人物",
+        get label() {
+          return t("catalogWorkspace.characters");
+        },
         icon: "user",
         catalogNodeType: "category",
         stageCategoryId: "character_design",
@@ -717,7 +840,15 @@ function createBookProjection(book: Book): {
         targetDocumentId: character.id,
         shortAgentId: book.bookType === "short" ? "short" : "script",
         characterDirectory: true,
-        children: [{ ...character, label: "概览" }, ...characterItemNodes]
+        children: [
+          {
+            ...character,
+            get label() {
+              return t("catalogWorkspace.overview");
+            }
+          },
+          ...characterItemNodes
+        ]
       });
     } else {
       children.push(character);
@@ -728,7 +859,9 @@ function createBookProjection(book: Book): {
     .filter((node): node is ResourceTreeNode => node !== undefined);
   children.push({
     id: catalogNodeId("book-category", book.id, "plot"),
-    label: "剧情",
+    get label() {
+      return t("catalogWorkspace.plot");
+    },
     icon: "sparkles",
     catalogNodeType: "category",
     stageCategoryId: "plot",
@@ -741,9 +874,13 @@ function createBookProjection(book: Book): {
   return {
     node: {
       id: book.id,
-      label: book.title,
+      get label() {
+        return book.title;
+      },
       icon: "book",
-      badge: LIBRARY_TYPE_LABELS[book.bookType],
+      get badge() {
+        return LIBRARY_TYPE_LABELS[book.bookType];
+      },
       workspaceType: book.bookType,
       catalogNodeType: "book",
       ...(book.projectRevision === undefined
@@ -780,7 +917,9 @@ function materialGenreParts(library: MaterialLibrary): string[] {
 function createMaterialLibraryNode(library: MaterialLibrary): ResourceTreeNode {
   return {
     id: library.id,
-    label: library.title,
+    get label() {
+      return library.title;
+    },
     icon: "archive",
     catalogNodeType: "library",
     libraryId: library.id,
@@ -796,7 +935,9 @@ function createMaterialLibraryNode(library: MaterialLibrary): ResourceTreeNode {
     children: [
       {
         id: materialOverviewDocumentId(library.id),
-        label: "库介绍",
+        get label() {
+          return t("catalogWorkspace.libraryIntroduction");
+        },
         icon: "file",
         muted: !catalogContentPresent(
           library,
@@ -812,7 +953,9 @@ function createMaterialLibraryNode(library: MaterialLibrary): ResourceTreeNode {
       },
       ...library.entries.map((entry) => ({
         id: materialEntryDocumentId(library.id, entry.id),
-        label: entry.title,
+        get label() {
+          return entry.title;
+        },
         icon: "file" as const,
         catalogNodeType: "document" as const,
         libraryId: library.id,
@@ -834,20 +977,28 @@ function createMaterialLibraryNode(library: MaterialLibrary): ResourceTreeNode {
 function createMaterialDocuments(
   library: MaterialLibrary
 ): WorkspaceDocument[] {
-  const typeLabel = "素材";
+  const typeLabel = () => t("catalogWorkspace.material");
   const genreParts = materialGenreParts(library);
   const overviewKind =
     library.materialKind === "mixed" ? undefined : library.materialKind;
   const overview: WorkspaceDocument = {
     id: materialOverviewDocumentId(library.id),
     domain: "material",
-    title: `${library.title} · 库介绍`,
-    eyebrow: [
-      typeLabel,
-      ...genreParts,
-      MATERIAL_KIND_LABELS[library.materialKind]
-    ].join(" · "),
-    path: [library.title, "库介绍"],
+    get title() {
+      return t("catalogWorkspace.libraryIntroduction2", {
+        title: library.title
+      });
+    },
+    get eyebrow() {
+      return [
+        typeLabel(),
+        ...genreParts,
+        MATERIAL_KIND_LABELS[library.materialKind]
+      ].join(" · ");
+    },
+    get path() {
+      return [library.title, t("catalogWorkspace.libraryIntroduction")];
+    },
     content: library.overview,
     ...catalogContentState(library, "overviewContentBytes"),
     format: "素材",
@@ -869,17 +1020,23 @@ function createMaterialDocuments(
       return {
         id: materialEntryDocumentId(library.id, entry.id),
         domain: "material" as const,
-        title: entry.title,
-        eyebrow: [typeLabel, ...genreParts, MATERIAL_KIND_LABELS[kind]].join(
-          " · "
-        ),
-        path: [
-          library.title,
-          MATERIAL_KIND_LABELS[kind],
-          ...genreParts,
-          MATERIAL_STAGE_LABELS[entry.stageId],
-          entry.title
-        ],
+        get title() {
+          return entry.title;
+        },
+        get eyebrow() {
+          return [typeLabel(), ...genreParts, MATERIAL_KIND_LABELS[kind]].join(
+            " · "
+          );
+        },
+        get path() {
+          return [
+            library.title,
+            MATERIAL_KIND_LABELS[kind],
+            ...genreParts,
+            MATERIAL_STAGE_LABELS[entry.stageId],
+            entry.title
+          ];
+        },
         content: entry.body,
         ...catalogContentState(entry),
         format: "素材" as const,
@@ -907,9 +1064,13 @@ function createMaterialKindNode(
 ): ResourceTreeNode {
   return {
     id: catalogNodeId("material-kind", kind),
-    label: MATERIAL_TREE_KIND_LABELS[kind],
+    get label() {
+      return MATERIAL_TREE_KIND_LABELS[kind];
+    },
     icon: "archive",
-    badge: String(libraries.length),
+    get badge() {
+      return String(libraries.length);
+    },
     catalogNodeType: "category",
     materialKind: kind,
     children: libraries.map(createMaterialLibraryNode)
@@ -922,9 +1083,19 @@ function missingLibraryNode(
 ): ResourceTreeNode {
   return {
     id: catalogNodeId(domain, "missing-library", libraryId),
-    label: `已丢失的${domain === "material" ? "素材" : "技能"}库（${libraryId}）`,
+    get label() {
+      return t("catalogWorkspace.missingLibrary", {
+        value:
+          domain === "material"
+            ? t("catalogWorkspace.material")
+            : t("catalogWorkspace.skill"),
+        libraryId: libraryId
+      });
+    },
     icon: domain === "material" ? "archive" : "library",
-    badge: "缺失",
+    get badge() {
+      return t("catalogWorkspace.missing");
+    },
     muted: true,
     missing: true,
     catalogNodeType: "library",
@@ -960,7 +1131,9 @@ function createMaterialGroupNodes(
     });
     return {
       id: catalogNodeId("material-group", group.id),
-      label: group.title,
+      get label() {
+        return group.title;
+      },
       icon: "folder",
       catalogNodeType: "group",
       groupId: group.id,
@@ -975,7 +1148,9 @@ function createMaterialGroupNodes(
 function createSkillLibraryNode(library: SkillLibrary): ResourceTreeNode {
   return {
     id: library.id,
-    label: library.title,
+    get label() {
+      return library.title;
+    },
     icon: "library",
     catalogNodeType: "library",
     libraryId: library.id,
@@ -985,7 +1160,9 @@ function createSkillLibraryNode(library: SkillLibrary): ResourceTreeNode {
     children: [
       {
         id: skillOverviewDocumentId(library.id),
-        label: "库说明",
+        get label() {
+          return t("catalogWorkspace.libraryDescription");
+        },
         icon: "file",
         muted: !catalogContentPresent(
           library,
@@ -1000,7 +1177,9 @@ function createSkillLibraryNode(library: SkillLibrary): ResourceTreeNode {
       },
       ...library.entries.map((entry) => ({
         id: skillEntryDocumentId(library.id, entry.id),
-        label: entry.title,
+        get label() {
+          return entry.title;
+        },
         icon: "wand" as const,
         catalogNodeType: "document" as const,
         libraryId: library.id,
@@ -1015,15 +1194,23 @@ function createSkillLibraryNode(library: SkillLibrary): ResourceTreeNode {
 }
 
 function createSkillDocuments(library: SkillLibrary): WorkspaceDocument[] {
-  const typeLabel = "技能";
+  const typeLabel = () => t("catalogWorkspace.skill");
   const readOnly = library.isBuiltin ? { readOnly: true as const } : {};
   return [
     {
       id: skillOverviewDocumentId(library.id),
       domain: "skill",
-      title: `${library.title} · 库说明`,
-      eyebrow: `${typeLabel} · ${SKILL_KIND_LABELS[library.skillKind]}`,
-      path: [library.title, "库说明"],
+      get title() {
+        return t("catalogWorkspace.libraryDescription2", {
+          title: library.title
+        });
+      },
+      get eyebrow() {
+        return `${typeLabel()} · ${SKILL_KIND_LABELS[library.skillKind]}`;
+      },
+      get path() {
+        return [library.title, t("catalogWorkspace.libraryDescription")];
+      },
       content: library.overview,
       ...catalogContentState(library, "overviewContentBytes"),
       format: "技能",
@@ -1038,14 +1225,20 @@ function createSkillDocuments(library: SkillLibrary): WorkspaceDocument[] {
     ...library.entries.map((entry) => ({
       id: skillEntryDocumentId(library.id, entry.id),
       domain: "skill" as const,
-      title: entry.title,
-      eyebrow: `${typeLabel} · ${SKILL_KIND_LABELS[library.skillKind]}`,
-      path: [
-        library.title,
-        SKILL_KIND_LABELS[library.skillKind],
-        SKILL_STAGE_LABELS[entry.stageId],
-        entry.title
-      ],
+      get title() {
+        return entry.title;
+      },
+      get eyebrow() {
+        return `${typeLabel()} · ${SKILL_KIND_LABELS[library.skillKind]}`;
+      },
+      get path() {
+        return [
+          library.title,
+          SKILL_KIND_LABELS[library.skillKind],
+          SKILL_STAGE_LABELS[entry.stageId],
+          entry.title
+        ];
+      },
       content: entry.body,
       ...catalogContentState(entry),
       format: "技能" as const,
@@ -1081,7 +1274,9 @@ function createSkillGroupNodes(snapshot: CatalogSnapshot): ResourceTreeNode[] {
     });
     return {
       id: catalogNodeId("skill-group", group.id),
-      label: group.title,
+      get label() {
+        return group.title;
+      },
       icon: "folder",
       catalogNodeType: "group",
       groupId: group.id,
@@ -1135,9 +1330,17 @@ export function projectCatalogWorkspace(
     .filter(({ kind }) => kind === "deepwrite.book")
     .map((diagnostic) => ({
       id: diagnostic.projectId,
-      label: `无法读取的书籍（${diagnostic.projectId}）`,
+      get label() {
+        return t("catalogWorkspace.unreadableBook", {
+          projectId: diagnostic.projectId
+        });
+      },
       icon: "book",
-      badge: diagnostic.code === "unavailable" ? "不可用" : "配置损坏",
+      get badge() {
+        return diagnostic.code === "unavailable"
+          ? t("catalogWorkspace.unavailable")
+          : t("catalogWorkspace.invalidConfiguration");
+      },
       muted: true,
       unavailable: true,
       catalogNodeType: "book"
@@ -1148,9 +1351,17 @@ export function projectCatalogWorkspace(
     .filter(({ kind }) => kind === "deepwrite.skill-library")
     .map((diagnostic) => ({
       id: diagnostic.projectId,
-      label: `无法读取的技能库（${diagnostic.projectId}）`,
+      get label() {
+        return t("catalogWorkspace.unreadableSkillLibrary", {
+          projectId: diagnostic.projectId
+        });
+      },
       icon: "library",
-      badge: diagnostic.code === "unavailable" ? "不可用" : "配置损坏",
+      get badge() {
+        return diagnostic.code === "unavailable"
+          ? t("catalogWorkspace.unavailable")
+          : t("catalogWorkspace.invalidConfiguration");
+      },
       muted: true,
       unavailable: true,
       catalogNodeType: "library",
@@ -1162,9 +1373,17 @@ export function projectCatalogWorkspace(
     .filter(({ kind }) => kind === "deepwrite.material-library")
     .map((diagnostic) => ({
       id: diagnostic.projectId,
-      label: `无法读取的素材库（${diagnostic.projectId}）`,
+      get label() {
+        return t("catalogWorkspace.unreadableMaterialLibrary", {
+          projectId: diagnostic.projectId
+        });
+      },
       icon: "archive",
-      badge: diagnostic.code === "unavailable" ? "不可用" : "配置损坏",
+      get badge() {
+        return diagnostic.code === "unavailable"
+          ? t("catalogWorkspace.unavailable")
+          : t("catalogWorkspace.invalidConfiguration");
+      },
       muted: true,
       unavailable: true,
       catalogNodeType: "library",
@@ -1179,9 +1398,13 @@ export function projectCatalogWorkspace(
       ? [
           {
             id: catalogNodeId("skill-kind", kind),
-            label: SKILL_KIND_LABELS[kind],
+            get label() {
+              return SKILL_KIND_LABELS[kind];
+            },
             icon: "library",
-            badge: String(libraries.length),
+            get badge() {
+              return String(libraries.length);
+            },
             catalogNodeType: "category",
             skillKind: kind,
             children: libraries.map(createSkillLibraryNode)
@@ -1193,7 +1416,9 @@ export function projectCatalogWorkspace(
   const resourceSections: ResourceTreeSection[] = [
     {
       id: "creation",
-      label: "创作空间",
+      get label() {
+        return t("emptyWorkspaceDocument.workspace");
+      },
       icon: "book",
       nodes: [
         ...diagnosticBookNodes,
@@ -1202,13 +1427,17 @@ export function projectCatalogWorkspace(
     },
     {
       id: "skill",
-      label: "技能库",
+      get label() {
+        return t("catalogWorkspace.skillLibrary");
+      },
       icon: "library",
       nodes: [...diagnosticSkillNodes, ...skillGroupNodes, ...skillKindNodes]
     },
     {
       id: "material",
-      label: "素材库",
+      get label() {
+        return t("catalogWorkspace.materialLibrary");
+      },
       icon: "archive",
       nodes: [
         ...diagnosticMaterialNodes,

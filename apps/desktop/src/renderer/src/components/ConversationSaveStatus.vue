@@ -1,6 +1,9 @@
 <script setup lang="ts">
+import { createScopedTranslator } from "../i18n";
 import { useCurrentConversationExport } from "../composables/useCurrentConversationExport";
 import { useConversationSaveStatus } from "../composables/useConversationSaveStatus";
+
+const t = createScopedTranslator("components.conversationSaveStatus");
 const props = defineProps<{ sessionId: string }>();
 const exportAction = useCurrentConversationExport(() => props.sessionId);
 const { status, label, retrying, retry, showError } = useConversationSaveStatus(
@@ -17,7 +20,7 @@ const { status, label, retrying, retry, showError } = useConversationSaveStatus(
       v-if="status === 'error'"
       type="button"
       class="conversation-save-label"
-      title="查看保存失败原因"
+      :title="t('viewSaveError')"
       @click="showError"
     >
       {{ label }}
@@ -36,7 +39,7 @@ const { status, label, retrying, retry, showError } = useConversationSaveStatus(
       :disabled="retrying"
       @click="retry"
     >
-      {{ retrying ? "重试中" : "重试" }}
+      {{ retrying ? t("retrying") : t("retry") }}
     </button>
     <button
       v-if="status === 'error' && exportAction.available.value"
@@ -44,8 +47,8 @@ const { status, label, retrying, retry, showError } = useConversationSaveStatus(
       type="button"
       :title="
         exportAction.exporting.value
-          ? '取消导出'
-          : '导出当前对话（含未保存内容）'
+          ? t('cancelExport')
+          : t('exportCurrentConversationIncludingUnsavedContent')
       "
       @click="
         exportAction.exporting.value
@@ -53,7 +56,7 @@ const { status, label, retrying, retry, showError } = useConversationSaveStatus(
           : exportAction.start()
       "
     >
-      {{ exportAction.exporting.value ? "取消" : "导出" }}
+      {{ exportAction.exporting.value ? t("cancel") : t("export") }}
     </button>
   </span>
 </template>

@@ -1,8 +1,10 @@
 .short-source-workspace {
   display: grid;
-  grid-template-columns: minmax(240px, 0.8fr) minmax(0, 1.2fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
-  min-height: 390px;
+}
+.short-source-workspace.is-expanded {
+  grid-template-columns: minmax(220px, 0.8fr) minmax(0, 1.2fr);
 }
 .short-list-pane,
 .short-text-editor {
@@ -173,7 +175,7 @@
   gap: 10px;
 }
 @container analysis-page (max-width: 700px) {
-  .short-source-workspace {
+  .short-source-workspace.is-expanded {
     grid-template-columns: 1fr;
   }
   .short-book-list {
@@ -181,6 +183,10 @@
   }
 }
 
-.short-book-list input[type="checkbox"] {
+.short-book-list input:is([type="checkbox"], [type="radio"]) {
   accent-color: var(--accent);
+}
+
+.short-source-workspace:not(.is-expanded) .short-book-list {
+  max-height: 160px;
 }

@@ -1,3 +1,4 @@
+import { syncIssueMessage } from "../../../localization/sync-display-text";
 import {
   clockIncludes,
   mergeSyncClocks,
@@ -129,9 +130,9 @@ export function planSyncItem(input: {
       title: identity?.title ?? baseline?.revision.title ?? key,
       token,
       reason: conflicts.length ? "conflict" : "delete",
-      message: conflicts.length
-        ? "两端修改需要确认，其他作品将继续同步。"
-        : "另一端删除了内容，请确认后应用。",
+      ...syncIssueMessage(
+        conflicts.length ? "mergeConflict" : "deletionPending"
+      ),
       paths: [
         ...new Set(
           conflicts.length
