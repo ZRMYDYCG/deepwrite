@@ -83,6 +83,7 @@ export function createRevisionAnalysisRun(api: () => DeepWriteApi) {
     if (isBusy.value)
       throw new Error(t("revisionAnalysis.inputsLockedWhileRunning"));
     job = null;
+    completedInput.value = "";
     result.value = null;
     resultIsPrevious.value = false;
     status.value = "idle";

@@ -178,6 +178,12 @@ withDefaults(defineProps<{ name: IconName; size?: number }>(), { size: 18 });
       <path d="m15 7 5 5-5 5" />
       <path d="M20 12h-9a7 7 0 0 0-7 7" />
     </template>
+    <template v-else-if="name === 'refresh'">
+      <path d="M20 7v5h-5M4 17v-5h5" />
+      <path
+        d="M5.5 9a7.5 7.5 0 0 1 12.8-2L20 12M4 12l1.7 5a7.5 7.5 0 0 0 12.8-2"
+      />
+    </template>
     <template v-else-if="name === 'replace'">
       <path d="M4 7h14m0 0-3-3m3 3-3 3" />
       <path d="M20 17H6m0 0 3-3m-3 3 3 3" />

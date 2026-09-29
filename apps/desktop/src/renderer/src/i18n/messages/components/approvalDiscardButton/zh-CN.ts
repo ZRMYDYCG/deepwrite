@@ -1,4 +1,4 @@
 export default {
-  discardTheseChanges: "舍弃本次修改",
-  discarding: "舍弃中…"
+  discardTheseChanges: "撤销这次修改",
+  discarding: "撤销中…"
 };

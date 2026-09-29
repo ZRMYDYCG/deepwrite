@@ -26,6 +26,11 @@
   min-width: 0;
   flex: 1 1 260px;
 }
+.analysis-workbench:is(.revision-analysis-page, .style-comparison-page)
+  .analysis-page-header
+  > .analysis-header-actions {
+  align-self: flex-end;
+}
 .analysis-workbench .analysis-page-header h1 {
   margin: 5px 0 7px;
   font-size: 1.714286rem;
@@ -110,6 +115,83 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+.analysis-workbench .analysis-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.analysis-workbench .analysis-refresh-button {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  min-height: 34px;
+  padding: 7px;
+}
+.analysis-refresh-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgb(0 0 0 / 42%);
+}
+.analysis-refresh-dialog {
+  box-sizing: border-box;
+  width: min(420px, 100%);
+  padding: 22px;
+  border: 1px solid var(--theme-line);
+  border-radius: 12px;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  box-shadow: 0 16px 44px var(--shadow-color);
+}
+.analysis-refresh-dialog h2 {
+  margin: 0 0 10px;
+  font-size: 1.142857rem;
+}
+.analysis-refresh-dialog p {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+.analysis-refresh-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 22px;
+}
+.analysis-refresh-dialog-actions button {
+  min-height: 34px;
+  padding: 7px 12px;
+  border: 1px solid var(--theme-line-soft);
+  border-radius: 8px;
+  background: var(--surface-muted);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.analysis-refresh-dialog-actions button:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+.analysis-refresh-dialog-actions .analysis-refresh-confirm {
+  border-color: var(--text-primary);
+  background: var(--text-primary);
+  color: var(--surface-main);
+}
+.analysis-refresh-dialog-actions
+  .analysis-refresh-confirm:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--text-primary) 88%, var(--surface-main));
+}
+.analysis-refresh-dialog-actions button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.analysis-refresh-dialog-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 .analysis-workbench .analysis-run-bar {
   display: flex;

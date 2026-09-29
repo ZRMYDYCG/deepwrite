@@ -16,14 +16,14 @@ export default {
   },
   index: {
     thePreviousEditWasDiscardedRegenerateThisEditUsing:
-      "前一版修改已被舍弃，请基于当前文件重新生成本项修改。",
+      "前一版修改已撤销，请基于当前文件重新生成本项修改。",
     otherEditsToThisProjectAreBeingSavedWait:
-      "同一作品正在保存其他修改，请稍候再舍弃",
-    discardingThisEdit: "正在舍弃本次修改…",
+      "同一作品正在保存其他修改，请稍候再撤销",
+    discardingThisEdit: "正在撤销这次修改…",
     editDiscardedThePreviousContentHasBeenRestored:
-      "已舍弃本次修改，并恢复修改前的内容。",
-    editDiscarded: "已舍弃本次修改",
-    failedToDiscardThisEdit: "舍弃本次修改失败。"
+      "已撤销这次修改，并恢复修改前的内容。",
+    editDiscarded: "已撤销这次修改",
+    failedToDiscardThisEdit: "撤销这次修改失败。"
   },
   short: {
     theFullPreviousContentIsMissingThisEditCannot:

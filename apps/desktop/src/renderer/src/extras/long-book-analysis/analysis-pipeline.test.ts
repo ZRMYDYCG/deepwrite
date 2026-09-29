@@ -119,6 +119,37 @@ async function waitForPrompt(prompts: ExtrasAgentRunRequest[], count: number) {
 }
 
 describe("long-book analysis pipeline checkpoints", () => {
+  it("clears the imported source and retained output after stopping the run", async () => {
+    const { api, model, prompts } = fixture();
+    const controller = useLongBookAnalysis({ api: () => api });
+    controller.setConfiguredModels([model]);
+    controller.source.value = source;
+    controller.presets.value = [preset];
+    try {
+      await controller.start({
+        presetId: preset.id,
+        startOrder: 1,
+        endOrder: 1
+      });
+      await waitForPrompt(prompts, 1);
+      expect(() => controller.resetWorkspace()).toThrow();
+      expect(controller.source.value).toEqual(source);
+      await controller.stop();
+      controller.result.value = {
+        name: "临时结果",
+        description: "测试",
+        content: "待清空"
+      };
+      controller.resetWorkspace();
+      expect(controller.source.value).toBeNull();
+      expect(controller.result.value).toBeNull();
+      expect(controller.status.value).toBe("idle");
+      expect(controller.canRetry.value).toBe(false);
+      expect(controller.selectedModelId.value).toBe(model.id);
+    } finally {
+      controller.dispose();
+    }
+  });
   it("enables the page's continue action after an initially idle task stops", async () => {
     const { api, model, prompts } = fixture();
     const controller = useLongBookAnalysis({ api: () => api });

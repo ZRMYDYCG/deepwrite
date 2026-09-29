@@ -536,6 +536,7 @@ html[data-platform="darwin"] .conversation-header {
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
+  scrollbar-gutter: stable both-edges;
   overscroll-behavior: contain;
 }
 

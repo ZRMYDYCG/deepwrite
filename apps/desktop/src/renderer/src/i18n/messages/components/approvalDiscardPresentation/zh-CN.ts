@@ -1,6 +1,6 @@
 export default {
-  discarding: "正在舍弃",
-  discarded: "已舍弃",
-  discardConflict: "舍弃冲突",
-  discardFailed: "舍弃失败"
+  discarding: "正在撤销",
+  discarded: "已撤销",
+  discardConflict: "撤销冲突",
+  discardFailed: "撤销失败"
 };

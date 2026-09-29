@@ -82,6 +82,12 @@ export function createLongAnalysisResultState(options: {
     setPendingContext(context: LocalizedText) {
       pendingContext = context;
     },
+    clear() {
+      result.value = null;
+      resultPreset.value = null;
+      resultContext.value = "";
+      pendingContext = "";
+    },
     persistResult,
     dispose: stopWatch
   };

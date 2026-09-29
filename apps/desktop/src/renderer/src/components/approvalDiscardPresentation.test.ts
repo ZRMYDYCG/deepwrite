@@ -15,7 +15,7 @@ describe("approval discard presentation", () => {
         message: "正在舍弃",
         updatedAt
       })
-    ).toBe("正在舍弃");
+    ).toBe("正在撤销");
     expect(
       approvalDiscardVisualStatus({
         status: "discarded",

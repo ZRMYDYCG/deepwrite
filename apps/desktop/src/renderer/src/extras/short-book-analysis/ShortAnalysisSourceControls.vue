@@ -8,7 +8,10 @@ import { uiMessage } from "../../ui-feedback";
 import type { ShortBookAnalysisController } from "./useShortBookAnalysis";
 
 const t = createScopedTranslator("extras");
-const props = defineProps<{ controller: ShortBookAnalysisController }>();
+const props = defineProps<{
+  controller: ShortBookAnalysisController;
+  resetVersion?: number;
+}>();
 const emit = defineEmits<{ managePresets: [] }>();
 const c = props.controller;
 const pasteOpen = ref(false);
@@ -16,6 +19,15 @@ const pasteTitle = ref("");
 const pasteText = ref("");
 const historyId = ref("");
 const disabled = computed(() => c.isBusy.value || c.loading.value);
+watch(
+  () => props.resetVersion,
+  () => {
+    pasteOpen.value = false;
+    pasteTitle.value = "";
+    pasteText.value = "";
+    historyId.value = "";
+  }
+);
 watch([c.savedSources, c.drafts], ([sources, drafts]) => {
   if (
     !sources.some((source) => source.id === historyId.value) ||

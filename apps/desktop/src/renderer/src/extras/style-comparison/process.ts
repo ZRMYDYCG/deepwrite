@@ -59,6 +59,13 @@ export function createStyleComparisonProcess() {
       modelLabel
     );
   }
+  function clear(): void {
+    entries.value = [];
+    output.value = "";
+    error.value = null;
+    activity.value = "";
+    sequence = 0;
+  }
 
   const callbacks: ExtrasAgentTaskCallbacks = {
     onTurnStarted(attempt) {
@@ -109,6 +116,7 @@ export function createStyleComparisonProcess() {
     record,
     updateActivity,
     reset,
+    clear,
     callbacks
   };
 }

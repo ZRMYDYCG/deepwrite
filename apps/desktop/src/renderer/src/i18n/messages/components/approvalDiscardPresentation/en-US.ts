@@ -1,6 +1,6 @@
 export default {
-  discarding: "Discarding",
-  discarded: "Discarded",
-  discardConflict: "Discard conflict",
-  discardFailed: "Discard failed"
+  discarding: "Undoing",
+  discarded: "Undone",
+  discardConflict: "Undo conflict",
+  discardFailed: "Undo failed"
 };

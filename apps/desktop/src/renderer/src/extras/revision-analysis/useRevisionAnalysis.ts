@@ -121,6 +121,16 @@ export function useRevisionAnalysis(options: {
     loading,
     disabled,
     canStart,
+    resetWorkspace() {
+      editable();
+      run.clear();
+      beforeText.value = "";
+      afterText.value = "";
+      overallReason.value = "";
+      changes.value = [];
+      comparedText.value = "";
+      skillSave.savedKey.value = "";
+    },
     setConfiguredModels(next: readonly ModelConfig[], defaultModelId?: string) {
       const available = selectableModels(next);
       models.value = available;

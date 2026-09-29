@@ -98,6 +98,12 @@ export function createShortAnalysisRun(api: () => DeepWriteApi) {
     liveOutput.value = "";
     activity.value = localizedMessage("extras.analysisUi.waitingToStart");
   }
+  function resetWorkspace() {
+    clear();
+    result.value = null;
+    resultPreset.value = null;
+    resultContext.value = "";
+  }
   function fail(cause: unknown) {
     status.value = "error";
     const message = () =>
@@ -279,6 +285,7 @@ export function createShortAnalysisRun(api: () => DeepWriteApi) {
     isBusy,
     canRetry,
     clear,
+    resetWorkspace,
     start,
     handleEvent(event: SystemEventEnvelope) {
       task?.handleEvent(event);

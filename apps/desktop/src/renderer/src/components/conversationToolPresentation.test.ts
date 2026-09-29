@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
-import type { AgentToolTrace, ChatMessage } from "../types/conversation";
+import type {
+  AgentEditProposal,
+  AgentToolTrace,
+  ChatMessage
+} from "../types/conversation";
 import {
+  approvalItemsForMessage,
   processingDisplayItems,
   processingItems,
   processingLabel,
@@ -90,6 +95,40 @@ function orderedMessage(
 }
 
 describe("conversation tool presentation", () => {
+  it("offers undo for a saved short-story edit even when its tool trace is absent", () => {
+    const proposal: AgentEditProposal = {
+      id: "plot-edit",
+      runId: "run-1",
+      workspaceId: "short-book-1",
+      stageId: "plot_design",
+      documentId: "plot_design",
+      title: "剧情设计",
+      summary: "调整剧情设计",
+      status: "accepted",
+      baseRevision: "before",
+      proposedRevision: "after",
+      toolCallIds: ["edit-tool-1"],
+      additions: 2,
+      deletions: 1,
+      hunks: [],
+      createdAt: startedAt,
+      updatedAt: startedAt,
+      discardSnapshot: { beforeText: "修改前", beforeTitle: "剧情设计" }
+    };
+    const message: ChatMessage = {
+      id: "assistant-1",
+      role: "assistant",
+      content: "已调整",
+      createdAt: startedAt,
+      status: "completed",
+      editProposals: [proposal]
+    };
+
+    expect(approvalItemsForMessage(message, [])).toMatchObject([
+      { type: "edit-proposal", canDiscard: true }
+    ]);
+  });
+
   it("preserves interleaved thinking, responses and tools while streaming", () => {
     const message = orderedMessage("streaming");
 

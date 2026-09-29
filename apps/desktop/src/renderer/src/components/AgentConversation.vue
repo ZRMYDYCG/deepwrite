@@ -467,6 +467,7 @@ html[data-platform="darwin"] .conversation-pane {
   grid-template-rows: minmax(max-content, 1fr) auto minmax(0, 1fr);
   row-gap: 36px;
   overflow-y: auto;
+  scrollbar-gutter: stable both-edges;
   padding-top: 72px;
 }
 

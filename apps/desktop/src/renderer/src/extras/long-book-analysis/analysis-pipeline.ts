@@ -40,6 +40,7 @@ export type { LongBookAnalysisPhase } from "./analysis-pipeline-types";
 export class LongBookAnalysisPipeline {
   private job: AnalysisJob | null = null;
   private pending: ExtrasAgentTaskHandle | null = null;
+  private running: Promise<void> | null = null;
   private stopRequested = false;
   private disposed = false;
   private readonly process: LongBookAnalysisProcessTracker;
@@ -134,7 +135,9 @@ export class LongBookAnalysisPipeline {
       input.endOrder,
       batches.length
     );
-    void this.run();
+    this.running = this.run().finally(() => {
+      this.running = null;
+    });
   }
 
   retry(): boolean {
@@ -142,7 +145,9 @@ export class LongBookAnalysisPipeline {
       return false;
     }
     this.process.retry();
-    void this.run();
+    this.running = this.run().finally(() => {
+      this.running = null;
+    });
     return true;
   }
 
@@ -154,11 +159,18 @@ export class LongBookAnalysisPipeline {
     this.state.status.value = "stopping";
     this.process.requestStop();
     if (this.pending) {
-      await this.pending.stop();
+      try {
+        await this.pending.stop();
+      } catch (error) {
+        this.stopRequested = false;
+        this.state.status.value = "running";
+        throw error;
+      }
     } else {
       this.state.status.value = "stopped";
       this.process.stopped();
     }
+    await this.running;
     return true;
   }
 

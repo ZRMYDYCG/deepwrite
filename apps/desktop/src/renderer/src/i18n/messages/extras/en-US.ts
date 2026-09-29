@@ -11,6 +11,16 @@ export default {
   analysisUi: {
     modelSettings: "Model settings",
     closeModelSettings: "Close model settings",
+    clearWorkbench: "Clear this analysis workspace",
+    clearRunningTitle: "Stop the analysis and clear the workspace?",
+    clearRunningDescription:
+      "The agent is still running. Continuing will stop this analysis and clear this page's temporary inputs, activity, and result.",
+    cancelClear: "Keep analyzing",
+    confirmClear: "Stop and clear",
+    clearingWorkbench: "Stopping and clearing…",
+    clearWorkbenchFailed: "Could not clear the analysis workspace.",
+    stopBeforeClearFailed:
+      "The agent has not stopped, so the workspace was not cleared.",
     moreFeatures: "More features",
     agentProcess: "Agent activity",
     activityLog: "Activity log",

@@ -8,6 +8,7 @@ import { useStyleComparisonStore } from "./store";
 import StyleComparisonResult from "./StyleComparisonResult.vue";
 import AnalysisPageShell from "../analysis-ui/AnalysisPageShell.vue";
 import AnalysisModelSettings from "../analysis-ui/AnalysisModelSettings.vue";
+import AnalysisRefreshButton from "../analysis-ui/AnalysisRefreshButton.vue";
 import AnalysisRunStatus from "../analysis-ui/AnalysisRunStatus.vue";
 import "./style-comparison.css";
 
@@ -19,6 +20,10 @@ const props = defineProps<{
 }>();
 const comparison = useStyleComparisonStore();
 const materialsOpen = ref(!comparison.isBusy && !comparison.result);
+function clearWorkspace(): void {
+  comparison.resetWorkspace();
+  materialsOpen.value = true;
+}
 watch(
   () => comparison.isBusy,
   (busy) => {
@@ -71,12 +76,22 @@ function start(): void {
     :title="t('styleComparison.styleComparison')"
     :description="t('styleComparison.comparisonDescription')"
   >
-    <AnalysisModelSettings
-      v-model:model-id="comparison.modelId"
-      v-model:thinking-level="comparison.thinkingLevel"
-      :models="availableModels"
-      :disabled="comparison.isBusy"
-    />
+    <template #header-actions>
+      <div class="analysis-header-actions">
+        <AnalysisModelSettings
+          v-model:model-id="comparison.modelId"
+          v-model:thinking-level="comparison.thinkingLevel"
+          :models="availableModels"
+          :disabled="comparison.isBusy"
+        />
+        <AnalysisRefreshButton
+          :busy="comparison.isBusy"
+          :status="comparison.status"
+          :stop="comparison.stop"
+          :clear="clearWorkspace"
+        />
+      </div>
+    </template>
     <details
       class="analysis-card analysis-materials comparison-materials"
       :open="materialsOpen"

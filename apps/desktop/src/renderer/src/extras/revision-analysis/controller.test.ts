@@ -81,6 +81,28 @@ function revisionInput(request: ExtrasAgentRunRequest) {
   return request.task.input;
 }
 describe("revision analysis controller", () => {
+  it("clears local documents, differences and output without changing the selected model", () => {
+    const f = fixture();
+    f.c.compare();
+    f.c.overallReason.value = "修订目标";
+    f.c.result.value = result;
+    f.c.savedKey.value = "old-save";
+    f.c.status.value = "completed";
+    f.c.resetWorkspace();
+    expect(f.c.beforeText.value).toBe("");
+    expect(f.c.afterText.value).toBe("");
+    expect(f.c.overallReason.value).toBe("");
+    expect(f.c.changes.value).toEqual([]);
+    expect(f.c.result.value).toBeNull();
+    expect(f.c.savedKey.value).toBe("");
+    expect(f.c.status.value).toBe("idle");
+    expect(f.c.selectedModelId.value).toBe(model.id);
+    f.c.status.value = "running";
+    f.c.beforeText.value = "仍在分析";
+    expect(() => f.c.resetWorkspace()).toThrow();
+    expect(f.c.beforeText.value).toBe("仍在分析");
+    f.c.dispose();
+  });
   it("compares the current documents when starting without a separate preview", async () => {
     const f = fixture();
     expect(f.c.changes.value).toEqual([]);

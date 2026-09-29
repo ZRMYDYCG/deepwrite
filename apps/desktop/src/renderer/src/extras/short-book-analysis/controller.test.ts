@@ -79,6 +79,38 @@ it("removes drafts without deleting saved sources and allows loading them again"
     scope.stop();
   }
 });
+it("clears temporary analysis content while keeping imported stories and model choice", () => {
+  const scope = effectScope();
+  const c = scope.run(() => useShortBookAnalysis({ api: () => undefined }))!;
+  try {
+    c.drafts.value = [book(0)];
+    c.savedSources.value = [{ ...book(0), characterCount: 4 }];
+    c.selectedIds.value = ["book-0"];
+    c.activeId.value = "book-0";
+    c.selectedModelId.value = "model-1";
+    c.result.value = {
+      name: "临时结果",
+      description: "测试",
+      content: "待清空"
+    };
+    c.status.value = "completed";
+    c.resetWorkspace();
+    expect(c.drafts.value).toEqual([]);
+    expect(c.selectedIds.value).toEqual([]);
+    expect(c.activeId.value).toBe("");
+    expect(c.result.value).toBeNull();
+    expect(c.status.value).toBe("idle");
+    expect(c.savedSources.value).toHaveLength(1);
+    expect(c.selectedModelId.value).toBe("model-1");
+    c.status.value = "running";
+    c.drafts.value = [book(1)];
+    expect(() => c.resetWorkspace()).toThrow();
+    expect(c.drafts.value).toHaveLength(1);
+  } finally {
+    c.dispose();
+    scope.stop();
+  }
+});
 it("deletes saved sources, repairs selection and active editor, and preserves state on failure", async () => {
   const scope = effectScope();
   const remove = vi.fn(async (id: string) => id);

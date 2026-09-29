@@ -10,6 +10,7 @@ import type {
 import { uiMessage } from "../../ui-feedback";
 import AnalysisPageShell from "../analysis-ui/AnalysisPageShell.vue";
 import AnalysisModelSettings from "../analysis-ui/AnalysisModelSettings.vue";
+import AnalysisRefreshButton from "../analysis-ui/AnalysisRefreshButton.vue";
 import AnalysisResultPanel from "./AnalysisResultPanel.vue";
 import AnalysisSourceControls from "./AnalysisSourceControls.vue";
 import LongAnalysisSourceSummary from "./LongAnalysisSourceSummary.vue";
@@ -29,6 +30,11 @@ const presetManagerOpen = ref(false);
 const presetSaving = ref(false);
 const resultSaving = ref(false);
 const resultAnchor = ref<HTMLElement | null>(null);
+const resetVersion = ref(0);
+function clearWorkspace(): void {
+  props.controller.resetWorkspace();
+  resetVersion.value += 1;
+}
 async function showResult(): Promise<void> {
   await nextTick();
   resultAnchor.value?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -106,10 +112,26 @@ onMounted(() => {
           :models="models"
           :disabled="controller.isBusy.value"
         />
+        <AnalysisRefreshButton
+          :busy="controller.isBusy.value"
+          :status="controller.status.value"
+          :disabled="
+            controller.sourcesLoading.value ||
+            controller.presetsLoading.value ||
+            presetSaving ||
+            resultSaving
+          "
+          :stop="controller.stop"
+          :clear="clearWorkspace"
+        />
       </AnalysisSourceControls>
     </template>
-    <LongAnalysisSourceSummary :controller="controller" />
-    <LongAnalysisTaskSetup :controller="controller" @show-result="showResult" />
+    <LongAnalysisSourceSummary :key="resetVersion" :controller="controller" />
+    <LongAnalysisTaskSetup
+      :key="resetVersion"
+      :controller="controller"
+      @show-result="showResult"
+    />
     <div
       v-if="controller.result.value && controller.resultPreset.value"
       ref="resultAnchor"

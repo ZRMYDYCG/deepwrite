@@ -132,6 +132,25 @@ function setup(
 }
 
 describe("文风比对运行与结果", () => {
+  it("clears samples and output after a run while preserving model and method settings", async () => {
+    const ctx = setup();
+    await ctx.controller.start(model);
+    expect(() => ctx.controller.resetWorkspace()).toThrow();
+    expect(ctx.controller.referenceText.value).not.toBe("");
+    ctx.emitResult();
+    ctx.emit("agent.message_completed", { content: JSON.stringify(result) });
+    await ctx.flush();
+    ctx.controller.modelId.value = model.id;
+    ctx.controller.resetWorkspace();
+    expect(ctx.controller.referenceText.value).toBe("");
+    expect(ctx.controller.comparisonText.value).toBe("");
+    expect(ctx.controller.result.value).toBeNull();
+    expect(ctx.controller.entries.value).toEqual([]);
+    expect(ctx.controller.status.value).toBe("idle");
+    expect(ctx.controller.modelId.value).toBe(model.id);
+    expect(ctx.controller.method.value).toBe(defaultProfile.systemPrompt);
+    ctx.controller.dispose();
+  });
   it("retains the last completed result through failed and stopped reruns until a new result succeeds", async () => {
     const ctx = setup();
     await ctx.controller.start(model);

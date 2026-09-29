@@ -115,7 +115,7 @@ describe("AgentConversation edit proposal placement", () => {
     expect(discardButtonSource).toContain("discardTheseChanges");
     expect(proposalCardSource).toContain("<ApprovalDiscardButton");
     expect(presentationSource).toContain(
-      "canDiscard: agentApprovalCanDiscard(message, proposal)"
+      "canDiscard: agentProposalSupportsDiscard(proposal)"
     );
     expect(`${messageItemSource}\n${processingItemSource}`).toContain(
       ':discardable="approval.canDiscard"'

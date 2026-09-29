@@ -1,12 +1,7 @@
 import { describe, expect, it } from "vitest";
-import type {
-  AgentEditProposal,
-  AgentToolTrace,
-  ChatMessage
-} from "../types/conversation";
+import type { AgentEditProposal } from "../types/conversation";
 import {
-  agentApprovalCanDiscard,
-  isModificationTool,
+  agentProposalSupportsDiscard,
   textEditDiscardSnapshot
 } from "./acceptedEditDiscard";
 
@@ -38,33 +33,21 @@ function acceptedTextProposal(
   };
 }
 
-function messageWithTool(name: string): Pick<ChatMessage, "toolCalls"> {
-  return {
-    toolCalls: [{ id: "tool-1", name } as AgentToolTrace]
-  };
-}
-
 describe("accepted edit discard eligibility", () => {
-  it("recognizes modification tools without treating create as an edit", () => {
-    expect(isModificationTool({ name: "edit" })).toBe(true);
-    expect(isModificationTool({ name: "edit_document" })).toBe(true);
-    expect(isModificationTool({ name: "create" })).toBe(false);
-    expect(isModificationTool({ name: "write" })).toBe(false);
-  });
-
-  it("shows discard only for an accepted proposal produced by edit", () => {
+  it("shows undo for an accepted restorable edit without requiring a tool trace", () => {
     const proposal = acceptedTextProposal();
 
-    expect(agentApprovalCanDiscard(messageWithTool("edit"), proposal)).toBe(
-      true
-    );
-    expect(agentApprovalCanDiscard(messageWithTool("create"), proposal)).toBe(
-      false
-    );
+    expect(agentProposalSupportsDiscard(proposal)).toBe(true);
     expect(
-      agentApprovalCanDiscard(messageWithTool("edit"), {
+      agentProposalSupportsDiscard({
         ...proposal,
         status: "pending"
+      })
+    ).toBe(false);
+    expect(
+      agentProposalSupportsDiscard({
+        ...proposal,
+        discardSnapshot: { beforeTitle: "第一章" }
       })
     ).toBe(false);
   });
@@ -83,9 +66,36 @@ describe("accepted edit discard eligibility", () => {
     });
   });
 
+  it("requires the previous plot structure fields before offering undo", () => {
+    const proposal = acceptedTextProposal({
+      plotStructureTarget: {
+        mutation: {
+          type: "update",
+          stageId: "plot_design",
+          previousTitle: "剧情设计",
+          title: "新剧情设计",
+          description: "新说明"
+        }
+      },
+      discardSnapshot: {
+        beforeText: "旧说明",
+        beforeTitle: "剧情设计",
+        beforeDescription: "旧说明"
+      }
+    });
+
+    expect(agentProposalSupportsDiscard(proposal)).toBe(true);
+    expect(
+      agentProposalSupportsDiscard({
+        ...proposal,
+        discardSnapshot: { beforeTitle: "剧情设计" }
+      })
+    ).toBe(false);
+  });
+
   it("never enables discard for short-form creation proposals", () => {
     expect(
-      agentApprovalCanDiscard(messageWithTool("edit"), {
+      agentProposalSupportsDiscard({
         ...acceptedTextProposal(),
         libraryTarget: {
           operation: "create",
@@ -95,7 +105,7 @@ describe("accepted edit discard eligibility", () => {
       })
     ).toBe(false);
     expect(
-      agentApprovalCanDiscard(messageWithTool("edit"), {
+      agentProposalSupportsDiscard({
         ...acceptedTextProposal(),
         draftSectionCreationTarget: {
           sections: [
@@ -112,7 +122,7 @@ describe("accepted edit discard eligibility", () => {
 
   it("never enables discard for any accepted long-form proposal", () => {
     expect(
-      agentApprovalCanDiscard(messageWithTool("edit"), {
+      agentProposalSupportsDiscard({
         ...acceptedTextProposal(),
         stageId: "long-plot-design",
         workspaceId: "long:book-1",

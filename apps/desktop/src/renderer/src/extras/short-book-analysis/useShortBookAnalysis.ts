@@ -137,6 +137,14 @@ export function useShortBookAnalysis(options: {
     selectedBooks,
     selectionLimit,
     selectionValid,
+    resetWorkspace() {
+      editable();
+      run.resetWorkspace();
+      drafts.value = [];
+      selectedIds.value = [];
+      activeId.value = "";
+      selectedPresetId.value = presets.value[0]?.id ?? "";
+    },
     loadPresets,
     loadSources,
     setConfiguredModels(next: readonly ModelConfig[], defaultModelId?: string) {

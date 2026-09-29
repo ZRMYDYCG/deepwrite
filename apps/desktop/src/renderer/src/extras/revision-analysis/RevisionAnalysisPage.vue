@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { formatError } from "../../i18n/errors";
 import { createScopedTranslator, locale } from "../../i18n";
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onMounted, ref, watch } from "vue";
 import {
   REVISION_TEXT_LIMIT,
   REVISION_REASON_LIMIT,
@@ -10,6 +10,7 @@ import {
 } from "@deepwrite/contracts/renderer";
 import AnalysisPageShell from "../analysis-ui/AnalysisPageShell.vue";
 import AnalysisModelSettings from "../analysis-ui/AnalysisModelSettings.vue";
+import AnalysisRefreshButton from "../analysis-ui/AnalysisRefreshButton.vue";
 import AnalysisRunStatus from "../analysis-ui/AnalysisRunStatus.vue";
 import { uiMessage } from "../../ui-feedback";
 import RevisionDiffList from "./RevisionDiffList.vue";
@@ -27,6 +28,11 @@ const props = defineProps<{
 const emit = defineEmits<{ refreshCatalog: [] }>();
 const c = props.controller;
 const materialsOpen = ref(!c.isBusy.value && !c.result.value);
+const resultAnchor = ref<HTMLElement | null>(null);
+function clearWorkspace(): void {
+  c.resetWorkspace();
+  materialsOpen.value = true;
+}
 const canCompare = computed(
   () =>
     !c.disabled.value &&
@@ -35,6 +41,11 @@ const canCompare = computed(
 );
 watch(c.isBusy, (busy) => {
   if (busy) materialsOpen.value = false;
+});
+watch(c.status, async (status) => {
+  if (status !== "completed" || !c.result.value) return;
+  await nextTick();
+  resultAnchor.value?.scrollIntoView({ behavior: "smooth", block: "start" });
 });
 async function act(action: () => unknown | Promise<unknown>) {
   try {
@@ -80,12 +91,23 @@ onMounted(() => {
     :title="t('revisionAnalysis.revisionAnalysis')"
     :description="t('revisionAnalysis.revisionDescription')"
   >
-    <AnalysisModelSettings
-      v-model:model-id="c.selectedModelId.value"
-      v-model:thinking-level="c.selectedThinkingLevel.value"
-      :models="models"
-      :disabled="c.disabled.value"
-    />
+    <template #header-actions>
+      <div class="analysis-header-actions">
+        <AnalysisModelSettings
+          v-model:model-id="c.selectedModelId.value"
+          v-model:thinking-level="c.selectedThinkingLevel.value"
+          :models="models"
+          :disabled="c.disabled.value"
+        />
+        <AnalysisRefreshButton
+          :busy="c.isBusy.value"
+          :status="c.status.value"
+          :disabled="c.loading.value || c.saving.value"
+          :stop="c.stop"
+          :clear="clearWorkspace"
+        />
+      </div>
+    </template>
     <details
       class="analysis-card analysis-materials revision-materials"
       :open="materialsOpen"
@@ -207,10 +229,16 @@ onMounted(() => {
         </button>
       </div>
     </section>
-    <RevisionResultPanel
-      :controller="c"
-      :catalog-snapshot="catalogSnapshot"
-      @refresh-catalog="emit('refreshCatalog')"
-    />
+    <div
+      v-if="c.result.value"
+      ref="resultAnchor"
+      class="analysis-result-anchor"
+    >
+      <RevisionResultPanel
+        :controller="c"
+        :catalog-snapshot="catalogSnapshot"
+        @refresh-catalog="emit('refreshCatalog')"
+      />
+    </div>
   </AnalysisPageShell>
 </template>

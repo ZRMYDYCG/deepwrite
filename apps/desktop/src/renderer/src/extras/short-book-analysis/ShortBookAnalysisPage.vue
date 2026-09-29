@@ -15,6 +15,7 @@ import PresetManager from "../long-book-analysis/PresetManager.vue";
 import AnalysisRunStatus from "../analysis-ui/AnalysisRunStatus.vue";
 import AnalysisPageShell from "../analysis-ui/AnalysisPageShell.vue";
 import AnalysisModelSettings from "../analysis-ui/AnalysisModelSettings.vue";
+import AnalysisRefreshButton from "../analysis-ui/AnalysisRefreshButton.vue";
 import ShortAnalysisSourceControls from "./ShortAnalysisSourceControls.vue";
 import AnalysisResultPanel from "../long-book-analysis/AnalysisResultPanel.vue";
 import { analysisOutputTypeLabel } from "../long-book-analysis/task-options";
@@ -34,10 +35,15 @@ const c = props.controller;
 const managerOpen = ref(false);
 const saving = ref(false);
 const resultAnchor = ref<HTMLElement | null>(null);
+const resetVersion = ref(0);
 const model = computed(
   () => props.models.find((m) => m.id === c.selectedModelId.value) ?? null
 );
 const disabled = computed(() => c.isBusy.value || c.loading.value);
+function clearWorkspace(): void {
+  c.resetWorkspace();
+  resetVersion.value += 1;
+}
 async function act(action: () => unknown) {
   try {
     await action();
@@ -93,6 +99,7 @@ onMounted(() => void act(() => c.loadPresets()));
     <template #header-actions>
       <ShortAnalysisSourceControls
         :controller="c"
+        :reset-version="resetVersion"
         @manage-presets="managerOpen = true"
       >
         <AnalysisModelSettings
@@ -101,9 +108,16 @@ onMounted(() => void act(() => c.loadPresets()));
           :models="models"
           :disabled="disabled"
         />
+        <AnalysisRefreshButton
+          :busy="c.isBusy.value"
+          :status="c.status.value"
+          :disabled="c.loading.value || saving"
+          :stop="c.stop"
+          :clear="clearWorkspace"
+        />
       </ShortAnalysisSourceControls>
     </template>
-    <ShortAnalysisSources :controller="c" />
+    <ShortAnalysisSources :key="resetVersion" :controller="c" />
     <section class="analysis-card setup-card">
       <header class="analysis-card-heading">
         <div>

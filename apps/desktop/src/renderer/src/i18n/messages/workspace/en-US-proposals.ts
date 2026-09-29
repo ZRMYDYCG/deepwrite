@@ -16,14 +16,14 @@ export default {
   },
   index: {
     thePreviousEditWasDiscardedRegenerateThisEditUsing:
-      "The previous edit was discarded. Regenerate this edit using the current file.",
+      "The previous edit was undone. Regenerate this edit using the current file.",
     otherEditsToThisProjectAreBeingSavedWait:
-      "Other edits to this project are being saved. Wait before discarding.",
-    discardingThisEdit: "Discarding this edit…",
+      "Other edits to this project are being saved. Wait before undoing.",
+    discardingThisEdit: "Undoing this edit…",
     editDiscardedThePreviousContentHasBeenRestored:
-      "Edit discarded. The previous content has been restored.",
-    editDiscarded: "Edit discarded",
-    failedToDiscardThisEdit: "Failed to discard this edit."
+      "Edit undone. The previous content has been restored.",
+    editDiscarded: "Edit undone",
+    failedToDiscardThisEdit: "Failed to undo this edit."
   },
   short: {
     theFullPreviousContentIsMissingThisEditCannot:

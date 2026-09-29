@@ -266,6 +266,18 @@ export function createStyleComparisonController(options: Options) {
     current?.dispose();
   }
 
+  function resetWorkspace(): void {
+    if (isBusy.value || disposed) throw new Error(t("comparisonStillRunning"));
+    referenceText.value = "";
+    comparisonText.value = "";
+    status.value = "idle";
+    process.clear();
+    result.value = null;
+    lastInput.value = "";
+    previousResult.value = false;
+    resultModel.value = "";
+  }
+
   function syncThinkingModel(model: ModelConfig | undefined): void {
     if (isBusy.value) return;
     if (
@@ -297,6 +309,7 @@ export function createStyleComparisonController(options: Options) {
     isStale,
     start,
     stop,
+    resetWorkspace,
     dispose,
     handleEvent
   };

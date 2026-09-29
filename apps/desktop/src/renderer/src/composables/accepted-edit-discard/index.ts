@@ -4,7 +4,6 @@ import type { AgentEditProposal } from "../../types/conversation";
 import {
   AcceptedEditDiscardConflictError,
   agentProposalSupportsDiscard,
-  approvalUsesModificationTool,
   discardStatePatch
 } from "../../utils/acceptedEditDiscard";
 import type { AgentConversationController } from "../useAgentConversation";
@@ -18,15 +17,6 @@ import {
 } from "./short";
 
 const t = createScopedTranslator("workspace.index");
-
-function proposalUsesModificationTool(
-  conversation: AgentConversationController,
-  proposal: AgentEditProposal
-): boolean {
-  return conversation.messages.value.some((message) =>
-    approvalUsesModificationTool(message, proposal.toolCallIds)
-  );
-}
 
 function updateDiscardState(
   conversation: AgentConversationController,
@@ -73,7 +63,6 @@ export function createAcceptedEditDiscardCoordinator(
     );
     if (
       !proposal ||
-      !proposalUsesModificationTool(conversation, proposal) ||
       !agentProposalSupportsDiscard(proposal) ||
       proposal.discardState?.status === "discarding"
     ) {

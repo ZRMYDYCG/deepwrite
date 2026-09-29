@@ -90,6 +90,7 @@ export interface LongBookAnalysisController {
   start(input: LongBookAnalysisStartInput): Promise<boolean>;
   retry(): Promise<boolean>;
   stop(): Promise<boolean>;
+  resetWorkspace(): void;
   persistResult(input: LongBookAnalysisPersistInput): Promise<void>;
   handleEvent(event: SystemEventEnvelope): void;
   dispose(): void;
@@ -330,6 +331,11 @@ export function useLongBookAnalysis(options: {
     start,
     retry: async () => pipeline.retry(),
     stop: () => pipeline.stop(),
+    resetWorkspace() {
+      pipeline.reset();
+      resultState.clear();
+      source.value = null;
+    },
     persistResult: resultState.persistResult,
     handleEvent: (event) => pipeline.handleEvent(event),
     dispose() {

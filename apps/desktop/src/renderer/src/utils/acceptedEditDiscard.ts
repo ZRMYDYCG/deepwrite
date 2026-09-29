@@ -1,44 +1,10 @@
-import type {
-  AgentEditProposal,
-  AgentToolTrace,
-  ChatMessage
-} from "../types/conversation";
-
-const LEGACY_MODIFICATION_TOOL_PREFIXES = [
-  "edit_",
-  "replace_",
-  "rename_",
-  "move_"
-];
+import type { AgentEditProposal } from "../types/conversation";
 
 export class AcceptedEditDiscardConflictError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "AcceptedEditDiscardConflictError";
   }
-}
-
-export function isModificationTool(
-  tool: Pick<AgentToolTrace, "name">
-): boolean {
-  return (
-    tool.name === "edit" ||
-    LEGACY_MODIFICATION_TOOL_PREFIXES.some((prefix) =>
-      tool.name.startsWith(prefix)
-    )
-  );
-}
-
-export function approvalUsesModificationTool(
-  message: Pick<ChatMessage, "toolCalls">,
-  toolCallIds: readonly string[]
-): boolean {
-  const ids = new Set(toolCallIds);
-  return Boolean(
-    message.toolCalls?.some(
-      (tool) => ids.has(tool.id) && isModificationTool(tool)
-    )
-  );
 }
 
 export function textEditDiscardSnapshot(
@@ -82,29 +48,23 @@ export function agentProposalSupportsDiscard(
     return false;
   }
   if (proposal.characterStructureTarget) {
-    return (
-      proposal.characterStructureTarget.mutation.type === "updateItem" ||
-      proposal.characterStructureTarget.mutation.type === "moveItem"
-    );
+    return proposal.characterStructureTarget.mutation.type === "updateItem"
+      ? proposal.discardSnapshot?.beforeTitle !== undefined
+      : proposal.characterStructureTarget.mutation.type === "moveItem" &&
+          proposal.discardSnapshot?.appliedProjectRevision !== undefined;
   }
   if (proposal.plotStructureTarget) {
-    return proposal.plotStructureTarget.mutation.type === "update";
+    return (
+      proposal.plotStructureTarget.mutation.type === "update" &&
+      proposal.discardSnapshot?.beforeTitle !== undefined &&
+      proposal.discardSnapshot.beforeDescription !== undefined
+    );
   }
   if (proposal.draftSectionRenameTarget) return true;
   return Boolean(
     proposal.discardSnapshot?.beforeText !== undefined &&
     (proposal.proposedRevision !== proposal.baseRevision ||
       proposal.title !== proposal.discardSnapshot.beforeTitle)
-  );
-}
-
-export function agentApprovalCanDiscard(
-  message: Pick<ChatMessage, "toolCalls">,
-  proposal: AgentEditProposal
-): boolean {
-  return (
-    approvalUsesModificationTool(message, proposal.toolCallIds) &&
-    agentProposalSupportsDiscard(proposal)
   );
 }
 

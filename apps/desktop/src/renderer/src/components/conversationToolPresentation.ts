@@ -5,7 +5,7 @@ import type {
   ChatMessage
 } from "../types/conversation";
 import type { LongWorkspaceProposalItem } from "../composables/useLongWorkspaceProposals";
-import { agentApprovalCanDiscard } from "../utils/acceptedEditDiscard";
+import { agentProposalSupportsDiscard } from "../utils/acceptedEditDiscard";
 
 import { visibleCompaction } from "./conversationCompactionPresentation";
 import { isWriteTool } from "./conversationToolStatus";
@@ -112,7 +112,7 @@ export function approvalItemsForMessage(
       type: "edit-proposal",
       createdAt: proposal.createdAt,
       toolCallIds: proposal.toolCallIds,
-      canDiscard: agentApprovalCanDiscard(message, proposal),
+      canDiscard: agentProposalSupportsDiscard(proposal),
       proposal
     })
   );

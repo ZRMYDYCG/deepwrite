@@ -10,6 +10,15 @@ export default {
   analysisUi: {
     modelSettings: "模型设置",
     closeModelSettings: "关闭模型设置",
+    clearWorkbench: "清空当前分析桌面",
+    clearRunningTitle: "停止分析并清空桌面？",
+    clearRunningDescription:
+      "智能体仍在执行。继续后将停止本次分析，并清空当前页面的临时输入、执行记录和结果。",
+    cancelClear: "继续分析",
+    confirmClear: "停止并清空",
+    clearingWorkbench: "正在停止并清空…",
+    clearWorkbenchFailed: "清空分析桌面失败。",
+    stopBeforeClearFailed: "智能体尚未停止，桌面内容未清空。",
     moreFeatures: "更多功能",
     agentProcess: "智能体执行过程",
     activityLog: "活动记录",
