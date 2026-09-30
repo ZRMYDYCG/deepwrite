@@ -31,11 +31,13 @@ function modelConfig(
 describe("GPT-6 Responses compatibility", () => {
   it.each([
     ["openai", "gpt-6-astra"],
+    ["openai", "gpt-6.1-sol"],
     ["openai", "gpt-6-sol"],
     ["openai", "gpt-6-luna"],
     ["custom", "gpt-6-astra"],
     ["custom", "gpt-6-astra-routed"],
     ["custom", "gateway-gpt-6-astra"],
+    ["custom", "gpt-6.1-sol-routed"],
     ["custom", "gpt-6-sol-routed"],
     ["custom", "gateway-gpt-6-luna"]
   ])("keeps read arguments optional for %s/%s", async (provider, modelId) => {
@@ -108,6 +110,39 @@ describe("GPT-6 Responses compatibility", () => {
       const config = modelConfig("custom", modelId);
       expect(buildProviderRuntime(config).model).toMatchObject({
         contextWindow: 272_000,
+        maxTokens: 128_000,
+        input: ["text", "image"],
+        compat: { supportsStrictMode: true },
+        thinkingLevelMap: {
+          off: null,
+          minimal: null,
+          low: "low",
+          medium: "medium",
+          high: "high",
+          xhigh: "xhigh",
+          max: "max"
+        }
+      });
+      expect(
+        buildProviderRuntime({
+          ...config,
+          contextWindow: 500_000,
+          maxTokens: 64_000
+        }).model
+      ).toMatchObject({ contextWindow: 500_000, maxTokens: 64_000 });
+    }
+  );
+
+  it.each([
+    ["openai", "gpt-6.1-sol"],
+    ["custom", "gpt-6.1-sol-routed"]
+  ])(
+    "uses GPT-6.1 Sol capacity and reasoning metadata for %s/%s",
+    (provider, modelId) => {
+      const config = modelConfig(provider, modelId);
+      expect(buildProviderRuntime(config).model).toMatchObject({
+        id: modelId,
+        contextWindow: 1_050_000,
         maxTokens: 128_000,
         input: ["text", "image"],
         compat: { supportsStrictMode: true },

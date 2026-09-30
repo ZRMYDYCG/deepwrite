@@ -1,5 +1,6 @@
 import {
   hasRemoteSyncChange,
+  redactSyncIssue,
   sameSyncContent,
   stableSyncJson,
   syncKey,
@@ -59,7 +60,7 @@ export async function readSyncStatus(
     progress,
     items,
     issues: [
-      ...metadata.pendingIssues,
+      ...metadata.pendingIssues.map(redactSyncIssue),
       ...local.issues
         .filter(
           (entry) => !metadata.pendingIssues.some((v) => v.key === entry.key)

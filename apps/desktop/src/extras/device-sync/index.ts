@@ -19,6 +19,7 @@ import {
   DesktopSyncCredentialStore,
   DesktopSyncMetadataStore
 } from "./local-storage";
+import { withModelConfigSync, type ModelSyncPort } from "./model-workspace";
 import { WebDavSyncTransport } from "./webdav";
 import { electronDavFetch } from "./webdav-fetch";
 
@@ -28,6 +29,7 @@ export function createDesktopDeviceSync(
     command(command: CommandEnvelope): Promise<CommandResult>;
     workspaceDirectory(): Promise<string | null>;
     busy(): boolean;
+    models: ModelSyncPort;
   }
 ) {
   const request = async (
@@ -56,30 +58,33 @@ export function createDesktopDeviceSync(
     credentials: new DesktopSyncCredentialStore(root),
     transport: (config, password) =>
       new WebDavSyncTransport(config, password, electronDavFetch),
-    workspace: {
-      initialization: initialization.initialization,
-      list: async () =>
-        DeviceSyncInventorySchema.parse(await request({ operation: "list" })),
-      validate: async (item) => {
-        await request({ operation: "validate", item });
+    workspace: withModelConfigSync(
+      {
+        initialization: initialization.initialization,
+        list: async () =>
+          DeviceSyncInventorySchema.parse(await request({ operation: "list" })),
+        validate: async (item) => {
+          await request({ operation: "validate", item });
+        },
+        recover: async () => {
+          await initialization.recover();
+        },
+        apply: async (key, expected, next) => {
+          if (options.busy())
+            throw new Error("作品正在生成或保存，请完成后再同步。");
+          const workspaceDirectory = await options.workspaceDirectory();
+          if (!workspaceDirectory) throw new Error("请先选择本机工作目录。");
+          await request({
+            operation: "apply",
+            key,
+            expected,
+            next,
+            workspaceDirectory
+          });
+        }
       },
-      recover: async () => {
-        await initialization.recover();
-      },
-      apply: async (key, expected, next) => {
-        if (options.busy())
-          throw new Error("作品正在生成或保存，请完成后再同步。");
-        const workspaceDirectory = await options.workspaceDirectory();
-        if (!workspaceDirectory) throw new Error("请先选择本机工作目录。");
-        await request({
-          operation: "apply",
-          key,
-          expected,
-          next,
-          workspaceDirectory
-        });
-      }
-    }
+      options.models
+    )
   });
 }
 export function registerDeviceSyncIpc(

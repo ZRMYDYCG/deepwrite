@@ -25,7 +25,8 @@ export const syncKindSchema = z.enum([
   "material-library",
   "skill-library",
   "material-group",
-  "skill-group"
+  "skill-group",
+  "model-config"
 ]);
 export const syncConfigSchema = z
   .object({

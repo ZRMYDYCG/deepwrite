@@ -9,6 +9,8 @@ export * from "./portable-book";
 export * from "./preview";
 export * from "./dependencies";
 export * from "./validation";
+export * from "./model-config";
+export * from "./secret-protection";
 export * from "./changes";
 
 export * from "./initialization";

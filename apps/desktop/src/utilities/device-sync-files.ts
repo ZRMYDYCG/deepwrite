@@ -5,8 +5,10 @@ import {
   CurrentBookProjectManifestSchema,
   LongProjectManifestSchema,
   LongWorkspaceIndexSnapshotSchema,
+  assertProjectSyncItem,
   checkedSyncItem,
   safeSyncFile,
+  type ProjectSyncItem,
   SyncItemValidationError,
   type SyncItem
 } from "@deepwrite/contracts";
@@ -51,7 +53,10 @@ function requiredPaths(value: unknown): string[] {
     return [value.path];
   return Object.values(value).flatMap(requiredPaths);
 }
-export function validateDesktopSyncItem(raw: SyncItem): void {
+export function validateDesktopSyncItem(
+  raw: SyncItem
+): asserts raw is ProjectSyncItem {
+  assertProjectSyncItem(raw);
   const item = checkedSyncItem(raw);
   const decoded: unknown = JSON.parse(item.files["deepwrite.json"] ?? "null");
   const manifest =

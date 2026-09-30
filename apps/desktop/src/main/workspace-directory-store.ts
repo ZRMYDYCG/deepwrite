@@ -11,7 +11,10 @@ import {
   WorkspaceDirectorySettingsSchema,
   type WorkspaceDirectorySettings
 } from "@deepwrite/contracts";
-import { assertOutsideInstallationDirectory } from "./installation-directory-guard";
+import {
+  assertOutsideInstallationDirectory,
+  overlapsInstallationDirectory
+} from "./installation-directory-guard";
 
 interface DiskWorkspaceDirectorySettings {
   version: 1;
@@ -36,7 +39,32 @@ export class WorkspaceDirectoryStore {
     );
   }
 
+  /**
+   * The saved path is re-checked on every read, not only when it is chosen: it
+   * may predate the installation-directory rule, or the application may have
+   * been moved or reinstalled around it since. A path that now overlaps the
+   * installation directory is treated as unset so nothing is ever written there.
+   */
   async list(): Promise<WorkspaceDirectorySettings> {
+    const persisted = await this.readPersisted();
+    return persisted.path && (await this.overlapsInstallation(persisted.path))
+      ? { path: null }
+      : persisted;
+  }
+
+  /** The saved path that `list()` currently refuses to use, if any. */
+  async rejectedPath(): Promise<string | null> {
+    const { path } = await this.readPersisted();
+    return path && (await this.overlapsInstallation(path)) ? path : null;
+  }
+
+  private overlapsInstallation(path: string): Promise<boolean> {
+    return this.installDirectory
+      ? overlapsInstallationDirectory(path, this.installDirectory)
+      : Promise.resolve(false);
+  }
+
+  private async readPersisted(): Promise<WorkspaceDirectorySettings> {
     await this.writeChain;
     try {
       const raw = JSON.parse(

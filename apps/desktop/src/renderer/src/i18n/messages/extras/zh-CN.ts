@@ -186,7 +186,14 @@ export default {
     connectContinue: "连接并继续",
     syncContents: "同步内容",
     scopeDescription:
-      "按创作空间、技能库和素材库管理。关闭只暂停本机同步，不删除任何内容。作品绑定的技能库和素材库也需要加入。",
+      "按创作空间、技能库、素材库和模型配置管理，可按类别全选或收起。关闭只暂停本机同步，不删除任何内容。作品绑定的技能库和素材库也需要加入。",
+    modelConfig: "模型配置",
+    modelConfigNote:
+      "同步自定义模型的名称、接口地址、参数和 API Key；Key 会随模型一起存入你自己的网盘，本机只加密保存且界面只显示末尾几位。DeepWrite 托管模型不参与同步。",
+    selectAll: "全选",
+    selectAllGroup: "全选{category}",
+    expandGroup: "展开{category}",
+    collapseGroup: "收起{category}",
     enabledCount: "已启用 {enabled} / {total} 项",
     syncPaused: "已暂停同步",
     bothChanged: "两端都有修改",
@@ -201,7 +208,7 @@ export default {
     initializeSteps:
       "先在手机或另一台电脑上传全部作品和资料，再选择该设备。下载并校验完成后，才会要求确认替换。",
     initializeConsequences:
-      "本机全部作品和资料列表（包括暂停同步及本机独有的项目）与同步历史将被替换。旧作品目录和恢复信息保留；网盘连接、模型配置和密钥保留。",
+      "本机全部作品和资料列表（包括暂停同步及本机独有的项目）与同步历史将被替换。旧作品目录和恢复信息保留；网盘连接和密钥保留，自定义模型会按远端配置补充或更新，本机其他模型不会被删除。",
     sourceDevice: "来源设备",
     initializationSource: "初始化来源设备",
     noOtherDevices: "尚未发现其他设备",

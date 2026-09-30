@@ -39,7 +39,9 @@ const dynamicMessages = {
       target: string,
       restoreDefault: boolean
     ) =>
-      `当前位置：${source}\n目标位置：${target}\n\n将迁移历史记录、模型与加密密钥、智能体配置、偏好、用量、自定义字体及应用内保存的数据。已有外部作品保持原位。\n\n原目录会保留；迁移失败时继续使用原目录。${restoreDefault ? "目标默认目录中的旧数据会先保留为同级备份，不会被覆盖。" : ""}`
+      `当前位置：${source}\n目标位置：${target}\n\n将迁移历史记录、模型与加密密钥、智能体配置、偏好、用量、自定义字体及应用内保存的数据。已有外部作品保持原位。\n\n原目录会保留；迁移失败时继续使用原目录。${restoreDefault ? "目标默认目录中的旧数据会先保留为同级备份，不会被覆盖。" : ""}`,
+    workspaceRejectedDetails: (rejected: string, replacement: string) =>
+      `原工作目录与应用安装目录重叠（位于安装目录内，或包含安装目录）：\n${rejected}\n\n安装目录由安装程序管理，安装、更新或卸载都可能改动其中的内容。为避免作品丢失，已改用：\n${replacement}\n\n原目录中的文件没有被移动或删除。请把它们移到安装目录之外后，再到“设置 → 工作目录”重新选择。`
   },
   "en-US": {
     startupDetails: (
@@ -59,7 +61,9 @@ const dynamicMessages = {
       target: string,
       restoreDefault: boolean
     ) =>
-      `Current location: ${source}\nDestination: ${target}\n\nThis moves history, models and encrypted keys, agent settings, preferences, usage, custom fonts, and data saved within the app. Existing external projects stay in place.\n\nThe original folder is preserved and will remain in use if migration fails.${restoreDefault ? " Existing data at the default destination will be preserved in a sibling backup folder." : ""}`
+      `Current location: ${source}\nDestination: ${target}\n\nThis moves history, models and encrypted keys, agent settings, preferences, usage, custom fonts, and data saved within the app. Existing external projects stay in place.\n\nThe original folder is preserved and will remain in use if migration fails.${restoreDefault ? " Existing data at the default destination will be preserved in a sibling backup folder." : ""}`,
+    workspaceRejectedDetails: (rejected: string, replacement: string) =>
+      `The previous workspace folder overlaps the application installation folder (it is inside it or contains it):\n${rejected}\n\nThe installation folder is managed by the installer, and installing, updating or uninstalling can change what is inside it. To protect your work DeepWrite is now using:\n${replacement}\n\nNothing in the previous folder was moved or deleted. Move it outside the installation folder, then choose it again in Settings → Workspace folder.`
   }
 };
 

@@ -78,7 +78,8 @@ export function createDesktopServices(options: DesktopServiceOptions) {
     deviceSyncService: createDesktopDeviceSync(userDataPath, {
       workspaceDirectory,
       command,
-      busy: options.busy
+      busy: options.busy,
+      models: modelConfigStore
     }),
     marketplaceClient: new MarketplaceClient(userDataPath, {
       loadCatalogSnapshot: async () => {

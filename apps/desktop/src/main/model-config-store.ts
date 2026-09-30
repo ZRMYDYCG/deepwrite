@@ -2,6 +2,8 @@ import {
   ModelConfigInputSchema,
   ModelSettingsInputSchema,
   type AgentProviderRuntimeConfig,
+  type SyncedModelChange,
+  type SyncModelEntry,
   type ModelConfigInput,
   type OfficialModelBalance,
   type ModelSettings,
@@ -31,6 +33,10 @@ import {
   setFreeModelEnabled,
   setOfficialModelEnabled
 } from "./model-config-mutations";
+import {
+  applySyncedModelChanges,
+  customSyncEntries
+} from "./model-config-sync";
 import {
   decryptModelKey,
   officialTokenSuffix,
@@ -161,6 +167,15 @@ export class ModelConfigStore {
     return publicSettings(
       await this.update({}, (state) => editModelSettings(input, state))
     );
+  }
+
+  async listSyncModels(): Promise<SyncModelEntry[]> {
+    const { settings, secrets } = await this.update();
+    return customSyncEntries(settings.models, secrets);
+  }
+
+  async applySyncedModels(changes: SyncedModelChange[]): Promise<void> {
+    await this.update({}, (state) => applySyncedModelChanges(state, changes));
   }
 
   async resolve(

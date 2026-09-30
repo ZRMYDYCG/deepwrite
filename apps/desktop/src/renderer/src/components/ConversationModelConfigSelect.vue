@@ -128,7 +128,7 @@ function positionMenu(): void {
   const rect = trigger.value.getBoundingClientRect();
   const viewportMargin = 8;
   const gap = 7;
-  const width = Math.min(288, window.innerWidth - viewportMargin * 2);
+  const width = Math.min(304, window.innerWidth - viewportMargin * 2);
   const models = menu.value?.querySelector<HTMLElement>(
     ".conversation-model-config-models"
   );
@@ -149,7 +149,7 @@ function positionMenu(): void {
     spaceBelow < Math.min(height, 190) && spaceAbove > spaceBelow;
   const maxHeight = Math.max(
     120,
-    Math.min(440, opensUpward ? spaceAbove : spaceBelow)
+    Math.min(520, opensUpward ? spaceAbove : spaceBelow)
   );
   const renderedHeight = Math.min(height, maxHeight);
   const left = Math.min(
@@ -395,7 +395,6 @@ onBeforeUnmount(() => {
                 }}</span>
                 <AppIcon name="chevron" :size="16" />
               </button>
-              <div class="conversation-model-config-divider" />
               <button
                 class="conversation-model-config-network"
                 type="button"
@@ -406,9 +405,6 @@ onBeforeUnmount(() => {
                 @click="emit('toggleWebSearch', !webSearchEnabled)"
               >
                 <span>{{ t("webAccess") }}</span>
-                <span class="conversation-model-config-value">
-                  {{ webSearchEnabled ? t("on") : t("off") }}
-                </span>
                 <span
                   class="conversation-model-config-switch"
                   :class="{ 'is-active': webSearchEnabled }"

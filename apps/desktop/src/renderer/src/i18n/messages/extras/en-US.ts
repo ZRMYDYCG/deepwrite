@@ -200,7 +200,14 @@ export default {
     connectContinue: "Connect and continue",
     syncContents: "Sync contents",
     scopeDescription:
-      "Manage your writing space, skills, and materials. Turning an item off only pauses sync on this device; nothing is deleted. Include any skill and material libraries linked to your works.",
+      "Manage your writing space, skills, materials, and model settings. Select all or collapse each category. Turning an item off only pauses sync on this device; nothing is deleted. Include any skill and material libraries linked to your works.",
+    modelConfig: "Model settings",
+    modelConfigNote:
+      "Custom models sync with their name, endpoint, parameters, and API key. The key is stored with the model in your own cloud drive, kept encrypted on this device, and shown masked. DeepWrite-managed models are not synced.",
+    selectAll: "Select all",
+    selectAllGroup: "Select all in {category}",
+    expandGroup: "Expand {category}",
+    collapseGroup: "Collapse {category}",
     enabledCount: "{enabled} / {total} items enabled",
     syncPaused: "Sync paused",
     bothChanged: "Changed on both devices",
@@ -215,7 +222,7 @@ export default {
     initializeSteps:
       "Upload all works and reference libraries from your phone or another computer, then select that device. You will confirm replacement after the download is verified.",
     initializeConsequences:
-      "All local work and reference lists, including paused and local-only items, and sync history will be replaced. Old work folders and recovery information are retained, along with cloud connections, model settings, and keys.",
+      "All local work and reference lists, including paused and local-only items, and sync history will be replaced. Old work folders and recovery information are retained, along with cloud connections and keys. Custom models are added or updated from the remote settings; other local models are not deleted.",
     sourceDevice: "Source device",
     initializationSource: "Initialization source device",
     noOtherDevices: "No other devices found",

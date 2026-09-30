@@ -48,6 +48,7 @@ export default {
   migrationCancelledDetail:
     "当前数据尚未保存，迁移和重启已取消。请完成保存后重试。",
   migrationIncomplete: "用户数据迁移未完成",
+  workspaceRejected: "工作目录已更换",
   startupFailure: "DeepWrite 无法启动",
   downloadTeam: "下载团队",
   installTeam: "安装团队",

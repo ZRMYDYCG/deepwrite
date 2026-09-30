@@ -76,12 +76,14 @@ async function connectPhone() {
     uiMessage.error(t("deviceSync.connectionCodeFailed"));
   }
 }
-async function toggle(key: string, included: boolean) {
+async function toggle(keys: string[], included: boolean) {
   const config = status.value?.config;
   if (!config) return;
   const excluded = new Set(config.excludedKeys);
-  if (included) excluded.delete(key);
-  else excluded.add(key);
+  for (const key of keys) {
+    if (included) excluded.delete(key);
+    else excluded.add(key);
+  }
   await run({
     operation: "configure",
     config: { ...config, excludedKeys: [...excluded] }
@@ -208,7 +210,8 @@ async function restore() {
         v-if="tab === 'content'"
         :items="status.items"
         :pending="pending"
-        @toggle="toggle"
+        @toggle="(key, included) => toggle([key], included)"
+        @toggle-many="toggle"
       />
       <section v-if="tab === 'devices'" class="sync-card">
         <h2>{{ t("deviceSync.connectedDevices") }}</h2>

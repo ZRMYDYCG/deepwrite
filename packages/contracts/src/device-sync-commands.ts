@@ -85,7 +85,7 @@ export const DeviceSyncCatalogRegistrySchema = z
       z
         .object({
           id: z.string(),
-          domain: syncKindSchema.exclude(["long-book"]),
+          domain: syncKindSchema.exclude(["long-book", "model-config"]),
           projectDirectory: z.string()
         })
         .passthrough()

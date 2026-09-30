@@ -2,11 +2,13 @@ import { createHash, randomUUID } from "node:crypto";
 import { lstat, mkdir, readFile, rename, rm } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import {
+  assertProjectSyncItem,
   DeviceSyncIntentSchema,
   DeviceSyncTitleSchema,
   sameSyncContent,
   stableSyncJson,
   syncKey,
+  type ProjectSyncItem,
   type SyncItem
 } from "@deepwrite/contracts";
 import { writeSyncJson as atomicWriteText } from "../extras/device-sync/atomic-json";
@@ -62,6 +64,7 @@ export class DesktopSyncWorkspace {
     const identity = intent.item ?? intent.previous;
     if (!identity || syncKey(identity) !== intent.key)
       throw new Error("同步恢复身份不一致。");
+    assertProjectSyncItem(identity);
     if (intent.item) {
       validateDesktopSyncItem(intent.item);
       await mkdir(intent.root, { recursive: true });
@@ -142,7 +145,7 @@ export class DesktopSyncWorkspace {
     await rename(this.intentPath, join(recovery, `${randomUUID()}.json`));
     throw new Error("正文已发生新修改，请重新同步。");
   }
-  private async register(root: string, item: SyncItem): Promise<void> {
+  private async register(root: string, item: ProjectSyncItem): Promise<void> {
     if (item.kind === "long-book") await this.long.openAtPath(root);
     else await (await this.catalog()).openCatalogProject(root, item.kind);
   }
@@ -208,6 +211,7 @@ export class DesktopSyncWorkspace {
       throw new Error("正文已发生新修改，请重新同步。");
     const identity = next ?? local;
     if (!identity) return;
+    assertProjectSyncItem(identity);
     const parent =
       identity.kind === "book" || identity.kind === "long-book"
         ? "books"

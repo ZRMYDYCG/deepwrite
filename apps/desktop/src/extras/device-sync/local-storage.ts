@@ -4,7 +4,10 @@ import { writeSyncJson } from "./atomic-json";
 import { safeStorage } from "electron";
 import {
   DeviceSyncSecretSchema,
+  openSyncMetadata,
+  sealSyncMetadata,
   syncMetadataSchema,
+  type SyncSecretSealer,
   type SyncCredentialStore,
   type SyncMetadata,
   type SyncMetadataStore
@@ -24,6 +27,31 @@ async function readOptional(path: string): Promise<string | null> {
     throw error;
   }
 }
+function requireSecureStorage(): void {
+  if (
+    !safeStorage.isEncryptionAvailable() ||
+    (process.platform === "linux" &&
+      safeStorage.getSelectedStorageBackend() === "basic_text")
+  )
+    throw new Error("系统安全存储不可用。");
+}
+
+/** API keys inside sync state are encrypted with the OS secure storage at rest. */
+const secretSealer: SyncSecretSealer = {
+  async seal(content) {
+    requireSecureStorage();
+    return safeStorage.encryptString(content).toString("base64");
+  },
+  async open(sealed) {
+    try {
+      requireSecureStorage();
+      return safeStorage.decryptString(Buffer.from(sealed, "base64"));
+    } catch {
+      return null;
+    }
+  }
+};
+
 export class DesktopSyncMetadataStore implements SyncMetadataStore {
   private readonly path: string;
   constructor(root: string) {
@@ -31,13 +59,19 @@ export class DesktopSyncMetadataStore implements SyncMetadataStore {
   }
   async read(): Promise<SyncMetadata | null> {
     const value = await readOptional(this.path);
-    return value === null ? null : syncMetadataSchema.parse(JSON.parse(value));
+    return value === null
+      ? null
+      : openSyncMetadata(
+          syncMetadataSchema.parse(JSON.parse(value)),
+          secretSealer
+        );
   }
   async write(value: SyncMetadata): Promise<void> {
-    await writeSyncJson(
-      this.path,
-      JSON.stringify(syncMetadataSchema.parse(value))
+    const sealed = await sealSyncMetadata(
+      syncMetadataSchema.parse(value),
+      secretSealer
     );
+    await writeSyncJson(this.path, JSON.stringify(sealed));
   }
 }
 export class DesktopSyncCredentialStore implements SyncCredentialStore {
@@ -46,12 +80,7 @@ export class DesktopSyncCredentialStore implements SyncCredentialStore {
     this.path = join(root, "device-sync-secret.json");
   }
   private check(): void {
-    if (
-      !safeStorage.isEncryptionAvailable() ||
-      (process.platform === "linux" &&
-        safeStorage.getSelectedStorageBackend() === "basic_text")
-    )
-      throw new Error("系统安全存储不可用。");
+    requireSecureStorage();
   }
   async get(): Promise<string | null> {
     const value = await readOptional(this.path);

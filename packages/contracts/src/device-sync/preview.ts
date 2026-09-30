@@ -36,7 +36,8 @@ const LABELS: Record<string, string> = {
   characterState: "人物状态",
   wordCountRequirement: "字数要求",
   format: "格式",
-  path: "文档位置"
+  path: "文档位置",
+  apiKey: "API Key"
 };
 function record(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);

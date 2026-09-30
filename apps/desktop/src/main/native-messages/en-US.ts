@@ -49,6 +49,7 @@ export default {
   migrationCancelledDetail:
     "Your current data has not been saved. Migration and restart were canceled. Save your work and try again.",
   migrationIncomplete: "User Data Migration Incomplete",
+  workspaceRejected: "Workspace Folder Changed",
   startupFailure: "DeepWrite Could Not Start",
   downloadTeam: "Download Team",
   installTeam: "Install Team",

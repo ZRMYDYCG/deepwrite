@@ -1,4 +1,4 @@
-import { nativeText, setNativeLanguage } from "./native-i18n";
+import { nativeMessages, nativeText, setNativeLanguage } from "./native-i18n";
 import { handleSessionCommands } from "./ipc/session-commands";
 import { handleBookTemplateCommands } from "./ipc/book-template-commands";
 import { handleCatalogProjectCommands } from "./ipc/catalog-project-commands";
@@ -2284,11 +2284,22 @@ if (!hasSingleInstanceLock) {
       });
     }
     installAppearanceFontProtocolHandler(appearanceService);
-    await desktopStartup.step("workspace", () =>
-      services.workspaceDirectoryStore.initializeDefault(
-        app.getPath("documents")
-      )
-    );
+    await desktopStartup.step("workspace", async () => {
+      const store = services.workspaceDirectoryStore;
+      const rejected = await store.rejectedPath();
+      const current = await store.initializeDefault(app.getPath("documents"));
+      if (rejected && current.path) {
+        void dialog.showMessageBox({
+          type: "warning",
+          title: nativeText("workspaceRejected"),
+          message: nativeText("workspaceRejected"),
+          detail: nativeMessages().workspaceRejectedDetails(
+            rejected,
+            current.path
+          )
+        });
+      }
+    });
     await desktopStartup.step("appearance", loadAndSyncNativeAppearanceChrome);
     await desktopStartup.step("settings", async () => {
       syncGeneralSettings(

@@ -8,6 +8,8 @@ import {
   stableSyncJson,
   syncDependencies,
   syncKey,
+  projectSyncItems,
+  type ProjectSyncItem,
   type SyncItem
 } from "@deepwrite/contracts";
 import { FolderCatalogStore } from "./folder-catalog-store";
@@ -32,7 +34,7 @@ import {
 async function stageProjects(
   stateRoot: string,
   projectsRoot: string,
-  items: SyncItem[]
+  items: ProjectSyncItem[]
 ) {
   const catalog = new FolderCatalogStore({ userDataPath: stateRoot });
   const long = new LongWorkspaceService({ userDataPath: stateRoot });
@@ -98,7 +100,7 @@ export async function replaceDesktopInitialization(
     workspaceDirectory: string;
   }
 ): Promise<void> {
-  const { items } = input;
+  const items = projectSyncItems(input.items);
   if (!items.length)
     throw new Error("来源设备没有可下载的作品或资料，未清除本机数据。");
   for (const item of items) validateDesktopSyncItem(item);

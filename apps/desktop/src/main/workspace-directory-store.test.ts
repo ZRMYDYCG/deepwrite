@@ -5,6 +5,7 @@ import {
   realpath,
   rm,
   stat,
+  symlink,
   writeFile
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -128,16 +129,88 @@ describe("WorkspaceDirectoryStore", () => {
     const installation = join(root, "application");
     const safe = join(root, "books");
     const nested = join(installation, "books");
+    const deeplyNested = join(installation, "a", "b", "c", "books");
+    const viaLink = join(root, "shortcut");
     await Promise.all([
       mkdir(userData),
       mkdir(nested, { recursive: true }),
+      mkdir(deeplyNested, { recursive: true }),
       mkdir(safe)
     ]);
+    await symlink(installation, viaLink, "junction");
     const store = new WorkspaceDirectoryStore(userData, installation);
     await store.save(safe);
     await expect(store.save(installation)).rejects.toThrow("安装目录");
     await expect(store.save(nested)).rejects.toThrow("安装目录");
+    await expect(store.save(deeplyNested)).rejects.toThrow("安装目录");
+    await expect(store.save(join(viaLink, "a", "b"))).rejects.toThrow(
+      "安装目录"
+    );
     await expect(store.save(root)).rejects.toThrow("安装目录");
     expect((await store.list()).path).toBe(await realpath(safe));
+  });
+
+  it("stops using a saved workspace that now overlaps the installation directory", async () => {
+    const root = await realpath(
+      await mkdtemp(join(tmpdir(), "deepwrite-workspace-saved-overlap-"))
+    );
+    temporaryRoots.push(root);
+    const userData = join(root, "user-data");
+    const installation = join(root, "application");
+    const inside = join(installation, "a", "b", "books");
+    const documents = join(root, "Documents");
+    await Promise.all([
+      mkdir(userData),
+      mkdir(inside, { recursive: true }),
+      mkdir(documents)
+    ]);
+    // Saved by an older version, before the installation rule existed.
+    await new WorkspaceDirectoryStore(userData).save(inside);
+
+    const store = new WorkspaceDirectoryStore(userData, installation);
+    await expect(store.list()).resolves.toEqual({ path: null });
+    await expect(store.rejectedPath()).resolves.toBe(inside);
+
+    const initialized = await store.initializeDefault(documents);
+    const fallback = await realpath(join(documents, "DeepWriteBooks"));
+    expect(initialized).toEqual({ path: fallback });
+    await expect(store.list()).resolves.toEqual({ path: fallback });
+    await expect(store.rejectedPath()).resolves.toBeNull();
+    expect((await stat(inside)).isDirectory()).toBe(true);
+  });
+
+  it("stops using a saved workspace once the application is installed inside it", async () => {
+    const root = await realpath(
+      await mkdtemp(join(tmpdir(), "deepwrite-workspace-installed-inside-"))
+    );
+    temporaryRoots.push(root);
+    const userData = join(root, "user-data");
+    const workspace = join(root, "books");
+    const installation = join(workspace, "tools", "DeepWrite");
+    await Promise.all([
+      mkdir(userData),
+      mkdir(installation, { recursive: true })
+    ]);
+    await new WorkspaceDirectoryStore(userData).save(workspace);
+
+    const store = new WorkspaceDirectoryStore(userData, installation);
+    await expect(store.list()).resolves.toEqual({ path: null });
+    await expect(store.rejectedPath()).resolves.toBe(workspace);
+  });
+
+  it("keeps a saved workspace that stays outside the installation directory", async () => {
+    const root = await realpath(
+      await mkdtemp(join(tmpdir(), "deepwrite-workspace-saved-outside-"))
+    );
+    temporaryRoots.push(root);
+    const userData = join(root, "user-data");
+    const installation = join(root, "application");
+    const workspace = join(root, "application-books");
+    await Promise.all([mkdir(userData), mkdir(installation), mkdir(workspace)]);
+    await new WorkspaceDirectoryStore(userData).save(workspace);
+
+    const store = new WorkspaceDirectoryStore(userData, installation);
+    await expect(store.list()).resolves.toEqual({ path: workspace });
+    await expect(store.rejectedPath()).resolves.toBeNull();
   });
 });
