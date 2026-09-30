@@ -2,20 +2,21 @@
   "schemaVersion": 1,
   "enabled": true,
   "channel": "stable",
-  "version": "1.5.3",
-  "title": "DeepWrite 1.5.3",
-  "publishedAt": "2026-09-19T19:33:50+08:00",
+  "version": "1.6.0",
+  "title": "DeepWrite 1.6.0",
+  "publishedAt": "2026-09-30T19:04:34+08:00",
   "releaseNotes": [
-    "优化会话处理状态、工作组与子智能体时间线，支持复制子智能体内容。",
-    "改善用户回答提交后的界面响应，并完善 OpenCode 请求兼容性。",
-    "新增 Qwen Token Plan 支持，优化模型批量配置、拆书分析、文档附件与设备同步体验。",
-    "提供 Windows x64、macOS Apple Silicon / Intel 和 Linux x64 测试安装包；Linux 提供 AppImage 与 DEB。",
-    "完整校验通过，共 3522 项测试通过；macOS 两种架构均通过安装包内启动及会话重启验证。",
+    "完善创作空间、聊天与工作组体验，新增角色扮演聊天、书籍模板、正文格式和长篇导出。",
+    "新增界面多语言、语音输入与存储设置，优化模型配置、OpenCode 兼容性和设备同步安全性。",
+    "支持批量拆书分析与模型容量编辑，改进桌面启动和窗口体验。",
+    "修复连续启动安装包时语音测试请求 ID 重复、语言状态未恢复等冒烟误报，并增加回归测试。",
+    "提供 Windows x64、macOS Apple Silicon / Intel 测试安装包。",
+    "完整校验通过，共 3961 项测试通过；macOS Apple Silicon 通过安装包内启动及会话重启验证。Intel 包完成 DMG、签名和包内容校验，未做运行验证。",
     "macOS 测试包采用 ad-hoc 签名，未进行 Apple 公证；下载后可能触发系统安全提示。",
-    "Windows 和 Linux 已完成构建与包内容校验，未完成目标平台运行验证。"
+    "Windows 已完成构建与包内容校验，未完成目标平台运行验证。"
   ],
   "mandatory": false,
   "minimumSupportedVersion": "1.0.0",
-  "releasePage": "https://github.com/swjybky/deepwrite/releases/tag/v1.5.3",
+  "releasePage": "https://github.com/swjybky/deepwrite/releases/tag/v1.6.0",
   "feedUrl": "https://github.com/swjybky/deepwrite/releases/latest/download"
 }
