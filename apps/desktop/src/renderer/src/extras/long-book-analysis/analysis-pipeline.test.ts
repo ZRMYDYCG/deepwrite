@@ -127,7 +127,7 @@ describe("long-book analysis pipeline checkpoints", () => {
     controller.presets.value = [preset];
     try {
       await controller.start({
-        presetId: preset.id,
+        presetIds: [preset.id],
         startOrder: 1,
         endOrder: 1
       });
@@ -135,16 +135,12 @@ describe("long-book analysis pipeline checkpoints", () => {
       expect(() => controller.resetWorkspace()).toThrow();
       expect(controller.source.value).toEqual(source);
       await controller.stop();
-      controller.result.value = {
-        name: "临时结果",
-        description: "测试",
-        content: "待清空"
-      };
       controller.resetWorkspace();
       expect(controller.source.value).toBeNull();
-      expect(controller.result.value).toBeNull();
+      expect(controller.batch.items.value).toEqual([]);
+      expect(controller.batch.results.value).toEqual([]);
       expect(controller.status.value).toBe("idle");
-      expect(controller.canRetry.value).toBe(false);
+      expect(controller.batch.canRetry.value).toBe(false);
       expect(controller.selectedModelId.value).toBe(model.id);
     } finally {
       controller.dispose();
@@ -157,21 +153,88 @@ describe("long-book analysis pipeline checkpoints", () => {
     controller.source.value = source;
     controller.presets.value = [preset];
     try {
-      expect(controller.canRetry.value).toBe(false);
+      expect(controller.batch.canRetry.value).toBe(false);
       await controller.start({
-        presetId: preset.id,
+        presetIds: [preset.id],
         startOrder: 1,
         endOrder: 1
       });
       const first = await waitForPrompt(prompts, 1);
-      expect(controller.canRetry.value).toBe(false);
+      expect(controller.batch.canRetry.value).toBe(false);
       await controller.stop();
       await vi.waitFor(() => expect(controller.status.value).toBe("stopped"));
-      expect(controller.canRetry.value).toBe(true);
-      await controller.retry();
+      expect(controller.batch.canRetry.value).toBe(true);
+      expect(controller.batch.retryFailed()).toBe(true);
       const resumed = await waitForPrompt(prompts, 2);
       expect(longInput(resumed).jobId).toBe(longInput(first).jobId);
-      expect(controller.canRetry.value).toBe(false);
+      expect(controller.batch.canRetry.value).toBe(false);
+    } finally {
+      controller.dispose();
+    }
+  });
+  it("runs each selected preset as its own pipeline and keeps every result", async () => {
+    const { api, model, prompts } = fixture();
+    const character: LongBookAnalysisPreset = {
+      ...preset,
+      id: "character",
+      name: "人物",
+      output: { domain: "material", kind: "character", stageId: "character" }
+    };
+    const controller = useLongBookAnalysis({ api: () => api });
+    controller.setConfiguredModels([model]);
+    controller.source.value = source;
+    controller.presets.value = [preset, character];
+    try {
+      await expect(
+        controller.start({
+          presetIds: ["missing"],
+          startOrder: 1,
+          endOrder: 1
+        })
+      ).rejects.toThrow("预设");
+      await controller.start({
+        presetIds: [character.id, preset.id],
+        startOrder: 1,
+        endOrder: 1
+      });
+      await waitForPrompt(prompts, 2);
+      expect(prompts.map((request) => request.task)).toMatchObject([
+        { profileId: "character" },
+        { profileId: "plot-structure" }
+      ]);
+      expect(controller.batch.counts.value.running).toBe(2);
+      for (const batch of prompts.slice(0, 2)) {
+        controller.handleEvent(
+          outputEvent(batch, {
+            kind: "book-analysis-note",
+            unitId: longInput(batch).unitId,
+            note: { text: "章节笔记。" }
+          })
+        );
+        controller.handleEvent(
+          event("agent.message_completed", batch, { content: "批次完成。" })
+        );
+      }
+      await waitForPrompt(prompts, 4);
+      for (const final of prompts.slice(2, 4)) {
+        const name =
+          final.task.profileId === "character" ? "人物结果" : "剧情结果";
+        controller.handleEvent(
+          outputEvent(final, {
+            kind: "book-analysis-result",
+            unitId: longInput(final).unitId,
+            result: { name, description: "用途。", content: `# ${name}` }
+          })
+        );
+        controller.handleEvent(
+          event("agent.message_completed", final, { content: "完成。" })
+        );
+      }
+      await vi.waitFor(() => expect(controller.status.value).toBe("completed"));
+      expect(
+        controller.batch.results.value.map((entry) => entry.result.name)
+      ).toEqual(["人物结果", "剧情结果"]);
+      expect(controller.batch.context.value).toBe("测试长篇.txt · 第 1–1 章");
     } finally {
       controller.dispose();
     }
@@ -179,7 +242,6 @@ describe("long-book analysis pipeline checkpoints", () => {
   it("keeps a failed batch checkpoint and retries through the final result", async () => {
     const { pipeline, prompts, state } = fixture();
     pipeline.start(source, preset, {
-      presetId: preset.id,
       startOrder: 1,
       endOrder: 1,
       modelId: "model-1",
@@ -237,7 +299,6 @@ describe("long-book analysis pipeline checkpoints", () => {
   it("aborts the active run and preserves it for resume", async () => {
     const { pipeline, prompts, state, abort } = fixture();
     pipeline.start(source, preset, {
-      presetId: preset.id,
       startOrder: 1,
       endOrder: 1,
       modelId: "model-1"
@@ -255,7 +316,6 @@ describe("long-book analysis pipeline checkpoints", () => {
   it("runs only the selected preset without requiring a target library", async () => {
     const { pipeline, prompts, state } = fixture();
     pipeline.start(source, preset, {
-      presetId: preset.id,
       startOrder: 1,
       endOrder: 1,
       modelId: "model-1"

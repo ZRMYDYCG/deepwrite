@@ -8,6 +8,9 @@ import { chatNormal, chatProject, chatRoleplay } from "./chat/profile-catalogs";
 import longCharacterPrompt from "./prompts/long-book-analysis/character.txt?raw";
 import longPlotStructurePrompt from "./prompts/long-book-analysis/plot-structure.txt?raw";
 import longStylePrompt from "./prompts/long-book-analysis/style.txt?raw";
+import shortPlotStructurePrompt from "./prompts/short-book-analysis/plot-structure.txt?raw";
+import shortCharacterPrompt from "./prompts/short-book-analysis/character.txt?raw";
+import shortStylePrompt from "./prompts/short-book-analysis/style.txt?raw";
 
 export type StoredExtrasAgentProfile<A extends ExtrasAgentId> = Omit<
   ExtrasAgentProfile<A>,
@@ -19,6 +22,8 @@ export interface ExtrasAgentProfileCatalog<A extends ExtrasAgentId> {
   agentId: A;
   defaults: readonly StoredExtrasAgentProfile<A>[];
   missingProfileMessage: string;
+  /** One-time replacements for built-in prompts saved by earlier releases. */
+  promptUpdates?: readonly { profileId: string; revision: number }[];
   /**
    * The settings file this agent used before the unified store, relative to
    * userData. It is read once, when the unified file does not exist yet, and
@@ -68,27 +73,24 @@ const shortBookAnalysis: ExtrasAgentProfileCatalog<"short-book-analysis"> = {
       selectionMode: "single",
       id: "plot-structure",
       name: "剧情结构",
-      description: "拆解短篇冲突、反转、节奏与完整结构。",
-      systemPrompt:
-        "你是短篇拆书分析师。分析整篇的开头钩子、核心冲突、情节递进、反转、高潮、结尾和节奏，提炼可复用结构。不要按章节拆分。多本输入时比较共性与差异，并标明书名证据。",
+      description: "逆向拆解短篇核心梗、情绪曲线与可复用剧情蓝图。",
+      systemPrompt: shortPlotStructurePrompt,
       output: { domain: "material", kind: "plot", stageId: "pacing" }
     },
     {
       selectionMode: "single",
       id: "character",
       name: "人物",
-      description: "拆解人物目标、关系、功能、选择和阶段性弧光。",
-      systemPrompt:
-        "你是短篇拆书分析师。基于完整短篇，分析人物目标、冲突、关系、关键选择及人物弧光，提炼可复用的人物设计方法。多本输入时比较共性与差异，并标明书名证据。",
+      description: "逆向拆解短篇人物的欲望、恐惧、关系压制与情绪反噬。",
+      systemPrompt: shortCharacterPrompt,
       output: { domain: "material", kind: "character", stageId: "character" }
     },
     {
       selectionMode: "single",
       id: "style",
       name: "文风",
-      description: "提炼适用于短篇写作的行文规则与检查清单。",
-      systemPrompt:
-        "你是短篇拆书分析师。分析完整短篇的叙述视角、句式、用词、对白和描写，提炼可执行的写作规则及检查清单。多本输入时比较共性与差异，并标明书名证据。避免大段照抄正文。",
+      description: "逆向提取短篇语言指纹、情绪节奏与可复用文风技能。",
+      systemPrompt: shortStylePrompt,
       output: {
         domain: "skill",
         kind: "style",
@@ -96,6 +98,7 @@ const shortBookAnalysis: ExtrasAgentProfileCatalog<"short-book-analysis"> = {
       }
     }
   ],
+  promptUpdates: [{ profileId: "plot-structure", revision: 1 }],
   missingProfileMessage: "选择的短篇拆书预设已不存在，请刷新后重试。",
   legacy: {
     path: ["config", "short-book-analysis-presets.json"],

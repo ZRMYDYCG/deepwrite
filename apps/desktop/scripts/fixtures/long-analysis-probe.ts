@@ -42,6 +42,47 @@ const preset: LongBookAnalysisPreset = {
   systemPrompt: "依据章节证据分析剧情。",
   output: { domain: "material", kind: "plot", stageId: "pacing" }
 };
+const presets: LongBookAnalysisPreset[] = [
+  preset,
+  {
+    id: "probe-character",
+    name: "人物",
+    description: "拆解人物目标、关系、功能、选择和阶段性弧光。",
+    systemPrompt: "依据章节证据分析人物。",
+    output: { domain: "material", kind: "character", stageId: "character" }
+  },
+  {
+    id: "probe-style",
+    name: "文风",
+    description: "提炼可直接交给分节写手执行的行文规则与检查清单。",
+    systemPrompt: "依据章节证据提炼文风。",
+    output: { domain: "skill", kind: "style", stageId: "expert_section_writer" }
+  }
+];
+const pageCatalog = {
+  materials: [
+    {
+      id: "probe-mixed",
+      title: "验证素材库",
+      materialKind: "mixed",
+      projectRevision: 3
+    }
+  ],
+  skills: [
+    {
+      id: "probe-skill",
+      title: "验证技能库",
+      skillKind: "style",
+      isBuiltin: false,
+      projectRevision: 5
+    }
+  ]
+} as unknown as CatalogSnapshot;
+const savedEntries: {
+  domain: string;
+  libraryId: string;
+  baseProjectRevision?: number;
+}[] = [];
 const source: LongBookAnalysisSource = {
   id: "long-probe-source",
   kind: "txt",
@@ -61,14 +102,22 @@ const source: LongBookAnalysisSource = {
 };
 const runtime = { provider: "test", model: "probe", mode: "provider" };
 let request: ExtrasAgentRunRequest | undefined;
+const requests: { request: ExtrasAgentRunRequest; runId: string }[] = [];
 let runCount = 0;
 let abortCount = 0;
 let imported = false;
 const api = {
+  catalog: {
+    createLibraryEntry: async (input: (typeof savedEntries)[number]) => {
+      savedEntries.push(input);
+      return {};
+    }
+  },
   extrasAgents: {
     run: async (input: ExtrasAgentRunRequest) => {
       request = input;
       runCount++;
+      requests.push({ request: input, runId: `long-probe-${runCount}` });
       return {
         sessionId: input.sessionId,
         runId: `long-probe-${runCount}`,
@@ -77,7 +126,7 @@ const api = {
       };
     },
     profiles: {
-      list: async () => ({ agentId: "long-book-analysis", profiles: [preset] })
+      list: async () => ({ agentId: "long-book-analysis", profiles: presets })
     }
   },
   longBookAnalysis: {
@@ -124,7 +173,7 @@ createApp({
     h(LongBookAnalysisPage, {
       controller: c,
       models: [model],
-      catalogSnapshot: null
+      catalogSnapshot: pageCatalog
     })
 }).mount("#app");
 const frame = async () => {
@@ -148,14 +197,18 @@ function button(text: string): HTMLButtonElement {
   check(found && !found.disabled, `缺少可用按钮：${text}`);
   return found;
 }
-function emit(type: string, payload: Record<string, unknown>): void {
-  check(request, "必须先通过开始按钮提交任务");
+function emit(
+  type: string,
+  payload: Record<string, unknown>,
+  target = requests.at(-1)
+): void {
+  check(target, "必须先通过开始按钮提交任务");
   c.handleEvent(
     createEnvelope(
       type,
       {
-        sessionId: request.sessionId,
-        runId: `long-probe-${runCount}`,
+        sessionId: target.request.sessionId,
+        runId: target.runId,
         messageId: "long-probe-message",
         runtime,
         ...payload
@@ -298,6 +351,143 @@ async function verifyResultTargets(): Promise<void> {
     host.remove();
   }
 }
+async function until(predicate: () => boolean, message: string) {
+  const start = Date.now();
+  while (!predicate()) {
+    if (Date.now() - start > 3000) throw new Error(message);
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  await frame();
+}
+function option(text: string): HTMLButtonElement {
+  const found = [
+    ...document.querySelectorAll<HTMLButtonElement>(".popup-select-option")
+  ].find(
+    (candidate) =>
+      candidate
+        .querySelector(".popup-select-option-copy > span")
+        ?.textContent?.trim() === text
+  );
+  check(found, `缺少选项：${text}`);
+  return found;
+}
+async function completeRun(target: (typeof requests)[number], name: string) {
+  const input = target.request.task.input as { phase: string; unitId: string };
+  const output =
+    input.phase === "final"
+      ? {
+          kind: "book-analysis-result",
+          unitId: input.unitId,
+          result: {
+            name,
+            description: "用于验证并行拆书结果。",
+            content: `# ${name}\n\n三章中的冲突逐步收紧，人物在归途中做出选择。`
+          }
+        }
+      : {
+          kind: "book-analysis-note",
+          unitId: input.unitId,
+          note: { text: `${name}的章节笔记。` }
+        };
+  emit(
+    "extras_agent.output_updated",
+    {
+      agentId: "long-book-analysis",
+      jobId: (target.request.task.input as { jobId: string }).jobId,
+      output
+    },
+    target
+  );
+  emit("agent.message_completed", { content: "完成。" }, target);
+  await frame();
+}
+async function verifyParallelPresets() {
+  element<HTMLButtonElement>(
+    '[role="combobox"][aria-label="拆书预设"]'
+  ).click();
+  await frame();
+  option("人物").click();
+  await frame();
+  option("文风").click();
+  await frame();
+  check(document.querySelector(".popup-select-menu"), "多选菜单勾选后保持打开");
+  document
+    .querySelector(".popup-select-menu")!
+    .dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Escape", bubbles: true })
+    );
+  await frame();
+  check(
+    document.querySelectorAll(".preset-task-row").length === 3,
+    "已选预设列表显示三个预设"
+  );
+  const before = requests.length;
+  button("开始分析 · 3 项").click();
+  await until(() => requests.length === before + 3, "三个预设应同时提交");
+  const batchRuns = requests.slice(before);
+  check(
+    batchRuns.length === 3 &&
+      new Set(batchRuns.map((item) => item.request.task.profileId)).size === 3,
+    "三个预设同时发起独立分析"
+  );
+  check(
+    element(".analysis-status-trigger").textContent?.includes("3 个运行"),
+    "汇总状态显示运行数量"
+  );
+  for (const [index, target] of batchRuns.entries())
+    await completeRun(target, `结果 ${index + 1}`);
+  await until(() => requests.length === before + 6, "每个预设应进入最终阶段");
+  const finals = requests.slice(before + 3);
+  check(finals.length === 3, "每个预设进入自己的最终阶段");
+  const names = new Map([
+    ["probe-plot", "剧情结构结果"],
+    ["probe-character", "人物结果"],
+    ["probe-style", "文风规则"]
+  ]);
+  for (const target of finals)
+    await completeRun(target, names.get(target.request.task.profileId)!);
+  await until(() => c.status.value === "completed", "三个预设全部完成");
+  const tabs = [
+    ...document.querySelectorAll<HTMLButtonElement>(".analysis-result-tab")
+  ];
+  check(tabs.length === 3, "结果卡为每个预设显示一个标签");
+  element<HTMLButtonElement>(
+    ".result-target-library .popup-select-trigger"
+  ).click();
+  await frame();
+  option("验证素材库").click();
+  await frame();
+  tabs[1]!.click();
+  await frame();
+  check(
+    element(".result-target-library").textContent?.includes("验证素材库"),
+    "同类结果自动沿用已选目标库"
+  );
+  tabs[2]!.click();
+  await frame();
+  element<HTMLButtonElement>(
+    ".result-target-library .popup-select-trigger"
+  ).click();
+  await frame();
+  option("验证技能库").click();
+  await frame();
+  button("全部写入 (3)").click();
+  await until(() => savedEntries.length === 3, "全部写入应创建三条条目");
+  check(
+    savedEntries.length === 3 &&
+      savedEntries.map((entry) => entry.baseProjectRevision).join() ===
+        "3,4,5" &&
+      savedEntries[2]!.domain === "skill",
+    "全部写入按顺序使用各库递增版本"
+  );
+  check(
+    [...document.querySelectorAll(".analysis-result-tab small")].every(
+      (badge) => badge.textContent?.includes("已写入")
+    ),
+    "写入后标签显示已写入"
+  );
+  return { parallelPresets: 3, savedAll: savedEntries.length };
+}
 async function run() {
   await frame();
   check(
@@ -348,7 +538,7 @@ async function run() {
   );
   const jobId = request.task.input.jobId;
   check(
-    c.progressText.value.includes("处理步骤 0/2"),
+    c.batch.items.value[0]?.runner.progressText?.value.includes("处理步骤 0/2"),
     "进度应显示真实已完成与估计步骤数"
   );
   check(!document.querySelector(":popover-open"), "运行时默认收起过程");
@@ -384,7 +574,7 @@ async function run() {
   button("停止").click();
   await frame();
   check(
-    c.status.value === "stopped" && c.canRetry.value && abortCount === 1,
+    c.status.value === "stopped" && c.batch.canRetry.value && abortCount === 1,
     "停止后应保留续跑步骤"
   );
   button("继续未完成阶段").click();
@@ -396,7 +586,9 @@ async function run() {
   button("停止").click();
   await frame();
   await verifyResultTargets();
+  const parallel = await verifyParallelPresets();
   return {
+    ...parallel,
     importedChapters: 3,
     range: [1, 3],
     sourceCollapsed: true,

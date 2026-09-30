@@ -4,37 +4,46 @@ import { formatError } from "../../i18n/errors";
 import { createScopedTranslator } from "../../i18n";
 import { computed, ref, watch } from "vue";
 import PopupSelect, {
-  type PopupSelectOption
+  type PopupSelectOption,
+  type PopupSelectValue
 } from "../../components/PopupSelect.vue";
 import { uiMessage } from "../../ui-feedback";
-import LongAnalysisRunControls from "./LongAnalysisRunControls.vue";
-import { analysisOutputTypeLabel } from "./task-options";
+import { PRESET_BATCH_MAX_PRESETS } from "../analysis-ui/preset-batch";
+import PresetBatchPanel from "./PresetBatchPanel.vue";
 import type { LongBookAnalysisController } from "./useLongBookAnalysis";
 
 const t = createScopedTranslator("extras.longBookAnalysis");
+const ui = createScopedTranslator("extras.analysisUi");
 const props = defineProps<{
   controller: LongBookAnalysisController;
 }>();
-defineEmits<{ showResult: [] }>();
-const selectedPresetId = ref("");
+const emit = defineEmits<{ showResult: [id?: string] }>();
+const selectedPresetIds = ref<string[]>([]);
 const startOrder = ref(1);
 const endOrder = ref(1);
 
 const source = computed(() => props.controller.source.value);
 const presets = computed(() => props.controller.presets.value);
-const selectedPreset = computed(
-  () =>
-    presets.value.find((preset) => preset.id === selectedPresetId.value) ?? null
+const selectedPresets = computed(() =>
+  selectedPresetIds.value.flatMap((id) => {
+    const preset = presets.value.find((item) => item.id === id);
+    return preset ? [preset] : [];
+  })
 );
 const presetOptions = computed<PopupSelectOption[]>(() =>
-  presets.value.map((preset) => ({
-    value: preset.id,
-    label: presetLabel(preset),
-    description: presetLabel(preset, "description")
-  }))
-);
-const outputTypeLabel = computed(() =>
-  analysisOutputTypeLabel(selectedPreset.value)
+  presets.value.map((preset) => {
+    const blocked =
+      !selectedPresetIds.value.includes(preset.id) &&
+      selectedPresetIds.value.length >= PRESET_BATCH_MAX_PRESETS;
+    return {
+      value: preset.id,
+      label: presetLabel(preset),
+      description: blocked
+        ? ui("presetLimitReached", { max: PRESET_BATCH_MAX_PRESETS })
+        : presetLabel(preset, "description"),
+      disabled: blocked
+    };
+  })
 );
 const selectionCount = computed(() =>
   Math.max(0, endOrder.value - startOrder.value + 1)
@@ -43,9 +52,11 @@ const selectionCount = computed(() =>
 watch(
   presets,
   (next) => {
-    if (!next.some((preset) => preset.id === selectedPresetId.value)) {
-      selectedPresetId.value = next[0]?.id ?? "";
-    }
+    const kept = selectedPresetIds.value.filter((id) =>
+      next.some((preset) => preset.id === id)
+    );
+    const first = next[0]?.id;
+    selectedPresetIds.value = kept.length || !first ? kept : [first];
   },
   { immediate: true }
 );
@@ -85,10 +96,28 @@ function normalizeRange(anchor: "start" | "end"): void {
   }
 }
 
+function changeRange(anchor: "start" | "end"): void {
+  normalizeRange(anchor);
+  props.controller.settleTasks();
+}
+
+function selectPresets(values: readonly PopupSelectValue[]): void {
+  selectedPresetIds.value = values
+    .map(String)
+    .slice(0, PRESET_BATCH_MAX_PRESETS);
+  props.controller.settleTasks();
+}
+
 async function start(): Promise<void> {
+  const unsaved = props.controller.batch.unsavedCount.value;
+  if (
+    unsaved &&
+    !window.confirm(ui("replaceUnsavedConfirm", { count: unsaved }))
+  )
+    return;
   try {
     await props.controller.start({
-      presetId: selectedPresetId.value,
+      presetIds: selectedPresetIds.value,
       startOrder: startOrder.value,
       endOrder: endOrder.value,
       modelId: props.controller.selectedModelId.value,
@@ -123,7 +152,7 @@ async function start(): Promise<void> {
             min="1"
             :max="source?.chapters.length ?? 1"
             :disabled="!source || controller.isBusy.value"
-            @change="normalizeRange('start')"
+            @change="changeRange('start')"
           />
           <span>{{ t("to") }}</span>
           <input
@@ -133,48 +162,50 @@ async function start(): Promise<void> {
             min="1"
             :max="source?.chapters.length ?? 1"
             :disabled="!source || controller.isBusy.value"
-            @change="normalizeRange('end')"
+            @change="changeRange('end')"
           />
         </div>
       </div>
       <label class="setup-field"
-        ><span class="setup-field-label">{{ t("analysisPreset") }}</span
+        ><span class="setup-field-label"
+          >{{ t("analysisPreset")
+          }}<small>{{
+            ui("multiSelectHint", { max: PRESET_BATCH_MAX_PRESETS })
+          }}</small></span
         ><PopupSelect
-          v-model="selectedPresetId"
+          model-value=""
+          multiple
+          :selected-values="selectedPresetIds"
+          :selected-summary="
+            ui('presetsSelected', { count: selectedPresetIds.length })
+          "
           :options="presetOptions"
+          :placeholder="ui('choosePresets')"
           :accessible-label="t('analysisPreset')"
           :disabled="controller.isBusy.value"
           :menu-min-width="280"
+          @update:selected-values="selectPresets"
       /></label>
     </div>
-    <div v-if="selectedPreset" class="preset-summary">
-      <div class="preset-summary-main">
-        <div class="preset-summary-copy">
-          <strong>{{ presetLabel(selectedPreset) }}</strong>
-          <span>{{ presetLabel(selectedPreset, "description") }}</span>
-        </div>
-        <small>
-          {{
-            selectedPreset.output.domain === "material"
-              ? t("materialEntry")
-              : t("skillEntry")
-          }}
-          · {{ outputTypeLabel }}
-        </small>
-      </div>
-    </div>
-    <LongAnalysisRunControls
-      :controller="controller"
-      :selection-count="selectionCount"
+    <PresetBatchPanel
+      :batch="controller.batch"
+      :presets="selectedPresets"
+      :scope-text="t('selectedChapterCount', { count: selectionCount })"
       :can-start="
         !!source &&
-        !!selectedPreset &&
+        selectedPresets.length > 0 &&
         !!controller.selectedModelId.value &&
         selectionCount >= 1 &&
         selectionCount <= 50
       "
+      :disabled="false"
+      :resume-label="t('continueIncompletePhase')"
+      :process-title="t('novelAnalysisProcess')"
       @start="start"
-      @show-result="$emit('showResult')"
+      @remove="
+        (id) => selectPresets(selectedPresetIds.filter((value) => value !== id))
+      "
+      @show-result="emit('showResult', $event)"
     />
   </section>
 </template>

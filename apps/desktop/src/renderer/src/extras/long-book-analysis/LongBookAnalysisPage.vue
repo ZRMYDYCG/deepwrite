@@ -11,7 +11,8 @@ import { uiMessage } from "../../ui-feedback";
 import AnalysisPageShell from "../analysis-ui/AnalysisPageShell.vue";
 import AnalysisModelSettings from "../analysis-ui/AnalysisModelSettings.vue";
 import AnalysisRefreshButton from "../analysis-ui/AnalysisRefreshButton.vue";
-import AnalysisResultPanel from "./AnalysisResultPanel.vue";
+import AnalysisResultTabs from "./AnalysisResultTabs.vue";
+import type { AnalysisSaveInput } from "./analysis-result-content";
 import AnalysisSourceControls from "./AnalysisSourceControls.vue";
 import LongAnalysisSourceSummary from "./LongAnalysisSourceSummary.vue";
 import LongAnalysisTaskSetup from "./LongAnalysisTaskSetup.vue";
@@ -20,6 +21,7 @@ import type { LongBookAnalysisController } from "./useLongBookAnalysis";
 import "./long-book-analysis.css";
 
 const t = createScopedTranslator("extras.longBookAnalysis");
+const ui = createScopedTranslator("extras.analysisUi");
 const props = defineProps<{
   controller: LongBookAnalysisController;
   models: readonly ModelConfig[];
@@ -31,11 +33,13 @@ const presetSaving = ref(false);
 const resultSaving = ref(false);
 const resultAnchor = ref<HTMLElement | null>(null);
 const resetVersion = ref(0);
+const activeResultId = ref("");
 function clearWorkspace(): void {
   props.controller.resetWorkspace();
   resetVersion.value += 1;
 }
-async function showResult(): Promise<void> {
+async function showResult(id?: string): Promise<void> {
+  if (id) activeResultId.value = id;
   await nextTick();
   resultAnchor.value?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
@@ -43,7 +47,10 @@ async function showResult(): Promise<void> {
 watch(
   () => props.controller.status.value,
   (status) => {
-    if (status === "completed" && props.controller.result.value) {
+    if (
+      (status === "completed" || status === "partial") &&
+      props.controller.batch.results.value.length
+    ) {
       void showResult();
     }
   }
@@ -73,17 +80,39 @@ async function resetPresets(presetId?: string): Promise<void> {
   }
 }
 
-async function persistResult(input: {
-  libraryId: string;
-  baseProjectRevision?: number;
-}): Promise<void> {
+async function persistResult(
+  id: string,
+  input: AnalysisSaveInput
+): Promise<void> {
   resultSaving.value = true;
   try {
-    await props.controller.persistResult(input);
+    await props.controller.persistResult(id, input);
     emit("refreshCatalog");
     uiMessage.success(t("resultSaved"));
   } catch (error: unknown) {
     uiMessage.error(formatError(error, t("createEntryFailed")));
+  } finally {
+    resultSaving.value = false;
+  }
+}
+
+async function persistResults(
+  requests: (AnalysisSaveInput & { id: string })[]
+): Promise<void> {
+  resultSaving.value = true;
+  try {
+    const { saved, errors } = await props.controller.persistResults(requests);
+    emit("refreshCatalog");
+    if (!errors.length)
+      uiMessage.success(ui("allResultsSaved", { count: saved }));
+    else
+      uiMessage.warning(
+        ui("someResultsSaveFailed", {
+          saved,
+          failed: errors.length,
+          message: formatError(errors[0], t("createEntryFailed"))
+        })
+      );
   } finally {
     resultSaving.value = false;
   }
@@ -133,19 +162,20 @@ onMounted(() => {
       @show-result="showResult"
     />
     <div
-      v-if="controller.result.value && controller.resultPreset.value"
+      v-if="controller.batch.results.value.length"
       ref="resultAnchor"
       class="analysis-result-anchor"
     >
-      <AnalysisResultPanel
-        :result="controller.result.value"
-        :preset="controller.resultPreset.value"
+      <AnalysisResultTabs
+        v-model:active-id="activeResultId"
+        :results="controller.batch.results.value"
+        :total="controller.batch.items.value.length"
         :catalog-snapshot="catalogSnapshot"
         :saving="resultSaving"
-        :previous="controller.resultIsPrevious.value"
-        :context="controller.resultContext.value"
-        @update="controller.result.value = $event"
+        :context="controller.batch.context.value"
+        @update="(id, result) => controller.batch.updateResult(id, result)"
         @save="persistResult"
+        @save-all="persistResults"
       />
     </div>
     <PresetManager

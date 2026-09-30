@@ -7,7 +7,7 @@ import type {
   LongBookAnalysisSegment,
   ThinkingLevel
 } from "@deepwrite/contracts/renderer";
-import type { LongBookAnalysisRunStatus } from "./useLongBookAnalysis";
+import type { PresetRunStatus } from "../analysis-ui/preset-runner";
 import type {
   LongBookAnalysisProcessEntry,
   LongBookAnalysisProcessState
@@ -16,7 +16,7 @@ import type {
 export type LongBookAnalysisPhase = "batch" | "reduce" | "final";
 
 export interface LongBookAnalysisPipelineState extends LongBookAnalysisProcessState {
-  status: Ref<LongBookAnalysisRunStatus>;
+  status: Ref<PresetRunStatus>;
   phase: Ref<LongBookAnalysisPhase | null>;
   completedUnits: Ref<number>;
   estimatedUnits: Ref<number>;
@@ -25,6 +25,14 @@ export interface LongBookAnalysisPipelineState extends LongBookAnalysisProcessSt
 }
 
 export type { LongBookAnalysisProcessEntry };
+
+/** The chapter range and model one preset analyses. */
+export interface LongBookAnalysisRangeInput {
+  startOrder: number;
+  endOrder: number;
+  modelId?: string;
+  thinkingLevel?: ThinkingLevel;
+}
 
 export interface LongBookAnalysisJob {
   id: string;

@@ -81,7 +81,9 @@
 }
 .short-selection-summary {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
+  gap: 2px 8px;
   min-height: 34px;
   box-sizing: border-box;
   padding: 7px 10px;
@@ -89,6 +91,10 @@
   border-radius: 8px;
   background: var(--surface-main);
   font-size: 0.857143rem;
+}
+.short-selection-summary small {
+  color: var(--text-tertiary);
+  font-size: 0.785714rem;
 }
 .short-paste-dialog button {
   border: 1px solid var(--theme-line-soft);

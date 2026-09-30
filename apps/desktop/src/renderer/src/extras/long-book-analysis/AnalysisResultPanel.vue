@@ -26,9 +26,13 @@ const props = defineProps<{
   saving: boolean;
   previous?: boolean;
   context?: string;
+  eyebrow?: string | undefined;
+  /** Lets result tabs share one destination across compatible results. */
+  targetId?: string | undefined;
 }>();
 const emit = defineEmits<{
   update: [result: LongBookAnalysisResult];
+  "update:targetId": [libraryId: string];
   save: [
     input: {
       libraryId: string;
@@ -37,7 +41,14 @@ const emit = defineEmits<{
   ];
 }>();
 
-const targetId = ref("");
+const localTargetId = ref("");
+const targetId = computed({
+  get: () => props.targetId ?? localTargetId.value,
+  set: (value: string) => {
+    if (props.targetId === undefined) localTargetId.value = value;
+    else emit("update:targetId", value);
+  }
+});
 const editing = ref(false);
 const compatibleLibraries = computed(() =>
   compatibleAnalysisLibraries(props.preset, props.catalogSnapshot)
@@ -58,9 +69,9 @@ watch(
     // A newly completed result always requires an explicit destination choice.
     if (
       preset !== previous[0] ||
-      !libraries.some((library) => library.id === targetId.value)
+      !libraries.some((library) => library.id === localTargetId.value)
     )
-      targetId.value = "";
+      localTargetId.value = "";
   },
   { immediate: true }
 );
@@ -96,13 +107,15 @@ function save(): void {
 
 <template>
   <section class="analysis-card result-card">
+    <slot name="before" />
     <header class="analysis-card-heading">
       <div>
         <p class="analysis-eyebrow">
           {{
-            previous
+            eyebrow ||
+            (previous
               ? t("longBookAnalysis.previousCompletedResult")
-              : t("longBookAnalysis.analysisResult")
+              : t("longBookAnalysis.analysisResult"))
           }}
         </p>
         <h2>{{ result.name }}</h2>
@@ -209,93 +222,4 @@ function save(): void {
   </section>
 </template>
 
-<style scoped>
-.result-card {
-  display: grid;
-  gap: 12px;
-}
-.analysis-result-editor {
-  display: grid;
-  gap: 12px;
-}
-.analysis-result-origin,
-.analysis-result-description {
-  color: var(--text-secondary);
-  line-height: 1.7;
-}
-.analysis-result-origin {
-  margin: 6px 0 0;
-  font-size: 0.785714rem;
-}
-.analysis-result-reading {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-.result-title,
-.result-description,
-.result-body,
-.result-target-library {
-  box-sizing: border-box;
-  width: 100%;
-  border: 1px solid var(--theme-line-soft);
-  border-radius: 10px;
-  padding: 10px 12px;
-  background: var(--surface-main);
-  color: var(--text-primary);
-  font: inherit;
-}
-.result-title {
-  font-size: 16px;
-  font-weight: 650;
-}
-.result-description {
-  resize: vertical;
-  line-height: 1.7;
-}
-.result-body {
-  min-height: 420px;
-  resize: vertical;
-  line-height: 1.7;
-}
-.result-save-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  align-items: center;
-}
-.result-save-row > .analysis-primary-button {
-  flex: 0 0 auto;
-  min-width: 110px;
-  white-space: nowrap;
-}
-.result-target-library {
-  display: grid;
-  min-width: 0;
-  gap: 6px;
-}
-.result-target-library label {
-  display: grid;
-  grid-template-columns: auto minmax(220px, 1fr);
-  align-items: center;
-  gap: 8px;
-}
-.result-target-library label > span,
-.result-target-library small {
-  color: var(--text-tertiary);
-  font-size: 12px;
-}
-.analysis-help {
-  margin: 0;
-  color: var(--text-tertiary);
-  font-size: 12px;
-}
-@media (max-width: 800px) {
-  .result-save-row {
-    align-items: stretch;
-    flex-direction: column;
-  }
-  .result-target-library label {
-    grid-template-columns: 1fr;
-  }
-}
-</style>
+<style scoped src="./analysis-result-panel.css"></style>

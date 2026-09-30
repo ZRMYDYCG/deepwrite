@@ -9,16 +9,19 @@ import {
   type LongBookAnalysisPreset,
   type ModelConfig
 } from "@deepwrite/contracts/renderer";
-import PopupSelect from "../../components/PopupSelect.vue";
+import PopupSelect, {
+  type PopupSelectOption
+} from "../../components/PopupSelect.vue";
 import { uiMessage } from "../../ui-feedback";
 import PresetManager from "../long-book-analysis/PresetManager.vue";
-import AnalysisRunStatus from "../analysis-ui/AnalysisRunStatus.vue";
 import AnalysisPageShell from "../analysis-ui/AnalysisPageShell.vue";
 import AnalysisModelSettings from "../analysis-ui/AnalysisModelSettings.vue";
 import AnalysisRefreshButton from "../analysis-ui/AnalysisRefreshButton.vue";
+import { PRESET_BATCH_MAX_PRESETS } from "../analysis-ui/preset-batch";
 import ShortAnalysisSourceControls from "./ShortAnalysisSourceControls.vue";
-import AnalysisResultPanel from "../long-book-analysis/AnalysisResultPanel.vue";
-import { analysisOutputTypeLabel } from "../long-book-analysis/task-options";
+import AnalysisResultTabs from "../long-book-analysis/AnalysisResultTabs.vue";
+import PresetBatchPanel from "../long-book-analysis/PresetBatchPanel.vue";
+import type { AnalysisSaveInput } from "../long-book-analysis/analysis-result-content";
 import ShortAnalysisSources from "./ShortAnalysisSources.vue";
 import type { ShortBookAnalysisController } from "./useShortBookAnalysis";
 import "../long-book-analysis/long-book-analysis.css";
@@ -36,10 +39,33 @@ const managerOpen = ref(false);
 const saving = ref(false);
 const resultAnchor = ref<HTMLElement | null>(null);
 const resetVersion = ref(0);
+const activeResultId = ref("");
 const model = computed(
   () => props.models.find((m) => m.id === c.selectedModelId.value) ?? null
 );
 const disabled = computed(() => c.isBusy.value || c.loading.value);
+const presetOptions = computed<PopupSelectOption[]>(() =>
+  c.presets.value.map((preset) => {
+    const block = c.presetBlock(preset);
+    return {
+      value: preset.id,
+      label: presetLabel(preset),
+      description:
+        block === "limit"
+          ? t("analysisUi.presetLimitReached", {
+              max: PRESET_BATCH_MAX_PRESETS
+            })
+          : block === "single"
+            ? t("shortBookAnalysis.singlePresetBlocked", {
+                count: c.selectedIds.value.length
+              })
+            : preset.selectionMode === "single"
+              ? t("shortBookAnalysis.single")
+              : t("longBookAnalysis.multipleBooksCompact"),
+      disabled: block !== null
+    };
+  })
+);
 function clearWorkspace(): void {
   c.resetWorkspace();
   resetVersion.value += 1;
@@ -53,6 +79,20 @@ async function act(action: () => unknown) {
     );
   }
 }
+function start() {
+  const unsaved = c.batch.unsavedCount.value;
+  if (
+    unsaved &&
+    !window.confirm(t("analysisUi.replaceUnsavedConfirm", { count: unsaved }))
+  )
+    return;
+  return act(() => c.start());
+}
+async function showResult(id?: string) {
+  if (id) activeResultId.value = id;
+  await nextTick();
+  resultAnchor.value?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
 async function savePresets(next: LongBookAnalysisPreset[]) {
   saving.value = true;
   try {
@@ -65,13 +105,10 @@ async function savePresets(next: LongBookAnalysisPreset[]) {
     saving.value = false;
   }
 }
-async function saveResult(input: {
-  libraryId: string;
-  baseProjectRevision?: number;
-}) {
+async function saveResult(id: string, input: AnalysisSaveInput) {
   saving.value = true;
   try {
-    await c.persistResult(input);
+    await c.persistResult(id, input);
     emit("refreshCatalog");
     uiMessage.success(t("shortBookAnalysis.analysisSavedToLibrary"));
   } catch (error) {
@@ -80,12 +117,29 @@ async function saveResult(input: {
     saving.value = false;
   }
 }
+async function saveResults(requests: (AnalysisSaveInput & { id: string })[]) {
+  saving.value = true;
+  try {
+    const { saved, errors } = await c.persistResults(requests);
+    emit("refreshCatalog");
+    if (!errors.length)
+      uiMessage.success(t("analysisUi.allResultsSaved", { count: saved }));
+    else
+      uiMessage.warning(
+        t("analysisUi.someResultsSaveFailed", {
+          saved,
+          failed: errors.length,
+          message: formatError(errors[0], t("shortBookAnalysis.saveFailed"))
+        })
+      );
+  } finally {
+    saving.value = false;
+  }
+}
 watch(
   () => c.status.value,
-  async (status) => {
-    if (status !== "completed") return;
-    await nextTick();
-    resultAnchor.value?.scrollIntoView({ behavior: "smooth", block: "start" });
+  (status) => {
+    if (status === "completed" || status === "partial") void showResult();
   }
 );
 onMounted(() => void act(() => c.loadPresets()));
@@ -137,117 +191,90 @@ onMounted(() => void act(() => c.loadPresets()));
           >
           <div class="short-selection-summary">
             {{
-              c.selectedPreset.value?.selectionMode === "multiple"
-                ? t("shortBookAnalysis.multipleJointAnalysis")
-                : t("shortBookAnalysis.singleSelectBook")
+              c.selectionLimit.value === 1
+                ? t("shortBookAnalysis.singleSelectBook")
+                : t("shortBookAnalysis.multipleJointAnalysis")
             }}
+            <small
+              v-if="
+                c.selectionLimit.value === 1 &&
+                c.selectedPresets.value.length > 1
+              "
+              >{{ t("shortBookAnalysis.singlePresetScopeHint") }}</small
+            >
           </div>
         </div>
         <label class="setup-field"
-          ><span class="setup-field-label">{{
-            t("longBookAnalysis.analysisPreset")
-          }}</span
+          ><span class="setup-field-label"
+            >{{ t("longBookAnalysis.analysisPreset")
+            }}<small>{{
+              t("analysisUi.multiSelectHint", {
+                max: PRESET_BATCH_MAX_PRESETS
+              })
+            }}</small></span
           ><PopupSelect
-            v-model="c.selectedPresetId.value"
-            :options="
-              c.presets.value.map((p) => ({
-                value: p.id,
-                label: presetLabel(p),
-                description:
-                  p.selectionMode === 'single'
-                    ? t('shortBookAnalysis.single')
-                    : t('longBookAnalysis.multipleBooksCompact')
-              }))
-            "
-            :accessible-label="t('longBookAnalysis.analysisPreset')"
-            :disabled="disabled"
-        /></label>
-      </div>
-      <div v-if="c.selectedPreset.value" class="preset-summary">
-        <div class="preset-summary-main">
-          <div class="preset-summary-copy">
-            <strong>{{ presetLabel(c.selectedPreset.value) }}</strong>
-            <span>{{
-              presetLabel(c.selectedPreset.value, "description")
-            }}</span>
-          </div>
-          <small
-            >{{
-              c.selectedPreset.value.output.domain === "material"
-                ? t("longBookAnalysis.materialEntry")
-                : t("longBookAnalysis.skillEntry")
-            }}
-            · {{ analysisOutputTypeLabel(c.selectedPreset.value) }}</small
-          >
-        </div>
-      </div>
-      <div class="analysis-run-bar">
-        <div class="analysis-run-progress">
-          <strong>{{
-            t("shortBookAnalysis.booksSelected", {
-              count: c.selectedIds.value.length
-            })
-          }}</strong>
-          <AnalysisRunStatus
-            :status="c.status.value"
-            :entries="c.entries.value"
-            :current-activity="c.activity.value"
-            :live-output="c.liveOutput.value"
-            :error="c.error.value"
-            :title="t('shortBookAnalysis.shortAnalysisDetails')"
-          />
-        </div>
-        <div class="analysis-run-actions">
-          <button
-            v-if="c.result.value"
-            @click="
-              resultAnchor?.scrollIntoView({
-                behavior: 'smooth',
-                block: 'start'
+            model-value=""
+            multiple
+            :selected-values="c.selectedPresetIds.value"
+            :selected-summary="
+              t('analysisUi.presetsSelected', {
+                count: c.selectedPresetIds.value.length
               })
             "
-          >
-            {{ t("longBookAnalysis.viewGeneratedResult") }}</button
-          ><button
-            v-if="c.isBusy.value"
-            :disabled="c.status.value === 'stopping'"
-            @click="act(() => c.stop())"
-          >
-            {{ t("longBookAnalysis.stop") }}</button
-          ><button
-            v-else
-            class="analysis-primary-button"
-            :disabled="
-              disabled ||
-              !c.selectionValid.value ||
-              !model ||
-              !c.selectedPreset.value
+            :options="presetOptions"
+            :placeholder="t('analysisUi.choosePresets')"
+            :accessible-label="t('longBookAnalysis.analysisPreset')"
+            :disabled="disabled"
+            :menu-min-width="280"
+            @update:selected-values="
+              (values) => act(() => c.selectPresets(values.map(String)))
             "
-            @click="act(() => c.start())"
-          >
-            {{
-              c.result.value || c.canRetry.value
-                ? t("longBookAnalysis.analyzeAgain")
-                : t("longBookAnalysis.startAnalysis")
-            }}
-          </button>
-        </div>
+        /></label>
       </div>
+      <PresetBatchPanel
+        :batch="c.batch"
+        :presets="c.selectedPresets.value"
+        :scope-text="
+          t('shortBookAnalysis.booksSelected', {
+            count: c.selectedIds.value.length
+          })
+        "
+        :can-start="
+          !disabled &&
+          c.selectionValid.value &&
+          !!model &&
+          c.selectedPresets.value.length > 0
+        "
+        :disabled="c.loading.value"
+        :resume-label="t('analysisUi.retryPreset')"
+        :process-title="t('shortBookAnalysis.shortAnalysisDetails')"
+        @start="start"
+        @remove="
+          (id) =>
+            act(() =>
+              c.selectPresets(
+                c.selectedPresetIds.value.filter((value) => value !== id)
+              )
+            )
+        "
+        @show-result="showResult"
+      />
     </section>
     <div
-      v-if="c.result.value && c.resultPreset.value"
+      v-if="c.batch.results.value.length"
       ref="resultAnchor"
       class="analysis-result-anchor"
     >
-      <AnalysisResultPanel
-        :result="c.result.value"
-        :preset="c.resultPreset.value"
+      <AnalysisResultTabs
+        v-model:active-id="activeResultId"
+        :results="c.batch.results.value"
+        :total="c.batch.items.value.length"
         :catalog-snapshot="catalogSnapshot"
-        :previous="c.resultIsPrevious.value"
-        :context="c.resultContext.value"
         :saving="saving"
-        @update="c.result.value = $event"
+        :context="c.batch.context.value"
+        @update="(id, result) => c.batch.updateResult(id, result)"
         @save="saveResult"
+        @save-all="saveResults"
       />
     </div>
     <PresetManager

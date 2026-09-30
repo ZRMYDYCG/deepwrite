@@ -8,7 +8,7 @@ import {
   localizedNullableTextRef
 } from "../analysis-ui/localized-text";
 import { createScopedTranslator, locale } from "../../i18n";
-import { computed, ref, shallowRef } from "vue";
+import { computed, ref } from "vue";
 import { createId } from "@deepwrite/shared";
 import {
   ShortBookAnalysisRuntimeContextSchema,
@@ -18,33 +18,68 @@ import {
   type ShortBookAnalysisPreset,
   type ShortBookAnalysisResult,
   type ShortBookAnalysisSource,
-  type SystemEventEnvelope,
   type ThinkingLevel
 } from "@deepwrite/contracts/renderer";
 import type { AnalysisProcessEntry } from "../analysis-ui/analysis-process";
+import {
+  errorCodeOf,
+  type AnalysisPresetRunner,
+  type PresetRunStatus
+} from "../analysis-ui/preset-runner";
 import {
   startExtrasAgentTask,
   type ExtrasAgentTaskHandle
 } from "../agent-runtime/extrasAgentTask";
 
 const t = createScopedTranslator("extras");
+
+export interface ShortAnalysisJobInput {
+  books: readonly ShortBookAnalysisSource[];
+  preset: ShortBookAnalysisPreset;
+  model: ModelConfig;
+  thinkingLevel: ThinkingLevel;
+}
+
 interface Job {
   context: ReturnType<typeof ShortBookAnalysisRuntimeContextSchema.parse>;
   preset: ShortBookAnalysisPreset;
   model: ModelConfig;
   thinkingLevel: ThinkingLevel;
 }
-export function createShortAnalysisRun(api: () => DeepWriteApi) {
-  const status = ref<
-    "idle" | "running" | "stopping" | "stopped" | "error" | "completed"
-  >("idle");
-  const result = ref<ShortBookAnalysisResult | null>(null);
-  const preset = shallowRef<ShortBookAnalysisPreset | null>(null);
-  const resultPreset = shallowRef<ShortBookAnalysisPreset | null>(null);
-  const resultContext = ref("");
-  const resultIsPrevious = computed(
-    () => Boolean(result.value) && status.value !== "completed"
+
+export type ShortAnalysisRun = AnalysisPresetRunner<ShortBookAnalysisResult> & {
+  readonly canRetry: Readonly<{ value: boolean }>;
+};
+
+/** Validates the selection now, so an oversized preset never issues a request. */
+function createJob(input: ShortAnalysisJobInput): Job {
+  const { books, preset, model, thinkingLevel } = input;
+  if (
+    thinkingLevel !== "off" &&
+    !model.thinkingLevelOptions.includes(thinkingLevel)
+  )
+    throw new Error(t("revisionAnalysis.supportedThinkingRequired"));
+  const context = ShortBookAnalysisRuntimeContextSchema.parse({
+    jobId: createId("short_analysis_job"),
+    books
+  });
+  assertExtrasAgentBudget(
+    { agentId: "short-book-analysis", profile: preset, input: context },
+    model
   );
+  return JSON.parse(
+    JSON.stringify({ context, preset, model, thinkingLevel })
+  ) as Job;
+}
+
+/** One short-story preset analysis over a fixed snapshot of the selected books. */
+export function createShortAnalysisRun(
+  api: () => DeepWriteApi,
+  input: ShortAnalysisJobInput
+): ShortAnalysisRun {
+  const job = createJob(input);
+  const status = ref<PresetRunStatus>("idle");
+  const result = ref<ShortBookAnalysisResult | null>(null);
   const error = localizedNullableTextRef();
   const liveOutput = ref("");
   const activity = localizedTextRef(
@@ -54,12 +89,12 @@ export function createShortAnalysisRun(api: () => DeepWriteApi) {
   const isBusy = computed(
     () => status.value === "running" || status.value === "stopping"
   );
-  let job: Job | null = null;
-  let task: ExtrasAgentTaskHandle | null = null;
-  let disposed = false;
   const canRetry = computed(
     () => status.value === "stopped" || status.value === "error"
   );
+  let task: ExtrasAgentTaskHandle | null = null;
+  let lastFailure: unknown;
+  let disposed = false;
   function log(
     message: LocalizedText,
     detail?: LocalizedText,
@@ -87,24 +122,8 @@ export function createShortAnalysisRun(api: () => DeepWriteApi) {
   function setActivity(message: LocalizedText) {
     if (activity.value !== resolveLocalizedText(message)) log(message);
   }
-  function clear() {
-    if (isBusy.value)
-      throw new Error(t("revisionAnalysis.inputsLockedWhileRunning"));
-    job = null;
-    preset.value = null;
-    status.value = "idle";
-    error.value = null;
-    entries.value = [];
-    liveOutput.value = "";
-    activity.value = localizedMessage("extras.analysisUi.waitingToStart");
-  }
-  function resetWorkspace() {
-    clear();
-    result.value = null;
-    resultPreset.value = null;
-    resultContext.value = "";
-  }
   function fail(cause: unknown) {
+    lastFailure = cause;
     status.value = "error";
     const message = () =>
       formatError(cause, t("shortBookAnalysis.shortAnalysisFailed"));
@@ -112,29 +131,22 @@ export function createShortAnalysisRun(api: () => DeepWriteApi) {
     log(message, undefined, "error");
   }
   function execute() {
-    if (!job || disposed) return;
-    const current = job;
-    assertExtrasAgentBudget(
-      {
-        agentId: "short-book-analysis",
-        profile: current.preset,
-        input: current.context
-      },
-      current.model
-    );
+    if (disposed || isBusy.value) return;
     status.value = "running";
     error.value = null;
+    lastFailure = undefined;
+    result.value = null;
     liveOutput.value = "";
     entries.value = [];
     log(
       localizedMessage("extras.shortBookAnalysis.analyzingStoriesTogether", {
-        count: current.context.books.length
+        count: job.context.books.length
       }),
       () =>
         t("shortBookAnalysis.shortRunSummary", {
-          preset: presetLabel(current.preset),
-          books: current.context.books.map((book) => book.title).join("、"),
-          characters: current.context.books
+          preset: presetLabel(job.preset),
+          books: job.context.books.map((book) => book.title).join("、"),
+          characters: job.context.books
             .reduce((total, book) => total + book.text.length, 0)
             .toLocaleString(locale.value)
         })
@@ -144,12 +156,12 @@ export function createShortAnalysisRun(api: () => DeepWriteApi) {
     const running = startExtrasAgentTask(
       api(),
       {
-        modelId: current.model.id,
-        thinkingLevel: current.thinkingLevel,
+        modelId: job.model.id,
+        thinkingLevel: job.thinkingLevel,
         task: {
           agentId: "short-book-analysis",
-          profileId: current.preset.id,
-          input: current.context
+          profileId: job.preset.id,
+          input: job.context
         }
       },
       {
@@ -217,10 +229,6 @@ export function createShortAnalysisRun(api: () => DeepWriteApi) {
           return;
         }
         result.value = submitted;
-        resultPreset.value = current.preset;
-        resultContext.value = current.context.books
-          .map((book) => book.title)
-          .join("、");
         status.value = "completed";
         log(
           localizedMessage("extras.revisionAnalysis.resultReadyToEdit"),
@@ -235,63 +243,21 @@ export function createShortAnalysisRun(api: () => DeepWriteApi) {
       }
     );
   }
-  function start(
-    books: ShortBookAnalysisSource[],
-    selectedPreset: ShortBookAnalysisPreset,
-    model: ModelConfig,
-    thinkingLevel: ThinkingLevel
-  ) {
-    if (isBusy.value) throw new Error(t("shortBookAnalysis.analysisRunning"));
-    if (
-      thinkingLevel !== "off" &&
-      !model.thinkingLevelOptions.includes(thinkingLevel)
-    )
-      throw new Error(t("revisionAnalysis.supportedThinkingRequired"));
-    const context = ShortBookAnalysisRuntimeContextSchema.parse({
-      jobId: createId("short_analysis_job"),
-      books
-    });
-    assertExtrasAgentBudget(
-      {
-        agentId: "short-book-analysis",
-        profile: selectedPreset,
-        input: context
-      },
-      model
-    );
-    const snapshot = JSON.parse(
-      JSON.stringify({
-        context,
-        preset: selectedPreset,
-        model,
-        thinkingLevel
-      })
-    ) as Job;
-    job = snapshot;
-    preset.value = snapshot.preset;
-    execute();
-  }
   return {
     status,
     result,
-    preset,
-    resultPreset,
-    resultContext,
-    resultIsPrevious,
     error,
     liveOutput,
     activity,
     entries,
-    isBusy,
     canRetry,
-    clear,
-    resetWorkspace,
-    start,
-    handleEvent(event: SystemEventEnvelope) {
-      task?.handleEvent(event);
-    },
+    errorCode: () => errorCodeOf(lastFailure),
+    start: execute,
     retry() {
-      if (canRetry.value && !isBusy.value) execute();
+      if (canRetry.value) execute();
+    },
+    handleEvent(event) {
+      task?.handleEvent(event);
     },
     async stop() {
       if (!isBusy.value || !task) return;
@@ -304,6 +270,7 @@ export function createShortAnalysisRun(api: () => DeepWriteApi) {
         const message = () => formatError(cause, t("agentRuntime.stopFailed"));
         error.value = message;
         log(message, undefined, "error");
+        throw cause;
       }
     },
     dispose() {

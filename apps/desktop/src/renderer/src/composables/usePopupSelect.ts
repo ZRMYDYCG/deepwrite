@@ -37,7 +37,8 @@ export function usePopupSelect(
   const displayLabel = computed(() =>
     props.multiple
       ? props.selectedValues.length
-        ? t("workspace.popupSelect.modelsSelected", {
+        ? props.selectedSummary ||
+          t("workspace.popupSelect.modelsSelected", {
             length: props.selectedValues.length
           })
         : props.placeholder

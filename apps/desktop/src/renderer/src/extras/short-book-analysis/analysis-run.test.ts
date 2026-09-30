@@ -12,7 +12,10 @@ import {
   outputEvent,
   runEvent
 } from "../agent-runtime/extrasAgent.test-support";
-import { createShortAnalysisRun } from "./analysis-run";
+import {
+  createShortAnalysisRun,
+  type ShortAnalysisJobInput
+} from "./analysis-run";
 const model = {
   id: "model",
   contextWindow: 100000,
@@ -35,14 +38,23 @@ const book: ShortBookAnalysisSource = {
   kind: "paste",
   importedAt: "2026-01-01T00:00:00.000Z"
 };
-function fixture() {
+function fixture(input: Partial<ShortAnalysisJobInput> = {}) {
   const fake = createExtrasAgentsFake();
   const abort = vi.fn(async () => ({}));
   const api = {
     session: { abort },
     extrasAgents: fake.extrasAgents
   } as unknown as DeepWriteApi;
-  return { prompt: fake.run, abort, run: createShortAnalysisRun(() => api) };
+  const create = (overrides: Partial<ShortAnalysisJobInput> = {}) =>
+    createShortAnalysisRun(() => api, {
+      books: [book],
+      preset,
+      model,
+      thinkingLevel: "off",
+      ...input,
+      ...overrides
+    });
+  return { prompt: fake.run, abort, create, run: create() };
 }
 function event(
   type: string,
@@ -68,10 +80,10 @@ const flush = async () => {
 describe("short analysis run", () => {
   it("records actual stage changes once per stream with timestamps and retains public output on failure", async () => {
     const f = fixture();
-    f.run.start([book], preset, model, "off");
+    f.run.start();
     await flush();
     const input = f.prompt.mock.calls[0]![0];
-    expect(f.run.entries.value[0]?.detail).toContain(book.title);
+    expect(f.run.entries.value[0]?.detail ?? "").toContain(book.title);
     for (let i = 0; i < 3; i++)
       f.run.handleEvent(
         event("agent.thinking_delta", input, { delta: "private reasoning" })
@@ -95,7 +107,7 @@ describe("short analysis run", () => {
     expect(f.run.liveOutput.value).toBe("公开分析说明");
     expect(
       f.run.entries.value.every((entry) =>
-        Number.isFinite(Date.parse(entry.createdAt))
+        Number.isFinite(Date.parse(entry.createdAt ?? ""))
       )
     ).toBe(true);
     expect(JSON.stringify(f.run.entries.value)).not.toContain(
@@ -109,7 +121,7 @@ describe("short analysis run", () => {
   });
   it("retains a non-streamed public response when no structured result was submitted", async () => {
     const f = fixture();
-    f.run.start([book], preset, model, "off");
+    f.run.start();
     await flush();
     f.run.handleEvent(
       event("agent.message_completed", f.prompt.mock.calls[0]![0], {
@@ -121,19 +133,19 @@ describe("short analysis run", () => {
     expect(f.run.status.value).toBe("error");
   });
   it("sends one immutable complete request and publishes only a completed structured result", async () => {
-    const f = fixture();
     const books = [{ ...book }, { ...book, id: "book2", title: "第二本" }];
     const mutable = { ...preset };
-    f.run.start(books, mutable, model, "off");
-    const input = f.prompt.mock.calls[0]![0];
+    const f = fixture({ books, preset: mutable });
     books[0]!.text = "修改";
     mutable.name = "修改";
+    f.run.start();
+    const input = f.prompt.mock.calls[0]![0];
     expect(input.task).toMatchObject({
       agentId: "short-book-analysis",
       profileId: "preset"
     });
     expect(shortInput(input).books[0]?.text).toBe(book.text);
-    expect(f.run.preset.value?.name).toBe("综合");
+    expect(f.run.entries.value[0]?.detail ?? "").toContain("综合");
     await flush();
     f.run.handleEvent(
       outputEvent(input, {
@@ -153,77 +165,38 @@ describe("short analysis run", () => {
     expect(f.run.result.value?.name).toBe("联合结果");
     expect(f.prompt).toHaveBeenCalledTimes(1);
   });
-  it("retains the completed result and its identity through edits, failed reruns and successful replacement", async () => {
+  it("reports a full Agent Utility by its error code", async () => {
     const f = fixture();
-    f.run.start([book], preset, model, "off");
+    f.prompt.mockRejectedValueOnce({
+      code: "agent.extras_capacity_reached",
+      message: "更多功能同时运行的分析数量已达到上限"
+    });
+    f.run.start();
     await flush();
-    const first = f.prompt.mock.calls[0]![0];
-    f.run.handleEvent(
-      outputEvent(first, { kind: "book-analysis-result", result: submitted })
-    );
-    f.run.handleEvent(event("agent.message_completed", first));
     await flush();
-    f.run.result.value!.content = "用户整理后的结果";
-    f.run.clear();
-    expect(f.run.result.value?.content).toBe("用户整理后的结果");
-    expect(f.run.resultIsPrevious.value).toBe(true);
-    const nextPreset: ShortBookAnalysisPreset = {
-      ...preset,
-      id: "next",
-      name: "新任务",
-      output: {
-        domain: "material" as const,
-        kind: "plot" as const,
-        stageId: "pacing"
-      }
-    };
-    f.run.start([{ ...book, title: "另一篇" }], nextPreset, model, "off");
-    await flush();
-    expect(f.run.resultPreset.value?.name).toBe("综合");
-    expect(f.run.resultContext.value).toBe("来信");
-    const failed = f.prompt.mock.calls[1]![0];
-    f.run.handleEvent(event("agent.error", failed, { message: "测试失败" }));
-    await flush();
-    expect(f.run.result.value?.content).toBe("用户整理后的结果");
+    expect(f.run.status.value).toBe("error");
+    expect(f.run.errorCode()).toBe("agent.extras_capacity_reached");
+    expect(f.run.result.value).toBeNull();
     f.run.retry();
-    await flush();
-    const retried = f.prompt.mock.calls[2]![0];
-    f.run.handleEvent(
-      outputEvent(retried, {
-        kind: "book-analysis-result",
-        result: { ...submitted, name: "新结果" }
-      })
-    );
-    expect(f.run.result.value?.name).toBe(submitted.name);
-    f.run.handleEvent(event("agent.message_completed", retried));
-    await flush();
-    expect(f.run.result.value?.name).toBe("新结果");
-    expect(f.run.resultPreset.value?.name).toBe("新任务");
-    expect(f.run.resultIsPrevious.value).toBe(false);
+    expect(f.run.status.value).toBe("running");
+    expect(f.run.errorCode()).toBeUndefined();
   });
   it("does not issue requests for oversized or invalid selections", () => {
     const f = fixture();
     expect(() =>
-      f.run.start(
-        [book, { ...book, id: "b" }],
-        { ...preset, selectionMode: "single" },
-        model,
-        "off"
-      )
+      f.create({
+        books: [book, { ...book, id: "b" }],
+        preset: { ...preset, selectionMode: "single" }
+      })
     ).toThrow("一本");
     expect(() =>
-      f.run.start(
-        [{ ...book, text: "文".repeat(200000) }],
-        preset,
-        model,
-        "off"
-      )
+      f.create({ books: [{ ...book, text: "文".repeat(200000) }] })
     ).toThrow("上下文");
     expect(f.prompt).not.toHaveBeenCalled();
   });
   it("rejects plain model messages and retries the complete task with a fresh session", async () => {
     const f = fixture();
-    f.run.start([book], preset, model, "off");
+    f.run.start();
     await flush();
     const input = f.prompt.mock.calls[0]![0];
     f.run.handleEvent(
@@ -257,7 +230,7 @@ describe("short analysis run", () => {
           accept = resolve;
         })
     );
-    f.run.start([book], preset, model, "off");
+    f.run.start();
     const input = f.prompt.mock.calls[0]![0];
     await f.run.stop();
     expect(f.run.status.value).toBe("stopping");
@@ -283,7 +256,7 @@ describe("short analysis run", () => {
           reject = rejectPromise;
         })
     );
-    f.run.start([book], preset, model, "off");
+    f.run.start();
     await flush();
     const input = f.prompt.mock.calls[0]![0];
     const stop = f.run.stop();
@@ -295,7 +268,7 @@ describe("short analysis run", () => {
   });
   it("reports agent worker restarts instead of remaining busy", async () => {
     const f = fixture();
-    f.run.start([book], preset, model, "off");
+    f.run.start();
     await flush();
     f.run.handleEvent({
       type: "system.worker_restarting",

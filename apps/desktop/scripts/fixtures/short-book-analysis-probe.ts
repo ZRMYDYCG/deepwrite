@@ -40,8 +40,21 @@ const presets = [
     systemPrompt: "分析人物",
     selectionMode: "single",
     output: { domain: "material", kind: "character", stageId: "character" }
+  }),
+  ShortBookAnalysisPresetSchema.parse({
+    id: "style",
+    name: "文风",
+    description: "提炼适用于短篇写作的行文规则与检查清单。",
+    systemPrompt: "分析文风",
+    selectionMode: "single",
+    output: { domain: "skill", kind: "style", stageId: "expert_section_writer" }
   })
 ];
+const probeResult = {
+  name: "综合分析",
+  description: "用于提炼写作方法。",
+  content: "# 核心发现\n\n两篇都通过迟到的消息引出人物选择，结尾呈现不同代价。"
+};
 const models = [
   {
     id: "model",
@@ -73,6 +86,7 @@ const sources = Array.from({ length: 11 }, (_, i) => ({
   importedAt: "2026-01-01T00:00:00.000Z"
 }));
 let request: ExtrasAgentRunRequest | undefined;
+const requests: ExtrasAgentRunRequest[] = [];
 const presetSettings = {
   agentId: "short-book-analysis",
   profiles: presets
@@ -87,6 +101,7 @@ const api = {
   extrasAgents: {
     run: async (input: ExtrasAgentRunRequest) => {
       request = input;
+      requests.push(input);
       return {
         sessionId: input.sessionId,
         runId: "probe-run",
@@ -151,12 +166,99 @@ function button(text: string) {
   if (!el) throw new Error(`Missing button ${text}`);
   return el;
 }
-function emit(type: string, payload: Record<string, unknown> = {}) {
-  check(request, "Expected a model request");
+function emit(
+  type: string,
+  payload: Record<string, unknown> = {},
+  target = request
+) {
+  check(target, "Expected a model request");
   c.handleEvent({
     type,
-    payload: { sessionId: request!.sessionId, runId: "probe-run", ...payload }
+    payload: { sessionId: target!.sessionId, runId: "probe-run", ...payload }
   } as SystemEventEnvelope);
+}
+async function until(predicate: () => boolean, message: string) {
+  const start = Date.now();
+  while (!predicate()) {
+    if (Date.now() - start > 3000) throw new Error(message);
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  await frame();
+}
+function presetOption(name: string) {
+  return Array.from(
+    document.querySelectorAll<HTMLButtonElement>(".popup-select-option")
+  ).find(
+    (el) =>
+      el
+        .querySelector(".popup-select-option-copy > span")
+        ?.textContent?.trim() === name
+  );
+}
+async function togglePresetMenu() {
+  document
+    .querySelector<HTMLButtonElement>(
+      '[role="combobox"][aria-label="拆书预设"]'
+    )!
+    .click();
+  await frame();
+}
+async function verifyParallelPresets() {
+  c.selectedIds.value = [];
+  c.toggleBook("book-0");
+  await togglePresetMenu();
+  presetOption("人物")!.click();
+  await frame();
+  presetOption("文风")!.click();
+  await frame();
+  await togglePresetMenu();
+  check(
+    document.querySelectorAll(".preset-task-row").length === 3 &&
+      document
+        .querySelector(".short-selection-summary")
+        ?.textContent?.includes("已选预设含单本预设"),
+    "Three presets are listed and limit the scope to one story"
+  );
+  const nativeConfirm = window.confirm;
+  let asked = 0;
+  window.confirm = () => {
+    asked += 1;
+    return true;
+  };
+  try {
+    const before = requests.length;
+    button("重新分析 · 3 项").click();
+    await until(() => requests.length === before + 3, "Three runs start");
+    check(asked === 1, "Replacing an unsaved result asks first");
+    check(
+      document
+        .querySelector(".analysis-status-trigger")
+        ?.textContent?.includes("3 个运行"),
+      "Batch status shows the running count"
+    );
+    for (const [index, target] of requests.slice(before).entries()) {
+      emit(
+        "extras_agent.output_updated",
+        {
+          agentId: "short-book-analysis",
+          jobId: target.task.input.jobId,
+          output: {
+            kind: "book-analysis-result",
+            result: { ...probeResult, name: `并行结果 ${index + 1}` }
+          }
+        },
+        target
+      );
+      emit("agent.message_completed", {}, target);
+    }
+    await until(() => c.status.value === "completed", "All presets complete");
+    check(
+      document.querySelectorAll(".analysis-result-tab").length === 3,
+      "Each preset has a result tab"
+    );
+  } finally {
+    window.confirm = nativeConfirm;
+  }
 }
 async function run() {
   await frame();
@@ -287,18 +389,30 @@ async function run() {
     )?.disabled,
     "Eleventh book is disabled"
   );
-  c.selectedPresetId.value = "single";
+  check(
+    c.presetBlock(presets[1]!) === "single",
+    "Single-story presets are blocked while ten stories are selected"
+  );
+  await togglePresetMenu();
+  const blocked = presetOption("人物");
+  check(
+    blocked?.disabled && blocked.textContent?.includes("当前已选 10 本"),
+    "The menu explains why a single-story preset is unavailable"
+  );
+  await togglePresetMenu();
+  c.selectedIds.value = ["book-0"];
+  c.selectPresets(["single"]);
   await frame();
   check(
     !button("开始分析").disabled && c.selectedIds.value.length === 1,
-    "Single mode selects the current book for quick start"
+    "Single mode keeps one story for quick start"
   );
   c.toggleBook("book-1");
   check(
     c.selectedIds.value.length === 1 && c.selectedIds.value[0] === "book-1",
     "Single selection replaces the previous book"
   );
-  c.selectedPresetId.value = "plot";
+  c.selectPresets(["plot"]);
   c.selectedIds.value = [];
   for (let i = 0; i < 10; i++) c.toggleBook(`book-${i}`);
   await frame();
@@ -360,15 +474,7 @@ async function run() {
   emit("extras_agent.output_updated", {
     agentId: "short-book-analysis",
     jobId: request!.task.input.jobId,
-    output: {
-      kind: "book-analysis-result",
-      result: {
-        name: "综合分析",
-        description: "用于提炼写作方法。",
-        content:
-          "# 核心发现\n\n两篇都通过迟到的消息引出人物选择，结尾呈现不同代价。"
-      }
-    }
+    output: { kind: "book-analysis-result", result: probeResult }
   });
   emit("agent.message_completed");
   visible.value = true;
@@ -383,7 +489,7 @@ async function run() {
   emit("extras_agent.output_updated", {
     agentId: "short-book-analysis",
     jobId: request!.task.input.jobId,
-    output: { kind: "book-analysis-result", result: c.result.value }
+    output: { kind: "book-analysis-result", result: probeResult }
   });
   emit("agent.message_completed");
   await frame();
@@ -392,6 +498,7 @@ async function run() {
     savedProbeEntries.length === 1,
     "A new result never reuses the earlier save destination"
   );
+  await verifyParallelPresets();
   document.querySelector<HTMLButtonElement>('[aria-label="预设管理"]')!.click();
   await frame();
   if (!document.querySelector('[aria-label="可选择书本数量"]')) {
@@ -425,7 +532,7 @@ async function run() {
   await frame();
   button("取消").click();
   await frame();
-  return { passed: true, checks: 20 };
+  return { passed: true, checks: 26 };
 }
 async function show(
   scheme: "light" | "dark",
@@ -434,7 +541,7 @@ async function show(
   state = "page"
 ) {
   if (state === "empty") {
-    c.clear();
+    c.batch.clear();
     c.drafts.value = [];
     c.selectedIds.value = [];
   }

@@ -18,10 +18,10 @@ import {
   groupAnalysisSegments,
   resolveAnalysisInputBudget
 } from "./batching";
-import type { LongBookAnalysisStartInput } from "./useLongBookAnalysis";
 import type {
   LongBookAnalysisJob as AnalysisJob,
-  LongBookAnalysisPipelineState
+  LongBookAnalysisPipelineState,
+  LongBookAnalysisRangeInput
 } from "./analysis-pipeline-types";
 import {
   analysisErrorMessage,
@@ -31,6 +31,7 @@ import {
   startExtrasAgentTask,
   type ExtrasAgentTaskHandle
 } from "../agent-runtime/extrasAgentTask";
+import { errorCodeOf } from "../analysis-ui/preset-runner";
 import { LongBookAnalysisProcessTracker } from "./analysis-process";
 import { reduceAnalysisJob } from "./analysis-reducer";
 
@@ -43,6 +44,7 @@ export class LongBookAnalysisPipeline {
   private running: Promise<void> | null = null;
   private stopRequested = false;
   private disposed = false;
+  private failure: unknown;
   private readonly process: LongBookAnalysisProcessTracker;
 
   constructor(
@@ -59,6 +61,11 @@ export class LongBookAnalysisPipeline {
 
   get preset(): LongBookAnalysisPreset | null {
     return this.job?.preset ?? null;
+  }
+
+  /** Code of the last failure, e.g. a full Agent Utility. */
+  get errorCode(): string | undefined {
+    return errorCodeOf(this.failure);
   }
 
   reset(): void {
@@ -78,7 +85,17 @@ export class LongBookAnalysisPipeline {
   start(
     source: LongBookAnalysisSource,
     preset: LongBookAnalysisPreset,
-    input: LongBookAnalysisStartInput
+    input: LongBookAnalysisRangeInput
+  ): void {
+    this.prepare(source, preset, input);
+    this.begin();
+  }
+
+  /** Validates the range and plans batches without issuing a request. */
+  prepare(
+    source: LongBookAnalysisSource,
+    preset: LongBookAnalysisPreset,
+    input: LongBookAnalysisRangeInput
   ): void {
     const modelId = input.modelId ?? "";
     const model = this.models.value.find((item) => item.id === modelId);
@@ -126,14 +143,21 @@ export class LongBookAnalysisPipeline {
       reductionRounds: 0
     };
     this.state.result.value = null;
-    this.state.phase.value = "batch";
+    this.state.phase.value = null;
     this.state.completedUnits.value = 0;
     this.state.estimatedUnits.value = batches.length + 1;
+  }
+
+  /** Starts the prepared job from its first batch. */
+  begin(): void {
+    const job = this.job;
+    if (!job || this.running) return;
+    this.state.phase.value = "batch";
     this.process.start(
-      () => presetLabel(preset),
-      input.startOrder,
-      input.endOrder,
-      batches.length
+      () => presetLabel(job.preset),
+      job.selectionStart,
+      job.selectionEnd,
+      job.batches.length
     );
     this.running = this.run().finally(() => {
       this.running = null;
@@ -237,7 +261,9 @@ export class LongBookAnalysisPipeline {
     if (this.stopRequested) void task.stop().catch(() => undefined);
     try {
       const outcome = await task.outcome.catch((cause: unknown) => {
-        throw new Error(analysisErrorMessage(cause, t("phaseFailed")));
+        throw new Error(analysisErrorMessage(cause, t("phaseFailed")), {
+          cause
+        });
       });
       if (outcome.status === "stopped") throw new Error(t("analysisStopped"));
       this.process.completeMessage(outcome.content);
@@ -258,6 +284,7 @@ export class LongBookAnalysisPipeline {
     this.state.status.value = "running";
     this.state.error.value = null;
     this.stopRequested = false;
+    this.failure = undefined;
     try {
       this.state.phase.value = "batch";
       while (job.batchIndex < job.batches.length) {
@@ -337,6 +364,7 @@ export class LongBookAnalysisPipeline {
         this.state.status.value = "stopped";
         this.process.stopped();
       } else {
+        this.failure = cause;
         this.state.status.value = "error";
         const message = () =>
           analysisErrorMessage(cause, t("novelAnalysisFailed"));

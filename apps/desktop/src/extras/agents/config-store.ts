@@ -13,17 +13,25 @@ import {
   EXTRAS_AGENT_PROFILE_CATALOGS,
   type ExtrasAgentProfileCatalog
 } from "./profile-catalogs";
+import { previousLongBookPrompts } from "./previous-long-book-prompts";
 
 interface StoredProfile {
   id: string;
   name: string;
+  systemPrompt: string;
 }
 
 interface DiskSettings {
   version: 1;
   profiles: StoredProfile[];
   updatedAt?: string;
+  promptRevisions?: Record<string, number>;
 }
+
+const previousShortCharacterPrompt =
+  "你是短篇拆书分析师。基于完整短篇，分析人物目标、冲突、关系、关键选择及人物弧光，提炼可复用的人物设计方法。多本输入时比较共性与差异，并标明书名证据。";
+const previousShortStylePrompt =
+  "你是短篇拆书分析师。分析完整短篇的叙述视角、句式、用词、对白和描写，提炼可执行的写作规则及检查清单。多本输入时比较共性与差异，并标明书名证据。避免大段照抄正文。";
 
 async function readJson(path: string): Promise<unknown> {
   try {
@@ -75,7 +83,8 @@ export class ExtrasAgentConfigStore {
     return this.enqueue(input.agentId, async () => ({
       version: 1,
       profiles: this.withDefaults(input.agentId, input.profiles),
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
+      ...this.currentPromptRevisions(input.agentId)
     }));
   }
 
@@ -89,7 +98,8 @@ export class ExtrasAgentConfigStore {
         return {
           version: 1,
           profiles: catalog.defaults.map((profile) => structuredClone(profile)),
-          updatedAt: new Date().toISOString()
+          updatedAt: new Date().toISOString(),
+          ...this.currentPromptRevisions(agentId)
         };
       }
       const replacement = catalog.defaults.find(
@@ -102,7 +112,12 @@ export class ExtrasAgentConfigStore {
       const index = profiles.findIndex((profile) => profile.id === profileId);
       if (index >= 0) profiles.splice(index, 1, structuredClone(replacement));
       else profiles.push(structuredClone(replacement));
-      return { version: 1, profiles, updatedAt: new Date().toISOString() };
+      return {
+        version: 1,
+        profiles,
+        updatedAt: new Date().toISOString(),
+        ...this.currentPromptRevisions(agentId)
+      };
     });
   }
 
@@ -152,6 +167,45 @@ export class ExtrasAgentConfigStore {
     ];
   }
 
+  private currentPromptRevisions(
+    agentId: ExtrasAgentId
+  ): Pick<DiskSettings, "promptRevisions"> {
+    const updates = this.catalog(agentId).promptUpdates;
+    return updates?.length
+      ? {
+          promptRevisions: Object.fromEntries(
+            updates.map(({ profileId, revision }) => [profileId, revision])
+          )
+        }
+      : {};
+  }
+
+  private applyPromptUpdates(
+    agentId: ExtrasAgentId,
+    profiles: StoredProfile[],
+    revisions: unknown
+  ): StoredProfile[] {
+    const catalog = this.catalog(agentId);
+    const saved =
+      revisions && typeof revisions === "object"
+        ? (revisions as Record<string, unknown>)
+        : {};
+    return profiles.map((profile) => {
+      const update = catalog.promptUpdates?.find(
+        ({ profileId, revision }) =>
+          profileId === profile.id &&
+          (typeof saved[profileId] !== "number" || saved[profileId] < revision)
+      );
+      if (!update) return profile;
+      const builtin = catalog.defaults.find(
+        (candidate) => candidate.id === update.profileId
+      );
+      return builtin
+        ? { ...profile, systemPrompt: builtin.systemPrompt }
+        : profile;
+    });
+  }
+
   /** Validated stored profiles, or undefined when they cannot be trusted. */
   private parseProfiles(
     agentId: ExtrasAgentId,
@@ -161,9 +215,34 @@ export class ExtrasAgentConfigStore {
       agentId,
       profiles
     });
-    return parsed.success
-      ? this.withDefaults(agentId, parsed.data.profiles)
-      : undefined;
+    if (!parsed.success) return undefined;
+    const upgradedProfiles = parsed.data.profiles.map((profile) => {
+      if (
+        agentId === "long-book-analysis" &&
+        profile.systemPrompt === previousLongBookPrompts[profile.id]
+      ) {
+        const builtin = EXTRAS_AGENT_PROFILE_CATALOGS[
+          "long-book-analysis"
+        ].defaults.find((candidate) => candidate.id === profile.id);
+        return builtin
+          ? { ...profile, systemPrompt: builtin.systemPrompt }
+          : profile;
+      }
+      if (agentId !== "short-book-analysis") return profile;
+      const isPreviousBuiltin =
+        (profile.id === "character" &&
+          profile.systemPrompt === previousShortCharacterPrompt) ||
+        (profile.id === "style" &&
+          profile.systemPrompt === previousShortStylePrompt);
+      if (!isPreviousBuiltin) return profile;
+      const builtin = EXTRAS_AGENT_PROFILE_CATALOGS[
+        "short-book-analysis"
+      ].defaults.find((candidate) => candidate.id === profile.id);
+      return builtin
+        ? { ...profile, systemPrompt: builtin.systemPrompt }
+        : profile;
+    });
+    return this.withDefaults(agentId, upgradedProfiles);
   }
 
   private async readDisk(agentId: ExtrasAgentId): Promise<DiskSettings> {
@@ -175,6 +254,7 @@ export class ExtrasAgentConfigStore {
               version?: unknown;
               profiles?: unknown;
               updatedAt?: unknown;
+              promptRevisions?: unknown;
             })
           : {};
       const profiles =
@@ -183,7 +263,15 @@ export class ExtrasAgentConfigStore {
           : undefined;
       if (profiles) {
         const updatedAt = validTimestamp(candidate.updatedAt);
-        return { version: 1, profiles, ...(updatedAt ? { updatedAt } : {}) };
+        return {
+          version: 1,
+          profiles: this.applyPromptUpdates(
+            agentId,
+            profiles,
+            candidate.promptRevisions
+          ),
+          ...(updatedAt ? { updatedAt } : {})
+        };
       }
       return { version: 1, profiles: this.withDefaults(agentId, []) };
     }
@@ -194,7 +282,12 @@ export class ExtrasAgentConfigStore {
         legacyRaw === undefined
           ? undefined
           : this.parseProfiles(agentId, legacy.profiles(legacyRaw));
-      if (profiles) return { version: 1, profiles };
+      if (profiles) {
+        return {
+          version: 1,
+          profiles: this.applyPromptUpdates(agentId, profiles, undefined)
+        };
+      }
     }
     return { version: 1, profiles: this.withDefaults(agentId, []) };
   }

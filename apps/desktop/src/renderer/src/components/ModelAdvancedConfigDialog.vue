@@ -37,16 +37,6 @@ function hasCapacity(
   return model.contextWindow !== undefined && model.maxTokens !== undefined;
 }
 
-function hasCustomCapacity(
-  model: DraftModel
-): model is DraftModel & { contextWindow: number; maxTokens: number } {
-  return (
-    hasCapacity(model) &&
-    (model.contextWindow !== DEFAULT_CUSTOM_MODEL_CONTEXT_WINDOW ||
-      model.maxTokens !== DEFAULT_CUSTOM_MODEL_MAX_TOKENS)
-  );
-}
-
 function hydrate(contextWindow: number, maxTokens: number): void {
   contextWindowText.value = String(contextWindow);
   maxTokensText.value = String(maxTokens);
@@ -57,6 +47,15 @@ async function fillFromRuntime(model: DraftModel): Promise<void> {
   resolving.value = true;
   contextWindowText.value = "";
   maxTokensText.value = "";
+  if (!model.modelId.trim()) {
+    hydrate(
+      DEFAULT_CUSTOM_MODEL_CONTEXT_WINDOW,
+      DEFAULT_CUSTOM_MODEL_MAX_TOKENS
+    );
+    resolving.value = false;
+    void nextTick(() => firstInput.value?.focus());
+    return;
+  }
   if (!window.deepwrite) {
     resolving.value = false;
     uiMessage.error(t("thisEnvironmentCannotReadTheModelSActualRequest"));
@@ -93,7 +92,7 @@ watch(
       maxTokensText.value = "";
       return;
     }
-    if (hasCustomCapacity(model)) {
+    if (hasCapacity(model)) {
       hydrate(model.contextWindow, model.maxTokens);
       void nextTick(() => firstInput.value?.focus());
       return;

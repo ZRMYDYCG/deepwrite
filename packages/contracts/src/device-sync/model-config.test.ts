@@ -81,6 +81,16 @@ describe("synced model configuration", () => {
     });
   });
 
+  it("round-trips custom context and output limits across devices", () => {
+    const configured = model({ contextWindow: 128_000, maxTokens: 8_000 });
+    const item = syncModelConfigItem(configured);
+    expect(parseSyncModelEntry(checkedSyncItem(item)).model).toEqual(
+      configured
+    );
+    expect(item.files[SYNC_MODEL_FILE]).toContain('"contextWindow":128000');
+    expect(item.files[SYNC_MODEL_FILE]).toContain('"maxTokens":8000');
+  });
+
   it.each([
     ["an API key", { apiKey: "sk-invalid-placeholder" }],
     ["managed-catalog flags", { managedBy: "deepwrite-free" }],

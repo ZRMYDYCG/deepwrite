@@ -1,0 +1,242 @@
+.analysis-workbench .preset-batch-run-bar > .analysis-run-actions {
+  align-self: flex-end;
+}
+
+.long-book-analysis-page .preset-task-list {
+  margin-top: 14px;
+  border: 1px solid
+    color-mix(in srgb, var(--accent) 12%, var(--theme-line-soft));
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--accent) 5%, var(--surface-muted));
+}
+
+.long-book-analysis-page .preset-task-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px 12px;
+  box-sizing: border-box;
+  min-height: 46px;
+  padding: 8px 10px 8px 14px;
+}
+
+.long-book-analysis-page .preset-task-list.is-live .preset-task-row {
+  grid-template-columns: 16px minmax(0, 1fr) auto auto auto;
+}
+
+.long-book-analysis-page .preset-task-row + .preset-task-row {
+  border-top: 1px solid
+    color-mix(in srgb, var(--accent) 10%, var(--theme-line-soft));
+}
+
+.long-book-analysis-page .preset-task-copy {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.long-book-analysis-page .preset-task-copy strong {
+  flex: 0 0 auto;
+  font-size: 0.928571rem;
+}
+
+.long-book-analysis-page .preset-task-copy span {
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 0.857143rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.long-book-analysis-page
+  .preset-task-row:is(.is-queued, .is-stopped)
+  .preset-task-copy
+  span {
+  color: var(--text-tertiary);
+}
+
+.long-book-analysis-page .preset-task-row.is-error .preset-task-copy span {
+  color: var(--danger);
+}
+
+.long-book-analysis-page .preset-task-chip {
+  padding: 5px 8px;
+  border: 1px solid
+    color-mix(in srgb, var(--accent) 18%, var(--theme-line-soft));
+  border-radius: 999px;
+  background: var(--surface-main);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.long-book-analysis-page .preset-task-time {
+  min-width: 36px;
+  color: var(--text-tertiary);
+  font-size: 0.857143rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.long-book-analysis-page .preset-task-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.long-book-analysis-page .preset-task-actions button,
+.long-book-analysis-page .preset-task-remove {
+  min-height: 28px;
+  padding: 4px 9px;
+  border-color: transparent;
+  background: transparent;
+  font-size: 0.857143rem;
+  white-space: nowrap;
+}
+
+.long-book-analysis-page .preset-task-remove {
+  width: 28px;
+  padding: 4px;
+  color: var(--text-secondary);
+}
+
+.long-book-analysis-page .preset-task-state {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  color: var(--surface-main);
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.long-book-analysis-page
+  .preset-task-state:is(.is-running, .is-stopping)::before,
+.long-book-analysis-page .preset-task-state.is-stopped::before,
+.long-book-analysis-page .preset-task-state.is-queued::before {
+  content: "";
+  box-sizing: border-box;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.long-book-analysis-page
+  .preset-task-state:is(.is-running, .is-stopping)::before {
+  background: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-soft);
+}
+
+.long-book-analysis-page .preset-task-state.is-queued::before {
+  width: 9px;
+  height: 9px;
+  border: 1.5px solid var(--text-tertiary);
+}
+
+.long-book-analysis-page .preset-task-state.is-stopped::before {
+  background: var(--text-tertiary);
+}
+
+.long-book-analysis-page .preset-task-state.is-completed {
+  background: var(--success);
+}
+
+.long-book-analysis-page .preset-task-state.is-error {
+  background: var(--danger);
+}
+
+.long-book-analysis-page .analysis-result-tabs-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--theme-line-soft);
+}
+
+.long-book-analysis-page .analysis-result-tabs,
+.analysis-drawer-switcher {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.long-book-analysis-page
+  :is(.analysis-result-tab, .analysis-drawer-switcher button) {
+  min-height: 32px;
+  padding: 5px 10px;
+  border-color: var(--theme-line-soft);
+  background: var(--surface-main);
+  color: var(--text-secondary);
+  font-size: 0.892857rem;
+}
+
+.long-book-analysis-page
+  :is(
+    .analysis-result-tab[aria-selected="true"],
+    .analysis-drawer-switcher button[aria-pressed="true"]
+  ) {
+  border-color: var(--theme-line);
+  background: var(--surface-selected);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.long-book-analysis-page .analysis-result-tab small {
+  color: var(--text-tertiary);
+  font-size: 0.785714rem;
+  font-weight: 400;
+}
+
+.long-book-analysis-page .analysis-result-tab .preset-task-state {
+  width: 14px;
+  height: 14px;
+}
+
+@container analysis-page (max-width: 700px) {
+  .long-book-analysis-page .preset-task-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .long-book-analysis-page .preset-task-copy {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .long-book-analysis-page .preset-task-copy span {
+    white-space: normal;
+  }
+
+  .long-book-analysis-page .preset-task-chip {
+    grid-row: 2;
+    grid-column: 1;
+    justify-self: start;
+  }
+
+  .long-book-analysis-page .preset-task-remove {
+    grid-row: 1 / span 2;
+    grid-column: 2;
+  }
+
+  .long-book-analysis-page .preset-task-list.is-live .preset-task-row {
+    grid-template-columns: 16px minmax(0, 1fr) auto;
+  }
+
+  .long-book-analysis-page .preset-task-list.is-live .preset-task-chip {
+    grid-column: 2;
+  }
+
+  .long-book-analysis-page .preset-task-list.is-live .preset-task-actions {
+    grid-row: 3;
+    grid-column: 2 / -1;
+    justify-content: flex-start;
+  }
+}

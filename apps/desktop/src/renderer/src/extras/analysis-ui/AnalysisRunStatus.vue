@@ -19,7 +19,12 @@ const props = defineProps<{
   liveOutput: string;
   error: string | null;
   title: string;
-  progressText?: string;
+  progressText?: string | undefined;
+  /** Trigger text when it differs from the shown process, e.g. a batch. */
+  summary?: string | undefined;
+  /** Batch timing; otherwise elapsed time comes from the entries. */
+  startedAt?: number | null | undefined;
+  endedAt?: number | null | undefined;
 }>();
 const panelId = useId();
 const panel = ref<HTMLElement | null>(null);
@@ -31,7 +36,16 @@ const busy = computed(() =>
 );
 const statusLabel = computed(() => analysisRunLabels[props.status]);
 const activity = computed(() => props.currentActivity || statusLabel.value);
+function format(milliseconds: number): string {
+  const seconds = Math.max(0, Math.floor(milliseconds / 1000));
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+}
 const elapsed = computed(() => {
+  if (props.startedAt !== undefined) {
+    if (props.startedAt === null) return "";
+    const end = busy.value ? now.value : (props.endedAt ?? now.value);
+    return format(end - props.startedAt);
+  }
   const timestamps = props.entries.flatMap((entry) => {
     if (typeof entry === "string" || !entry.createdAt) return [];
     const time = Date.parse(entry.createdAt);
@@ -39,8 +53,7 @@ const elapsed = computed(() => {
   });
   if (!timestamps.length) return "";
   const end = busy.value ? now.value : timestamps.at(-1)!;
-  const seconds = Math.max(0, Math.floor((end - timestamps[0]!) / 1000));
-  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+  return format(end - timestamps[0]!);
 });
 let timer: ReturnType<typeof setInterval> | undefined;
 watch(
@@ -66,6 +79,11 @@ function close() {
 function onToggle(event: Event) {
   open.value = (event as ToggleEvent).newState === "open";
 }
+defineExpose({
+  open() {
+    panel.value?.showPopover();
+  }
+});
 </script>
 
 <template>
@@ -84,7 +102,7 @@ function onToggle(event: Event) {
       <i aria-hidden="true"></i>
       <span class="analysis-status-copy">
         <strong>{{ statusLabel }}</strong>
-        <span aria-live="polite">{{ activity }}</span>
+        <span aria-live="polite">{{ summary || activity }}</span>
       </span>
       <time v-if="elapsed">{{ elapsed }}</time>
       <span class="analysis-status-link"
@@ -98,6 +116,7 @@ function onToggle(event: Event) {
       role="dialog"
       :aria-labelledby="`${panelId}-title`"
       class="analysis-process-drawer"
+      :class="{ 'has-switcher': $slots.switcher }"
       @toggle="onToggle"
     >
       <header class="analysis-drawer-heading">
@@ -114,6 +133,7 @@ function onToggle(event: Event) {
           <AppIcon name="close" :size="18" />
         </button>
       </header>
+      <slot name="switcher" />
       <div class="analysis-drawer-summary">
         <strong aria-live="polite">{{ activity }}</strong>
         <span v-if="progressText">{{ progressText }}</span>

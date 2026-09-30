@@ -18,6 +18,8 @@ const props = withDefaults(
     menuZIndex?: number;
     multiple?: boolean;
     selectedValues?: readonly PopupSelectValue[];
+    /** Trigger text for a multiple selection; defaults to a model count. */
+    selectedSummary?: string;
   }>(),
   {
     disabled: false,
@@ -28,7 +30,8 @@ const props = withDefaults(
     menuMinWidth: 190,
     menuZIndex: 1000,
     multiple: false,
-    selectedValues: () => []
+    selectedValues: () => [],
+    selectedSummary: ""
   }
 );
 

@@ -17,7 +17,8 @@ export type AnalysisRunState =
   | "stopping"
   | "stopped"
   | "error"
-  | "completed";
+  | "completed"
+  | "partial";
 
 export const analysisRunLabels: Record<AnalysisRunState, string> = {
   get idle() {
@@ -40,5 +41,8 @@ export const analysisRunLabels: Record<AnalysisRunState, string> = {
   },
   get completed() {
     return t("analysisComplete");
+  },
+  get partial() {
+    return t("partial");
   }
 };

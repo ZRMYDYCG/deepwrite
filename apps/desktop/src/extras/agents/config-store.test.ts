@@ -8,6 +8,7 @@ import {
   ExtrasAgentSettingsInputSchema
 } from "@deepwrite/contracts";
 import { ExtrasAgentConfigStore } from "./config-store";
+import { previousLongBookPrompts } from "./previous-long-book-prompts";
 import { EXTRAS_AGENT_PROFILE_CATALOGS } from "./profile-catalogs";
 
 const temporaryDirectories: string[] = [];
@@ -48,11 +49,25 @@ describe("extras agent config store", () => {
     ]);
     expect(long.profiles.every((profile) => profile.builtin)).toBe(true);
     expect(longDefaults[0]!.systemPrompt).toContain("大剧情");
+    expect(longDefaults[0]!.systemPrompt).toContain("全局剧情设计图");
+    expect(longDefaults[1]!.systemPrompt).toContain("主要人物动力学卡");
+    expect(longDefaults[2]!.systemPrompt).toContain("可直接调用的文风指令");
+    for (const profile of long.profiles) {
+      expect(profile.systemPrompt).toContain("write_analysis_note");
+      expect(profile.systemPrompt).toContain("write_analysis_result");
+    }
     expect(
       (await store.list("short-book-analysis")).profiles.map(
         (profile) => profile.selectionMode
       )
     ).toEqual(["single", "single", "single"]);
+    const character = (await store.resolve("short-book-analysis", "character"))
+      .systemPrompt;
+    expect(character).toContain("主角动力学建模卡");
+    expect(character).toContain("核心对抗方动力学建模卡");
+    expect(character).toContain("核心张力关系网与权力天平");
+    expect(character).toContain("功能型工具人物生态位");
+    expect(character).not.toContain("请提供待拆解");
     expect((await store.list("revision-analysis")).profiles).toMatchObject([
       { id: "default", systemPrompt: DEFAULT_REVISION_METHOD, builtin: true }
     ]);
@@ -156,6 +171,151 @@ describe("extras agent config store", () => {
     expect(saved.profiles.at(-1)).toMatchObject({
       description: "保留用户修改后的剧情结构预设。"
     });
+  });
+
+  it("upgrades saved long defaults while preserving edited and custom prompts", async () => {
+    const { path, store } = await createStore();
+    const profiles = (await store.list("long-book-analysis")).profiles.map(
+      ({ builtin: _builtin, ...profile }) => profile
+    );
+    const configPath = join(
+      path,
+      "config",
+      "extras-agents",
+      "long-book-analysis.json"
+    );
+    await writeJson(configPath, {
+      version: 1,
+      profiles: [
+        ...profiles.map((profile) => ({
+          ...profile,
+          systemPrompt: previousLongBookPrompts[profile.id]
+        })),
+        {
+          ...profiles[0],
+          id: "custom-plot",
+          name: "自定义剧情",
+          systemPrompt: "我的长篇拆书方法"
+        }
+      ]
+    });
+
+    const upgraded = await store.list("long-book-analysis");
+    for (const builtin of longDefaults) {
+      expect(
+        upgraded.profiles.find((profile) => profile.id === builtin.id)
+          ?.systemPrompt
+      ).toBe(builtin.systemPrompt.trim());
+    }
+    expect(upgraded.profiles.at(-1)?.systemPrompt).toBe("我的长篇拆书方法");
+
+    const edited = upgraded.profiles.map(({ builtin: _builtin, ...profile }) =>
+      profile.id === "character"
+        ? { ...profile, systemPrompt: "用户修改的人物卡提示词" }
+        : profile
+    );
+    await store.save({ agentId: "long-book-analysis", profiles: edited });
+    expect(
+      (await store.resolve("long-book-analysis", "character")).systemPrompt
+    ).toBe("用户修改的人物卡提示词");
+
+    await writeJson(configPath, {
+      version: 1,
+      profiles: profiles.map((profile) => ({
+        ...profile,
+        systemPrompt:
+          profile.id === "style"
+            ? "用户原先修改的文风提示词"
+            : previousLongBookPrompts[profile.id]
+      }))
+    });
+    expect(
+      (await store.resolve("long-book-analysis", "style")).systemPrompt
+    ).toBe("用户原先修改的文风提示词");
+  });
+
+  it("updates the short plot prompt once after an upgrade", async () => {
+    const { path, store } = await createStore();
+    const original = (await store.list("short-book-analysis")).profiles.map(
+      ({ builtin: _builtin, ...profile }) => profile
+    );
+    const configPath = join(
+      path,
+      "config",
+      "extras-agents",
+      "short-book-analysis.json"
+    );
+    await writeJson(configPath, {
+      version: 1,
+      profiles: [
+        {
+          ...original[0],
+          systemPrompt: "旧版用户修改的剧情提示词",
+          description: "保留剧情预设的其他设置"
+        },
+        ...original.slice(1),
+        {
+          ...original[0],
+          id: "custom-plot",
+          name: "自定义剧情",
+          systemPrompt: "保留自定义提示词"
+        }
+      ]
+    });
+
+    const upgraded = await store.list("short-book-analysis");
+    expect(upgraded.profiles[0]).toMatchObject({
+      description: "保留剧情预设的其他设置",
+      systemPrompt:
+        EXTRAS_AGENT_PROFILE_CATALOGS[
+          "short-book-analysis"
+        ].defaults[0]!.systemPrompt.trim()
+    });
+    expect(upgraded.profiles.at(-1)?.systemPrompt).toBe("保留自定义提示词");
+    expect(upgraded.profiles[1]?.systemPrompt).toBe(original[1]?.systemPrompt);
+
+    const edited = upgraded.profiles.map(({ builtin: _builtin, ...profile }) =>
+      profile.id === "plot-structure"
+        ? { ...profile, systemPrompt: "升级后新改的剧情提示词" }
+        : profile
+    );
+    await store.save({ agentId: "short-book-analysis", profiles: edited });
+    expect(
+      (await store.list("short-book-analysis")).profiles[0]?.systemPrompt
+    ).toBe("升级后新改的剧情提示词");
+    expect(JSON.parse(await readFile(configPath, "utf8"))).toMatchObject({
+      promptRevisions: { "plot-structure": 1 }
+    });
+  });
+
+  it("upgrades only the unchanged older short character prompt", async () => {
+    const { path, store } = await createStore();
+    const current = (await store.list("short-book-analysis")).profiles.find(
+      (profile) => profile.id === "character"
+    )!;
+    const oldPrompt =
+      "你是短篇拆书分析师。基于完整短篇，分析人物目标、冲突、关系、关键选择及人物弧光，提炼可复用的人物设计方法。多本输入时比较共性与差异，并标明书名证据。";
+    const configPath = join(
+      path,
+      "config",
+      "extras-agents",
+      "short-book-analysis.json"
+    );
+    await writeJson(configPath, {
+      version: 1,
+      profiles: [{ ...current, systemPrompt: oldPrompt }]
+    });
+    expect(
+      (await store.resolve("short-book-analysis", "character")).systemPrompt
+    ).toBe(current.systemPrompt);
+
+    await writeJson(configPath, {
+      version: 1,
+      profiles: [{ ...current, systemPrompt: "用户修改的人物拆书提示词" }]
+    });
+    expect(
+      (await store.resolve("short-book-analysis", "character")).systemPrompt
+    ).toBe("用户修改的人物拆书提示词");
   });
 
   it("falls back safely when the persisted JSON is damaged", async () => {

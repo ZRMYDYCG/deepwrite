@@ -4,7 +4,8 @@ import shellSource from "./LongBookAnalysisPage.vue?raw";
 import setupSource from "./LongAnalysisTaskSetup.vue?raw";
 import sourceSummary from "./LongAnalysisSourceSummary.vue?raw";
 const pageSource = `${shellSource}\n${setupSource}\n${sourceSummary}`;
-import runControlsSource from "./LongAnalysisRunControls.vue?raw";
+import runControlsSource from "./PresetBatchPanel.vue?raw";
+import resultTabsSource from "./AnalysisResultTabs.vue?raw";
 import runStatusSource from "../analysis-ui/AnalysisRunStatus.vue?raw";
 import resultPanelSource from "./AnalysisResultPanel.vue?raw";
 import sourceControlsSource from "./AnalysisSourceControls.vue?raw";
@@ -22,8 +23,13 @@ describe("long-book analysis feature wiring", () => {
   it("is a preset-driven page without a conversation composer", () => {
     expect(pageSource).toContain("selectionCount <= 50");
     expect(pageSource).toContain("<PopupSelect");
-    expect(runControlsSource).toContain("controller.retry");
-    expect(runControlsSource).toContain("controller.stop");
+    expect(runControlsSource).toContain("batch.retryFailed()");
+    expect(runControlsSource).toContain("batch.stop()");
+    expect(setupSource).toContain(":selected-values=");
+    expect(setupSource).toContain("<PresetBatchPanel");
+    expect(shellSource).toContain("<AnalysisResultTabs");
+    expect(resultTabsSource).toContain('role="tablist"');
+    expect(resultTabsSource).toContain('"saveAll"');
     expect(pageSource).toContain("controller.selectedThinkingLevel.value");
     expect(pageSource).not.toContain("selectedTargetLibraryId");
     expect(pageSource).toContain("<AnalysisModelSettings");

@@ -288,7 +288,7 @@ describe("ModelSettingsFeature advanced capacity", () => {
     expect(advancedConfigSource).toContain(
       "window.deepwrite.models.resolveCapacity"
     );
-    expect(advancedConfigSource).toContain("hasCustomCapacity(model)");
+    expect(advancedConfigSource).toContain("hasCapacity(model)");
     expect(advancedConfigSource).toContain("contextWindow: undefined");
     expect(advancedConfigSource).toContain("maxTokens: undefined");
     expect(advancedConfigSource).toContain(

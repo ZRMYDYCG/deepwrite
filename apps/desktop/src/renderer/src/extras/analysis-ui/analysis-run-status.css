@@ -34,6 +34,9 @@
 .analysis-status-trigger.is-completed > i {
   background: var(--success);
 }
+.analysis-status-trigger.is-partial > i {
+  background: var(--warning);
+}
 .analysis-status-copy {
   display: flex;
   align-items: baseline;
@@ -89,6 +92,9 @@
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr) auto;
   gap: 18px;
+}
+.analysis-process-drawer.has-switcher:popover-open {
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
 }
 .analysis-drawer-heading {
   display: flex;

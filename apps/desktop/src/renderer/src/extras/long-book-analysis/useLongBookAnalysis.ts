@@ -1,21 +1,9 @@
-import {
-  localizedMessage,
-  localizedTextRef,
-  localizedNullableTextRef
-} from "../analysis-ui/localized-text";
+import { localizedMessage } from "../analysis-ui/localized-text";
+import { presetLabel } from "../analysis-ui/preset-labels";
 import { createScopedTranslator } from "../../i18n";
-import { createLongAnalysisResultState } from "./analysis-result-state";
-import {
-  computed,
-  ref,
-  shallowRef,
-  watch,
-  type ComputedRef,
-  type Ref
-} from "vue";
+import { ref, shallowRef, watch, type ComputedRef, type Ref } from "vue";
 import {
   ExtrasAgentSettingsInputSchema,
-  LongBookAnalysisSourceSchema,
   type DeepWriteApi,
   type LongBookAnalysisChapter,
   type LongBookAnalysisPreset,
@@ -28,31 +16,41 @@ import {
   type ThinkingLevel
 } from "@deepwrite/contracts/renderer";
 import {
-  LongBookAnalysisPipeline,
-  type LongBookAnalysisPhase
-} from "./analysis-pipeline";
+  PRESET_BATCH_MAX_PRESETS,
+  createPresetBatch,
+  type PresetBatch,
+  type PresetBatchStatus
+} from "../analysis-ui/preset-batch";
 import {
-  formatAnalysisProgress,
-  type LongBookAnalysisProcessEntry
-} from "./analysis-process";
+  buildPresetRunners,
+  type PresetRunStatus
+} from "../analysis-ui/preset-runner";
+import {
+  persistAnalysisResult,
+  persistAnalysisResults,
+  type AnalysisSaveInput
+} from "./analysis-result-content";
+import { createLongAnalysisSources } from "./long-analysis-sources";
+import { createLongPresetRunner } from "./long-preset-runner";
 
 const t = createScopedTranslator("extras.longBookAnalysis");
+const ui = createScopedTranslator("extras.analysisUi");
 
-export type LongBookAnalysisRunStatus =
-  "idle" | "running" | "stopping" | "stopped" | "error" | "completed";
+export type LongBookAnalysisRunStatus = PresetRunStatus;
+export type LongBookAnalysisBatch = PresetBatch<
+  LongBookAnalysisPreset,
+  LongBookAnalysisResult
+>;
 
 export interface LongBookAnalysisStartInput {
-  presetId: string;
+  presetIds: readonly string[];
   startOrder: number;
   endOrder: number;
   modelId?: string;
   thinkingLevel?: ThinkingLevel;
 }
 
-export interface LongBookAnalysisPersistInput {
-  libraryId: string;
-  baseProjectRevision?: number;
-}
+export type LongBookAnalysisPersistInput = AnalysisSaveInput;
 
 export interface LongBookAnalysisController {
   source: Ref<LongBookAnalysisSource | null>;
@@ -62,20 +60,10 @@ export interface LongBookAnalysisController {
   presetsLoading: Readonly<Ref<boolean>>;
   selectedModelId: Ref<string>;
   selectedThinkingLevel: Ref<ThinkingLevel>;
-  activePresetId: ComputedRef<string>;
-  resultPreset: Readonly<Ref<LongBookAnalysisPreset | null>>;
-  resultIsPrevious: ComputedRef<boolean>;
-  resultContext: Readonly<Ref<string>>;
-  status: Readonly<Ref<LongBookAnalysisRunStatus>>;
-  phase: Readonly<Ref<LongBookAnalysisPhase | null>>;
-  progressText: ComputedRef<string>;
-  error: Readonly<Ref<string | null>>;
-  result: Ref<LongBookAnalysisResult | null>;
-  processEntries: Readonly<Ref<LongBookAnalysisProcessEntry[]>>;
-  currentActivity: Readonly<Ref<string>>;
-  liveOutput: Readonly<Ref<string>>;
+  batch: LongBookAnalysisBatch;
+  status: ComputedRef<PresetBatchStatus>;
   isBusy: ComputedRef<boolean>;
-  canRetry: ComputedRef<boolean>;
+  error: ComputedRef<string | null>;
   setConfiguredModels(
     models: readonly ModelConfig[],
     defaultModelId?: string
@@ -88,76 +76,48 @@ export interface LongBookAnalysisController {
   chooseSource(kind: LongBookAnalysisSourceKind): Promise<boolean>;
   replaceChapters(chapters: readonly LongBookAnalysisChapter[]): boolean;
   start(input: LongBookAnalysisStartInput): Promise<boolean>;
-  retry(): Promise<boolean>;
   stop(): Promise<boolean>;
+  /** Inputs changed: drop unfinished tasks, keep completed results. */
+  settleTasks(): void;
   resetWorkspace(): void;
-  persistResult(input: LongBookAnalysisPersistInput): Promise<void>;
+  persistResult(id: string, input: LongBookAnalysisPersistInput): Promise<void>;
+  persistResults(
+    requests: readonly (LongBookAnalysisPersistInput & { id: string })[]
+  ): Promise<{ saved: number; errors: unknown[] }>;
   handleEvent(event: SystemEventEnvelope): void;
   dispose(): void;
+}
+
+function clone<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
 }
 
 export function useLongBookAnalysis(options: {
   api: () => DeepWriteApi | undefined;
 }): LongBookAnalysisController {
-  const source = shallowRef<LongBookAnalysisSource | null>(null);
-  const savedSources = ref<LongBookAnalysisSavedSourceSummary[]>([]);
-  const sourcesLoading = ref(false);
   const presets = ref<LongBookAnalysisPreset[]>([]);
   const presetsLoading = ref(false);
   const selectedModelId = ref("");
   const selectedThinkingLevel = ref<ThinkingLevel>("off");
   const configuredModels = shallowRef<readonly ModelConfig[]>([]);
-  const status = ref<LongBookAnalysisRunStatus>("idle");
-  const phase = ref<LongBookAnalysisPhase | null>(null);
-  const completedUnits = ref(0);
-  const estimatedUnits = ref(0);
-  const error = localizedNullableTextRef();
-  const pendingResult = ref<LongBookAnalysisResult | null>(null);
-  const processEntries = ref<LongBookAnalysisProcessEntry[]>([]);
-  const currentActivity = localizedTextRef();
-  const liveOutput = ref("");
-  const isBusy = computed(
-    () => status.value === "running" || status.value === "stopping"
-  );
-  const canRetry = computed(
-    () =>
-      (status.value === "error" || status.value === "stopped") &&
-      pipeline.hasJob
-  );
-  const progressText = computed(() => {
-    return formatAnalysisProgress(
-      phase.value,
-      completedUnits.value,
-      estimatedUnits.value
-    );
-  });
+  const batch = createPresetBatch<
+    LongBookAnalysisPreset,
+    LongBookAnalysisResult
+  >({ label: (preset) => presetLabel(preset) });
   let disposed = false;
-  let sourceListSequence = 0;
-  let activeSourceListRequests = 0;
 
   function api(): DeepWriteApi {
     const current = options.api();
     if (!current) throw new Error(t("novelAnalysisUnavailable"));
     return current;
   }
-
-  const pipeline = new LongBookAnalysisPipeline(api, configuredModels, {
-    status,
-    phase,
-    completedUnits,
-    estimatedUnits,
-    error,
-    result: pendingResult,
-    processEntries,
-    currentActivity,
-    liveOutput
-  });
-  const resultState = createLongAnalysisResultState({
+  const sources = createLongAnalysisSources({
     api,
-    status,
-    pendingResult,
-    preset: () => pipeline.preset
+    isBusy: () => batch.isBusy.value,
+    isDisposed: () => disposed,
+    onChange: () => batch.settle()
   });
+  const { source } = sources;
 
   watch(selectedModelId, (modelId) => {
     const model = configuredModels.value.find((item) => item.id === modelId);
@@ -211,86 +171,51 @@ export function useLongBookAnalysis(options: {
       profiles: nextPresets.map(({ builtin: _builtin, ...preset }) => preset)
     });
     if (input.agentId !== "long-book-analysis") return;
-    pipeline.reset();
+    batch.settle();
     presets.value = (await api().extrasAgents.profiles.save(input)).profiles;
   }
 
   async function resetPresets(presetId?: string): Promise<void> {
-    pipeline.reset();
+    batch.settle();
     presets.value = (
       await api().extrasAgents.profiles.reset("long-book-analysis", presetId)
     ).profiles;
   }
 
-  async function loadSavedSources(): Promise<void> {
-    const sequence = ++sourceListSequence;
-    activeSourceListRequests += 1;
-    sourcesLoading.value = true;
-    try {
-      const catalog = await api().longBookAnalysis.sources.list();
-      if (!disposed && sequence === sourceListSequence) {
-        savedSources.value = catalog.sources;
-      }
-    } finally {
-      activeSourceListRequests -= 1;
-      if (!disposed) sourcesLoading.value = activeSourceListRequests > 0;
-    }
-  }
-
-  async function loadSavedSource(sourceId: string): Promise<boolean> {
-    if (isBusy.value) {
-      throw new Error(t("sourceLockedWhileRunning"));
-    }
-    if (source.value?.id === sourceId) return false;
-    const selected = await api().longBookAnalysis.sources.load(sourceId);
-    if (disposed) return false;
-    pipeline.reset();
-    source.value = selected;
-    return true;
-  }
-
-  async function chooseSource(
-    kind: LongBookAnalysisSourceKind
-  ): Promise<boolean> {
-    if (isBusy.value) {
-      throw new Error(t("sourceLockedWhileRunning"));
-    }
-    const selected = await api().longBookAnalysis.chooseSource(kind);
-    if (!selected) return false;
-    pipeline.reset();
-    source.value = selected;
-    await loadSavedSources();
-    return true;
-  }
-
-  function replaceChapters(
-    chapters: readonly LongBookAnalysisChapter[]
-  ): boolean {
-    if (!source.value) return false;
-    pipeline.reset();
-    source.value = LongBookAnalysisSourceSchema.parse({
-      ...source.value,
-      chapters: chapters.map((chapter, index) => ({
-        ...chapter,
-        order: index + 1
-      }))
-    });
-    return true;
-  }
-
   async function start(input: LongBookAnalysisStartInput): Promise<boolean> {
-    if (isBusy.value) return false;
-    if (!source.value) throw new Error(t("importSourceRequired"));
-    const preset = presets.value.find((item) => item.id === input.presetId);
-    if (!preset) throw new Error(t("presetRequired"));
-    pipeline.start(source.value, preset, {
-      ...input,
+    if (batch.isBusy.value) return false;
+    const current = source.value;
+    if (!current) throw new Error(t("importSourceRequired"));
+    const chosen = input.presetIds.flatMap((id) => {
+      const preset = presets.value.find((item) => item.id === id);
+      return preset ? [clone(preset)] : [];
+    });
+    if (!chosen.length) throw new Error(t("presetRequired"));
+    if (chosen.length > PRESET_BATCH_MAX_PRESETS) {
+      throw new Error(ui("tooManyPresets", { max: PRESET_BATCH_MAX_PRESETS }));
+    }
+    const range = {
+      startOrder: input.startOrder,
+      endOrder: input.endOrder,
       modelId: input.modelId || selectedModelId.value,
       thinkingLevel: input.thinkingLevel ?? selectedThinkingLevel.value
-    });
-    resultState.setPendingContext(
+    };
+    const runners = buildPresetRunners(
+      chosen,
+      (preset) => presetLabel(preset),
+      (preset) =>
+        createLongPresetRunner({
+          api,
+          models: configuredModels,
+          source: current,
+          preset,
+          range
+        })
+    );
+    batch.start(
+      chosen.map((preset, index) => ({ preset, runner: runners[index]! })),
       localizedMessage("extras.longBookAnalysis.presetChapterRange", {
-        preset: source.value.name,
+        preset: current.name,
         start: input.startOrder,
         end: input.endOrder
       })
@@ -298,50 +223,55 @@ export function useLongBookAnalysis(options: {
     return true;
   }
 
+  async function persistResult(
+    id: string,
+    input: LongBookAnalysisPersistInput
+  ): Promise<void> {
+    const entry = batch.results.value.find((item) => item.id === id);
+    if (!entry) throw new Error(t("noResultToSave"));
+    await persistAnalysisResult(
+      api(),
+      entry.preset.output,
+      entry.result,
+      input
+    );
+    batch.markSaved(id);
+  }
+
   return {
-    source,
-    savedSources,
-    sourcesLoading,
+    ...sources,
     presets,
     presetsLoading,
     selectedModelId,
     selectedThinkingLevel,
-    activePresetId: resultState.activePresetId,
-    resultPreset: resultState.resultPreset,
-    resultIsPrevious: resultState.resultIsPrevious,
-    resultContext: resultState.resultContext,
-    status,
-    phase,
-    progressText,
-    error,
-    result: resultState.result,
-    processEntries,
-    currentActivity,
-    liveOutput,
-    isBusy,
-    canRetry,
+    batch,
+    status: batch.status,
+    isBusy: batch.isBusy,
+    error: batch.error,
     setConfiguredModels,
     loadPresets,
     savePresets,
     resetPresets,
-    loadSavedSources,
-    loadSavedSource,
-    chooseSource,
-    replaceChapters,
     start,
-    retry: async () => pipeline.retry(),
-    stop: () => pipeline.stop(),
+    async stop() {
+      if (!batch.isBusy.value) return false;
+      await batch.stop();
+      return true;
+    },
+    settleTasks() {
+      if (!batch.isBusy.value) batch.settle();
+    },
     resetWorkspace() {
-      pipeline.reset();
-      resultState.clear();
+      batch.clear();
       source.value = null;
     },
-    persistResult: resultState.persistResult,
-    handleEvent: (event) => pipeline.handleEvent(event),
+    persistResult,
+    persistResults: (requests) =>
+      persistAnalysisResults(requests, persistResult),
+    handleEvent: (event) => batch.handleEvent(event),
     dispose() {
       disposed = true;
-      pipeline.dispose();
-      resultState.dispose();
+      batch.dispose();
     }
   };
 }

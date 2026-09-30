@@ -26,6 +26,7 @@ export interface PopupSelectProps {
   menuZIndex: number;
   multiple: boolean;
   selectedValues: readonly PopupSelectValue[];
+  selectedSummary?: string;
 }
 export interface PopupSelectEvents {
   (event: "menuNavigate", direction: 1 | -1): void;
