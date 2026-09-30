@@ -1,6 +1,7 @@
-import type { DeepWriteApi } from "@deepwrite/contracts";
+import type { AppLanguage, DeepWriteApi } from "@deepwrite/contracts";
 
 export interface I18nSmokeFixture {
+  originalLanguage: AppLanguage;
   bookId: string;
   documentId: string;
   snapshot: string;
@@ -157,9 +158,19 @@ export async function i18nSmokeInRenderer(
     );
     layout();
     await api.catalog.deleteBook(restored.bookId);
+    const current = await api.generalSettings.list();
+    const reset = await api.generalSettings.save({
+      ...current.settings,
+      language: restored.originalLanguage
+    });
+    ensure(
+      reset.settings.language === restored.originalLanguage,
+      "original language was not restored"
+    );
     return restored;
   }
 
+  const originalLanguage = (await api.generalSettings.list()).settings.language;
   const book = await api.catalog.createShortBook({
     title: "语言测试原名",
     genre: "其他"
@@ -247,6 +258,7 @@ export async function i18nSmokeInRenderer(
   );
   layout();
   return {
+    originalLanguage,
     bookId: book.id,
     documentId,
     snapshot,

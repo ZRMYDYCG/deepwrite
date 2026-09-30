@@ -1,7 +1,7 @@
 import type { BrowserWindow } from "electron";
 import type { DeepWriteApi, VoiceSettings } from "@deepwrite/contracts";
 
-async function voiceSmokeInRenderer() {
+export async function voiceSmokeInRenderer() {
   const api = (globalThis as unknown as { deepwrite: DeepWriteApi }).deepwrite;
   const ensure = (condition: unknown, message: string) => {
     if (!condition) throw new Error(`Voice smoke: ${message}`);
@@ -47,16 +47,22 @@ async function voiceSmokeInRenderer() {
   view.setUint32(40, 32000, true);
   const audioBase64 = btoa(String.fromCharCode(...bytes));
   const totalBefore = JSON.stringify((await api.modelUsage.query()).totals);
+  const runId = `smoke_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  const requestIds = settings.profiles.map(
+    (profile) => `${runId}_${profile.id}`
+  );
   for (const profile of settings.profiles) {
     const result = await api.voice.transcribe({
-      requestId: `smoke_${profile.id}`,
+      requestId: `${runId}_${profile.id}`,
       profileId: profile.id,
       audioBase64,
       durationMs: 1000
     });
     ensure(result.text.includes("语音输入测试"), "missing transcript");
   }
-  const usage = await api.voice.getUsage();
+  const usage = (await api.voice.getUsage()).filter((record) =>
+    requestIds.includes(record.requestId)
+  );
   ensure(usage.length === 4, "voice usage not persisted");
   ensure(
     usage.filter((record) => record.totalTokens !== undefined).length === 2,
@@ -74,9 +80,10 @@ async function voiceSmokeInRenderer() {
     }))
   });
   let aborted = false;
+  const cancelRequestId = `${runId}_cancel`;
   const pending = api.voice
     .transcribe({
-      requestId: "smoke_cancel",
+      requestId: cancelRequestId,
       profileId: "mimo-api",
       audioBase64,
       durationMs: 1000
@@ -85,7 +92,7 @@ async function voiceSmokeInRenderer() {
       aborted = true;
     });
   await pause(30);
-  await api.voice.cancel({ requestId: "smoke_cancel" });
+  await api.voice.cancel({ requestId: cancelRequestId });
   await pending;
   ensure(aborted, "cancel did not abort the request");
   await api.voice.saveSettings(inputFor(original));

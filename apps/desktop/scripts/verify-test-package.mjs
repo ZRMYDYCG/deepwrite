@@ -126,10 +126,14 @@ const hostCanRunTarget =
   (targetPlatform === "mac" && process.platform === "darwin") ||
   (targetPlatform === "linux" && process.platform === "linux") ||
   (targetPlatform === "win" && process.platform === "win32");
+const skipMacX64Smoke =
+  process.env.DEEPWRITE_SKIP_MAC_X64_SMOKE === "1" &&
+  targetPlatform === "mac" &&
+  targetArch === "x64";
 
-if (!hostCanRunTarget) {
+if (!hostCanRunTarget || skipMacX64Smoke) {
   console.log(
-    `PACKAGE_SMOKE_SKIPPED target=${targetPlatform}-${targetArch} host=${process.platform}-${process.arch} artifact=${artifact}`
+    `PACKAGE_SMOKE_SKIPPED target=${targetPlatform}-${targetArch} host=${process.platform}-${process.arch} reason=${skipMacX64Smoke ? "requested" : "host"} artifact=${artifact}`
   );
   process.exit(0);
 }

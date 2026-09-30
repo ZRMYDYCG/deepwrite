@@ -79,9 +79,10 @@ async function voiceUiStep(step: VoiceUiStep) {
   }
 
   if (step === "settings") {
-    const before = (await api.voice.getUsage()).length;
-    if (!selector(".settings-page"))
-      await click('button[aria-label="打开设置"]');
+    const before = (await api.voice.getUsage()).map(
+      (record) => record.requestId
+    );
+    if (!selector(".settings-page")) await click(".account-settings-button");
     await buttonText(".settings-nav", "语音配置");
     await until(() => {
       return [
@@ -111,9 +112,11 @@ async function voiceUiStep(step: VoiceUiStep) {
       !selector(".settings-content .voice-input-bar"),
       "test recorder did not return to idle"
     );
-    const after = (await api.voice.getUsage()).length;
+    const after = (await api.voice.getUsage()).map(
+      (record) => record.requestId
+    );
     ensure(
-      after === before + 1,
+      after.filter((requestId) => !before.includes(requestId)).length === 1,
       "settings transcription was not recorded in voice usage"
     );
     return { usage: after };
@@ -143,11 +146,15 @@ async function voiceUiStep(step: VoiceUiStep) {
       selector<HTMLTextAreaElement>(`${root} textarea`)?.value === "保留原草稿",
       "recording replaced draft"
     );
-    return { usage: (await api.voice.getUsage()).length };
+    return {
+      usage: (await api.voice.getUsage()).map((record) => record.requestId)
+    };
   }
 
   if (step === "chat-transcribing") {
-    const before = (await api.voice.getUsage()).length;
+    const before = (await api.voice.getUsage()).map(
+      (record) => record.requestId
+    );
     await click(`${root} button[aria-label="取消语音输入"]`);
     await until(
       () => selector(`${root} button[aria-label="语音输入"]`),
@@ -158,7 +165,9 @@ async function voiceUiStep(step: VoiceUiStep) {
       "cancel changed draft"
     );
     ensure(
-      (await api.voice.getUsage()).length === before,
+      JSON.stringify(
+        (await api.voice.getUsage()).map((record) => record.requestId)
+      ) === JSON.stringify(before),
       "cancel submitted audio"
     );
     const settings = await api.voice.getSettings();
@@ -208,7 +217,7 @@ async function voiceUiStep(step: VoiceUiStep) {
     !selector(`${root} .voice-input-bar`),
     "chat recorder did not return to idle"
   );
-  const after = (await api.voice.getUsage()).length;
+  const after = (await api.voice.getUsage()).map((record) => record.requestId);
   return { usage: after };
 }
 
@@ -220,7 +229,7 @@ export async function runVoiceUiSmoke(window: BrowserWindow) {
     window.webContents.executeJavaScript(
       `(${voiceUiStep.toString()})(${JSON.stringify(step)})`,
       true
-    ) as Promise<{ usage: number }>;
+    ) as Promise<{ usage: string[] }>;
   const settings = await run("settings");
   await window.webContents.executeJavaScript(
     `document.querySelector('.settings-content').scrollIntoView({block:'start'});`
@@ -240,10 +249,13 @@ export async function runVoiceUiSmoke(window: BrowserWindow) {
     (await window.capturePage()).toPNG()
   );
   const finished = await run("chat-finish");
+  const unchanged = (current: string[]) =>
+    JSON.stringify(current) === JSON.stringify(settings.usage);
   if (
-    recording.usage !== settings.usage ||
-    transcribing.usage !== settings.usage ||
-    finished.usage !== settings.usage + 1
+    !unchanged(recording.usage) ||
+    !unchanged(transcribing.usage) ||
+    finished.usage.filter((requestId) => !settings.usage.includes(requestId))
+      .length !== 1
   )
     throw new Error(
       "Voice UI smoke: unexpected usage change between UI steps."
