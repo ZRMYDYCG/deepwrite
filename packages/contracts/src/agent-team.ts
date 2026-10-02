@@ -19,6 +19,16 @@ export const SHORT_AGENT_SUBAGENT_NAME_MAX_LENGTH = 80;
 export const SHORT_AGENT_SUBAGENT_DESCRIPTION_MAX_LENGTH = 1_000;
 export const SHORT_AGENT_SUBAGENT_SYSTEM_PROMPT_MAX_LENGTH = 20_000;
 export const SHORT_AGENT_SUBAGENT_MODEL_ID_MAX_LENGTH = 120;
+/** Upper bound of children a parallel team runs at the same time. */
+export const SUBAGENT_PARALLEL_MAX_CONCURRENCY = 5;
+/** Upper bound of tasks one `spawn_subagent` call may submit. */
+export const SUBAGENT_TASK_BATCH_MAX_COUNT = 20;
+
+/**
+ * Team-wide switch: when on, independent subagent tasks of one delegation
+ * call run concurrently. Older settings and packages omit it.
+ */
+export const AgentTeamParallelSubagentsSchema = z.boolean().default(false);
 
 export const ShortAgentSubagentModelModeSchema = z.enum(["inherit", "custom"]);
 export type ShortAgentSubagentModelMode = z.infer<
@@ -176,6 +186,7 @@ function validateCompleteAgentTeams(
 export const AgentTeamSettingsSchema = z
   .object({
     workspaceType: z.literal("short"),
+    parallelSubagents: AgentTeamParallelSubagentsSchema,
     teams: z.array(AgentTeamSchema).length(SHORT_WORKSPACE_AGENT_IDS.length)
   })
   .superRefine((value, context) =>
@@ -190,6 +201,7 @@ export type AgentTeamSettingsInput = z.infer<
 
 export const DEFAULT_AGENT_TEAM_SETTINGS: AgentTeamSettings = {
   workspaceType: "short",
+  parallelSubagents: false,
   teams: SHORT_WORKSPACE_AGENT_IDS.map((parentAgentId) => ({
     parentAgentId,
     subagents: []
@@ -230,6 +242,7 @@ function validateCompleteScriptAgentTeams(
 export const ScriptAgentTeamSettingsSchema = z
   .object({
     workspaceType: z.literal("script"),
+    parallelSubagents: AgentTeamParallelSubagentsSchema,
     teams: z
       .array(ScriptAgentTeamSchema)
       .length(SCRIPT_WORKSPACE_AGENT_IDS.length)
@@ -264,6 +277,7 @@ export type WorkspaceAgentTeamSettingsInput = z.infer<
 
 export const DEFAULT_SCRIPT_AGENT_TEAM_SETTINGS: ScriptAgentTeamSettings = {
   workspaceType: "script",
+  parallelSubagents: false,
   teams: SCRIPT_WORKSPACE_AGENT_IDS.map((parentAgentId) => ({
     parentAgentId,
     subagents: []

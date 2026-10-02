@@ -10,6 +10,19 @@ export function toSubagentRuntimeEvents(
   runtime: AgentRuntimeRef,
   messageId: string
 ): AgentRuntimeEvent[] {
+  if (progress.type === "planned") {
+    return [
+      {
+        type: "subagent.planned",
+        runId: input.runId,
+        sessionId: input.sessionId,
+        payload: {
+          parentToolCallId: progress.parentToolCallId,
+          tasks: progress.tasks
+        }
+      }
+    ];
+  }
   const progressRuntime = progress.runtime ?? runtime;
   const base = {
     parentToolCallId: progress.parentToolCallId,
@@ -24,7 +37,11 @@ export function toSubagentRuntimeEvents(
         type: "subagent.started",
         runId: input.runId,
         sessionId: input.sessionId,
-        payload: { ...base, task: progress.task }
+        payload: {
+          ...base,
+          task: progress.task,
+          ...(progress.batchTask ? { batchTask: progress.batchTask } : {})
+        }
       }
     ];
   }
@@ -51,7 +68,8 @@ export function toSubagentRuntimeEvents(
           ...(progress.errorMessage
             ? { errorMessage: progress.errorMessage }
             : {}),
-          ...(progress.usage ? { usage: progress.usage } : {})
+          ...(progress.usage ? { usage: progress.usage } : {}),
+          ...(progress.batchTask ? { batchTask: progress.batchTask } : {})
         }
       }
     ];

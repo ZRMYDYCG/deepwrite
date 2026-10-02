@@ -58,9 +58,15 @@ export function parseStoredSubagentRun(
     typeof value.subagentId !== "string" ||
     typeof value.name !== "string" ||
     typeof value.task !== "string" ||
-    !["running", "completed", "error", "stopped", "interrupted"].includes(
-      String(value.status)
-    ) ||
+    ![
+      "queued",
+      "running",
+      "completed",
+      "error",
+      "stopped",
+      "skipped",
+      "interrupted"
+    ].includes(String(value.status)) ||
     !validDate(value.startedAt) ||
     !Array.isArray(value.toolCalls) ||
     !Array.isArray(value.processingSteps)
@@ -82,7 +88,9 @@ export function parseStoredSubagentRun(
     return undefined;
   }
 
+  const restoredWhileQueued = value.status === "queued";
   const restoredWhileRunning = value.status === "running";
+  const batchTask = parseStoredBatchTask(value.batchTask);
   const restoredAt = new Date().toISOString();
   const normalizedToolCalls = restoredWhileRunning
     ? toolCalls.map((toolCall) =>
@@ -106,8 +114,9 @@ export function parseStoredSubagentRun(
     subagentId: value.subagentId,
     name: value.name,
     task: value.task,
-    status:
-      restoredWhileRunning || value.status === "interrupted"
+    status: restoredWhileQueued
+      ? "skipped"
+      : restoredWhileRunning || value.status === "interrupted"
         ? "stopped"
         : (value.status as AgentSubagentRun["status"]),
     runtime,
@@ -118,7 +127,7 @@ export function parseStoredSubagentRun(
     startedAt: value.startedAt,
     ...(typeof value.completedAt === "string"
       ? { completedAt: value.completedAt }
-      : restoredWhileRunning
+      : restoredWhileRunning || restoredWhileQueued
         ? { completedAt: restoredAt }
         : {}),
     ...(typeof value.summary === "string" ? { summary: value.summary } : {}),
@@ -128,7 +137,33 @@ export function parseStoredSubagentRun(
         ? {
             errorMessage: t("theSubtaskWasStillRunningWhenTheAppClosed")
           }
-        : {}),
-    ...(usage ? { usage } : {})
+        : restoredWhileQueued
+          ? {
+              errorMessage: t("theSubtaskHadNotStartedWhenTheAppClosed")
+            }
+          : {}),
+    ...(usage ? { usage } : {}),
+    ...(batchTask ? { batchTask } : {})
+  };
+}
+
+function parseStoredBatchTask(
+  value: unknown
+): AgentSubagentRun["batchTask"] | undefined {
+  if (
+    !isRecord(value) ||
+    !Number.isSafeInteger(value.index) ||
+    (value.index as number) < 0 ||
+    typeof value.key !== "string" ||
+    !value.key ||
+    !Array.isArray(value.dependsOn) ||
+    value.dependsOn.some((key) => typeof key !== "string")
+  ) {
+    return undefined;
+  }
+  return {
+    index: value.index as number,
+    key: value.key,
+    dependsOn: [...(value.dependsOn as string[])]
   };
 }

@@ -6,6 +6,7 @@ import {
   parseStoredContextCompactions
 } from "./context-compaction";
 import { buildConversationRestore } from "./history";
+import { createTrackedMessages } from "./message-mutations";
 
 const time = "2026-09-28T00:00:00.000Z";
 const runtime = {
@@ -35,6 +36,42 @@ const checkpoint = {
 };
 
 describe("persisted context checkpoints", () => {
+  it("copies a reactive checkpoint before sending the next turn across IPC", () => {
+    const tracked = createTrackedMessages([
+      message("user", "one"),
+      message("assistant", "one")
+    ]);
+    const assistant = tracked.messages.value[1]!;
+    const withRefs = {
+      ...checkpoint,
+      refs: {
+        read: ["chapter:one"],
+        proposed: [],
+        skills: [],
+        materials: []
+      }
+    };
+    applyContextCompactionEvent(
+      assistant,
+      {
+        runId: "one",
+        sessionId: "session",
+        messageId: assistant.id,
+        runtime,
+        phase: "completed",
+        reason: "manual",
+        level: "summary",
+        checkpoint: withRefs
+      },
+      "summary",
+      time
+    );
+
+    const restore = buildConversationRestore(tracked.messages.value);
+    expect(restore.checkpoint).toEqual(withRefs);
+    expect(() => structuredClone(restore)).not.toThrow();
+  });
+
   it("keeps the latest valid checkpoint after many prune passes and JSON reload", () => {
     const item = message("assistant", "three");
     applyContextCompactionEvent(

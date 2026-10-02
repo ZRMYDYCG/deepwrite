@@ -17,13 +17,23 @@ const model: DraftModel = {
   hasApiKey: false
 };
 
-describe("custom model editor capacity", () => {
-  it("uses configured limits for both testing and saving a new model", () => {
+describe("custom model editor", () => {
+  it("keeps a saved model's advanced capacity while editing other fields", () => {
     const scope = effectScope();
     const save = vi.fn();
     const test = vi.fn();
-    const editor = scope.run(() => useModelEditor(model, { save, test }))!;
-    editor.setCapacity({ contextWindow: 128_000, maxTokens: 8_000 });
+    const editor = scope.run(() =>
+      useModelEditor(
+        {
+          ...model,
+          originalId: model.id,
+          contextWindow: 128_000,
+          maxTokens: 8_000
+        },
+        { save, test }
+      )
+    )!;
+    editor.editor.value.label = "Updated writer";
 
     editor.test();
     editor.save();
@@ -34,10 +44,10 @@ describe("custom model editor capacity", () => {
     expect(save).toHaveBeenCalledWith(
       expect.objectContaining({
         model: expect.objectContaining({
+          label: "Updated writer",
           contextWindow: 128_000,
           maxTokens: 8_000
-        }),
-        capacityOverride: { contextWindow: 128_000, maxTokens: 8_000 }
+        })
       })
     );
     scope.stop();

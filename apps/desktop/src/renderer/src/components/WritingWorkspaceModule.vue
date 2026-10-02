@@ -56,6 +56,7 @@ type WritingEditorViewModel = Readonly<
     | "lockedLabel"
     | "saving"
     | "manualSaving"
+    | "formatAllPending"
     | "autoSaveEnabled"
     | "defaultViewMode"
     | "boundToCurrentBook"
@@ -113,6 +114,7 @@ const emit = defineEmits<{
   collapse: [];
   save: [payload: { id: string; title: string; content: string }];
   liveChange: [payload: { id: string; title: string; content: string }];
+  formatAllBodies: [];
   insertSelection: [reference: EditorTextReference];
   selectSection: [sectionId: string];
   createSection: [];
@@ -179,6 +181,7 @@ const emit = defineEmits<{
     @toggle-right="emit('toggleRight')"
     @save="emit('save', $event)"
     @live-change="emit('liveChange', $event)"
+    @format-all-bodies="emit('formatAllBodies')"
     @insert-selection="emit('insertSelection', $event)"
     @select-section="emit('selectSection', $event)"
     @create-section="emit('createSection')"

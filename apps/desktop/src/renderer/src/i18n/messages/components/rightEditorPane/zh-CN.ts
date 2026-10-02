@@ -20,6 +20,7 @@ export default {
   edit: "编辑",
   preview: "预览",
   textActions: "文本操作",
+  formatAllManuscriptBodies: "一键规范本作品全部正文",
   documentTitle: "文档标题",
   textEditor: "文本内容编辑器",
   noContentYet: "暂无内容",

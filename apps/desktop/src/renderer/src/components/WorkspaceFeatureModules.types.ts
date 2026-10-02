@@ -32,6 +32,7 @@ export interface SettingsFeatureModule {
   autoSaveEnabled: boolean;
   language: AppLanguage;
   showContextUsage: boolean;
+  textAttachmentMaxCharacters: number;
   contextCompaction: ContextCompactionSettings;
   showInMenuBar: boolean;
   useNetworkProxy: boolean;

@@ -195,6 +195,59 @@ async function conversationSmokeInRenderer() {
       listed.sessions[0]?.summary?.turnCount === 1,
     "indexed summary differs"
   );
+  const archivedIdentity = {
+    key: "conversation-history:packaged-archive-fixture",
+    sessionId: "archived-session"
+  };
+  if (!existing) {
+    await api.commit({
+      ...archivedIdentity,
+      batchId: "archive-fixture-create",
+      expectedRevision: 0,
+      generation: 0,
+      sequence: 1,
+      operations: [
+        {
+          type: "setMetadata",
+          value: {
+            createdAt: "2026-01-01T00:00:00.000Z",
+            updatedAt: "2026-01-01T00:00:00.000Z"
+          }
+        },
+        {
+          type: "putMessage",
+          messageId: "archived-message",
+          position: 0,
+          value: { role: "user", content: "虚构归档测试对话" }
+        }
+      ]
+    });
+    await api.commit({
+      ...archivedIdentity,
+      batchId: "archive-fixture-archive",
+      expectedRevision: 1,
+      generation: 0,
+      sequence: 2,
+      operations: [{ type: "setDeleted", deleted: true }]
+    });
+    const archivedPage = await api.listArchived({ limit: 50 });
+    ensure(
+      archivedPage.entries.some(
+        (entry) =>
+          entry.key === archivedIdentity.key &&
+          entry.session.sessionId === archivedIdentity.sessionId
+      ),
+      "global archived list omitted the conversation"
+    );
+  }
+  await api.purge({ ...archivedIdentity, expectedRevision: 2 });
+  ensure(
+    (await api.session(archivedIdentity)) === null &&
+      !(await api.listArchived({ limit: 50 })).entries.some(
+        (entry) => entry.session.sessionId === archivedIdentity.sessionId
+      ),
+    "permanent deletion retained an archived conversation"
+  );
   return {
     status: "ok",
     staged: true,
@@ -202,7 +255,9 @@ async function conversationSmokeInRenderer() {
     chunkPages: content.pages,
     metadataChunkPages: metadata.pages,
     unknownRetained: true,
-    proposalRetained: true
+    proposalRetained: true,
+    archived: true,
+    purged: true
   };
 }
 

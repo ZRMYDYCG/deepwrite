@@ -1,13 +1,6 @@
 <script setup lang="ts">
 import { createScopedTranslator } from "../i18n";
-import {
-  computed,
-  nextTick,
-  onBeforeUnmount,
-  onMounted,
-  ref,
-  watch
-} from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from "vue";
 import type {
   BookResourceDialogMode,
   CatalogResourceNodeAction,
@@ -21,6 +14,7 @@ import type {
 } from "../types/workspace";
 import AppIcon from "./AppIcon.vue";
 import LongBookActionMenu from "./LongBookActionMenu.vue";
+import { useTreeNodeDisclosure } from "../composables/useTreeNodeDisclosure";
 
 const t = createScopedTranslator("components.treeNodeItem");
 
@@ -74,8 +68,9 @@ const emit = defineEmits<{
   ];
 }>();
 
-const open = ref(
-  Boolean(props.node.selectableBranch && props.selectedId === props.node.id)
+const { open } = useTreeNodeDisclosure(
+  () => props.node,
+  () => props.selectedId
 );
 const ACTION_MENU_GAP = 3;
 const ACTION_MENU_EDGE_GAP = 8;
@@ -206,16 +201,6 @@ const draftUnitLabel = computed(() =>
   props.node.workspaceType === "script" ? t("episode") : t("section")
 );
 
-function containsSelectedDescendant(
-  node: ResourceTreeNode,
-  selectedId: string
-): boolean {
-  return (node.children ?? []).some(
-    (child) =>
-      child.id === selectedId || containsSelectedDescendant(child, selectedId)
-  );
-}
-
 function isFirstLongTreeItem(node: ResourceTreeNode): boolean {
   const kind = node.longTreeItem?.kind;
   if (!kind) return false;
@@ -235,20 +220,6 @@ function isLastLongTreeItem(node: ResourceTreeNode): boolean {
     ) ?? [];
   return siblings.at(-1)?.id === node.id;
 }
-
-watch(
-  () => [props.selectedId, props.node.children?.length ?? 0] as const,
-  ([selectedId, childCount]) => {
-    if (
-      childCount > 0 &&
-      ((props.node.selectableBranch && selectedId === props.node.id) ||
-        (selectedId && containsSelectedDescendant(props.node, selectedId)))
-    ) {
-      open.value = true;
-    }
-  },
-  { immediate: true }
-);
 
 function activate(): void {
   if (props.node.unavailable && props.node.catalogNodeType === "long-book") {

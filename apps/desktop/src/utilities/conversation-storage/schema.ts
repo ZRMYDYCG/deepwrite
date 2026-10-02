@@ -36,6 +36,11 @@ export function openConversationDatabase(path: string): DatabaseSync {
         PRIMARY KEY(scope_key, session_id)
       );
       CREATE INDEX IF NOT EXISTS sessions_recent ON sessions(scope_key, deleted, updated_at DESC, session_id);
+      CREATE INDEX IF NOT EXISTS sessions_archived_recent ON sessions(updated_at DESC, scope_key, session_id) WHERE deleted = 1 AND message_count > 0;
+      CREATE TABLE IF NOT EXISTS purged_sessions (
+        scope_key TEXT NOT NULL, session_id TEXT NOT NULL,
+        PRIMARY KEY(scope_key, session_id)
+      );
       CREATE TABLE IF NOT EXISTS messages (
         scope_key TEXT NOT NULL, session_id TEXT NOT NULL, message_id TEXT NOT NULL,
         position INTEGER NOT NULL, value_ref TEXT NOT NULL,

@@ -10,6 +10,10 @@ import {
   LongAgentTeamSettingsSchema,
   ScriptAgentTeamSettingsSchema,
   SubagentActivityEventEnvelopeSchema,
+  SubagentCompletedPayloadSchema,
+  SubagentPlannedEventEnvelopeSchema,
+  SubagentPlannedPayloadSchema,
+  SubagentStartedPayloadSchema,
   createEnvelope,
   createDefaultCreativePlotStages,
   createShortWorkspaceContentRevision,
@@ -81,9 +85,38 @@ function shortWorkspace() {
 
 describe("agent-team contracts", () => {
   it("accepts the single-team short workspace shape", () => {
-    expect(AgentTeamSettingsInputSchema.parse(completeSettings())).toEqual(
-      completeSettings()
-    );
+    expect(AgentTeamSettingsInputSchema.parse(completeSettings())).toEqual({
+      ...completeSettings(),
+      parallelSubagents: false
+    });
+  });
+
+  it("keeps the team-wide parallel switch and defaults older settings to off", () => {
+    expect(
+      AgentTeamSettingsInputSchema.parse({
+        ...completeSettings(),
+        parallelSubagents: true
+      }).parallelSubagents
+    ).toBe(true);
+    expect(
+      ScriptAgentTeamSettingsSchema.parse({
+        workspaceType: "script",
+        teams: DEFAULT_SCRIPT_AGENT_TEAM_SETTINGS.teams
+      }).parallelSubagents
+    ).toBe(false);
+    expect(
+      LongAgentTeamSettingsSchema.parse({
+        workspaceType: "long",
+        parallelSubagents: true,
+        teams: DEFAULT_LONG_AGENT_TEAM_SETTINGS.teams
+      }).parallelSubagents
+    ).toBe(true);
+    expect(
+      AgentTeamSettingsInputSchema.safeParse({
+        ...completeSettings(),
+        parallelSubagents: "yes"
+      }).success
+    ).toBe(false);
   });
 
   it("defaults missing modelMode to inherit and requires modelId for custom", () => {
@@ -187,6 +220,94 @@ describe("agent-team contracts", () => {
         sessionId: "session-1",
         message: "审阅大纲",
         subagentDefinitions: [definition]
+      }).success
+    ).toBe(false);
+  });
+
+  it("allows the parallel flag only alongside subagent definitions", () => {
+    const profile = DEFAULT_SHORT_WORKSPACE_AGENT_PROFILES[0]!;
+    const payload = {
+      sessionId: "session-1",
+      message: "并行写两节",
+      workspaceContext: { shortWorkspace: shortWorkspace() },
+      agentProfile: profile
+    };
+    expect(
+      AgentPromptCommandPayloadSchema.safeParse({
+        ...payload,
+        subagentDefinitions: [definition],
+        parallelSubagents: true
+      }).success
+    ).toBe(true);
+    expect(
+      AgentPromptCommandPayloadSchema.safeParse({
+        ...payload,
+        parallelSubagents: true
+      }).success
+    ).toBe(false);
+  });
+
+  it("carries batch task identity and the skipped status on subagent events", () => {
+    const base = {
+      sessionId: "session-1",
+      runId: "run-1",
+      parentToolCallId: "call-1",
+      subagentRunId: "subrun-2",
+      subagentId: "continuity_reviewer",
+      name: "连续性审阅",
+      runtime: { provider: "faux", model: "faux", mode: "local-faux" as const },
+      batchTask: { index: 1, key: "review", dependsOn: ["c3"] }
+    };
+    expect(
+      SubagentStartedPayloadSchema.safeParse({ ...base, task: "检查衔接" })
+        .success
+    ).toBe(true);
+    expect(
+      SubagentCompletedPayloadSchema.safeParse({
+        ...base,
+        status: "skipped",
+        summary: "前置任务 c3 没有完成，该子任务已跳过。"
+      }).success
+    ).toBe(true);
+    expect(
+      SubagentStartedPayloadSchema.safeParse({
+        ...base,
+        task: "检查衔接",
+        batchTask: { index: 20, key: "review", dependsOn: [] }
+      }).success
+    ).toBe(false);
+    const planned = {
+      index: 1,
+      key: "review",
+      dependsOn: ["c3"],
+      subagentId: "continuity_reviewer",
+      name: "连续性审阅",
+      task: "检查衔接",
+      runtime: base.runtime
+    };
+    expect(
+      SubagentPlannedEventEnvelopeSchema.safeParse(
+        createEnvelope(
+          "subagent.planned",
+          {
+            sessionId: "session-1",
+            runId: "run-1",
+            parentToolCallId: "call-1",
+            tasks: [planned]
+          },
+          {
+            id: "evt-planned",
+            context: { sessionId: "session-1", runId: "run-1" }
+          }
+        )
+      ).success
+    ).toBe(true);
+    expect(
+      SubagentPlannedPayloadSchema.safeParse({
+        sessionId: "session-1",
+        runId: "run-1",
+        parentToolCallId: "call-1",
+        tasks: [{ ...planned, name: "" }]
       }).success
     ).toBe(false);
   });

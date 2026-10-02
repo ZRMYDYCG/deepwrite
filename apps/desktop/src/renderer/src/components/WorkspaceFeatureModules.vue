@@ -58,6 +58,7 @@ const emit = defineEmits<{
   updateAutoSave: [enabled: boolean];
   updateLanguage: [language: AppLanguage];
   updateShowContextUsage: [enabled: boolean];
+  updateTextAttachmentMaxCharacters: [value: number];
   updateContextCompaction: [settings: ContextCompactionSettings];
   updateShowInMenuBar: [enabled: boolean];
   updateUseNetworkProxy: [enabled: boolean];
@@ -115,6 +116,7 @@ const emit = defineEmits<{
     :auto-save-enabled="module.autoSaveEnabled"
     :language="module.language"
     :show-context-usage="module.showContextUsage"
+    :text-attachment-max-characters="module.textAttachmentMaxCharacters"
     :context-compaction="module.contextCompaction"
     :show-in-menu-bar="module.showInMenuBar"
     :use-network-proxy="module.useNetworkProxy"
@@ -158,6 +160,9 @@ const emit = defineEmits<{
     @update-auto-save="emit('updateAutoSave', $event)"
     @update-language="emit('updateLanguage', $event)"
     @update-show-context-usage="emit('updateShowContextUsage', $event)"
+    @update-text-attachment-max-characters="
+      emit('updateTextAttachmentMaxCharacters', $event)
+    "
     @update-context-compaction="emit('updateContextCompaction', $event)"
     @update-show-in-menu-bar="emit('updateShowInMenuBar', $event)"
     @update-use-network-proxy="emit('updateUseNetworkProxy', $event)"

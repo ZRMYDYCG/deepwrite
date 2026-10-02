@@ -83,7 +83,7 @@ async function voiceUiStep(step: VoiceUiStep) {
       (record) => record.requestId
     );
     if (!selector(".settings-page")) await click(".account-settings-button");
-    await buttonText(".settings-nav", "语音配置");
+    await buttonText(".settings-nav", "语音模型");
     await until(() => {
       return [
         ...document.querySelectorAll<HTMLButtonElement>(

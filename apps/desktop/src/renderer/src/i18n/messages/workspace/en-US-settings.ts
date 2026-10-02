@@ -163,7 +163,7 @@ export default {
   voiceSettings: {
     systemDefaultMicrophone: "System default microphone",
     failedToReadVoiceSettingsPleaseTryAgain:
-      "Failed to read voice settings. Please try again.",
+      "Failed to read voice model settings. Please try again.",
     failedToReadVoiceUsagePleaseTryAgain:
       "Failed to read voice usage. Please try again.",
     microphone: "Microphone {value}",
@@ -173,9 +173,9 @@ export default {
     enterAnHttpsEndpointWithoutCredentialsQueryParametersOr:
       "Enter an HTTPS endpoint without credentials, query parameters, or fragments.",
     enterTheSpeechRecognitionModel: "Enter the speech recognition model.",
-    voiceSettingsSaved: "Voice settings saved.",
+    voiceSettingsSaved: "Voice model settings saved.",
     failedToSaveVoiceSettingsPleaseTryAgain:
-      "Failed to save voice settings. Please try again."
+      "Failed to save voice model settings. Please try again."
   },
   voiceUsageSummary: {
     today: "Today",
@@ -226,7 +226,7 @@ export default {
     microphoneAccessIsDisabledAllowDeepwriteToUseThe:
       "Microphone access is disabled. Allow DeepWrite to use the microphone in system settings.",
     theSelectedMicrophoneWasNotFoundSelectAnotherIn:
-      "The selected microphone was not found. Select another in voice settings.",
+      "The selected microphone was not found. Select another in voice model settings.",
     theMicrophoneIsUnavailableCheckWhetherItIsDisconnected:
       "The microphone is unavailable. Check whether it is disconnected or in use by another app.",
     speechRecognitionFailedPleaseTryAgain:
@@ -234,7 +234,7 @@ export default {
     voiceInputIsOnlyAvailableInTheDesktopApp:
       "Voice input is only available in the desktop app.",
     saveTheSelectedProviderSApiKeyInSettings:
-      "Save the selected provider’s API key in Settings → Voice first.",
+      "Save the selected provider’s API key in Settings → Voice model settings first.",
     theMicrophoneDisconnectedThisRecordingWasCanceled:
       "The microphone disconnected. This recording was canceled.",
     theSpeechRecognitionResponseDoesNotMatchPleaseTry:

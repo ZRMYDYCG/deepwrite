@@ -2,6 +2,7 @@ import { t } from "../../i18n";
 import type { AgentRuntimeRef } from "@deepwrite/contracts";
 import { discardPendingAssistantMessage } from "./message-identity";
 import type { AgentConversationState } from "./context";
+import { isActiveSubagentRun } from "../../types/conversation";
 
 export interface IdleTimeoutScope {
   expectedEpoch: number;
@@ -48,7 +49,7 @@ export function expireIdleConversation(
     state.messages.value.some(
       (message) =>
         message.runId === runId &&
-        message.subagentRuns?.some((child) => child.status === "running")
+        message.subagentRuns?.some(isActiveSubagentRun)
     )
   )
     return;

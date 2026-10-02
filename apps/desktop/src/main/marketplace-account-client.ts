@@ -17,9 +17,11 @@ import {
   MarketplaceBindEmailInputSchema,
   MarketplaceEmailCodeInputSchema,
   MarketplaceEmailCodeResultSchema,
+  MarketplaceEmailLoginInputSchema,
   type MarketplaceBindEmailInput,
   type MarketplaceEmailCodeInput,
-  type MarketplaceEmailCodeResult
+  type MarketplaceEmailCodeResult,
+  type MarketplaceEmailLoginInput
 } from "@deepwrite/contracts";
 import type {
   MarketplaceClientOptions,
@@ -117,6 +119,21 @@ export class MarketplaceAccountClient {
     return this.sessionSnapshot();
   }
 
+  async loginWithEmailCode(
+    input: MarketplaceEmailLoginInput
+  ): Promise<MarketplaceSession> {
+    const parsed = MarketplaceEmailLoginInputSchema.parse(input);
+    const data = asRecord(
+      await this.request("POST", "/market/v1/auth/login/code", {
+        authenticated: false,
+        body: { email: parsed.email, email_code: parsed.emailCode }
+      }),
+      "登录结果"
+    );
+    await this.acceptAuthentication(data);
+    return this.sessionSnapshot();
+  }
+
   async sendEmailCode(
     input: MarketplaceEmailCodeInput
   ): Promise<MarketplaceEmailCodeResult> {
@@ -126,7 +143,9 @@ export class MarketplaceAccountClient {
         "POST",
         parsed.purpose === "register"
           ? "/market/v1/auth/register/email-code"
-          : "/market/v1/me/email-code",
+          : parsed.purpose === "login"
+            ? "/market/v1/auth/login/email-code"
+            : "/market/v1/me/email-code",
         {
           authenticated: parsed.purpose === "account",
           body: { email: parsed.email }

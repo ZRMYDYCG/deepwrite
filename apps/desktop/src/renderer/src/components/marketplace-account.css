@@ -33,6 +33,20 @@
 .auth-form {
   padding: 24px;
 }
+.auth-methods {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+.auth-methods button {
+  min-width: 0;
+  padding: 8px 4px;
+  font-size: 0.9em;
+}
+.auth-methods button.active {
+  border-color: var(--accent);
+  background: var(--surface-selected);
+}
 label {
   display: grid;
   gap: 7px;

@@ -2,7 +2,10 @@ import { createScopedTranslator } from "../../i18n";
 import type { AgentConversationContext } from "./context";
 import { expireIdleConversation, type IdleTimeoutScope } from "./idle-timeout";
 import type { AgentRuntimeRef } from "@deepwrite/contracts";
-import type { ChatMessage } from "../../types/conversation";
+import {
+  isActiveSubagentRun,
+  type ChatMessage
+} from "../../types/conversation";
 import { claimPendingActivityPlaceholder } from "./message-identity";
 import { finalizeUnfinishedMessageTools } from "./attempt-state";
 import { id, rememberBounded } from "./shared";
@@ -66,7 +69,7 @@ export function finalizeRunningSubagents(
   reason: string
 ): void {
   for (const run of message.subagentRuns ?? []) {
-    if (run.status !== "running") continue;
+    if (!isActiveSubagentRun(run)) continue;
     run.status = status;
     run.completedAt = completedAt;
     run.errorMessage = reason;

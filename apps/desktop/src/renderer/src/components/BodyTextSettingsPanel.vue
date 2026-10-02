@@ -84,7 +84,7 @@ const fields: { kind: BodyTextKind; label: string }[] = [
 <template>
   <section class="settings-group">
     <h2 class="settings-group-title">
-      {{ t("manuscriptText") }}
+      {{ t("defaultDisplay") }}
     </h2>
     <div class="settings-card">
       <div class="settings-item body-text-setting">
@@ -106,16 +106,24 @@ const fields: { kind: BodyTextKind; label: string }[] = [
           "
         />
       </div>
+    </div>
+  </section>
+
+  <section class="settings-group body-text-format-group">
+    <h2 class="settings-group-title">
+      {{ t("formatManuscript") }}
+    </h2>
+    <p class="body-text-format-description">
+      {{ t("appliedWhenYouChooseFormatManuscriptInTheToolbar") }}
+    </p>
+    <div class="settings-card">
       <div
         v-for="field in fields"
         :key="field.kind"
         class="settings-item body-text-setting"
       >
         <span class="settings-item-text"
-          ><strong>{{ field.label }}</strong
-          ><small>{{
-            t("appliedWhenYouChooseFormatManuscriptInTheToolbar")
-          }}</small></span
+          ><strong>{{ field.label }}</strong></span
         >
         <PopupSelect
           class="body-text-select"
@@ -153,5 +161,14 @@ const fields: { kind: BodyTextKind; label: string }[] = [
   width: 260px;
   max-width: 100%;
   flex: 0 1 260px;
+}
+.body-text-format-group {
+  margin-top: 8px;
+}
+.body-text-format-description {
+  margin: -6px 0 14px;
+  color: var(--text-secondary);
+  font-size: 0.892857rem;
+  line-height: 1.45;
 }
 </style>

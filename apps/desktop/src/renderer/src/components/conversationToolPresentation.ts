@@ -153,7 +153,7 @@ export function liveTimelineItems(
       if (
         (item.type === "tool" && approval.toolCallIds.includes(item.tool.id)) ||
         (item.type === "subagent" &&
-          approval.toolCallIds.includes(item.run.parentToolCallId))
+          approval.toolCallIds.includes(item.toolCallId))
       ) {
         anchorIndex = index;
       }

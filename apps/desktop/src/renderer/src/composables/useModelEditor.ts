@@ -39,7 +39,6 @@ export interface ModelEditorSavePayload {
   model: DraftModel;
   originalId?: string;
   selectedModels?: RemoteModelListItem[];
-  capacityOverride?: { contextWindow: number; maxTokens: number };
 }
 
 export interface ModelEditorActions {
@@ -64,10 +63,6 @@ export function useModelEditor(
   options?: { knownUserProviders?: () => readonly string[] }
 ) {
   const editor = ref(cloneDraftModel(initialModel));
-  const capacityOverride = ref<{
-    contextWindow: number;
-    maxTokens: number;
-  } | null>(null);
   const createdUserProviders = ref<string[]>([]);
   const reasoningOptions = BUILT_IN_REASONING_LEVELS.map((value) => ({
     value,
@@ -247,15 +242,6 @@ export function useModelEditor(
     }
   }
 
-  function setCapacity(capacity: {
-    contextWindow: number;
-    maxTokens: number;
-  }): void {
-    editor.value.contextWindow = capacity.contextWindow;
-    editor.value.maxTokens = capacity.maxTokens;
-    capacityOverride.value = capacity;
-  }
-
   function save(): void {
     if (
       remoteListing.canSelectRemoteModel.value &&
@@ -329,9 +315,6 @@ export function useModelEditor(
       ...(originalId ? { originalId } : {}),
       ...(remoteListing.canSelectRemoteModel.value
         ? { selectedModels: remoteListing.selectedRemoteModels.value }
-        : {}),
-      ...(capacityOverride.value
-        ? { capacityOverride: capacityOverride.value }
         : {})
     });
   }
@@ -368,7 +351,6 @@ export function useModelEditor(
     setModelMode,
     toggleThinkingLevelOption,
     updateCustomThinkingLevel,
-    setCapacity,
     save,
     test
   };

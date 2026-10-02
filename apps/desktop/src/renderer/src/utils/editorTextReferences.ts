@@ -1,6 +1,6 @@
 import { t } from "../i18n";
 import {
-  PROMPT_TEXT_ATTACHMENT_MAX_CONTENT_LENGTH,
+  PROMPT_TEXT_ATTACHMENT_DEFAULT_CONTENT_LENGTH,
   PromptTextAttachmentSchema,
   type UserPromptAttachment
 } from "@deepwrite/contracts";
@@ -170,12 +170,10 @@ export function resolveEditorTextReferenceRange(
 }
 
 export function createEditorReferenceAttachment(
-  reference: EditorTextReference
+  reference: EditorTextReference,
+  maxCharacters = PROMPT_TEXT_ATTACHMENT_DEFAULT_CONTENT_LENGTH
 ): UserPromptAttachment {
-  const content = reference.text.slice(
-    0,
-    PROMPT_TEXT_ATTACHMENT_MAX_CONTENT_LENGTH
-  );
+  const content = reference.text.slice(0, maxCharacters);
   const truncated = content.length < reference.text.length;
   return PromptTextAttachmentSchema.parse({
     id: `editor_reference_${reference.id}`.slice(0, 120),

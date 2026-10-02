@@ -35,9 +35,11 @@ import {
 import {
   SubagentActivityPayloadSchema,
   SubagentCompletedPayloadSchema,
+  SubagentPlannedPayloadSchema,
   SubagentStartedPayloadSchema,
   type SubagentActivityPayload,
   type SubagentCompletedPayload,
+  type SubagentPlannedPayload,
   type SubagentStartedPayload
 } from "./subagent";
 import {
@@ -95,6 +97,11 @@ export const AgentContextCompactionEventEnvelopeSchema =
     type: z.literal("agent.context_compaction"),
     payload: AgentContextCompactionPayloadSchema
   }).superRefine(validateAgentEventContext);
+
+export const SubagentPlannedEventEnvelopeSchema = EnvelopeBaseSchema.extend({
+  type: z.literal("subagent.planned"),
+  payload: SubagentPlannedPayloadSchema
+}).superRefine(validateAgentEventContext);
 
 export const SubagentStartedEventEnvelopeSchema = EnvelopeBaseSchema.extend({
   type: z.literal("subagent.started"),
@@ -257,6 +264,10 @@ export type AgentRetryScheduledEventEnvelope = Envelope<
 export type AgentContextCompactionEventEnvelope = Envelope<
   AgentContextCompactionPayload,
   "agent.context_compaction"
+>;
+export type SubagentPlannedEventEnvelope = Envelope<
+  SubagentPlannedPayload,
+  "subagent.planned"
 >;
 export type SubagentStartedEventEnvelope = Envelope<
   SubagentStartedPayload,

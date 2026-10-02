@@ -50,6 +50,11 @@ describe("GeneralSettingsStore", () => {
       language: "en-US" as const,
       showInMenuBar: false,
       showContextUsage: false,
+      textAttachmentMaxCharacters: 150_000,
+      contextCompaction: {
+        ...createDefaultGeneralSettings().contextCompaction,
+        budgetTokens: 256_000
+      },
       useNetworkProxy: true,
       workspacePaneLayout: "editor-agent" as const,
       defaultTextViewMode: "preview" as const
@@ -99,6 +104,49 @@ describe("GeneralSettingsStore", () => {
       (await new GeneralSettingsStore(root).list()).settings.contextCompaction
         .showManualButton
     ).toBe(true);
+  });
+
+  it("gives older settings the original text attachment cutoff", async () => {
+    const { root, store } = await createStore();
+    const { textAttachmentMaxCharacters: _, ...legacy } =
+      createDefaultGeneralSettings();
+    await mkdir(join(root, "config"));
+    await writeFile(
+      store.settingsPath,
+      JSON.stringify({ version: 2, ...legacy })
+    );
+
+    expect((await store.list()).settings.textAttachmentMaxCharacters).toBe(
+      100_000
+    );
+  });
+
+  it("clamps saved and previously persisted attachment cutoffs to the working budget", async () => {
+    const { root, store } = await createStore();
+    const settings = {
+      ...createDefaultGeneralSettings(),
+      textAttachmentMaxCharacters: 200_000,
+      contextCompaction: {
+        ...createDefaultGeneralSettings().contextCompaction,
+        budgetTokens: 64_000
+      }
+    };
+    await mkdir(join(root, "config"));
+    await writeFile(
+      store.settingsPath,
+      JSON.stringify({ version: 2, ...settings })
+    );
+
+    expect((await store.list()).settings.textAttachmentMaxCharacters).toBe(
+      57_600
+    );
+    expect(
+      (await store.save(settings)).settings.textAttachmentMaxCharacters
+    ).toBe(57_600);
+    expect(
+      (await new GeneralSettingsStore(root).list()).settings
+        .textAttachmentMaxCharacters
+    ).toBe(57_600);
   });
 
   it("preserves older view preferences and persists independent body formats across restart", async () => {
@@ -152,6 +200,7 @@ describe("GeneralSettingsStore", () => {
         language: "zh-CN",
         showInMenuBar: false,
         showContextUsage: true,
+        textAttachmentMaxCharacters: 100_000,
         contextCompaction: createDefaultGeneralSettings().contextCompaction,
         useNetworkProxy: false,
         workspacePaneLayout: "agent-editor",

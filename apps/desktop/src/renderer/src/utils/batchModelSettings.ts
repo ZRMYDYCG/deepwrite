@@ -78,10 +78,6 @@ export function applyBatchModelSettings(
       if (previous?.maxTokens !== undefined)
         model.maxTokens = previous.maxTokens;
     }
-    if (payload.capacityOverride) {
-      model.contextWindow = payload.capacityOverride.contextWindow;
-      model.maxTokens = payload.capacityOverride.maxTokens;
-    }
     delete model.sourceApiKeyId;
     if (
       !source.apiKey?.trim() &&

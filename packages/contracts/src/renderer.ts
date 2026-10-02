@@ -145,6 +145,7 @@ export {
   SHORT_AGENT_SUBAGENT_MAX_COUNT,
   SHORT_AGENT_SUBAGENT_NAME_MAX_LENGTH,
   SHORT_AGENT_SUBAGENT_SYSTEM_PROMPT_MAX_LENGTH,
+  SUBAGENT_PARALLEL_MAX_CONCURRENCY,
   WorkspaceAgentTeamSettingsInputSchema
 } from "./agent-team";
 export {
@@ -185,7 +186,10 @@ export {
   parseExpertDraftMarkdown,
   serializeExpertDraftMarkdown
 } from "./expert-draft";
-export { createDefaultGeneralSettings } from "./general-settings";
+export {
+  createDefaultGeneralSettings,
+  maxTextAttachmentCharactersForBudget
+} from "./general-settings";
 export {
   DEFAULT_LIBRARY_AGENT_PROFILES,
   DEFAULT_LIBRARY_AGENT_SETTINGS,
@@ -339,6 +343,7 @@ export {
   PROMPT_IMAGE_ATTACHMENTS_MAX_BYTES,
   PROMPT_IMAGE_ATTACHMENT_MAX_BYTES,
   PROMPT_TEXT_ATTACHMENTS_MAX_CONTENT_LENGTH,
+  PROMPT_TEXT_ATTACHMENT_DEFAULT_CONTENT_LENGTH,
   PROMPT_TEXT_ATTACHMENT_MAX_CONTENT_LENGTH,
   PromptImageAttachmentSchema,
   PromptTextAttachmentSchema

@@ -162,11 +162,10 @@ export default {
   },
   conversationHistoryManagement: {
     deletedConversationsCouldNotBeLoadedPleaseTryAgain:
-      "Deleted conversations could not be loaded. Please try again.",
+      "Archived conversations could not be loaded. Please try again.",
     finishOrStopTheCurrentResponseBeforeManagingConversations:
       "Finish or stop the current response before managing conversations.",
-    conversationMovedToDeletedYouCanRestoreItAt:
-      "Conversation moved to Deleted. You can restore it at any time.",
+    conversationArchived: "Conversation archived. Restore it from Settings.",
     conversationRestored: "Conversation restored.",
     theConversationOperationDidNotCompletePleaseTryAgain:
       "The conversation operation did not complete. Please try again."
@@ -287,7 +286,9 @@ export default {
     theSubtaskWasStoppedWhenTheConversationWasRestored:
       "The subtask was stopped when the conversation was restored.",
     theSubtaskWasStillRunningWhenTheAppClosed:
-      "The subtask was still running when the app closed or the conversation was restored."
+      "The subtask was still running when the app closed or the conversation was restored.",
+    theSubtaskHadNotStartedWhenTheAppClosed:
+      "The subtask had not started when the app closed or the conversation was restored."
   },
   conversationRuntimeRegistryCoordinator: {
     conversationHistoryCouldNotBeSavedLocallyYouCan:
@@ -359,16 +360,18 @@ export default {
       "The parent agent ended unexpectedly. Subtasks were also stopped.",
     theSubtaskHasAlreadyEnded: "The subtask has already ended.",
     theSubtaskEndedWithoutReturningAToolResult:
-      "The subtask ended without returning a tool result."
+      "The subtask ended without returning a tool result.",
+    theSubtaskEndedWithoutAFinalStatus:
+      "The delegation ended, but this subtask did not report a final status."
   },
   subagentIdentity: {
     receivingSubtask: "Receiving subtask…"
   },
   historyManagementErrors: {
     couldNotDeleteTheConversationTryAgain:
-      "Could not delete the conversation. Try again.",
+      "Could not archive the conversation. Try again.",
     conversationDeletionHasNotBeenConfirmedRetryDeletingIt:
-      "Conversation deletion has not been confirmed. Retry deleting it first. Your new edits remain saved locally."
+      "Archiving has not been confirmed. Retry archiving first. Your new edits remain saved locally."
   },
   persistenceChanges: {
     theConversationContainsNonFiniteNumbersThatCannotBe:

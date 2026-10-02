@@ -1,34 +1,176 @@
-import { randomBytes } from "node:crypto";
 import {
-  Agent,
-  type AgentTool,
-  type AgentToolResult,
-  type StreamFn
-} from "@earendil-works/pi-agent-core";
+  SUBAGENT_PARALLEL_MAX_CONCURRENCY,
+  SUBAGENT_TASK_BATCH_MAX_COUNT
+} from "@deepwrite/contracts";
+import type { AgentTool, AgentToolResult } from "@earendil-works/pi-agent-core";
 import { StringEnum, Type, type Static } from "@earendil-works/pi-ai";
 import { piStrictToolSampling } from "./pi-tool-schema";
-import { runSubagentLifecycle } from "./subagent-lifecycle";
-import { waitForSubagentPreparation } from "./subagent-preparation";
-import { snapshotSubagentHistory } from "./subagent-history";
 import {
-  buildSubagentSystemPrompt,
-  textResult,
-  runtimeFromConfig,
-  runtimeFromModel,
-  SUBAGENT_SUMMARY_MAX_LENGTH
-} from "./subagent-helpers";
+  childRuntime,
+  reportUnstartedSubagentTask,
+  runSubagentTask,
+  type SubagentTaskContext
+} from "./subagent-child";
+import { textResult } from "./subagent-helpers";
+import { runSubagentTasks } from "./subagent-scheduler";
+import { planSubagentTasks } from "./subagent-task-plan";
+import {
+  createSubagentWriteLock,
+  SUBAGENT_STRUCTURE_SCOPE
+} from "./subagent-write-scope";
 import type {
   BuildSpawnSubagentToolInput,
-  SubagentToolDetails,
-  SubagentProgressBase,
-  SubagentToolProgress
+  RuntimeSubagentDefinition,
+  SubagentTaskOutcome,
+  SubagentTaskRequest,
+  SubagentToolDetails
 } from "./subagent-types";
 export * from "./subagent-types";
 export { buildSubagentSystemPrompt } from "./subagent-helpers";
 export { DEFAULT_SUBAGENT_TIMEOUT_MS } from "./subagent-timeout";
+
+const BATCH_RESULT_MAX_LENGTH = 40_000;
+const STATUS_LABELS: Record<SubagentTaskOutcome["status"], string> = {
+  completed: "已完成",
+  error: "失败",
+  aborted: "已中止",
+  skipped: "已跳过"
+};
+
+function spawnParameters(
+  definitions: readonly RuntimeSubagentDefinition[],
+  parallel: boolean
+) {
+  const taskKey = Type.String({
+    minLength: 1,
+    maxLength: 40,
+    pattern: "^[A-Za-z0-9][A-Za-z0-9_-]*$"
+  });
+  return Type.Object({
+    tasks: Type.Array(
+      Type.Object({
+        key: Type.Optional(
+          Type.String({
+            ...taskKey,
+            description:
+              "任务标识，供 depends_on 引用；不填时按位置自动编为 t1、t2……"
+          })
+        ),
+        subagent_id: StringEnum(definitions.map((definition) => definition.id)),
+        task: Type.String({ minLength: 1, maxLength: 20_000 }),
+        depends_on: Type.Optional(
+          Type.Array(taskKey, {
+            maxItems: SUBAGENT_TASK_BATCH_MAX_COUNT - 1,
+            description: "必须先完成的任务 key。"
+          })
+        ),
+        ...(parallel
+          ? {
+              write_scope: Type.Optional(
+                Type.Array(Type.String({ minLength: 1, maxLength: 160 }), {
+                  maxItems: 50,
+                  description: `本任务可以修改的对象 id；不填即只读。新增、删除对象或提交连续性记录填写 "${SUBAGENT_STRUCTURE_SCOPE}"。`
+                })
+              )
+            }
+          : {}),
+        library_id: Type.Optional(
+          Type.String({
+            minLength: 1,
+            maxLength: 512,
+            description: "管理子智能体的目标绑定库 id；普通团队成员不填写。"
+          })
+        )
+      }),
+      { minItems: 1, maxItems: SUBAGENT_TASK_BATCH_MAX_COUNT }
+    )
+  });
+}
+
+function spawnDescription(
+  definitions: readonly RuntimeSubagentDefinition[],
+  parallel: boolean
+): string {
+  return [
+    parallel
+      ? `调用预先配置的子智能体完成明确、边界清晰的子任务。当前团队已开启并行：互不依赖的任务同时运行，最多 ${SUBAGENT_PARALLEL_MAX_CONCURRENCY} 个。调用会阻塞到全部任务结束，只返回各任务的最终交接摘要。`
+      : "调用预先配置的子智能体完成明确、边界清晰的子任务。tasks 按依赖关系和列表顺序逐个执行；调用会阻塞到全部任务结束，只返回各任务的最终交接摘要。单个委派只需提交一个任务。",
+    "depends_on 填写必须先完成的任务 key：前置任务失败时本任务跳过，前置交接摘要会自动提供给本任务。每个任务都要独立写清背景与要求，子智能体看不到彼此的过程。",
+    ...(parallel
+      ? [
+          "把前后无关的子任务放进同一次调用，让它们并行。",
+          `write_scope 声明任务可以修改的对象，填写对象的稳定 id（与 edit 工具的 id 相同；长篇章节 id 覆盖该章全部文档）。不填写即为只读任务，没有写入工具。新增、删除对象或提交连续性记录需要填写 "${SUBAGENT_STRUCTURE_SCOPE}"，这类任务不会与其他写入任务同时运行。写入范围重叠的任务会自动按列表顺序排队。`
+        ]
+      : []),
+    "可用子智能体：",
+    ...definitions.map(
+      (definition) =>
+        `- ${definition.name} (${definition.id})：${definition.description}`
+    )
+  ].join("\n");
+}
+
+/** Older conversations called the tool with one flat task. */
+function normalizeSpawnArguments(args: unknown): unknown {
+  if (typeof args !== "object" || args === null || "tasks" in args) {
+    return args;
+  }
+  const legacy = args as Record<string, unknown>;
+  if (legacy.subagent_id === undefined) return args;
+  return {
+    tasks: [
+      {
+        subagent_id: legacy.subagent_id,
+        task: legacy.task,
+        ...(legacy.library_id !== undefined
+          ? { library_id: legacy.library_id }
+          : {})
+      }
+    ]
+  };
+}
+
+function formatSpawnResult(
+  tasks: readonly SubagentTaskRequest[],
+  outcomes: ReadonlyMap<string, SubagentTaskOutcome>
+): string {
+  if (tasks.length === 1) return outcomes.get(tasks[0]!.key)!.summary;
+  const counts = new Map<SubagentTaskOutcome["status"], number>();
+  for (const outcome of outcomes.values()) {
+    counts.set(outcome.status, (counts.get(outcome.status) ?? 0) + 1);
+  }
+  const perTask = Math.max(
+    1_000,
+    Math.floor(BATCH_RESULT_MAX_LENGTH / tasks.length)
+  );
+  const queued = tasks.filter((task) => task.implicitDependsOn.length > 0);
+  return [
+    `子智能体任务已全部结束：共 ${tasks.length} 个，完成 ${counts.get("completed") ?? 0} 个，失败 ${counts.get("error") ?? 0} 个，中止 ${counts.get("aborted") ?? 0} 个，跳过 ${counts.get("skipped") ?? 0} 个。`,
+    ...tasks.map((task) => {
+      const outcome = outcomes.get(task.key)!;
+      const summary =
+        outcome.summary.length > perTask
+          ? `${outcome.summary.slice(0, perTask)}…（已截断）`
+          : outcome.summary;
+      return `【${task.key}｜${task.definition.name}｜${STATUS_LABELS[outcome.status]}】\n${summary}`;
+    }),
+    ...(queued.length > 0
+      ? [
+          `写入范围重叠，已自动排队：${queued
+            .map(
+              (task) =>
+                `${task.key} 在 ${task.implicitDependsOn.join("、")} 之后运行`
+            )
+            .join("；")}。`
+        ]
+      : [])
+  ].join("\n\n");
+}
+
 /**
  * Builds the sole delegation capability exposed to a parent creative-workspace
- * agent. Every invocation creates a fresh, uncached Agent instance.
+ * agent. One call submits a task list; every task runs in a fresh, uncached
+ * child Agent, concurrently only when the team enables parallel mode.
  */
 export function buildSpawnSubagentTool(
   input: BuildSpawnSubagentToolInput
@@ -37,32 +179,17 @@ export function buildSpawnSubagentTool(
     (definition) => definition.enabled
   );
   if (definitions.length === 0 || (input.depth ?? 0) > 0) return undefined;
-
-  const parameters = Type.Object({
-    subagent_id: StringEnum(definitions.map((definition) => definition.id)),
-    task: Type.String({ minLength: 1, maxLength: 20_000 }),
-    library_id: Type.Optional(
-      Type.String({
-        minLength: 1,
-        maxLength: 512,
-        description: "管理子智能体的目标绑定库 id；普通团队成员不填写。"
-      })
-    )
-  });
+  const parallel = input.parallel === true;
+  const parameters = spawnParameters(definitions, parallel);
 
   const tool: AgentTool<typeof parameters, SubagentToolDetails> = {
     name: "spawn_subagent",
     label: "调用子智能体",
-    description: [
-      "调用一个预先配置的子智能体完成明确、边界清晰的子任务。调用会阻塞到子智能体完成，并只返回最终交接摘要。",
-      "可用子智能体：",
-      ...definitions.map(
-        (definition) =>
-          `- ${definition.name} (${definition.id})：${definition.description}`
-      )
-    ].join("\n"),
+    description: spawnDescription(definitions, parallel),
     parameters,
     ...piStrictToolSampling(parameters),
+    prepareArguments: (args) =>
+      normalizeSpawnArguments(args) as Static<typeof parameters>,
     executionMode: "sequential",
     execute: async (
       parentToolCallId: string,
@@ -77,202 +204,62 @@ export function buildSpawnSubagentTool(
       if ((input.depth ?? 0) !== 0) {
         throw new Error("子智能体不允许递归调用 spawn_subagent。");
       }
-      const subagentId = String(params.subagent_id ?? "");
-      const definition = definitions.find(
-        (candidate) => candidate.id === subagentId
-      );
-      if (!definition) {
-        throw new Error(`未知或已停用的子智能体：${subagentId}`);
+      const normalized = normalizeSpawnArguments(params) as {
+        tasks?: unknown;
+      };
+      const tasks = planSubagentTasks(normalized.tasks, definitions, parallel);
+      if (tasks.length > 1) {
+        // Queued cards show member names and final ordering at once.
+        onUpdate?.(
+          textResult(`已排定 ${tasks.length} 个子任务。`, {
+            kind: "subagent-progress",
+            progress: {
+              type: "planned",
+              parentToolCallId,
+              tasks: tasks.map((request) => ({
+                index: request.index,
+                key: request.key,
+                dependsOn: [...request.dependsOn],
+                subagentId: request.definition.id,
+                name: request.definition.name,
+                task: request.task,
+                runtime: childRuntime(input, request)
+              }))
+            }
+          })
+        );
       }
-      if (definition.toolSource !== "library-management" && params.library_id)
-        throw new Error("普通团队成员不能指定资料库管理目标。");
-      const task = String(params.task ?? "").trim();
-      if (!task) throw new Error("子智能体任务不能为空。");
-
-      const childMessages =
-        definition.contextMode === "parent-snapshot"
-          ? snapshotSubagentHistory(input.getParentMessages?.() ?? [])
-          : [];
-      if (
-        definition.toolSource !== "library-management" &&
-        input.materialContext?.trim()
-      ) {
-        childMessages.push({
-          role: "user",
-          content: `【本轮可按需读取的素材上下文】\n${input.materialContext.trim()}`,
-          timestamp: Date.now()
-        });
-      }
-      const subagentRunId =
-        input.createRunId?.() ?? `subrun_${randomBytes(4).toString("hex")}`;
-      const configuredChildModelId =
-        definition.modelMode === "custom"
-          ? definition.modelId?.trim()
-          : undefined;
-      const configuredChildRuntime = configuredChildModelId
-        ? input.subagentRuntimeConfigs?.[configuredChildModelId]
-        : undefined;
-      const childRuntime = configuredChildRuntime
-        ? runtimeFromConfig(configuredChildRuntime)
-        : (input.parentRuntime ?? runtimeFromModel(input.model));
-      const progressBase: SubagentProgressBase = {
+      const writeLock = createSubagentWriteLock();
+      const contextFor = (
+        request: SubagentTaskRequest
+      ): SubagentTaskContext => ({
         parentToolCallId,
-        subagentRunId,
-        subagentId: definition.id,
-        name: definition.name,
-        runtime: childRuntime
-      };
-      const emitProgress = (
-        progress: SubagentToolProgress,
-        text: string
-      ): void => {
-        onUpdate?.(textResult(text, { kind: "subagent-progress", progress }));
-      };
-
-      emitProgress(
-        { ...progressBase, type: "started", task },
-        `子智能体「${definition.name}」已开始执行。`
-      );
-
-      const compactionListeners = new Set<() => void>();
-      let childContextPolicy = input.contextPolicy;
-      let child: Agent;
-      try {
-        let childModel = input.model;
-        let childStreamFn = input.streamFn;
-        let childThinkingLevel = input.thinkingLevel;
-        if (definition.modelMode === "custom") {
-          const modelId = definition.modelId?.trim();
-          if (!modelId) {
-            throw new Error(`子智能体「${definition.name}」未配置模型。`);
-          }
-          const runtimeConfig = input.subagentRuntimeConfigs?.[modelId];
-          if (!runtimeConfig) {
-            throw new Error(
-              `子智能体「${definition.name}」配置的模型不可用，请重新保存智能体团队或刷新模型配置。`
-            );
-          }
-          if (!input.buildCustomModelRuntime) {
-            throw new Error("当前运行时不支持子智能体单独配置模型。");
-          }
-          const customRuntime = input.buildCustomModelRuntime(runtimeConfig, {
-            ...(definition.thinkingLevel !== undefined
-              ? { thinkingLevel: definition.thinkingLevel }
-              : {}),
-            ...(definition.temperature !== undefined
-              ? { temperature: definition.temperature }
-              : {})
-          });
-          childModel = customRuntime.model;
-          childStreamFn = customRuntime.streamFn;
-          childThinkingLevel = customRuntime.thinkingLevel;
-        }
-        const prepared =
-          definition.toolSource === "library-management"
-            ? await waitForSubagentPreparation(
-                input.prepareChild?.(definition, params.library_id, signal),
-                signal
-              )
-            : undefined;
-        signal?.throwIfAborted();
-        if (definition.toolSource === "library-management" && !prepared)
-          throw new Error("资料库管理运行上下文不可用。");
-        if (prepared?.contextPolicy)
-          childContextPolicy = prepared.contextPolicy;
-        const childTools = (
-          prepared?.tools ??
-          input.buildChildTools((listener) => compactionListeners.add(listener))
-        ).filter(
-          (tool) =>
-            tool.name !== "spawn_subagent" &&
-            (definition.toolSource === "library-management" ||
-              (tool.name !== "load_skill" && tool.name !== "ask_user_question"))
-        );
-        if (definition.toolSource === "library-management") {
-          for (const [index, tool] of childTools.entries()) {
-            childTools[index] = {
-              ...tool,
-              execute: (toolCallId, args, signal, onUpdate) =>
-                tool.execute(
-                  `${subagentRunId}:${toolCallId}`,
-                  args,
-                  signal,
-                  onUpdate
-                )
-            };
-          }
-        }
-        const childDefinition = prepared
-          ? { ...definition, systemPrompt: prepared.systemPrompt }
-          : definition;
-        const childStreamWithoutProviderRetries: StreamFn = (
-          requestModel,
-          context,
-          options
-        ) =>
-          childStreamFn(requestModel, context, {
-            ...options,
-            // The visible turn coordinator owns the complete retry budget. Keep
-            // provider SDK retries disabled for inherited and custom child models
-            // as well, otherwise one child attempt can fan out into 2+ requests.
-            maxRetries: 0
-          });
-        child = new Agent({
-          initialState: {
-            systemPrompt: buildSubagentSystemPrompt(
-              childDefinition,
-              childTools,
-              prepared ? undefined : input.systemPromptRequirements
-            ),
-            model: childModel,
-            thinkingLevel: childThinkingLevel,
-            messages: childMessages,
-            // buildChildTools() creates fresh read evidence while closing over the
-            // same parent-run mutation/revision overlay.
-            tools: childTools
-          },
-          streamFn: childStreamWithoutProviderRetries,
-          sessionId: `${input.parentSessionId}:${subagentRunId}`,
-          toolExecution: "sequential",
-          ...input.toolExecutionHooks
-        });
-      } catch (error: unknown) {
-        const errorMessage =
-          error instanceof Error ? error.message : "子智能体初始化失败。";
-        const initializationStatus = signal?.aborted ? "aborted" : "error";
-        const summary =
-          `${signal?.aborted ? "子智能体执行已中止" : "子智能体执行失败"}：${errorMessage}`.slice(
-            0,
-            SUBAGENT_SUMMARY_MAX_LENGTH
-          );
-        emitProgress(
-          {
-            ...progressBase,
-            type: "completed",
-            status: initializationStatus,
-            summary,
-            errorMessage: errorMessage.slice(0, 4_000)
-          },
-          summary
-        );
-        return textResult(summary, { kind: "subagent-result" });
-      }
-
-      return runSubagentLifecycle(
-        child,
-        {
-          ...input,
-          ...(childContextPolicy ? { contextPolicy: childContextPolicy } : {})
-        },
-        progressBase,
-        task,
-        childRuntime,
-        emitProgress,
-        signal,
-        () => {
-          for (const listener of compactionListeners) listener();
-        }
-      );
+        request,
+        ...(tasks.length > 1
+          ? {
+              batchTask: {
+                index: request.index,
+                key: request.key,
+                dependsOn: [...request.dependsOn]
+              }
+            }
+          : {}),
+        ...(signal ? { signal } : {}),
+        writeLock,
+        ...(onUpdate ? { onUpdate } : {})
+      });
+      const outcomes = await runSubagentTasks({
+        tasks,
+        maxConcurrency: parallel ? SUBAGENT_PARALLEL_MAX_CONCURRENCY : 1,
+        ...(signal ? { signal } : {}),
+        runTask: (request, handoffs) =>
+          runSubagentTask(input, contextFor(request), handoffs),
+        settleUnstarted: (request, outcome) =>
+          reportUnstartedSubagentTask(input, contextFor(request), outcome)
+      });
+      return textResult(formatSpawnResult(tasks, outcomes), {
+        kind: "subagent-result"
+      });
     }
   };
   return tool;

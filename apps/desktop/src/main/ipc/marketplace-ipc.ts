@@ -36,6 +36,8 @@ export function registerMarketplaceIpc(options: {
           return marketplaceClient.register(request.input);
         case "login":
           return marketplaceClient.login(request.input);
+        case "loginWithEmailCode":
+          return marketplaceClient.loginWithEmailCode(request.input);
         case "logout":
           return marketplaceClient.logout();
         case "list":

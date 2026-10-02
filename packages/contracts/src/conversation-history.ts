@@ -8,6 +8,16 @@ export * from "./conversation-history-scopes";
 import { z } from "zod";
 import { EnvelopeBaseSchema } from "./envelope";
 import {
+  ConversationHistoryArchiveListQuerySchema,
+  ConversationHistoryArchiveListResultSchema,
+  ConversationHistoryPurgeQuerySchema,
+  ConversationHistoryPurgeResultSchema,
+  type ConversationHistoryArchiveListQuery,
+  type ConversationHistoryArchiveListResult,
+  type ConversationHistoryPurgeQuery,
+  type ConversationHistoryPurgeResult
+} from "./conversation-history-archive";
+import {
   ConversationHistoryBatchSchema,
   ConversationHistoryCommitResultSchema,
   ConversationHistoryStageSchema,
@@ -44,6 +54,7 @@ import {
 
 export * from "./conversation-history-mutations";
 export * from "./conversation-history-queries";
+export * from "./conversation-history-archive";
 
 export const ConversationHistoryCommandEnvelopeSchemas = [
   EnvelopeBaseSchema.extend({
@@ -65,6 +76,14 @@ export const ConversationHistoryCommandEnvelopeSchemas = [
   EnvelopeBaseSchema.extend({
     type: z.literal("rendererState.history.list"),
     payload: ConversationHistoryListQuerySchema
+  }),
+  EnvelopeBaseSchema.extend({
+    type: z.literal("rendererState.history.listArchived"),
+    payload: ConversationHistoryArchiveListQuerySchema
+  }),
+  EnvelopeBaseSchema.extend({
+    type: z.literal("rendererState.history.purge"),
+    payload: ConversationHistoryPurgeQuerySchema
   }),
   EnvelopeBaseSchema.extend({
     type: z.literal("rendererState.history.session"),
@@ -91,6 +110,9 @@ export const ConversationHistoryResultSchemas = {
   "rendererState.history.stage": ConversationHistoryStageResultSchema,
   "rendererState.history.commit": ConversationHistoryCommitResultSchema,
   "rendererState.history.list": ConversationHistoryListResultSchema,
+  "rendererState.history.listArchived":
+    ConversationHistoryArchiveListResultSchema,
+  "rendererState.history.purge": ConversationHistoryPurgeResultSchema,
   "rendererState.history.session": ConversationHistorySessionSchema.nullable(),
   "rendererState.history.messages": ConversationHistoryMessagesResultSchema,
   "rendererState.history.detail": ConversationHistoryDetailResultSchema,
@@ -113,6 +135,12 @@ export interface ConversationHistoryApi {
   list(
     query: ConversationHistoryListQuery
   ): Promise<ConversationHistoryListResult>;
+  listArchived(
+    query: ConversationHistoryArchiveListQuery
+  ): Promise<ConversationHistoryArchiveListResult>;
+  purge(
+    query: ConversationHistoryPurgeQuery
+  ): Promise<ConversationHistoryPurgeResult>;
   session(
     query: ConversationHistorySessionQuery
   ): Promise<ConversationHistorySession | null>;

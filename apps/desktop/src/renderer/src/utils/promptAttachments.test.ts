@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { PROMPT_TEXT_ATTACHMENT_MAX_CONTENT_LENGTH } from "@deepwrite/contracts";
+import {
+  PROMPT_TEXT_ATTACHMENT_DEFAULT_CONTENT_LENGTH,
+  PROMPT_TEXT_ATTACHMENT_MAX_CONTENT_LENGTH
+} from "@deepwrite/contracts";
 import {
   promptAttachmentFilesFromClipboard,
   readPromptAttachment
@@ -66,7 +69,7 @@ describe("prompt attachments", () => {
   it("marks extracted text that exceeds the per-file context limit", async () => {
     const result = await readPromptAttachment(
       new File(
-        ["字".repeat(PROMPT_TEXT_ATTACHMENT_MAX_CONTENT_LENGTH + 1)],
+        ["字".repeat(PROMPT_TEXT_ATTACHMENT_DEFAULT_CONTENT_LENGTH + 1)],
         "long.txt",
         {
           type: "text/plain"
@@ -77,9 +80,24 @@ describe("prompt attachments", () => {
     expect(result.attachment).toMatchObject({
       kind: "text",
       truncated: true,
-      originalLength: PROMPT_TEXT_ATTACHMENT_MAX_CONTENT_LENGTH + 1
+      originalLength: PROMPT_TEXT_ATTACHMENT_DEFAULT_CONTENT_LENGTH + 1
     });
     expect(result.warning).toContain("仅携带前");
+  });
+
+  it("uses the configured cutoff while respecting the protocol maximum", async () => {
+    const text = "字".repeat(PROMPT_TEXT_ATTACHMENT_MAX_CONTENT_LENGTH + 1);
+    const file = new File([text], "long.md", { type: "text/markdown" });
+    const result = await readPromptAttachment(file, 150_000);
+    expect(result.attachment).toMatchObject({
+      content: text.slice(0, 150_000),
+      truncated: true,
+      originalLength: text.length
+    });
+    expect(result.warning).toContain("150,000");
+    await expect(
+      readPromptAttachment(file, PROMPT_TEXT_ATTACHMENT_MAX_CONTENT_LENGTH + 1)
+    ).rejects.toThrow("Invalid text attachment character limit");
   });
 
   it("rejects unsupported files with an actionable message", async () => {

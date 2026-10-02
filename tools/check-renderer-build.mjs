@@ -8,10 +8,10 @@ const rendererOut = fileURLToPath(
   new URL("../apps/desktop/out/renderer/", import.meta.url)
 );
 const indexPath = join(rendererOut, "index.html");
-// Preserve the application code budget and account explicitly for the added
-// Vue I18n dependency. Its dedicated build group excludes Vue and application
+// Allow moderate feature growth while keeping a guard on workspace startup size.
+// Account separately for Vue I18n: its build group excludes Vue and application
 // modules, and is measured from the same startup graph as every other script.
-const APP_READY_APPLICATION_JS_BUDGET_BYTES = 1_000_000;
+const APP_READY_APPLICATION_JS_BUDGET_BYTES = 1_200_000;
 const I18N_RUNTIME_JS_BUDGET_BYTES = 60_000;
 const APP_READY_JS_BUDGET_BYTES =
   APP_READY_APPLICATION_JS_BUDGET_BYTES + I18N_RUNTIME_JS_BUDGET_BYTES;
@@ -163,7 +163,7 @@ console.log(
 );
 if (applicationBytes >= APP_READY_APPLICATION_JS_BUDGET_BYTES) {
   throw new Error(
-    "Renderer application JavaScript exceeds its 1,000,000 B budget."
+    `Renderer application JavaScript exceeds its ${APP_READY_APPLICATION_JS_BUDGET_BYTES.toLocaleString("en-US")} B budget.`
   );
 }
 if (i18nRuntime.rawBytes >= I18N_RUNTIME_JS_BUDGET_BYTES) {

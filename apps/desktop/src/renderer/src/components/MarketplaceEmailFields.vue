@@ -7,7 +7,7 @@ import { marketplaceAccountError } from "../utils/marketplaceAccountError";
 
 const t = createScopedTranslator("components.marketplaceEmailFields");
 const props = defineProps<{
-  purpose: "register" | "account";
+  purpose: "register" | "account" | "login";
   disabled: boolean;
 }>();
 const email = defineModel<string>("email", { required: true });

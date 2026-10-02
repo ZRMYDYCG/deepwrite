@@ -25,6 +25,32 @@
     color 120ms ease;
 }
 
+.preview-outline-trigger.is-icon-only {
+  width: 27px;
+  height: 27px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  color: var(--text-secondary);
+}
+
+.preview-outline-trigger.is-icon-only:hover {
+  background: var(--surface-hover);
+  color: var(--neutral-solid);
+}
+
+.preview-outline-control.is-open .preview-outline-trigger.is-icon-only {
+  border-color: transparent;
+  background: var(--surface-selected);
+  color: var(--accent);
+}
+
+.preview-outline-trigger.is-icon-only:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  box-shadow: none;
+}
+
 .preview-outline-trigger:hover,
 .preview-outline-control.is-open .preview-outline-trigger {
   border-color: var(--theme-line-soft);
@@ -58,11 +84,7 @@
 }
 
 .preview-outline-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   min-width: 0;
-  gap: 12px;
   padding: 11px 12px 10px;
   border-bottom: 1px solid var(--theme-line-soft);
 }
@@ -82,11 +104,6 @@
 .preview-outline-heading span {
   color: var(--text-tertiary);
   font-size: 0.607143rem;
-}
-
-.preview-outline-heading > svg {
-  flex: 0 0 auto;
-  color: var(--accent);
 }
 
 .preview-outline-list {

@@ -1,5 +1,8 @@
 import { z } from "zod";
-import { LongAgentSubagentDefinitionsSchema } from "./agent-team";
+import {
+  AgentTeamParallelSubagentsSchema,
+  LongAgentSubagentDefinitionsSchema
+} from "./agent-team";
 import {
   LONG_AGENT_IDS,
   LongAgentIdSchema,
@@ -33,6 +36,7 @@ function validateCompleteLongAgentTeams(
 export const LongAgentTeamSettingsSchema = z
   .object({
     workspaceType: z.literal("long"),
+    parallelSubagents: AgentTeamParallelSubagentsSchema,
     teams: z.array(LongAgentTeamSchema).length(LONG_AGENT_IDS.length)
   })
   .strict()
@@ -48,6 +52,7 @@ export type LongAgentTeamSettingsInput = z.infer<
 
 export const DEFAULT_LONG_AGENT_TEAM_SETTINGS: LongAgentTeamSettings = {
   workspaceType: "long",
+  parallelSubagents: false,
   teams: LONG_AGENT_IDS.map((parentAgentId) => ({
     parentAgentId,
     subagents: []

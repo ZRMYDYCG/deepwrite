@@ -83,23 +83,6 @@ describe("batch model configuration", () => {
       contextWindow: 64000
     });
   });
-  it("applies an explicitly edited capacity to every selected model", () => {
-    const models = applyBatchModelSettings([source], {
-      model: source,
-      originalId: source.id,
-      selectedModels: [{ id: "writer" }, { id: "reader" }],
-      capacityOverride: { contextWindow: 128_000, maxTokens: 8_000 }
-    });
-    expect(
-      models.map(({ contextWindow, maxTokens }) => ({
-        contextWindow,
-        maxTokens
-      }))
-    ).toEqual([
-      { contextWindow: 128_000, maxTokens: 8_000 },
-      { contextWindow: 128_000, maxTokens: 8_000 }
-    ]);
-  });
   it("applies explicit credentials or clearing without referencing a saved key", () => {
     for (const changes of [
       { apiKey: "invalid-test-key" },

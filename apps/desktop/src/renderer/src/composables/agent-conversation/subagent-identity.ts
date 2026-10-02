@@ -29,6 +29,29 @@ export function earlierTimestamp(
   if (!Number.isFinite(candidateTime)) return current;
   return candidateTime < currentTime ? candidate : current;
 }
+function stringField(record: Record<string, unknown>, name: string) {
+  const value = record[name];
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function plannedTasks(args: unknown): Record<string, unknown>[] {
+  const record = isRecord(args) ? args : {};
+  if (!Array.isArray(record.tasks)) return [record];
+  return record.tasks.map((task) => (isRecord(task) ? task : {}));
+}
+
+function plannedDependencies(task: Record<string, unknown>): string[] {
+  return Array.isArray(task.depends_on)
+    ? task.depends_on.filter(
+        (key): key is string => typeof key === "string" && key.trim() !== ""
+      )
+    : [];
+}
+
+/**
+ * Shows the delegation before its first child event. A multi-task call gets
+ * one queued card per task; the scheduler later reports the final order.
+ */
 export function ensurePendingSubagentRunForTool(
   ctx: SubagentIdentityContext,
   message: ChatMessage,
@@ -42,26 +65,33 @@ export function ensurePendingSubagentRunForTool(
   ) {
     return;
   }
-  const record = isRecord(args) ? args : {};
-  const subagentId =
-    typeof record.subagent_id === "string" && record.subagent_id.trim()
-      ? record.subagent_id.trim()
-      : "subagent";
-  const task =
-    typeof record.task === "string" && record.task.trim()
-      ? record.task.trim()
-      : t("receivingSubtask");
-  (message.subagentRuns ??= []).push({
-    parentToolCallId: toolCallId,
-    subagentRunId: `pending:${toolCallId}`,
-    subagentId,
-    name: subagentId,
-    task,
-    status: "running",
-    runtime: { ...eventRuntime },
-    toolCalls: [],
-    processingSteps: [],
-    startedAt: eventTimestamp
+  const tasks = plannedTasks(args);
+  const batch = tasks.length > 1;
+  tasks.forEach((task, index) => {
+    const subagentId = stringField(task, "subagent_id") ?? "subagent";
+    (message.subagentRuns ??= []).push({
+      parentToolCallId: toolCallId,
+      subagentRunId: batch
+        ? `pending:${toolCallId}:${index}`
+        : `pending:${toolCallId}`,
+      subagentId,
+      name: subagentId,
+      task: stringField(task, "task") ?? t("receivingSubtask"),
+      status: batch ? "queued" : "running",
+      runtime: { ...eventRuntime },
+      toolCalls: [],
+      processingSteps: [],
+      startedAt: eventTimestamp,
+      ...(batch
+        ? {
+            batchTask: {
+              index,
+              key: stringField(task, "key") ?? `t${index + 1}`,
+              dependsOn: plannedDependencies(task)
+            }
+          }
+        : {})
+    });
   });
 }
 export function ensureSubagentRun(
@@ -71,13 +101,20 @@ export function ensureSubagentRun(
   eventTimestamp: string,
   task?: string
 ): AgentSubagentRun {
+  const batchTask =
+    "batchTask" in payload && payload.batchTask
+      ? { ...payload.batchTask, dependsOn: [...payload.batchTask.dependsOn] }
+      : undefined;
   let run = message.subagentRuns?.find(
     (candidate) => candidate.subagentRunId === payload.subagentRunId
   );
   run ??= message.subagentRuns?.find(
     (candidate) =>
       candidate.parentToolCallId === payload.parentToolCallId &&
-      candidate.subagentRunId.startsWith("pending:")
+      candidate.subagentRunId.startsWith("pending:") &&
+      (batchTask
+        ? candidate.batchTask?.index === batchTask.index
+        : !candidate.batchTask)
   );
   if (!run) {
     run = {
@@ -90,7 +127,8 @@ export function ensureSubagentRun(
       runtime: { ...payload.runtime },
       toolCalls: [],
       processingSteps: [],
-      startedAt: eventTimestamp
+      startedAt: eventTimestamp,
+      ...(batchTask ? { batchTask } : {})
     };
     (message.subagentRuns ??= []).push(run);
     return run;
@@ -100,7 +138,14 @@ export function ensureSubagentRun(
   run.subagentId = payload.subagentId;
   run.name = payload.name;
   run.runtime = { ...payload.runtime };
-  run.startedAt = ctx.earlierTimestamp(run.startedAt, eventTimestamp);
+  if (batchTask) run.batchTask = batchTask;
+  if (run.status === "queued" && task !== undefined) {
+    // A queued card was created at request time; its run starts now.
+    run.status = "running";
+    run.startedAt = eventTimestamp;
+  } else {
+    run.startedAt = ctx.earlierTimestamp(run.startedAt, eventTimestamp);
+  }
   if (task !== undefined) {
     run.task = task;
   }

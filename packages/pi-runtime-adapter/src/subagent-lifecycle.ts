@@ -18,12 +18,12 @@ import {
   normalizeUsage,
   usageObservationStatus,
   readAssistantText,
-  textResult,
   SUBAGENT_SUMMARY_MAX_LENGTH
 } from "./subagent-helpers";
 import type {
   BuildSpawnSubagentToolInput,
   SubagentProgressBase,
+  SubagentTaskOutcome,
   SubagentToolProgress
 } from "./subagent-types";
 export async function runSubagentLifecycle(
@@ -35,7 +35,7 @@ export async function runSubagentLifecycle(
   emitProgress: (progress: SubagentToolProgress, text: string) => void,
   signal?: AbortSignal,
   notifyCompacted: () => void = () => {}
-) {
+): Promise<SubagentTaskOutcome> {
   const subagentRunId = progressBase.subagentRunId;
   const definition = { name: progressBase.name };
   let terminalMessage: AssistantMessage | undefined;
@@ -367,5 +367,5 @@ export async function runSubagentLifecycle(
     status === "completed" ? `子智能体「${definition.name}」已完成。` : summary
   );
 
-  return textResult(summary, { kind: "subagent-result" as const });
+  return { status, summary };
 }

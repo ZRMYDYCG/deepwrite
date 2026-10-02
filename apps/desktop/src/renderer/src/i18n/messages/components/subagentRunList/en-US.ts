@@ -9,5 +9,10 @@ export default {
     "Starting independent context and receiving events…",
   handoffSummary: "Handoff summary",
   completionNotes: "Completion notes",
-  toolsMessage: "Tools: {arg0}"
+  toolsMessage: "Tools: {arg0}",
+  waitingForValue: "Waiting for {arg0}",
+  batchSummary: "{arg0} subtasks",
+  batchActive: "{arg0} running",
+  batchQueued: "{arg0} queued",
+  batchFinished: "{arg0} finished"
 };

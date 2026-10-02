@@ -234,7 +234,10 @@ export function buildRunTools(
       ...(options.subagentTimeoutMs === undefined
         ? {}
         : { timeoutMs: options.subagentTimeoutMs }),
-      depth: 0
+      depth: 0,
+      ...(input.parallelSubagents === true && input.subagentDefinitions?.length
+        ? { parallel: true }
+        : {})
     });
     if (spawnTool) tools = [...tools, spawnTool];
   }

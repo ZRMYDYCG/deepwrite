@@ -6,7 +6,8 @@ import type { WindowFrameApi } from "./window-frame";
 import type {
   MarketplaceEmailCodeInput,
   MarketplaceEmailCodeResult,
-  MarketplaceBindEmailInput
+  MarketplaceBindEmailInput,
+  MarketplaceEmailLoginInput
 } from "./marketplace-email";
 import type { TextContextMenuPreloadApi } from "./text-context-menu";
 import type { ConversationExportApi } from "./conversation-export";
@@ -190,6 +191,9 @@ export interface DeepWriteApi extends TextContextMenuPreloadApi {
     session(): Promise<MarketplaceSession>;
     register(input: MarketplaceRegisterInput): Promise<MarketplaceSession>;
     login(input: MarketplaceLoginInput): Promise<MarketplaceSession>;
+    loginWithEmailCode(
+      input: MarketplaceEmailLoginInput
+    ): Promise<MarketplaceSession>;
     logout(): Promise<MarketplaceSession>;
     list(filter?: MarketplaceListFilter): Promise<MarketplaceContentPage>;
     detail(ref: MarketplaceContentRef): Promise<MarketplaceContentDetail>;

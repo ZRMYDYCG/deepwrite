@@ -104,6 +104,21 @@ function harness(
 }
 
 describe("general settings coordinator", () => {
+  it("caps the attachment cutoff when the working budget is lowered", async () => {
+    const { coordinator, settings, api } = harness();
+    coordinator.updateTextAttachmentMaxCharacters(200_000);
+    expect(settings.value.textAttachmentMaxCharacters).toBe(144_000);
+    coordinator.updateContextCompaction({
+      ...settings.value.contextCompaction,
+      budgetTokens: 64_000
+    });
+    expect(settings.value.textAttachmentMaxCharacters).toBe(57_600);
+    await coordinator.drain();
+    expect(api!.save).toHaveBeenLastCalledWith(
+      expect.objectContaining({ textAttachmentMaxCharacters: 57_600 })
+    );
+  });
+
   it("blocks strict close after an unsuccessful save and retries the same preferences", async () => {
     const test = harness();
     const save = vi.mocked(test.api!.save);

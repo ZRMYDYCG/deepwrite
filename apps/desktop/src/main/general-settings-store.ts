@@ -15,6 +15,7 @@ interface DiskGeneralSettings extends Omit<
   | "defaultTextViewMode"
   | "bodyTextFormats"
   | "showContextUsage"
+  | "textAttachmentMaxCharacters"
   | "contextCompaction"
   | "useNetworkProxy"
 > {
@@ -24,6 +25,7 @@ interface DiskGeneralSettings extends Omit<
   bodyTextFormats?: GeneralSettings["bodyTextFormats"];
   defaultTextViewMode?: GeneralSettings["defaultTextViewMode"];
   showContextUsage?: boolean;
+  textAttachmentMaxCharacters?: number;
   contextCompaction?: GeneralSettings["contextCompaction"];
   useNetworkProxy?: boolean;
 }
@@ -89,6 +91,7 @@ export class GeneralSettingsStore {
         language: candidate.language,
         showInMenuBar: candidate.showInMenuBar,
         showContextUsage: candidate.showContextUsage,
+        textAttachmentMaxCharacters: candidate.textAttachmentMaxCharacters,
         contextCompaction: candidate.contextCompaction,
         useNetworkProxy: candidate.useNetworkProxy,
         workspacePaneLayout: candidate.workspacePaneLayout,

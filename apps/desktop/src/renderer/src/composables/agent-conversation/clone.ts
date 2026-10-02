@@ -48,6 +48,14 @@ export function cloneSubagentRun(run: AgentSubagentRun): AgentSubagentRun {
     runtime: { ...run.runtime },
     ...(run.retry ? { retry: { ...run.retry } } : {}),
     ...(run.usage ? { usage: { ...run.usage } } : {}),
+    ...(run.batchTask
+      ? {
+          batchTask: {
+            ...run.batchTask,
+            dependsOn: [...run.batchTask.dependsOn]
+          }
+        }
+      : {}),
     toolCalls: run.toolCalls.map((toolCall) => ({ ...toolCall })),
     processingSteps: run.processingSteps.map((step) => ({ ...step }))
   };

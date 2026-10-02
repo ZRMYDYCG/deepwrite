@@ -73,6 +73,53 @@ describe("agent team run mode", () => {
     expect(resolveModel).toHaveBeenCalledWith(runtimeConfig.id);
   });
 
+  it("passes the enabled team's parallel switch only in team mode", async () => {
+    const resolveParallelSubagents = vi.fn(async () => true);
+    await expect(
+      resolveAgentTeamRuntime(
+        "team",
+        { workspaceType: "script", parentAgentId: "script" },
+        {
+          resolveDefinitions: async () => [inheritedMember],
+          resolveModel: async () => undefined,
+          resolveParallelSubagents
+        }
+      )
+    ).resolves.toEqual({
+      subagentDefinitions: [inheritedMember],
+      subagentRuntimeConfigs: {},
+      parallelSubagents: true
+    });
+    expect(resolveParallelSubagents).toHaveBeenCalledWith("script");
+
+    await expect(
+      resolveAgentTeamRuntime(
+        "team",
+        { workspaceType: "short", parentAgentId: "short" },
+        {
+          resolveDefinitions: async () => [inheritedMember],
+          resolveModel: async () => undefined,
+          resolveParallelSubagents: async () => false
+        }
+      )
+    ).resolves.toEqual({
+      subagentDefinitions: [inheritedMember],
+      subagentRuntimeConfigs: {}
+    });
+
+    resolveParallelSubagents.mockClear();
+    await resolveAgentTeamRuntime(
+      "normal",
+      { workspaceType: "short", parentAgentId: "short" },
+      {
+        resolveDefinitions: async () => [inheritedMember],
+        resolveModel: async () => undefined,
+        resolveParallelSubagents
+      }
+    );
+    expect(resolveParallelSubagents).not.toHaveBeenCalled();
+  });
+
   it("rejects team mode when the current agent has no enabled members", async () => {
     await expect(
       resolveAgentTeamRuntime(

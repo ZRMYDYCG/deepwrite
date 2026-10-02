@@ -18,10 +18,11 @@ export async function handleConversationHistoryCommands(
       command.type as keyof typeof ConversationHistoryResultSchemas
     ];
   const managing =
-    command.type === "rendererState.history.commit" &&
-    command.payload.operations.some(
-      (operation) => operation.type === "setDeleted"
-    );
+    command.type === "rendererState.history.purge" ||
+    (command.type === "rendererState.history.commit" &&
+      command.payload.operations.some(
+        (operation) => operation.type === "setDeleted"
+      ));
   const release = managing
     ? acquireConversationOperation(
         ctx.activeRuns,

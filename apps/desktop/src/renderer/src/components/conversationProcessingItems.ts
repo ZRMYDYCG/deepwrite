@@ -10,7 +10,14 @@ export type ProcessingItem =
   | { id: string; type: "thinking"; content: string; createdAt: string }
   | { id: string; type: "response"; content: string; createdAt: string }
   | { id: string; type: "tool"; tool: AgentToolTrace; createdAt: string }
-  | { id: string; type: "subagent"; run: AgentSubagentRun; createdAt: string }
+  | {
+      id: string;
+      type: "subagent";
+      /** The delegating `spawn_subagent` call; one card group per call. */
+      toolCallId: string;
+      runs: AgentSubagentRun[];
+      createdAt: string;
+    }
   | {
       id: string;
       type: "compaction";
@@ -19,13 +26,15 @@ export type ProcessingItem =
     };
 
 function subagentItem(
-  run: AgentSubagentRun,
+  toolCallId: string,
+  runs: AgentSubagentRun[],
   createdAt: string
 ): ProcessingItem {
   return {
-    id: `subagent:${run.parentToolCallId}`,
+    id: `subagent:${toolCallId}`,
     type: "subagent",
-    run,
+    toolCallId,
+    runs,
     createdAt
   };
 }
@@ -39,9 +48,12 @@ function lastResponseIndex(items: readonly ProcessingItem[]): number {
 
 export function processingItems(message: ChatMessage): ProcessingItem[] {
   const items: ProcessingItem[] = [];
-  const runs = new Map(
-    message.subagentRuns?.map((run) => [run.parentToolCallId, run])
-  );
+  const runs = new Map<string, AgentSubagentRun[]>();
+  for (const run of message.subagentRuns ?? []) {
+    const group = runs.get(run.parentToolCallId);
+    if (group) group.push(run);
+    else runs.set(run.parentToolCallId, [run]);
+  }
   const placedRuns = new Set<string>();
   const tools = new Map(message.toolCalls?.map((tool) => [tool.id, tool]));
   const compactions = new Map(
@@ -52,10 +64,10 @@ export function processingItems(message: ChatMessage): ProcessingItem[] {
   const placedCompactions = new Set<string>();
 
   function appendTool(toolCallId: string, id: string, createdAt: string): void {
-    const run = runs.get(toolCallId);
-    if (run) {
+    const group = runs.get(toolCallId);
+    if (group) {
       if (!placedRuns.has(toolCallId)) {
-        items.push(subagentItem(run, createdAt));
+        items.push(subagentItem(toolCallId, group, createdAt));
         placedRuns.add(toolCallId);
       }
       return;
@@ -99,17 +111,16 @@ export function processingItems(message: ChatMessage): ProcessingItem[] {
 
   // Older or partial histories may have a child run without its parent step.
   // Preserve existing step order and insert these cards using their start time.
-  for (const run of runs.values()) {
-    if (placedRuns.has(run.parentToolCallId)) continue;
-    const createdAt =
-      tools.get(run.parentToolCallId)?.requestedAt ?? run.startedAt;
+  for (const [toolCallId, group] of runs) {
+    if (placedRuns.has(toolCallId)) continue;
+    const createdAt = tools.get(toolCallId)?.requestedAt ?? group[0]!.startedAt;
     const laterIndex = items.findIndex(
       (item) => item.createdAt.localeCompare(createdAt) > 0
     );
     items.splice(
       laterIndex < 0 ? items.length : laterIndex,
       0,
-      subagentItem(run, createdAt)
+      subagentItem(toolCallId, group, createdAt)
     );
   }
   // Histories saved before compaction markers existed use event time, except

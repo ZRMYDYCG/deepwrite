@@ -16,7 +16,7 @@ const emit = defineEmits<{
   toggle: [key: string, included: boolean];
   toggleMany: [keys: string[], included: boolean];
 }>();
-const expanded = ref(true);
+const expanded = ref(false);
 const listId = useId();
 const included = computed(
   () => props.items.filter((item) => item.included).length

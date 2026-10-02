@@ -1,17 +1,7 @@
 <script setup lang="ts">
-import type { TextViewMode } from "@deepwrite/contracts";
-import PreviewOutlinePopover from "./PreviewOutlinePopover.vue";
-
-withDefaults(
-  defineProps<{
-    variant?: "standard" | "long";
-    viewMode: TextViewMode;
-    content: string;
-    previewElement: HTMLElement | null;
-    documentKey?: string;
-  }>(),
-  { variant: "standard", documentKey: "" }
-);
+withDefaults(defineProps<{ variant?: "standard" | "long" }>(), {
+  variant: "standard"
+});
 </script>
 
 <template>
@@ -19,12 +9,6 @@ withDefaults(
     <div class="document-meta-copy"><slot /></div>
     <div class="document-meta-actions">
       <slot name="actions" />
-      <PreviewOutlinePopover
-        v-if="viewMode === 'preview'"
-        :content="content"
-        :preview-element="previewElement"
-        :document-key="documentKey"
-      />
     </div>
   </div>
 </template>

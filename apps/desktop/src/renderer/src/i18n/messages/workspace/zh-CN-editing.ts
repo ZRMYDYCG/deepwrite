@@ -310,7 +310,13 @@ export default {
     couldNotLoadApprovalNavigationTryAgain: "加载审批跳转能力失败，请重试。"
   },
   bodyTextFormatting: {
-    couldNotFormatTheManuscriptTryAgain: "规范正文格式失败，请重试"
+    couldNotFormatTheManuscriptTryAgain: "规范正文格式失败，请重试",
+    finishOtherEditsBeforeFormattingAllBodies: "请等待当前保存或编辑完成后重试",
+    couldNotReadEveryBodyNoChangesWereMade:
+      "未能读取全部正文，尚未修改格式，请重试",
+    allBodiesAlreadyMatchTheFormattingRules: "全部正文已符合格式规范",
+    formattedBodies: "已规范 {count} 个正文的格式",
+    couldNotFormatAllBodiesTryAgain: "规范全部正文格式失败，请重试"
   },
   workspaceFeatureHostCoordinator: {
     couldNotLoadTheRevisionAnalysisModule: "加载修改分析模块失败。",

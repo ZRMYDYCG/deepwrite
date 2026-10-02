@@ -58,6 +58,17 @@ export class StagedMessages {
           "scope_removed",
           "This conversation scope was removed; stale queued changes cannot restore it."
         );
+      if (
+        this.sql
+          .get(
+            "SELECT 1 FROM purged_sessions WHERE scope_key = ? AND session_id = ?"
+          )
+          .get(batch.key, batch.sessionId)
+      )
+        throw new ConversationStorageError(
+          "session_purged",
+          "This conversation was permanently deleted."
+        );
       const current = this.sql
         .get(
           "SELECT revision, generation, deleted FROM sessions WHERE scope_key = ? AND session_id = ?"

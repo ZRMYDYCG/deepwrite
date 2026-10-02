@@ -3,7 +3,6 @@ import { documentFormatLabel } from "./catalogLabels";
 import { createScopedTranslator } from "../i18n";
 import type { TextViewMode } from "@deepwrite/contracts";
 import { onBeforeUnmount, ref, watch } from "vue";
-import DocumentMetaRow from "./DocumentMetaRow.vue";
 import EditorSearchHighlight from "./EditorSearchHighlight.vue";
 import MarkdownContent from "./MarkdownContent.vue";
 
@@ -14,14 +13,11 @@ defineProps<{
   titleDraft: string;
   titleEditable: boolean;
   titleReadOnly: boolean;
-  eyebrow: string;
   format: string;
   content: string;
-  documentKey: string;
   viewMode: TextViewMode;
   readOnly: boolean;
   busy: boolean;
-  committedNotice: string | undefined;
   searchMatches: readonly { start: number; end: number }[];
   activeSearchIndex: number;
   searchHighlightVisible: boolean;
@@ -70,25 +66,6 @@ function updateTitle(event: Event): void {
     :class="{ 'is-readonly': readOnly }"
     :aria-label="t('chapterManuscriptEditor')"
   >
-    <DocumentMetaRow
-      variant="long"
-      :view-mode="viewMode"
-      :content="content"
-      :preview-element="previewElement"
-      :document-key="documentKey"
-    >
-      <span>{{ eyebrow }}</span>
-      <span v-if="format" class="long-document-format">
-        {{ documentFormatLabel(format) }}
-      </span>
-      <span v-if="committedNotice" class="long-committed-content-notice">
-        {{ committedNotice }}
-      </span>
-      <span v-else-if="readOnly" class="long-readonly-badge">
-        {{ t("readOnlyContent") }}
-      </span>
-    </DocumentMetaRow>
-
     <input
       v-if="titleEditable"
       :value="titleDraft"
@@ -154,7 +131,7 @@ function updateTitle(event: Event): void {
 .long-editor-writing-surface {
   --long-document-inline-padding: clamp(18px, 2vw, 24px);
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
   height: 100%;
   min-height: 0;
   padding: 28px 0 18px;
@@ -164,30 +141,6 @@ function updateTitle(event: Event): void {
 
 .long-editor-writing-surface.is-readonly {
   background: var(--surface-raised);
-}
-
-.long-document-format,
-.long-readonly-badge,
-.long-committed-content-notice {
-  padding: 2px 6px;
-  border: 1px solid var(--theme-line);
-  border-radius: 8px;
-  font-size: 0.607143rem;
-}
-
-.long-readonly-badge {
-  border-color: color-mix(in srgb, var(--warning) 28%, var(--theme-line));
-  background: color-mix(in srgb, var(--warning) 10%, var(--surface-raised));
-  color: var(--warning);
-}
-
-.long-committed-content-notice {
-  min-width: 0;
-  border-color: color-mix(in srgb, var(--accent) 24%, var(--theme-line));
-  background: color-mix(in srgb, var(--accent) 8%, var(--surface-raised));
-  color: var(--text-secondary);
-  line-height: 1.45;
-  white-space: normal;
 }
 
 .long-document-title-input,

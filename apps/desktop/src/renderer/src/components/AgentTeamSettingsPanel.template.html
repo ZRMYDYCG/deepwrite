@@ -382,6 +382,11 @@
         </article>
       </div>
 
+      <AgentTeamParallelSwitch
+        v-model="draftParallelSubagents"
+        :disabled="formDisabled"
+      />
+
       <footer class="panel-actions">
         <span
           >{{ t('primaryAgentSubagentsMessage', { arg0:

@@ -17,6 +17,7 @@ export default {
   readingAttachments: "Reading attachments…",
   agentMessage: "Agent message",
   uploadAttachment: "Upload attachment",
+  dropFilesToAttach: "Drop files to attach",
   uploadTXTMDPDFWordDocxOrImages:
     "Upload TXT, MD, PDF, Word (.docx), or images",
   selectManuscriptEditingPermission: "Select manuscript editing permission",

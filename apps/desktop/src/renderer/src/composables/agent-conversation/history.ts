@@ -4,6 +4,7 @@ import type {
   SessionConversationHistoryMessage
 } from "@deepwrite/contracts";
 import {
+  ConversationCheckpointSchema,
   SESSION_CONVERSATION_HISTORY_MAX_MESSAGES,
   SESSION_CONVERSATION_HISTORY_MAX_MESSAGE_LENGTH,
   SESSION_CONVERSATION_HISTORY_MAX_CONTENT_LENGTH
@@ -76,7 +77,14 @@ export function buildConversationRestore(
     contentLength += content.length;
   }
 
-  return located ? { history, checkpoint: located.checkpoint } : { history };
+  return located
+    ? {
+        history,
+        // Parsing copies the reactive checkpoint (including nested refs) before
+        // it crosses contextBridge on the next turn.
+        checkpoint: ConversationCheckpointSchema.parse(located.checkpoint)
+      }
+    : { history };
 }
 
 export function buildConversationHistory(

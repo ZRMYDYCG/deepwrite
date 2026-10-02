@@ -2,6 +2,8 @@ export default {
   completed: "已完成",
   failed: "失败",
   stopped: "已停止",
+  queued: "排队中",
+  skipped: "已跳过",
   retrying: "正在重试",
   retryInValueS: "{arg0}s 后重试",
   attemptValueValue: "第 {arg0}/{arg1} 次",

@@ -66,11 +66,12 @@ export class DesktopSyncMetadataStore implements SyncMetadataStore {
           secretSealer
         );
   }
+  /** A copy with every API key sealed, for writers that put sync state in files themselves. */
+  seal(value: SyncMetadata): Promise<SyncMetadata> {
+    return sealSyncMetadata(syncMetadataSchema.parse(value), secretSealer);
+  }
   async write(value: SyncMetadata): Promise<void> {
-    const sealed = await sealSyncMetadata(
-      syncMetadataSchema.parse(value),
-      secretSealer
-    );
+    const sealed = await this.seal(value);
     await writeSyncJson(this.path, JSON.stringify(sealed));
   }
 }

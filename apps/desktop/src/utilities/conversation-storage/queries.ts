@@ -1,4 +1,6 @@
 import type {
+  ConversationHistoryArchiveListQuery,
+  ConversationHistoryArchiveListResult,
   ConversationHistoryDetailQuery,
   ConversationHistoryDetailResult,
   ConversationHistoryListQuery,
@@ -17,6 +19,7 @@ import type { MessageRecords, MessageRow } from "./message-records";
 import { readDetail } from "./read-detail";
 import { metadataProjection } from "./metadata-records";
 import { sessionSummary } from "./session-summary";
+import { listArchivedConversations } from "./archive-queries";
 
 export class ConversationQueries {
   constructor(
@@ -130,6 +133,14 @@ export class ConversationQueries {
           ? (sessions.at(-1)?.sessionId ?? null)
           : null
     };
+  }
+
+  listArchived(
+    query: ConversationHistoryArchiveListQuery
+  ): ConversationHistoryArchiveListResult {
+    return listArchivedConversations(this.sql, query, (key, sessionId) =>
+      this.session({ key, sessionId, maxBytes: 4096 }, true)!
+    );
   }
 
   private version(query: ConversationHistorySessionQuery): {

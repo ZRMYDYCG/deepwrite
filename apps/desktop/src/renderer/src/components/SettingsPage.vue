@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { createScopedTranslator } from "../i18n";
-import { computed, ref } from "vue";
+import { computed, defineAsyncComponent, ref } from "vue";
 import {
   type AppLanguage,
   type ContextCompactionSettings,
@@ -41,6 +41,10 @@ import ShortAgentSettingsPanel from "./ShortAgentSettingsPanel.vue";
 import SiteOfficialModelsPanel from "./SiteOfficialModelsPanel.vue";
 import VoiceSettingsPanel from "./VoiceSettingsPanel.vue";
 
+const ArchivedConversationsPanel = defineAsyncComponent(
+  () => import("./ArchivedConversationsPanel.vue")
+);
+
 const t = createScopedTranslator("components.settingsPage");
 
 interface SettingsCategory {
@@ -74,6 +78,7 @@ const props = defineProps<{
   autoSaveEnabled: boolean;
   language: AppLanguage;
   showContextUsage: boolean;
+  textAttachmentMaxCharacters: number;
   contextCompaction: ContextCompactionSettings;
   showInMenuBar: boolean;
   useNetworkProxy: boolean;
@@ -120,6 +125,7 @@ const emit = defineEmits<{
   updateAutoSave: [enabled: boolean];
   updateLanguage: [language: AppLanguage];
   updateShowContextUsage: [enabled: boolean];
+  updateTextAttachmentMaxCharacters: [value: number];
   updateContextCompaction: [settings: ContextCompactionSettings];
   updateShowInMenuBar: [enabled: boolean];
   updateUseNetworkProxy: [enabled: boolean];
@@ -152,11 +158,21 @@ const searchQuery = ref("");
 
 const sections: SettingsSection[] = [
   {
-    id: "creation",
+    id: "personal",
     get label() {
-      return t("writing");
+      return t("personal");
     },
     categories: [
+      {
+        id: "general",
+        get label() {
+          return t("general");
+        },
+        icon: "settings",
+        get keywords() {
+          return t("storageUserDataHistoryDefaultLocationWorkspaceFolder");
+        }
+      },
       {
         id: "directory",
         get label() {
@@ -165,25 +181,25 @@ const sections: SettingsSection[] = [
         icon: "directory"
       },
       {
-        id: "short-agents",
+        id: "body-text",
         get label() {
-          return t("workspaceSettings");
-        },
-        icon: "brain"
-      },
-      {
-        id: "skill-library-agent",
-        get label() {
-          return t("skillLibrarySettings");
+          return t("manuscriptText");
         },
         icon: "wand"
       },
       {
-        id: "material-library-agent",
+        id: "appearance",
         get label() {
-          return t("materialLibrarySettings");
+          return t("appearance");
         },
-        icon: "archive"
+        icon: "sparkles"
+      },
+      {
+        id: "configuration",
+        get label() {
+          return t("contextSettings");
+        },
+        icon: "model"
       }
     ]
   },
@@ -227,38 +243,6 @@ const sections: SettingsSection[] = [
           return t("officialSiteModels");
         },
         icon: "model"
-      }
-    ]
-  },
-  {
-    id: "personal",
-    get label() {
-      return t("personal");
-    },
-    categories: [
-      {
-        id: "general",
-        get label() {
-          return t("general");
-        },
-        icon: "settings",
-        get keywords() {
-          return t("storageUserDataHistoryDefaultLocationWorkspaceFolder");
-        }
-      },
-      {
-        id: "body-text",
-        get label() {
-          return t("manuscriptText");
-        },
-        icon: "wand"
-      },
-      {
-        id: "appearance",
-        get label() {
-          return t("appearance");
-        },
-        icon: "sparkles"
       },
       {
         id: "voice",
@@ -266,13 +250,50 @@ const sections: SettingsSection[] = [
           return t("voiceSettings");
         },
         icon: "brain"
+      }
+    ]
+  },
+  {
+    id: "creation",
+    get label() {
+      return t("writing");
+    },
+    categories: [
+      {
+        id: "short-agents",
+        get label() {
+          return t("workspaceSettings");
+        },
+        icon: "brain"
       },
       {
-        id: "configuration",
+        id: "skill-library-agent",
         get label() {
-          return t("contextSettings");
+          return t("skillLibrarySettings");
         },
-        icon: "model"
+        icon: "wand"
+      },
+      {
+        id: "material-library-agent",
+        get label() {
+          return t("materialLibrarySettings");
+        },
+        icon: "archive"
+      }
+    ]
+  },
+  {
+    id: "archived",
+    get label() {
+      return t("archived");
+    },
+    categories: [
+      {
+        id: "archived-conversations",
+        get label() {
+          return t("archivedConversations");
+        },
+        icon: "archive"
       }
     ]
   }
@@ -523,13 +544,21 @@ async function selectCategory(id: string): Promise<void> {
         <ConfigurationSettingsPanel
           v-else-if="activeCategory === 'configuration'"
           :show-context-usage="showContextUsage"
+          :text-attachment-max-characters="textAttachmentMaxCharacters"
           :context-compaction="contextCompaction"
           :model-settings="modelSettings"
           @update-show-context-usage="emit('updateShowContextUsage', $event)"
+          @update-text-attachment-max-characters="
+            emit('updateTextAttachmentMaxCharacters', $event)
+          "
           @update-context-compaction="emit('updateContextCompaction', $event)"
         />
 
         <AppearanceSettingsPanel v-else-if="activeCategory === 'appearance'" />
+
+        <ArchivedConversationsPanel
+          v-else-if="activeCategory === 'archived-conversations'"
+        />
 
         <VoiceSettingsPanel
           v-else-if="activeCategory === 'voice'"

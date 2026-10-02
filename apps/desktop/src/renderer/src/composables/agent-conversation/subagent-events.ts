@@ -1,6 +1,9 @@
 import { createScopedTranslator } from "../../i18n";
 import type { AgentConversationContext } from "./context";
-import type { SubagentEventEnvelope } from "./types";
+import type {
+  SubagentEventEnvelope,
+  SubagentPlannedEventEnvelope
+} from "./types";
 
 const t = createScopedTranslator("workspace");
 
@@ -208,5 +211,52 @@ export function handleSubagentEvent(
       );
       toolCall.isError = true;
     }
+  }
+}
+
+/**
+ * Names every queued card of a multi-task call before its children start,
+ * with the scheduler's final dependencies. Started cards keep their own state.
+ */
+export function handleSubagentPlanned(
+  ctx: Pick<AgentConversationContext, "ensureSubagentMessage">,
+  event: SubagentPlannedEventEnvelope
+): void {
+  const { parentToolCallId, runId, tasks } = event.payload;
+  const message = ctx.ensureSubagentMessage(runId, event.timestamp);
+  message.processingStartedAt ??= event.timestamp;
+  for (const planned of tasks) {
+    const batchTask = {
+      index: planned.index,
+      key: planned.key,
+      dependsOn: [...planned.dependsOn]
+    };
+    const run = message.subagentRuns?.find(
+      (candidate) =>
+        candidate.parentToolCallId === parentToolCallId &&
+        candidate.batchTask?.index === planned.index
+    );
+    if (run) {
+      if (run.status !== "queued") continue;
+      run.subagentId = planned.subagentId;
+      run.name = planned.name;
+      run.task = planned.task;
+      run.runtime = { ...planned.runtime };
+      run.batchTask = batchTask;
+      continue;
+    }
+    (message.subagentRuns ??= []).push({
+      parentToolCallId,
+      subagentRunId: `pending:${parentToolCallId}:${planned.index}`,
+      subagentId: planned.subagentId,
+      name: planned.name,
+      task: planned.task,
+      status: "queued",
+      runtime: { ...planned.runtime },
+      toolCalls: [],
+      processingSteps: [],
+      startedAt: event.timestamp,
+      batchTask
+    });
   }
 }

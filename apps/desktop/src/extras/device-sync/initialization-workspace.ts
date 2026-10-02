@@ -6,6 +6,7 @@ import {
   DeviceSyncInitializationMetadataIntentSchema,
   type DeviceSyncWorkspaceRequest,
   type SyncInitializationWorkspacePort,
+  type SyncMetadata,
   type SyncMetadataStore
 } from "@deepwrite/contracts";
 import { writeSyncJson } from "./atomic-json";
@@ -18,6 +19,8 @@ export function createInitializationWorkspace(
     request(input: DeviceSyncWorkspaceRequest): Promise<unknown>;
     workspaceDirectory(): Promise<string | null>;
     busy(): boolean;
+    /** The recovery copy and the pending intent are plain files, so their API keys must be sealed first. */
+    seal(value: SyncMetadata): Promise<SyncMetadata>;
   }
 ): {
   initialization: SyncInitializationWorkspacePort;
@@ -73,7 +76,7 @@ export function createInitializationWorkspace(
               "device-sync-recovery",
               `initialization-metadata-${token}.json`
             ),
-            JSON.stringify(previous)
+            JSON.stringify(await options.seal(previous))
           );
         await writeSyncJson(
           intentPath,
@@ -81,7 +84,7 @@ export function createInitializationWorkspace(
             DeviceSyncInitializationMetadataIntentSchema.parse({
               schemaVersion: 1,
               token,
-              metadata: next
+              metadata: await options.seal(next)
             })
           )
         );

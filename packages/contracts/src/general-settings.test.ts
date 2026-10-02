@@ -3,7 +3,8 @@ import {
   AppLanguageSchema,
   GeneralSettingsSchema,
   TextViewModeSchema,
-  createDefaultGeneralSettings
+  createDefaultGeneralSettings,
+  maxTextAttachmentCharactersForBudget
 } from "./general-settings";
 
 describe("general settings contracts", () => {
@@ -37,6 +38,45 @@ describe("general settings contracts", () => {
       permissionMode: "auto-approve",
       autoApproveCrossStageOperations: true
     });
+  });
+
+  it("defaults the attachment cutoff and rejects values above the message limit", () => {
+    const defaults = createDefaultGeneralSettings();
+    expect(defaults.textAttachmentMaxCharacters).toBe(100_000);
+    expect(maxTextAttachmentCharactersForBudget(64_000)).toBe(57_600);
+    expect(maxTextAttachmentCharactersForBudget(160_000)).toBe(144_000);
+    expect(maxTextAttachmentCharactersForBudget(400_000)).toBe(200_000);
+    expect(
+      GeneralSettingsSchema.parse({
+        ...defaults,
+        contextCompaction: {
+          ...defaults.contextCompaction,
+          budgetTokens: 256_000
+        },
+        textAttachmentMaxCharacters: 150_000
+      }).textAttachmentMaxCharacters
+    ).toBe(150_000);
+    expect(
+      GeneralSettingsSchema.parse({
+        ...defaults,
+        contextCompaction: {
+          ...defaults.contextCompaction,
+          budgetTokens: 64_000
+        }
+      }).textAttachmentMaxCharacters
+    ).toBe(57_600);
+    expect(
+      GeneralSettingsSchema.parse({
+        ...defaults,
+        textAttachmentMaxCharacters: 200_000
+      }).textAttachmentMaxCharacters
+    ).toBe(144_000);
+    expect(
+      GeneralSettingsSchema.safeParse({
+        ...defaults,
+        textAttachmentMaxCharacters: 200_001
+      }).success
+    ).toBe(false);
   });
 
   it("accepts only edit and preview text view modes", () => {

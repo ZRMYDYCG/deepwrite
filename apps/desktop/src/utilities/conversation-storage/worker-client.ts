@@ -3,6 +3,10 @@ import { dirname } from "node:path";
 import { Worker } from "node:worker_threads";
 import type {
   ConversationHistoryApi,
+  ConversationHistoryArchiveListQuery,
+  ConversationHistoryArchiveListResult,
+  ConversationHistoryPurgeQuery,
+  ConversationHistoryPurgeResult,
   ConversationHistoryMergeScopesQuery,
   ConversationHistoryMergeScopesResult,
   ConversationHistoryBatch,
@@ -144,6 +148,16 @@ export class ConversationStorageWorker implements ConversationHistoryApi {
     payload: ConversationHistoryListQuery
   ): Promise<ConversationHistoryListResult> {
     return this.request("list", payload);
+  }
+  listArchived(
+    payload: ConversationHistoryArchiveListQuery
+  ): Promise<ConversationHistoryArchiveListResult> {
+    return this.request("listArchived", payload);
+  }
+  purge(
+    payload: ConversationHistoryPurgeQuery
+  ): Promise<ConversationHistoryPurgeResult> {
+    return this.request("purge", payload);
   }
   session(
     payload: ConversationHistorySessionQuery

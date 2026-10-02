@@ -114,6 +114,12 @@ const subagentStatusLabels: Record<
   },
   get stopped() {
     return t("stopped");
+  },
+  get queued() {
+    return t("queued");
+  },
+  get skipped() {
+    return t("skipped");
   }
 };
 
@@ -167,6 +173,7 @@ export function subagentRetryStatus(
 }
 
 export function subagentDuration(run: AgentSubagentRun, now: number): string {
+  if (run.status === "queued" || run.status === "skipped") return "";
   const start = Date.parse(run.startedAt);
   const end = run.completedAt
     ? Date.parse(run.completedAt)

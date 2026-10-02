@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PROMPT_TEXT_ATTACHMENT_MAX_CONTENT_LENGTH } from "@deepwrite/contracts";
+import { PROMPT_TEXT_ATTACHMENT_DEFAULT_CONTENT_LENGTH } from "@deepwrite/contracts";
 import { DOCX_MEDIA_TYPE } from "./docxDocumentText";
 import { documentZipEntry } from "./documentZip.test-support";
 import {
@@ -71,12 +71,12 @@ describe("Word prompt attachments", () => {
   });
 
   it("clips long Word text using the prompt attachment context limit", async () => {
-    const text = "字".repeat(PROMPT_TEXT_ATTACHMENT_MAX_CONTENT_LENGTH + 1);
+    const text = "字".repeat(PROMPT_TEXT_ATTACHMENT_DEFAULT_CONTENT_LENGTH + 1);
     const { attachment, warning } = await readPromptAttachment(
       docxFile(documentXml(`<w:p><w:r><w:t>${text}</w:t></w:r></w:p>`))
     );
     expect(attachment).toMatchObject({
-      content: text.slice(0, PROMPT_TEXT_ATTACHMENT_MAX_CONTENT_LENGTH),
+      content: text.slice(0, PROMPT_TEXT_ATTACHMENT_DEFAULT_CONTENT_LENGTH),
       truncated: true,
       originalLength: text.length
     });

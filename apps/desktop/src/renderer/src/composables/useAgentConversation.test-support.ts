@@ -331,6 +331,9 @@ function createDeferredApi(): {
       async login() {
         throw new Error("Marketplace is not used by conversation tests.");
       },
+      async loginWithEmailCode() {
+        throw new Error("Marketplace is not used by conversation tests.");
+      },
       async logout() {
         throw new Error("Marketplace is not used by conversation tests.");
       },

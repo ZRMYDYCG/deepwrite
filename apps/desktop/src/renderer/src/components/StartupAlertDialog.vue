@@ -140,7 +140,9 @@ watch(
 
 .startup-alert-content {
   display: grid;
+  grid-auto-rows: max-content;
   gap: 22px;
+  min-height: 0;
   overflow: auto;
   padding: 26px 28px 24px;
 }

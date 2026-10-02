@@ -20,11 +20,15 @@ export interface AgentTeamRunModeDependencies {
   resolveModel(
     modelId: string
   ): Promise<AgentProviderRuntimeConfig | undefined>;
+  resolveParallelSubagents?(
+    workspaceType: AgentTeamWorkspaceType
+  ): Promise<boolean>;
 }
 
 export interface ResolvedAgentTeamRuntime {
   subagentDefinitions?: ShortAgentSubagentDefinition[];
   subagentRuntimeConfigs: Record<string, AgentProviderRuntimeConfig>;
+  parallelSubagents?: true;
 }
 
 export async function resolveAgentTeamRuntime(
@@ -67,5 +71,12 @@ export async function resolveAgentTeamRuntime(
     subagentRuntimeConfigs[definition.modelId] = resolved;
   }
 
-  return { subagentDefinitions, subagentRuntimeConfigs };
+  const parallelSubagents =
+    (await dependencies.resolveParallelSubagents?.(target.workspaceType)) ===
+    true;
+  return {
+    subagentDefinitions,
+    subagentRuntimeConfigs,
+    ...(parallelSubagents ? { parallelSubagents: true as const } : {})
+  };
 }

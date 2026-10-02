@@ -17,6 +17,7 @@ export default {
   readingAttachments: "正在读取附件…",
   agentMessage: "智能体消息",
   uploadAttachment: "上传附件",
+  dropFilesToAttach: "松开即可添加附件",
   uploadTXTMDPDFWordDocxOrImages: "上传 TXT、MD、PDF、Word（.docx）或图片",
   selectManuscriptEditingPermission: "选择正文修改权限",
   voiceInput: "语音输入",

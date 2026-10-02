@@ -61,11 +61,57 @@ export type SubagentProjectedActivity =
       isError: boolean;
     };
 
+/** Which workspace objects a child of a parallel team may change. */
+export type SubagentWriteScope =
+  | { kind: "read-only" }
+  | { kind: "objects"; ids: ReadonlySet<string> }
+  /** Directory changes; never runs beside another writing task. */
+  | { kind: "structure" }
+  /** Library managers own their tools and always run alone. */
+  | { kind: "exclusive" };
+
+/** One validated entry of a `spawn_subagent` task list. */
+export interface SubagentTaskRequest {
+  index: number;
+  key: string;
+  definition: RuntimeSubagentDefinition;
+  task: string;
+  libraryId?: string;
+  /** Final dependencies, including `implicitDependsOn`. */
+  dependsOn: string[];
+  /** Added by the scheduler because write scopes overlap. */
+  implicitDependsOn: string[];
+  /** Present only for parallel teams. */
+  writeScope?: SubagentWriteScope;
+}
+
+export type SubagentTaskStatus = "completed" | "error" | "aborted" | "skipped";
+
+export interface SubagentTaskOutcome {
+  status: SubagentTaskStatus;
+  summary: string;
+}
+
+export interface SubagentBatchTaskRef {
+  index: number;
+  key: string;
+  dependsOn: string[];
+}
+
+/** A task of a multi-task call as the scheduler will run it. */
+export interface SubagentPlannedTaskRef extends SubagentBatchTaskRef {
+  subagentId: string;
+  name: string;
+  task: string;
+  runtime: AgentRuntimeRef;
+}
+
 export interface SubagentProgressBase {
   parentToolCallId: string;
   subagentRunId: string;
   subagentId: string;
   name: string;
+  batchTask?: SubagentBatchTaskRef;
   /**
    * The child can use a custom model different from its parent. Older progress
    * payloads do not contain this field, so projection retains a parent-runtime
@@ -75,6 +121,12 @@ export interface SubagentProgressBase {
 }
 
 export type SubagentToolProgress =
+  | {
+      /** Emitted once, before the first child of a multi-task call starts. */
+      type: "planned";
+      parentToolCallId: string;
+      tasks: SubagentPlannedTaskRef[];
+    }
   | (SubagentProgressBase & {
       type: "started";
       task: string;
@@ -85,7 +137,7 @@ export type SubagentToolProgress =
     })
   | (SubagentProgressBase & {
       type: "completed";
-      status: "completed" | "error" | "aborted";
+      status: SubagentTaskStatus;
       summary: string;
       errorMessage?: string;
       usage?: AgentUsage;
@@ -183,4 +235,9 @@ export interface BuildSpawnSubagentToolInput {
   timeoutMs?: number;
   depth?: number;
   createRunId?: () => string;
+  /**
+   * Team-wide parallel mode: independent tasks run concurrently and every
+   * task declares the objects it may write.
+   */
+  parallel?: boolean;
 }

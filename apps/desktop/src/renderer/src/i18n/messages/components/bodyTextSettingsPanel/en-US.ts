@@ -12,12 +12,13 @@ export default {
   shortStoryManuscriptFormatting: "Short story manuscript formatting",
   screenplayManuscriptFormatting: "Screenplay manuscript formatting",
   novelManuscriptFormatting: "Novel manuscript formatting",
-  manuscriptText: "Manuscript text",
+  defaultDisplay: "Default display",
+  formatManuscript: "Format manuscript",
   defaultTextMode: "Default text mode",
   theInitialViewWhenOpeningTheAppOrSwitching:
     "The initial view when opening the app or switching documents. You can change it in the text pane at any time.",
   selectDefaultTextMode: "Select default text mode",
   appliedWhenYouChooseFormatManuscriptInTheToolbar:
-    "Applied when you choose Format manuscript in the toolbar; changes can be undone. Two-character indentation uses two full-width spaces.",
+    "Applied when you choose Format manuscript in the toolbar. Short stories and screenplays format every manuscript section in the current book; novels format the current section and can be undone. Two-character indentation uses two full-width spaces.",
   selectValue: "Select {arg0}"
 };

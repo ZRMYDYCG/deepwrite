@@ -1,5 +1,4 @@
 import {
-  createDefaultGeneralSettings,
   type BodyTextFormatChange,
   type DeepWriteApi,
   type GeneralPermissionMode,
@@ -7,6 +6,10 @@ import {
   type TextViewMode,
   type WorkspacePaneLayout
 } from "@deepwrite/contracts";
+import {
+  createDefaultGeneralSettings,
+  maxTextAttachmentCharactersForBudget
+} from "@deepwrite/contracts/renderer";
 import type { Ref } from "vue";
 import { locale, setAppLanguage, createScopedTranslator } from "../i18n";
 import { takeInitialGeneralSettings } from "../i18n/bootstrap";
@@ -42,6 +45,18 @@ export interface GeneralSettingsCoordinatorOptions {
   cancelAutoSave(): void;
   resumeAutomaticAgentEdits(): void;
   notifications: GeneralSettingsNotifications;
+}
+
+function capTextAttachmentLimit(settings: GeneralSettings): GeneralSettings {
+  return {
+    ...settings,
+    textAttachmentMaxCharacters: Math.min(
+      settings.textAttachmentMaxCharacters,
+      maxTextAttachmentCharactersForBudget(
+        settings.contextCompaction.budgetTokens
+      )
+    )
+  };
 }
 
 /** Owns general-setting initialization, serialized persistence, and side effects. */
@@ -93,7 +108,17 @@ export function useGeneralSettingsCoordinator(
 
   function applyLocalPatch(patch: Partial<GeneralSettings>): void {
     localPatch = { ...localPatch, ...patch };
-    options.settings.value = { ...options.settings.value, ...patch };
+    const next = { ...options.settings.value, ...patch };
+    const bounded =
+      patch.contextCompaction !== undefined ||
+      patch.textAttachmentMaxCharacters !== undefined
+        ? capTextAttachmentLimit(next)
+        : next;
+    if (patch.textAttachmentMaxCharacters !== undefined) {
+      localPatch.textAttachmentMaxCharacters =
+        bounded.textAttachmentMaxCharacters;
+    }
+    options.settings.value = bounded;
   }
 
   async function load(): Promise<void> {
@@ -117,11 +142,11 @@ export function useGeneralSettingsCoordinator(
         loading = false;
         return;
       }
-      const effectiveSettings = {
+      const effectiveSettings = capTextAttachmentLimit({
         ...settings,
         ...localPatch,
         bodyTextFormats: { ...settings.bodyTextFormats, ...bodyTextPatch }
-      };
+      });
       const shouldSave =
         shouldPersistLegacyAutoSave || saveRequestedWhileLoading;
       loading = false;
@@ -197,6 +222,11 @@ export function useGeneralSettingsCoordinator(
     queueSave();
   }
 
+  function updateTextAttachmentMaxCharacters(value: number): void {
+    applyLocalPatch({ textAttachmentMaxCharacters: value });
+    queueSave();
+  }
+
   function updateContextCompaction(
     contextCompaction: GeneralSettings["contextCompaction"]
   ): void {
@@ -258,6 +288,7 @@ export function useGeneralSettingsCoordinator(
     updateLanguage,
     updatePermissionMode,
     updateShowContextUsage,
+    updateTextAttachmentMaxCharacters,
     updateContextCompaction,
     updateShowInMenuBar,
     updateUseNetworkProxy,

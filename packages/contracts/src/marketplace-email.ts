@@ -9,7 +9,7 @@ export const MarketplaceEmailSchema = z
 export const MarketplaceEmailCodeInputSchema = z
   .object({
     email: MarketplaceEmailSchema,
-    purpose: z.enum(["register", "account"])
+    purpose: z.enum(["register", "account", "login"])
   })
   .strict();
 export type MarketplaceEmailCodeInput = z.infer<
@@ -35,4 +35,17 @@ export const MarketplaceBindEmailInputSchema = z
   .strict();
 export type MarketplaceBindEmailInput = z.infer<
   typeof MarketplaceBindEmailInputSchema
+>;
+
+export const MarketplaceEmailLoginInputSchema = z
+  .object({
+    email: MarketplaceEmailSchema,
+    emailCode: z
+      .string()
+      .trim()
+      .regex(/^[0-9]{6}$/u)
+  })
+  .strict();
+export type MarketplaceEmailLoginInput = z.infer<
+  typeof MarketplaceEmailLoginInputSchema
 >;

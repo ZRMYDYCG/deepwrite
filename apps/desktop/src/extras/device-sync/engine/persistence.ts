@@ -2,6 +2,7 @@ import { syncDisplayText } from "../../../localization/sync-display-text";
 import type { SyncDisplayText } from "@deepwrite/contracts";
 import {
   clockIncludes,
+  compactSyncMetadata,
   stableSyncJson,
   type LoadedSyncDevice,
   type SyncMetadata,
@@ -74,25 +75,28 @@ export async function publishSync(
     )
       ancestors[key] = [...records, previous];
   }
-  await options.metadata.write({
-    ...metadata,
-    ancestors,
-    published: commit,
-    baselines: { ...metadata.baselines, ...accepted },
-    history: metadata.history.map((entry) =>
-      entry.descriptionText?.code === "preparedUpload"
-        ? {
-            ...entry,
-            description: syncDisplayText("uploaded").fallback,
-            descriptionText: syncDisplayText("uploaded").text
-          }
-        : entry
-    ),
-    pendingIssues: issues,
-    lastSuccessAt: issues.length
-      ? metadata.lastSuccessAt
-      : options.runtime.now()
-  });
+  // Compacting here also shrinks sync state written by earlier versions, which kept every version.
+  await options.metadata.write(
+    compactSyncMetadata({
+      ...metadata,
+      ancestors,
+      published: commit,
+      baselines: { ...metadata.baselines, ...accepted },
+      history: metadata.history.map((entry) =>
+        entry.descriptionText?.code === "preparedUpload"
+          ? {
+              ...entry,
+              description: syncDisplayText("uploaded").fallback,
+              descriptionText: syncDisplayText("uploaded").text
+            }
+          : entry
+      ),
+      pendingIssues: issues,
+      lastSuccessAt: issues.length
+        ? metadata.lastSuccessAt
+        : options.runtime.now()
+    })
+  );
 }
 export async function preserveSync(
   options: SyncServiceOptions,

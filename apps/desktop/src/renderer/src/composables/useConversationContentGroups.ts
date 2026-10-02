@@ -1,5 +1,5 @@
 import { computed } from "vue";
-import type { ChatMessage } from "../types/conversation";
+import { isActiveSubagentRun, type ChatMessage } from "../types/conversation";
 
 export const CONVERSATION_RENDER_GROUP_SIZE = 16;
 export const CONVERSATION_RENDER_GROUP_THRESHOLD = 512;
@@ -41,7 +41,7 @@ export function useConversationContentGroups(options: {
         (message) =>
           protectedIds.value.has(message.id) ||
           message.status === "streaming" ||
-          message.subagentRuns?.some((run) => run.status === "running")
+          message.subagentRuns?.some(isActiveSubagentRun)
       )
     );
   }

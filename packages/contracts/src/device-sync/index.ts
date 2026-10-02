@@ -11,6 +11,7 @@ export * from "./dependencies";
 export * from "./validation";
 export * from "./model-config";
 export * from "./secret-protection";
+export * from "./history";
 export * from "./changes";
 
 export * from "./initialization";

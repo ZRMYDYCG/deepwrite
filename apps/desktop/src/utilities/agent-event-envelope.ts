@@ -130,6 +130,18 @@ export function toEventEnvelope(
     );
   }
 
+  if (event.type === "subagent.planned") {
+    return createEnvelope(
+      "subagent.planned",
+      {
+        sessionId: event.sessionId,
+        runId: event.runId,
+        ...event.payload
+      },
+      { id: createId("evt"), context }
+    );
+  }
+
   if (event.type === "subagent.started") {
     return createEnvelope(
       "subagent.started",

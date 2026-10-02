@@ -1,5 +1,43 @@
 import type { AgentConversationContext } from "./context";
 import type { SystemEventEnvelope } from "@deepwrite/contracts";
+import { createScopedTranslator } from "../../i18n";
+import type { ChatMessage } from "../../types/conversation";
+
+const t = createScopedTranslator("workspace.subagentEvents");
+
+/**
+ * Closes children the delegation tool left open, e.g. after lost events or a
+ * rejected task list. A single legacy child keeps the tool result as summary.
+ */
+function settleDelegatedRuns(
+  message: ChatMessage,
+  toolCallId: string,
+  isError: boolean,
+  resultSummary: string,
+  completedAt: string
+): void {
+  for (const run of message.subagentRuns ?? []) {
+    if (run.parentToolCallId !== toolCallId) continue;
+    if (!run.batchTask) {
+      if (run.status !== "running") continue;
+      run.status = isError ? "error" : "completed";
+      run.completedAt = completedAt;
+      run.summary = resultSummary;
+      if (isError) run.errorMessage = resultSummary;
+      continue;
+    }
+    if (run.status !== "running" && run.status !== "queued") continue;
+    run.status = isError
+      ? "error"
+      : run.status === "queued"
+        ? "skipped"
+        : "error";
+    run.completedAt = completedAt;
+    run.errorMessage = isError
+      ? resultSummary
+      : t("theSubtaskEndedWithoutAFinalStatus");
+  }
+}
 
 type ToolEventsContext = Pick<
   AgentConversationContext,
@@ -178,17 +216,13 @@ export function handleToolEvent(
       event.timestamp
     );
     if (event.payload.toolName === "spawn_subagent") {
-      const subagentRun = message.subagentRuns?.find(
-        (candidate) => candidate.parentToolCallId === event.payload.toolCallId
+      settleDelegatedRuns(
+        message,
+        event.payload.toolCallId,
+        event.payload.isError,
+        event.payload.resultSummary,
+        event.timestamp
       );
-      if (subagentRun?.status === "running") {
-        subagentRun.status = event.payload.isError ? "error" : "completed";
-        subagentRun.completedAt = event.timestamp;
-        subagentRun.summary = event.payload.resultSummary;
-        if (event.payload.isError) {
-          subagentRun.errorMessage = event.payload.resultSummary;
-        }
-      }
     }
     const tools = message.tools ?? [];
     const existingTool = tools.find(

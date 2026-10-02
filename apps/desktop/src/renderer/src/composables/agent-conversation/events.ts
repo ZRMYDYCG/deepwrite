@@ -30,6 +30,7 @@ type EventsContext = Pick<
   | "epoch"
   | "flushPendingAgentTextDelta"
   | "handleSubagentEvent"
+  | "handleSubagentPlanned"
   | "userInput"
   | "clearIdleTimer"
   | "ensureAssistantMessage"
@@ -121,6 +122,10 @@ export function handleEvent(
     // Terminal, retry, tool, and subagent events are ordering boundaries.
     // Settle every preceding text fragment before applying that event.
     ctx.flushPendingAgentTextDelta();
+  }
+  if (event.type === "subagent.planned") {
+    ctx.handleSubagentPlanned(event);
+    return;
   }
   if (subagentEvent) {
     ctx.handleSubagentEvent(event);

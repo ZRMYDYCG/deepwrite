@@ -1,10 +1,10 @@
 export default {
   enterAnAPIKeyForTheCurrentVoiceConfiguration:
-    "请先填写当前语音配置的 API Key。",
+    "请先填写当前语音模型配置的 API Key。",
   speechRecognition: "语音识别",
   currentVoiceModel: "当前语音模型",
   addAServiceToUseVoiceInput: "添加服务后即可使用语音输入",
-  currentVoiceConfiguration: "当前语音配置",
+  currentVoiceConfiguration: "当前语音模型配置",
   modelSettings: "模型配置",
   manageServiceKeysEndpointsAndRecognitionModels:
     "管理服务密钥、接口地址与识别模型",

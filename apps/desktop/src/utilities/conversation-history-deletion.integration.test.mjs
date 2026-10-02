@@ -155,14 +155,14 @@ describe("pending deletion recovery through the real per-scope queue", () => {
     controller.draft.value = "late draft";
     controller.temperature.value = 0.9;
     await expect(state.flushPersistence(key)).rejects.toThrow(
-      "删除结果尚未确认"
+      "归档结果尚未确认"
     );
     expect(state.persistenceProgress.value.get(key).status).toBe("pending");
     expect(state.persistenceBusy.value).toBe(true);
     expect((await read("first", true)).messages[0].content).toBe(
       "first content"
     );
-    await expect(close()).rejects.toThrow("删除结果尚未确认");
+    await expect(close()).rejects.toThrow("归档结果尚未确认");
 
     expect(await controller.openConversation("second")).toBe(true);
     controller.temperature.value = 0.2;
@@ -249,7 +249,7 @@ describe("pending deletion recovery through the real per-scope queue", () => {
     );
     controller.draft.value = "keep this draft";
     controller.messages.value[0].content += " keep this append";
-    await expect(close()).rejects.toThrow("删除结果尚未确认");
+    await expect(close()).rejects.toThrow("归档结果尚未确认");
     expect(await controller.deleteConversation("first")).toBe(true);
     const recoveredId = controller.sessionId.value;
     expect(recoveredId).not.toBe("first");

@@ -12,6 +12,7 @@ defineProps<{
   findPanelMode: "find" | "replace";
   formatVisible?: boolean;
   formatDisabled?: boolean;
+  formatLabel?: string | undefined;
 }>();
 const emit = defineEmits<{
   undo: [];
@@ -74,8 +75,8 @@ const emit = defineEmits<{
     v-if="formatVisible"
     class="text-tool-button"
     type="button"
-    :aria-label="t('formatManuscript')"
-    :title="t('formatManuscript')"
+    :aria-label="formatLabel ?? t('formatManuscript')"
+    :title="formatLabel ?? t('formatManuscript')"
     :disabled="formatDisabled"
     @mousedown.prevent
     @click="emit('format')"

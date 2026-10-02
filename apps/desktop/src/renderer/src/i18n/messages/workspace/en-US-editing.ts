@@ -342,7 +342,16 @@ export default {
   },
   bodyTextFormatting: {
     couldNotFormatTheManuscriptTryAgain:
-      "Could not format the manuscript. Try again."
+      "Could not format the manuscript. Try again.",
+    finishOtherEditsBeforeFormattingAllBodies:
+      "Wait for the current save or edit to finish, then try again.",
+    couldNotReadEveryBodyNoChangesWereMade:
+      "Could not read every manuscript section. No formatting was changed. Try again.",
+    allBodiesAlreadyMatchTheFormattingRules:
+      "Every manuscript section already matches the formatting rules.",
+    formattedBodies: "Formatted {count} manuscript sections.",
+    couldNotFormatAllBodiesTryAgain:
+      "Could not format every manuscript section. Try again."
   },
   workspaceFeatureHostCoordinator: {
     couldNotLoadTheRevisionAnalysisModule:

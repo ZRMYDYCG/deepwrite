@@ -32,6 +32,7 @@ import {
   AgentPromptCommandEnvelopeSchema,
   SubagentActivityEventEnvelopeSchema,
   SubagentCompletedEventEnvelopeSchema,
+  SubagentPlannedEventEnvelopeSchema,
   SubagentStartedEventEnvelopeSchema,
   AgentToolCompletedEventEnvelopeSchema,
   AgentUserInputRequestedEventEnvelopeSchema,
@@ -65,6 +66,7 @@ import {
   type AgentToolRequestedEventEnvelope,
   type SubagentActivityEventEnvelope,
   type SubagentCompletedEventEnvelope,
+  type SubagentPlannedEventEnvelope,
   type SubagentStartedEventEnvelope,
   type LongChapterWriteProposalEventEnvelope,
   type LongCharacterFileProposalEventEnvelope,
@@ -388,6 +390,7 @@ export const SystemEventEnvelopeSchema = z.discriminatedUnion("type", [
   AgentToolRequestedEventEnvelopeSchema,
   AgentToolCompletedEventEnvelopeSchema,
   AgentUserInputRequestedEventEnvelopeSchema,
+  SubagentPlannedEventEnvelopeSchema,
   SubagentStartedEventEnvelopeSchema,
   SubagentActivityEventEnvelopeSchema,
   SubagentCompletedEventEnvelopeSchema,
@@ -435,6 +438,7 @@ export type SystemEventEnvelope =
   | AgentToolRequestedEventEnvelope
   | AgentToolCompletedEventEnvelope
   | AgentUserInputRequestedEventEnvelope
+  | SubagentPlannedEventEnvelope
   | SubagentStartedEventEnvelope
   | SubagentActivityEventEnvelope
   | SubagentCompletedEventEnvelope

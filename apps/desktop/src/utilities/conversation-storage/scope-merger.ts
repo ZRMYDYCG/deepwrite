@@ -138,6 +138,10 @@ export class ConversationScopeMerger {
           .all(query.key)
           .map((row) => String(row.session_id))
       );
+      for (const row of this.sql
+        .get("SELECT session_id FROM purged_sessions WHERE scope_key = ?")
+        .all(query.key))
+        protectedSessions.add(String(row.session_id));
       const mergedSources: string[] = [];
       for (const source of new Set(query.sources)) {
         if (source === query.key) continue;
@@ -155,6 +159,7 @@ export class ConversationScopeMerger {
           .all(source) as Session[];
         let backup: string | undefined;
         for (const row of rows) {
+          if (protectedSessions.has(row.session_id)) continue;
           const existing = this.sql
             .get(
               "SELECT * FROM sessions WHERE scope_key = ? AND session_id = ?"

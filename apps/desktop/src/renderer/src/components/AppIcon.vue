@@ -92,6 +92,10 @@ withDefaults(defineProps<{ name: IconName; size?: number }>(), { size: 18 });
       <circle cx="5" cy="17" r="1" fill="currentColor" stroke="none" />
       <path d="M9 7h10M9 12h10M9 17h10" />
     </template>
+    <template v-else-if="name === 'outline'">
+      <rect x="4" y="3.5" width="16" height="17" rx="2" />
+      <path d="M7.5 8h9M10 12h6.5M7.5 16h9" />
+    </template>
     <template v-else-if="name === 'archive'">
       <path d="M4 7h16v13H4zM3 4h18v3H3zM9 11h6" />
     </template>

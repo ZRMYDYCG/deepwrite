@@ -227,6 +227,7 @@ describe("AgentTeamConfigStore", () => {
     const migrated = profileOfType(snapshot, "short");
     expect(migrated.settings).toEqual({
       workspaceType: "short",
+      parallelSubagents: false,
       teams: [
         {
           parentAgentId: "short",
@@ -334,6 +335,28 @@ describe("AgentTeamConfigStore", () => {
     });
     expect(disabled.enabledTeamIds.short).toBeUndefined();
     await expect(store.delete({ teamId: second.id })).resolves.toBeTruthy();
+  });
+
+  it("reads the parallel switch from the enabled team of each type only", async () => {
+    const store = new AgentTeamConfigStore(await temporaryRoot());
+    const created = await store.create({
+      name: "并行团队",
+      workspaceType: "long"
+    });
+    const team = profileOfType(created, "long", "并行团队");
+    await store.save({
+      teamId: team.id,
+      settings: { ...structuredClone(team.settings), parallelSubagents: true }
+    });
+
+    expect(await store.parallelSubagentsEnabled("long")).toBe(false);
+    await store.setEnabled({ teamId: team.id, enabled: true });
+    expect(await store.parallelSubagentsEnabled("long")).toBe(true);
+    expect(await store.parallelSubagentsEnabled("short")).toBe(false);
+    expect(
+      profileOfType(await store.list(), "long", "并行团队").settings
+        .parallelSubagents
+    ).toBe(true);
   });
 
   it("enabling another team replaces only the enabled team of that type", async () => {

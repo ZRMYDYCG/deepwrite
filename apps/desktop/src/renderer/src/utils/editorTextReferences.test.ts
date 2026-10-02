@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PROMPT_TEXT_ATTACHMENT_MAX_CONTENT_LENGTH } from "@deepwrite/contracts";
+import { PROMPT_TEXT_ATTACHMENT_DEFAULT_CONTENT_LENGTH } from "@deepwrite/contracts";
 import type { WorkspaceDocument } from "../types/workspace";
 import {
   createConversationTextReference,
@@ -58,7 +58,7 @@ describe("editor text references", () => {
   it("turns the reference into a bounded prompt attachment", () => {
     const longDocument = {
       ...document,
-      content: "字".repeat(PROMPT_TEXT_ATTACHMENT_MAX_CONTENT_LENGTH + 5)
+      content: "字".repeat(PROMPT_TEXT_ATTACHMENT_DEFAULT_CONTENT_LENGTH + 5)
     };
     const reference = createEditorTextReference({
       id: "selection-3",
@@ -74,11 +74,13 @@ describe("editor text references", () => {
       kind: "text",
       name: "拒绝信 (1-1)",
       truncated: true,
-      originalLength: PROMPT_TEXT_ATTACHMENT_MAX_CONTENT_LENGTH + 5
+      originalLength: PROMPT_TEXT_ATTACHMENT_DEFAULT_CONTENT_LENGTH + 5
     });
     expect(attachment.kind === "text" && attachment.content).toHaveLength(
-      PROMPT_TEXT_ATTACHMENT_MAX_CONTENT_LENGTH
+      PROMPT_TEXT_ATTACHMENT_DEFAULT_CONTENT_LENGTH
     );
+    const shorter = createEditorReferenceAttachment(reference, 25_000);
+    expect(shorter.kind === "text" && shorter.content).toHaveLength(25_000);
   });
 
   it("captures an assistant response selection as a prompt reference", () => {

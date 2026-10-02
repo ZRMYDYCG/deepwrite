@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { createScopedTranslator } from "../i18n";
+import { nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import type {
   AgentTeamRunMode,
   LibraryAgentDomain,
@@ -9,6 +10,7 @@ import type {
   UserPromptAttachment,
   WorkspaceAgentId
 } from "@deepwrite/contracts";
+import { maxTextAttachmentCharactersForBudget } from "@deepwrite/contracts/renderer";
 import type {
   AgentApprovalMode,
   ChatMessage,
@@ -23,6 +25,7 @@ import {
   formatFileSize
 } from "../composables/useConversationAttachments";
 import { useConversationComposer } from "../composables/useConversationComposer";
+import { useAttachmentDrop } from "../composables/useAttachmentDrop";
 import { useVoiceInput } from "../composables/useVoiceInput";
 import { useSettingsStore } from "../stores/settingsStore";
 import AppIcon from "./AppIcon.vue";
@@ -38,6 +41,12 @@ import VoiceInputBar from "./VoiceInputBar.vue";
 const t = createScopedTranslator("components.conversationComposer");
 
 const settingsStore = useSettingsStore();
+const textAttachmentsTotalMaxCharacters = () =>
+  maxTextAttachmentCharactersForBudget(
+    settingsStore.generalSettings.contextCompaction.budgetTokens
+  );
+const composerStack = ref<HTMLDivElement>();
+const referenceMenuMaxHeight = ref<number>();
 
 const props = defineProps<{
   draft: string;
@@ -104,12 +113,16 @@ const {
   pendingAttachments,
   readingAttachments,
   openAttachmentPicker,
+  addAttachmentFiles,
   handleAttachmentChange,
   handleComposerPaste,
   removePendingAttachment
 } = useConversationAttachments({
   currentSessionId: () => props.currentSessionId,
-  closeReferenceMenu: () => closeReferenceMenuHolder.run()
+  closeReferenceMenu: () => closeReferenceMenuHolder.run(),
+  textAttachmentMaxCharacters: () =>
+    settingsStore.generalSettings.textAttachmentMaxCharacters,
+  textAttachmentsTotalMaxCharacters
 });
 const {
   composerInput,
@@ -137,6 +150,9 @@ const {
   availableSkills: () => props.availableSkills,
   availableMaterials: () => props.availableMaterials,
   editorReferences: () => props.editorReferences,
+  textAttachmentMaxCharacters: () =>
+    settingsStore.generalSettings.textAttachmentMaxCharacters,
+  textAttachmentsTotalMaxCharacters,
   pendingAttachments,
   readingAttachments,
   emitDraft: (value) => emit("update:draft", value),
@@ -144,6 +160,43 @@ const {
   emitClearEditorReferences: () => emit("clearEditorReferences")
 });
 closeReferenceMenuHolder.run = closeReferenceMenu;
+const {
+  draggingFiles,
+  handleDragEnter,
+  handleDragOver,
+  handleDragLeave,
+  handleDrop
+} = useAttachmentDrop({
+  canReceive: () =>
+    !props.responding && props.runtimeAvailable && !readingAttachments.value,
+  addFiles: (files) => addAttachmentFiles(files),
+  closeReferenceMenu
+});
+
+function updateReferenceMenuHeight(): void {
+  if (!activeReference.value || !composerStack.value) return;
+  const body = composerStack.value.closest(".conversation-body");
+  const bodyTop = body?.getBoundingClientRect().top ?? 0;
+  const stackTop = composerStack.value.getBoundingClientRect().top;
+  referenceMenuMaxHeight.value = Math.max(
+    96,
+    Math.floor(stackTop - bodyTop - 16)
+  );
+}
+
+watch(activeReference, (reference) => {
+  if (reference) void nextTick(updateReferenceMenuHeight);
+});
+
+onMounted(() => {
+  window.addEventListener("resize", updateReferenceMenuHeight);
+  window.addEventListener("scroll", updateReferenceMenuHeight, true);
+});
+
+onUnmounted(() => {
+  window.removeEventListener("resize", updateReferenceMenuHeight);
+  window.removeEventListener("scroll", updateReferenceMenuHeight, true);
+});
 
 const voice = useVoiceInput({
   sessionKey: () => props.currentSessionId,
@@ -181,14 +234,25 @@ defineExpose({ focusInput });
 </script>
 
 <template>
-  <footer class="composer-wrap">
-    <div class="composer-stack">
+  <footer
+    class="composer-wrap"
+    @dragenter="handleDragEnter"
+    @dragover="handleDragOver"
+    @dragleave="handleDragLeave"
+    @drop="handleDrop"
+  >
+    <div ref="composerStack" class="composer-stack">
       <div
         v-if="activeReference"
         id="composer-reference-menu"
         class="composer-reference-menu"
         role="listbox"
         :aria-label="referenceMenuTitle"
+        :style="
+          referenceMenuMaxHeight === undefined
+            ? undefined
+            : { maxHeight: `${referenceMenuMaxHeight}px` }
+        "
       >
         <div class="composer-reference-heading">
           <span class="composer-reference-trigger">{{
@@ -252,7 +316,18 @@ defineExpose({ focusInput });
           :stage-label="stageLabel"
           :responding="responding"
         />
-        <div class="composer-input-surface">
+        <div
+          class="composer-input-surface"
+          :class="{ 'is-file-drag-over': draggingFiles }"
+        >
+          <div
+            v-if="draggingFiles"
+            class="composer-file-drop-hint"
+            aria-hidden="true"
+          >
+            <AppIcon name="file" :size="20" />
+            <span>{{ t("dropFilesToAttach") }}</span>
+          </div>
           <input
             ref="attachmentInput"
             class="composer-file-input"

@@ -1,6 +1,8 @@
 export default {
   completed: "Completed",
   failed: "Failed",
+  queued: "Queued",
+  skipped: "Skipped",
   stopped: "Stopped",
   retrying: "Retrying",
   retryInValueS: "Retry in {arg0}s",

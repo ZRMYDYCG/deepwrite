@@ -2157,6 +2157,8 @@ html[data-theme="dark"]
 
 .composer-reference-menu {
   position: absolute;
+  display: flex;
+  flex-direction: column;
   z-index: 40;
   right: 0;
   bottom: calc(100% + 8px);
@@ -2234,8 +2236,9 @@ html[data-theme="dark"]
 }
 
 .composer-reference-options {
+  min-height: 0;
   overflow-y: auto;
-  max-height: min(360px, calc(100vh - 320px));
+  max-height: 360px;
   padding: 6px;
 }
 

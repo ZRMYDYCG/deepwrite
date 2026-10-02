@@ -232,6 +232,8 @@ export const AgentPromptCommandPayloadSchema =
     subagentRuntimeConfigs: z
       .record(z.string().min(1).max(120), AgentProviderRuntimeConfigSchema)
       .optional(),
+    /** The enabled team runs independent delegated tasks concurrently. */
+    parallelSubagents: z.literal(true).optional(),
     libraryAgentProfile: LibraryAgentProfileSchema.optional(),
     contextCompactionSettings: ContextCompactionRunSettingsSchema.optional(),
     /** Runtime-only config of the summary model when it differs from the run model. */
@@ -271,6 +273,13 @@ export const AgentPromptCommandPayloadSchema =
           message:
             "Library management must be bound to the active writing work."
         });
+    }
+    if (value.parallelSubagents && value.subagentDefinitions === undefined) {
+      context.addIssue({
+        code: "custom",
+        path: ["parallelSubagents"],
+        message: "Parallel subagents require subagent definitions."
+      });
     }
     if (
       value.subagentRuntimeConfigs !== undefined &&

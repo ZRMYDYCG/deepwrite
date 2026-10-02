@@ -1,10 +1,10 @@
 export default {
   enterAnAPIKeyForTheCurrentVoiceConfiguration:
-    "Enter an API key for the current voice configuration first.",
+    "Enter an API key for the current voice model configuration first.",
   speechRecognition: "Speech recognition",
   currentVoiceModel: "Current voice model",
   addAServiceToUseVoiceInput: "Add a service to use voice input",
-  currentVoiceConfiguration: "Current voice configuration",
+  currentVoiceConfiguration: "Current voice model configuration",
   modelSettings: "Model settings",
   manageServiceKeysEndpointsAndRecognitionModels:
     "Manage service keys, endpoints, and recognition models",

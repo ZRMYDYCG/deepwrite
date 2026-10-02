@@ -117,7 +117,8 @@ describe("subagent cards in the conversation timeline", () => {
     expect(items.map((item) => item.id)).toEqual(orderedIds);
     expect(items[3]).toMatchObject({
       type: "subagent",
-      run: { status: "completed", output: "检查完成" }
+      toolCallId: "child-b",
+      runs: [{ status: "completed", output: "检查完成" }]
     });
     expect(items[4]).toMatchObject({
       type: "response",

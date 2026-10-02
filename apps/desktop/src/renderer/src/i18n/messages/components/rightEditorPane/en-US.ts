@@ -21,6 +21,7 @@ export default {
   edit: "Edit",
   preview: "Preview",
   textActions: "Text actions",
+  formatAllManuscriptBodies: "Format every manuscript section in this book",
   documentTitle: "Document title",
   textEditor: "Text editor",
   noContentYet: "No content yet",

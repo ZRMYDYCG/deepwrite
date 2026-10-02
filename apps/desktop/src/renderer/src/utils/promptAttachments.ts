@@ -2,6 +2,7 @@ import { formatError } from "../i18n/errors";
 import { createScopedTranslator, locale } from "../i18n";
 import {
   PROMPT_IMAGE_ATTACHMENT_MAX_BYTES,
+  PROMPT_TEXT_ATTACHMENT_DEFAULT_CONTENT_LENGTH,
   PROMPT_TEXT_ATTACHMENT_MAX_CONTENT_LENGTH,
   PromptImageAttachmentSchema,
   PromptTextAttachmentSchema,
@@ -117,7 +118,8 @@ async function readImage(
 function extractedTextAttachment(
   file: File,
   mediaType: string,
-  extractedContent: string
+  extractedContent: string,
+  maxCharacters: number
 ): PromptAttachmentReadResult {
   const normalized = extractedContent.replace(/^\uFEFF/, "").trim();
   if (!normalized) {
@@ -129,10 +131,7 @@ function extractedTextAttachment(
           })
     );
   }
-  const content = normalized.slice(
-    0,
-    PROMPT_TEXT_ATTACHMENT_MAX_CONTENT_LENGTH
-  );
+  const content = normalized.slice(0, maxCharacters);
   const truncated = content.length < normalized.length;
   return {
     attachment: PromptTextAttachmentSchema.parse({
@@ -150,26 +149,34 @@ function extractedTextAttachment(
       ? {
           warning: t("isTooLongOnlyTheFirstCharactersAreAttached", {
             name: file.name,
-            toLocaleString:
-              PROMPT_TEXT_ATTACHMENT_MAX_CONTENT_LENGTH.toLocaleString(
-                locale.value
-              )
+            toLocaleString: maxCharacters.toLocaleString(locale.value)
           })
         }
       : {})
   };
 }
 
-async function readPlainText(file: File): Promise<PromptAttachmentReadResult> {
+async function readPlainText(
+  file: File,
+  maxCharacters: number
+): Promise<PromptAttachmentReadResult> {
   if (file.size > TEXT_FILE_MAX_BYTES) {
     throw new Error(
       t("textFileExceedsMbReduceItsSizeBeforeUploading", { name: file.name })
     );
   }
-  return extractedTextAttachment(file, textMediaType(file), await file.text());
+  return extractedTextAttachment(
+    file,
+    textMediaType(file),
+    await file.text(),
+    maxCharacters
+  );
 }
 
-async function readPdfText(file: File): Promise<PromptAttachmentReadResult> {
+async function readPdfText(
+  file: File,
+  maxCharacters: number
+): Promise<PromptAttachmentReadResult> {
   if (file.size > PDF_FILE_MAX_BYTES) {
     throw new Error(
       t("pdfExceedsMbSplitOrCompressItBeforeUploading", { name: file.name })
@@ -202,7 +209,12 @@ async function readPdfText(file: File): Promise<PromptAttachmentReadResult> {
       }
       page.cleanup();
     }
-    return extractedTextAttachment(file, "application/pdf", pages.join("\n\n"));
+    return extractedTextAttachment(
+      file,
+      "application/pdf",
+      pages.join("\n\n"),
+      maxCharacters
+    );
   } catch (error: unknown) {
     const message = formatError(error, t("unknownPdfParsingError"));
     if (/password/i.test(message)) {
@@ -223,7 +235,10 @@ async function readPdfText(file: File): Promise<PromptAttachmentReadResult> {
   }
 }
 
-async function readDocxText(file: File): Promise<PromptAttachmentReadResult> {
+async function readDocxText(
+  file: File,
+  maxCharacters: number
+): Promise<PromptAttachmentReadResult> {
   if (file.size > DOCX_FILE_MAX_BYTES) {
     throw new Error(
       t("wordDocumentExceedsMbSplitOrCompressItBefore", { name: file.name })
@@ -233,7 +248,8 @@ async function readDocxText(file: File): Promise<PromptAttachmentReadResult> {
     return extractedTextAttachment(
       file,
       DOCX_MEDIA_TYPE,
-      await extractDocxText(await file.arrayBuffer())
+      await extractDocxText(await file.arrayBuffer()),
+      maxCharacters
     );
   } catch (error: unknown) {
     const message = formatError(error, t("unknownWordParsingError"));
@@ -247,21 +263,29 @@ async function readDocxText(file: File): Promise<PromptAttachmentReadResult> {
 }
 
 export async function readPromptAttachment(
-  file: File
+  file: File,
+  maxCharacters = PROMPT_TEXT_ATTACHMENT_DEFAULT_CONTENT_LENGTH
 ): Promise<PromptAttachmentReadResult> {
+  if (
+    !Number.isInteger(maxCharacters) ||
+    maxCharacters < 1_000 ||
+    maxCharacters > PROMPT_TEXT_ATTACHMENT_MAX_CONTENT_LENGTH
+  ) {
+    throw new Error("Invalid text attachment character limit.");
+  }
   const mediaType = imageMediaType(file);
   if (mediaType) {
     return readImage(file, mediaType);
   }
   const extension = extensionOf(file.name);
   if (extension === "pdf" || file.type === "application/pdf") {
-    return readPdfText(file);
+    return readPdfText(file, maxCharacters);
   }
   if (extension === "docx" || file.type === DOCX_MEDIA_TYPE) {
-    return readDocxText(file);
+    return readDocxText(file, maxCharacters);
   }
   if (TEXT_EXTENSIONS.has(extension) || file.type.startsWith("text/")) {
-    return readPlainText(file);
+    return readPlainText(file, maxCharacters);
   }
   throw new Error(
     t("theFileTypeOfIsNotSupportedChooseTxt", {

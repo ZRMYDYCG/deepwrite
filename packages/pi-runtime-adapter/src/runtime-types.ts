@@ -10,6 +10,8 @@ import type {
   AgentRuntimeRef,
   AgentUsage,
   AgentUsageObservationStatus,
+  SubagentBatchTask,
+  SubagentPlannedTask,
   AgentWriteApprovalMode,
   ContextCompactionRequest,
   ContextCompactionRunSettings,
@@ -56,6 +58,8 @@ export interface AgentRunInput {
   longAgentProfile?: LongAgentProfile;
   subagentDefinitions?: ShortAgentSubagentDefinition[];
   subagentRuntimeConfigs?: Readonly<Record<string, AgentProviderRuntimeConfig>>;
+  /** The enabled team runs independent delegated tasks concurrently. */
+  parallelSubagents?: boolean;
   libraryAgentProfile?: LibraryAgentProfile;
   libraryManagement?: LibraryManagementRuntimeContext;
   libraryManagementCommandExecutor?: LibraryManagementCommandExecutor;
@@ -253,6 +257,16 @@ export type AgentRuntimeEvent =
         name: string;
         task: string;
         runtime: AgentRuntimeRef;
+        batchTask?: SubagentBatchTask;
+      };
+    }
+  | {
+      type: "subagent.planned";
+      runId: string;
+      sessionId: string;
+      payload: {
+        parentToolCallId: string;
+        tasks: SubagentPlannedTask[];
       };
     }
   | {
@@ -277,11 +291,12 @@ export type AgentRuntimeEvent =
         subagentRunId: string;
         subagentId: string;
         name: string;
-        status: "completed" | "error" | "aborted";
+        status: "completed" | "error" | "aborted" | "skipped";
         summary: string;
         errorMessage?: string;
         usage?: AgentUsage;
         runtime: AgentRuntimeRef;
+        batchTask?: SubagentBatchTask;
       };
     }
   | {

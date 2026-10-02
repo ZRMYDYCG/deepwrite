@@ -151,11 +151,10 @@ export default {
   },
   conversationHistoryManagement: {
     deletedConversationsCouldNotBeLoadedPleaseTryAgain:
-      "暂时无法读取已删除对话，请重试。",
+      "暂时无法读取已归档对话，请重试。",
     finishOrStopTheCurrentResponseBeforeManagingConversations:
       "请先完成或停止当前回复，再管理对话。",
-    conversationMovedToDeletedYouCanRestoreItAt:
-      "对话已移入已删除，可随时恢复。",
+    conversationArchived: "对话已归档，可在设置中恢复。",
     conversationRestored: "对话已恢复。",
     theConversationOperationDidNotCompletePleaseTryAgain:
       "对话管理操作未完成，请重试。"
@@ -271,7 +270,9 @@ export default {
     theSubtaskWasStoppedWhenTheConversationWasRestored:
       "会话恢复时子任务已停止。",
     theSubtaskWasStillRunningWhenTheAppClosed:
-      "应用关闭或对话恢复时，子任务仍在运行。"
+      "应用关闭或对话恢复时，子任务仍在运行。",
+    theSubtaskHadNotStartedWhenTheAppClosed:
+      "应用关闭或对话恢复时，子任务尚未开始。"
   },
   conversationRuntimeRegistryCoordinator: {
     conversationHistoryCouldNotBeSavedLocallyYouCan:
@@ -338,15 +339,17 @@ export default {
     theParentAgentEndedUnexpectedlySubtasksWereAlsoStopped:
       "父智能体运行异常结束，子任务同步停止。",
     theSubtaskHasAlreadyEnded: "子任务已经结束。",
-    theSubtaskEndedWithoutReturningAToolResult: "子任务结束前未返回工具结果。"
+    theSubtaskEndedWithoutReturningAToolResult: "子任务结束前未返回工具结果。",
+    theSubtaskEndedWithoutAFinalStatus:
+      "委派已结束，但该子任务没有返回最终状态。"
   },
   subagentIdentity: {
     receivingSubtask: "正在接收子任务…"
   },
   historyManagementErrors: {
-    couldNotDeleteTheConversationTryAgain: "删除会话失败，请重试。",
+    couldNotDeleteTheConversationTryAgain: "归档对话失败，请重试。",
     conversationDeletionHasNotBeenConfirmedRetryDeletingIt:
-      "会话删除结果尚未确认，请先重试删除；新编辑仍保留在本地。"
+      "归档结果尚未确认，请先重试归档；新编辑仍保留在本地。"
   },
   persistenceChanges: {
     theConversationContainsNonFiniteNumbersThatCannotBe:

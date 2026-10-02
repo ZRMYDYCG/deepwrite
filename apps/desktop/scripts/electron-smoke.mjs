@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const appDir = resolve(scriptDir, "..");
 const i18nOnly = process.argv.includes("--i18n-only");
+const conversationOnly = process.argv.includes("--conversation-only");
 const workspaceRoot = resolve(appDir, "../..");
 const electronDist = resolve(workspaceRoot, "node_modules/electron/dist");
 const electronBinary =
@@ -59,7 +60,11 @@ const child = spawn(command, args, {
   env: {
     ...process.env,
     DEEPWRITE_SMOKE: "1",
-    DEEPWRITE_SMOKE_SUITE: i18nOnly ? "i18n" : "all",
+    DEEPWRITE_SMOKE_SUITE: conversationOnly
+      ? "conversation"
+      : i18nOnly
+        ? "i18n"
+        : "all",
     ELECTRON_DISABLE_SECURITY_WARNINGS: "true"
   },
   stdio: ["ignore", "pipe", "pipe"]
@@ -119,6 +124,20 @@ child.on("close", async (code) => {
     );
     return;
   }
+  if (conversationOnly) {
+    if (
+      summary.conversation?.status !== "ok" ||
+      summary.conversation?.archived !== true ||
+      summary.conversation?.purged !== true
+    ) {
+      console.error("Electron conversation smoke returned an invalid summary.");
+      process.exit(1);
+    }
+    console.log(
+      "Electron conversation smoke passed: archive listing and permanent deletion crossed Renderer, Preload, Main, Core, and SQLite."
+    );
+    return;
+  }
   if (
     summary.bookTemplates?.status !== "ok" ||
     summary.bookTemplates?.created !== 4 ||
@@ -159,7 +178,9 @@ child.on("close", async (code) => {
     !(summary.conversation?.chunkPages >= 2) ||
     !(summary.conversation?.metadataChunkPages >= 2) ||
     summary.conversation?.unknownRetained !== true ||
-    summary.conversation?.proposalRetained !== true
+    summary.conversation?.proposalRetained !== true ||
+    summary.conversation?.archived !== true ||
+    summary.conversation?.purged !== true
   ) {
     console.error(
       `Electron smoke returned an invalid agent summary: ${JSON.stringify(summary)}`

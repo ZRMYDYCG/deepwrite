@@ -2,10 +2,9 @@ import { createScopedTranslator, locale } from "../i18n";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 import {
   PROMPT_ATTACHMENT_MAX_ITEMS,
-  PROMPT_TEXT_ATTACHMENTS_MAX_CONTENT_LENGTH,
   type LibraryAgentDomain,
   type UserPromptAttachment
-} from "@deepwrite/contracts";
+} from "@deepwrite/contracts/renderer";
 import type {
   ComposerReferenceOption,
   EditorTextReference
@@ -29,6 +28,8 @@ export function useConversationComposer(options: {
   availableSkills: () => readonly ComposerReferenceOption[];
   availableMaterials: () => readonly ComposerReferenceOption[];
   editorReferences: () => readonly EditorTextReference[];
+  textAttachmentMaxCharacters: () => number;
+  textAttachmentsTotalMaxCharacters: () => number;
   pendingAttachments: Ref<UserPromptAttachment[]>;
   readingAttachments: Ref<boolean>;
   emitDraft: (value: string) => void;
@@ -183,7 +184,14 @@ export function useConversationComposer(options: {
       ...attachment
     }));
     attachments.push(
-      ...options.editorReferences().map(createEditorReferenceAttachment)
+      ...options
+        .editorReferences()
+        .map((reference) =>
+          createEditorReferenceAttachment(
+            reference,
+            options.textAttachmentMaxCharacters()
+          )
+        )
     );
     if (attachments.length > PROMPT_ATTACHMENT_MAX_ITEMS) {
       uiMessage.warning(
@@ -198,13 +206,11 @@ export function useConversationComposer(options: {
         total + (attachment.kind === "text" ? attachment.content.length : 0),
       0
     );
-    if (textLength > PROMPT_TEXT_ATTACHMENTS_MAX_CONTENT_LENGTH) {
+    const maximum = options.textAttachmentsTotalMaxCharacters();
+    if (textLength > maximum) {
       uiMessage.warning(
         t("textAttachmentsAndManuscriptReferencesCanContainUpTo", {
-          toLocaleString:
-            PROMPT_TEXT_ATTACHMENTS_MAX_CONTENT_LENGTH.toLocaleString(
-              locale.value
-            )
+          toLocaleString: maximum.toLocaleString(locale.value)
         })
       );
       return;

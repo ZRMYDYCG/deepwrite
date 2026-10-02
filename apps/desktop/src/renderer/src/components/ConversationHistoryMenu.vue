@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import { createScopedTranslator, locale } from "../i18n";
 import {
-  computed,
-  defineAsyncComponent,
   nextTick,
   onBeforeUnmount,
   onMounted,
@@ -18,9 +16,6 @@ import AppIcon from "./AppIcon.vue";
 import { conversationHistoryPosition } from "./conversationHistoryPosition";
 
 const t = createScopedTranslator("components.conversationHistoryMenu");
-const ConversationHistoryDeleteDialog = defineAsyncComponent(
-  () => import("./ConversationHistoryDeleteDialog.vue")
-);
 const props = defineProps<{
   conversationHistory: ConversationHistoryItem[];
   currentSessionId: string;
@@ -35,23 +30,11 @@ const trigger = ref<HTMLButtonElement>();
 const panelStyle = ref<CSSProperties>({ visibility: "hidden" });
 let surfaceObserver: ResizeObserver | undefined;
 const panelId = useId();
-const view = ref<"active" | "deleted">("active");
-const pendingDelete = ref<ConversationHistoryItem>();
 const {
   available: managementAvailable,
-  deletedItems,
-  loading,
   busy,
-  refreshDeleted,
-  deleteConversation,
-  restoreConversation
+  archiveConversation
 } = useConversationHistoryManagement(() => props.currentSessionId);
-const visibleHistory = computed(() =>
-  view.value === "deleted" ? deletedItems.value : props.conversationHistory
-);
-watch([historyOpen, view], ([open, selected]) => {
-  if (open && selected === "deleted") void refreshDeleted();
-});
 function positionPanel(): void {
   if (!historyOpen.value || !trigger.value) return;
   const surface = trigger.value.closest<HTMLElement>(
@@ -92,16 +75,10 @@ onBeforeUnmount(() => {
   window.removeEventListener("resize", positionPanel);
   surfaceObserver?.disconnect();
 });
-async function confirmDelete(): Promise<void> {
-  if (pendingDelete.value && (await deleteConversation(pendingDelete.value)))
-    pendingDelete.value = undefined;
-}
 watch(
   () => props.currentSessionId,
   () => {
     historyOpen.value = false;
-    pendingDelete.value = undefined;
-    view.value = "active";
   }
 );
 function formatHistoryTime(value: string): string {
@@ -165,36 +142,6 @@ function selectHistoryConversation(item: ConversationHistoryItem): void {
       <header>
         <div class="conversation-history-heading">
           <strong>{{ t("conversationHistory") }}</strong>
-          <div
-            v-if="managementAvailable"
-            class="conversation-history-tabs"
-            role="group"
-            :aria-label="t('historyView')"
-          >
-            <button
-              type="button"
-              :aria-pressed="view === 'active'"
-              @click="view = 'active'"
-            >
-              {{ t("allConversations") }}
-            </button>
-            <button
-              type="button"
-              :aria-pressed="view === 'deleted'"
-              @click="view = 'deleted'"
-            >
-              {{ t("deleted") }}
-            </button>
-            <button
-              v-if="view === 'deleted'"
-              type="button"
-              class="conversation-history-refresh"
-              :disabled="loading"
-              @click="refreshDeleted"
-            >
-              {{ t("refresh") }}
-            </button>
-          </div>
         </div>
         <button
           type="button"
@@ -204,9 +151,9 @@ function selectHistoryConversation(item: ConversationHistoryItem): void {
           <AppIcon name="close" :size="15" />
         </button>
       </header>
-      <div v-if="visibleHistory.length" class="conversation-history-list">
+      <div v-if="conversationHistory.length" class="conversation-history-list">
         <div
-          v-for="item in visibleHistory"
+          v-for="item in conversationHistory"
           :key="item.sessionId"
           class="conversation-history-row"
         >
@@ -220,9 +167,7 @@ function selectHistoryConversation(item: ConversationHistoryItem): void {
                 : item.title
             "
             type="button"
-            :disabled="
-              view === 'deleted' || busy || (responding && !item.current)
-            "
+            :disabled="busy || (responding && !item.current)"
             @click="selectHistoryConversation(item)"
           >
             <span class="conversation-history-copy">
@@ -242,32 +187,17 @@ function selectHistoryConversation(item: ConversationHistoryItem): void {
             class="conversation-history-manage"
             type="button"
             :disabled="busy"
-            :aria-label="
-              t('valueConversationValue', {
-                arg0: view === 'deleted' ? t('restore') : t('delete'),
-                arg1: item.title
-              })
-            "
-            @click="
-              view === 'deleted'
-                ? restoreConversation(item)
-                : (pendingDelete = item)
-            "
+            :aria-label="t('archiveConversation', { title: item.title })"
+            :title="t('archive')"
+            @click="archiveConversation(item)"
           >
-            <span v-if="view === 'deleted'">{{ t("restore") }}</span
-            ><AppIcon v-else name="trash" :size="15" />
+            <AppIcon name="archive" :size="15" />
           </button>
         </div>
       </div>
       <div v-else class="conversation-history-empty">
         <AppIcon name="history" :size="22" />
-        <strong>{{
-          loading
-            ? t("loadingConversations")
-            : view === "deleted"
-              ? t("noDeletedConversations")
-              : t("noConversationHistoryYet")
-        }}</strong>
+        <strong>{{ t("noConversationHistoryYet") }}</strong>
       </div>
       <div
         v-if="exportAction.available.value"
@@ -295,13 +225,6 @@ function selectHistoryConversation(item: ConversationHistoryItem): void {
       </div>
     </section>
   </div>
-  <ConversationHistoryDeleteDialog
-    v-if="pendingDelete"
-    :title="pendingDelete.title"
-    :busy="busy"
-    @close="pendingDelete = undefined"
-    @confirm="confirmDelete"
-  />
 </template>
 <style scoped>
 .conversation-history-export {
@@ -350,38 +273,6 @@ function selectHistoryConversation(item: ConversationHistoryItem): void {
   opacity: 0.45;
   cursor: default;
 }
-.conversation-history-tabs {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 4px;
-  min-width: 0;
-}
-.conversation-history-tabs button {
-  min-height: 2rem;
-  padding: 5px 8px;
-  white-space: nowrap;
-  border: 0;
-  border-radius: 6px;
-  color: var(--text-secondary);
-  background: transparent;
-  font: inherit;
-  font-size: 0.785714rem;
-  cursor: pointer;
-}
-.conversation-history-tabs button[aria-pressed="true"] {
-  color: var(--text-primary);
-  background: var(--surface-selected);
-}
-.conversation-history-tabs button:hover:not(:disabled) {
-  color: var(--text-primary);
-  background: var(--surface-hover);
-}
-.conversation-history-tabs button:disabled {
-  opacity: 0.45;
-  cursor: default;
-}
-.conversation-history-tabs button:focus-visible,
 .conversation-history-manage:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;

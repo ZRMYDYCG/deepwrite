@@ -257,6 +257,16 @@ export class AgentTeamConfigStore {
     );
   }
 
+  /** Team-wide parallel switch of the enabled team for this writing type. */
+  async parallelSubagentsEnabled(
+    workspaceType: AgentTeamWorkspaceType
+  ): Promise<boolean> {
+    const snapshot = await this.list();
+    const enabledId = snapshot.enabledTeamIds[workspaceType];
+    if (!enabledId) return false;
+    return this.requireTeam(snapshot, enabledId).settings.parallelSubagents;
+  }
+
   private requireTeam(
     snapshot: AgentTeamCatalogSnapshot,
     teamId: string

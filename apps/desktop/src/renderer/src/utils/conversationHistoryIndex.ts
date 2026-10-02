@@ -39,7 +39,7 @@ export function conversationHistoryItem(
   };
 }
 
-async function withHistoryDates(
+export async function withHistoryDates(
   api: ConversationHistoryApi,
   key: string,
   session: ConversationHistorySession

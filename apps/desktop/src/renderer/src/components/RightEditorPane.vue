@@ -58,6 +58,7 @@ import CatalogEditorFooterMeta from "./CatalogEditorFooterMeta.vue";
 import EditorDocumentMetadata from "./EditorDocumentMetadata.vue";
 import EditorSearchHighlight from "./EditorSearchHighlight.vue";
 import MarkdownContent from "./MarkdownContent.vue";
+import PreviewOutlinePopover from "./PreviewOutlinePopover.vue";
 
 const t = createScopedTranslator("components.rightEditorPane");
 
@@ -74,6 +75,7 @@ const props = defineProps<{
   lockedLabel?: string | undefined;
   saving?: boolean;
   manualSaving?: boolean;
+  formatAllPending?: boolean;
   autoSaveEnabled?: boolean;
   defaultViewMode: TextViewMode;
   boundToCurrentBook?: boolean;
@@ -95,6 +97,7 @@ const emit = defineEmits<{
   toggleRight: [];
   save: [payload: { id: string; title: string; content: string }];
   liveChange: [payload: { id: string; title: string; content: string }];
+  formatAllBodies: [];
   insertSelection: [reference: EditorTextReference];
   selectSection: [sectionId: string];
   createSection: [];
@@ -368,6 +371,15 @@ const {
   recordChange: recordProgrammaticChange,
   updateContent
 });
+
+function handleFormatBody(): void {
+  if (bodyFormatDisabled.value || props.formatAllPending) return;
+  if (catalogBodyTextKind(props.document)) {
+    emit("formatAllBodies");
+    return;
+  }
+  void formatBody();
+}
 
 function applyLibraryMetadata(nextContent: string): void {
   if (editorReadOnly.value) return;
@@ -915,11 +927,24 @@ onBeforeUnmount(() => {
           :find-panel-open="findPanelOpen"
           :find-panel-mode="findPanelMode"
           :format-visible="bodyFormatVisible"
-          :format-disabled="bodyFormatDisabled"
+          :format-disabled="bodyFormatDisabled || formatAllPending"
+          :format-label="
+            document.workspaceType === 'short' ||
+            document.workspaceType === 'script'
+              ? t('formatAllManuscriptBodies')
+              : undefined
+          "
           @undo="undo"
           @redo="redo"
           @toggle-find="toggleFindPanel"
-          @format="formatBody"
+          @format="handleFormatBody"
+        />
+        <PreviewOutlinePopover
+          v-if="viewMode === 'preview'"
+          icon-only
+          :content="content"
+          :preview-element="documentPreview"
+          :document-key="activeScrollMemoryKey"
         />
       </div>
 
@@ -955,14 +980,18 @@ onBeforeUnmount(() => {
       />
     </div>
 
-    <div class="editor-document" :class="{ 'is-readonly': document.readOnly }">
+    <div
+      class="editor-document"
+      :class="{
+        'is-readonly': document.readOnly,
+        'without-metadata': document.domain === 'creation'
+      }"
+    >
       <EditorDocumentMetadata
+        v-if="document.domain !== 'creation'"
         :document="document"
         :title="title"
         :content="content"
-        :view-mode="viewMode"
-        :preview-element="documentPreview"
-        :document-key="activeScrollMemoryKey"
         :bound-to-current-book="boundToCurrentBook"
         :locked="locked"
         @change="applyLibraryMetadata"

@@ -42,6 +42,9 @@ function inProcessBackend(root: string): RendererStateBackend {
     stage: async (value) => (await runtime()).database.stage(value),
     commit: async (value) => (await runtime()).database.commit(value),
     list: async (value) => (await runtime()).database.list(value),
+    listArchived: async (value) =>
+      (await runtime()).database.listArchived(value),
+    purge: async (value) => (await runtime()).database.purge(value),
     session: async (value) => (await runtime()).database.session(value),
     messages: async (value) => (await runtime()).database.messages(value),
     detail: async (value) => (await runtime()).database.detail(value),

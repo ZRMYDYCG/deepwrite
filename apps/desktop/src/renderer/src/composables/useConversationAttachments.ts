@@ -4,9 +4,8 @@ import { onBeforeUnmount, ref, watch } from "vue";
 import {
   PROMPT_ATTACHMENT_MAX_ITEMS,
   PROMPT_IMAGE_ATTACHMENTS_MAX_BYTES,
-  PROMPT_TEXT_ATTACHMENTS_MAX_CONTENT_LENGTH,
   type UserPromptAttachment
-} from "@deepwrite/contracts";
+} from "@deepwrite/contracts/renderer";
 import { uiMessage } from "../ui-feedback";
 import {
   promptAttachmentFilesFromClipboard,
@@ -32,6 +31,8 @@ export function attachmentPreview(
 export function useConversationAttachments(options: {
   currentSessionId: () => string;
   closeReferenceMenu: () => void;
+  textAttachmentMaxCharacters: () => number;
+  textAttachmentsTotalMaxCharacters: () => number;
 }) {
   const attachmentInput = ref<HTMLInputElement>();
   const pendingAttachments = ref<UserPromptAttachment[]>([]);
@@ -64,12 +65,10 @@ export function useConversationAttachments(options: {
           total + (item.kind === "text" ? item.content.length : 0),
         attachment.content.length
       );
-      if (textLength > PROMPT_TEXT_ATTACHMENTS_MAX_CONTENT_LENGTH) {
+      const maximum = options.textAttachmentsTotalMaxCharacters();
+      if (textLength > maximum) {
         return t("textAttachmentsCanContainUpToCharactersInTotal", {
-          toLocaleString:
-            PROMPT_TEXT_ATTACHMENTS_MAX_CONTENT_LENGTH.toLocaleString(
-              locale.value
-            )
+          toLocaleString: maximum.toLocaleString(locale.value)
         });
       }
     } else {
@@ -101,7 +100,10 @@ export function useConversationAttachments(options: {
         if (seenFiles.has(fileKey) || existing.has(duplicateKey)) continue;
         seenFiles.add(fileKey);
         try {
-          const result = await readPromptAttachment(file);
+          const result = await readPromptAttachment(
+            file,
+            options.textAttachmentMaxCharacters()
+          );
           if (readEpoch !== attachmentReadEpoch) return;
           const capacityError = validateAttachmentCapacity(result.attachment);
           if (capacityError) {

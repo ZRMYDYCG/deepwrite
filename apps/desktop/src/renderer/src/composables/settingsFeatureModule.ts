@@ -16,6 +16,8 @@ export function buildSettingsFeatureModule(
     autoSaveEnabled: settingsStore.editorAutoSaveEnabled,
     language: settingsStore.generalSettings.language,
     showContextUsage: settingsStore.generalSettings.showContextUsage,
+    textAttachmentMaxCharacters:
+      settingsStore.generalSettings.textAttachmentMaxCharacters,
     contextCompaction: settingsStore.generalSettings.contextCompaction,
     showInMenuBar: settingsStore.generalSettings.showInMenuBar,
     useNetworkProxy: settingsStore.generalSettings.useNetworkProxy,

@@ -324,6 +324,7 @@ type AgentEventEnvelope = Extract<
       | "long.mutation_proposal"
       | "long.chapter_write_proposal"
       | "long.ledger_commit_proposal"
+      | "subagent.planned"
       | "subagent.started"
       | "subagent.activity"
       | "subagent.completed";
@@ -353,6 +354,7 @@ function isAgentEvent(event: SystemEventEnvelope): event is AgentEventEnvelope {
     event.type === "long.mutation_proposal" ||
     event.type === "long.chapter_write_proposal" ||
     event.type === "long.ledger_commit_proposal" ||
+    event.type === "subagent.planned" ||
     event.type === "subagent.started" ||
     event.type === "subagent.activity" ||
     event.type === "subagent.completed"
@@ -410,7 +412,12 @@ function handleUtilityEvent(
       pendingUsageContexts.delete(
         activeRun?.correlationId ?? validated.context.correlationId
       );
-    } else if (!terminalRuns.has(runId) && !activeRuns.has(runId)) {
+    } else if (
+      // A plan always follows its tool request, so it never opens a run.
+      validated.type !== "subagent.planned" &&
+      !terminalRuns.has(runId) &&
+      !activeRuns.has(runId)
+    ) {
       const usageContext = pendingUsageContexts.get(
         validated.context.correlationId
       );

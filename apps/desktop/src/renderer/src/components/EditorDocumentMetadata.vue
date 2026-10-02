@@ -2,7 +2,6 @@
 import { documentFormatLabel } from "./catalogLabels";
 import { createScopedTranslator } from "../i18n";
 import { computed, defineAsyncComponent } from "vue";
-import type { TextViewMode } from "@deepwrite/contracts/renderer";
 import type { WorkspaceDocument } from "../types/workspace";
 import { parseSkillFrontmatter } from "../utils/skillFrontmatter";
 import DocumentMetaRow from "./DocumentMetaRow.vue";
@@ -20,9 +19,6 @@ const props = defineProps<{
   document: WorkspaceDocument;
   title: string;
   content: string;
-  viewMode: TextViewMode;
-  previewElement: HTMLElement | null;
-  documentKey: string;
   boundToCurrentBook?: boolean;
   locked: boolean;
 }>();
@@ -36,12 +32,7 @@ const skillFormatError = computed(() => {
 </script>
 
 <template>
-  <DocumentMetaRow
-    :view-mode="viewMode"
-    :content="content"
-    :preview-element="previewElement"
-    :document-key="documentKey"
-  >
+  <DocumentMetaRow>
     <span>{{ document.eyebrow }}</span>
     <span v-if="document.format" class="document-format">{{
       documentFormatLabel(document.format)

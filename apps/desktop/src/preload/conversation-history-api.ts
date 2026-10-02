@@ -1,6 +1,10 @@
 import {
   ConversationHistoryMergeScopesQuerySchema,
   ConversationHistoryMergeScopesResultSchema,
+  ConversationHistoryArchiveListQuerySchema,
+  ConversationHistoryArchiveListResultSchema,
+  ConversationHistoryPurgeQuerySchema,
+  ConversationHistoryPurgeResultSchema,
   ConversationHistoryBatchSchema,
   ConversationHistoryCommitResultSchema,
   ConversationHistoryStageSchema,
@@ -80,6 +84,30 @@ export const conversationHistory: ConversationHistoryApi = {
     return ConversationHistoryListResultSchema.parse(
       await invokeCommand(
         createEnvelope("rendererState.history.list", payload, commandIdentity())
+      )
+    );
+  },
+  async listArchived(input) {
+    const payload = ConversationHistoryArchiveListQuerySchema.parse(input);
+    return ConversationHistoryArchiveListResultSchema.parse(
+      await invokeCommand(
+        createEnvelope(
+          "rendererState.history.listArchived",
+          payload,
+          commandIdentity()
+        )
+      )
+    );
+  },
+  async purge(input) {
+    const payload = ConversationHistoryPurgeQuerySchema.parse(input);
+    return ConversationHistoryPurgeResultSchema.parse(
+      await invokeCommand(
+        createEnvelope(
+          "rendererState.history.purge",
+          payload,
+          commandIdentity()
+        )
       )
     );
   },

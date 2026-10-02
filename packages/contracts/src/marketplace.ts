@@ -1,7 +1,8 @@
 import {
   MarketplaceEmailSchema,
   MarketplaceEmailCodeInputSchema,
-  MarketplaceBindEmailInputSchema
+  MarketplaceBindEmailInputSchema,
+  MarketplaceEmailLoginInputSchema
 } from "./marketplace-email";
 export * from "./marketplace-email";
 import { z } from "zod";
@@ -110,12 +111,20 @@ export type MarketplaceRegisterInput = z.infer<
   typeof MarketplaceRegisterInputSchema
 >;
 
-export const MarketplaceLoginInputSchema = z
-  .object({
-    username: z.string().trim().min(1).max(120),
-    password: z.string().min(1).max(128)
-  })
-  .strict();
+export const MarketplaceLoginInputSchema = z.union([
+  z
+    .object({
+      username: z.string().trim().min(1).max(120),
+      password: z.string().min(1).max(128)
+    })
+    .strict(),
+  z
+    .object({
+      email: MarketplaceEmailSchema,
+      password: z.string().min(1).max(128)
+    })
+    .strict()
+]);
 export type MarketplaceLoginInput = z.infer<typeof MarketplaceLoginInputSchema>;
 
 export const MarketplaceListFilterSchema = z
@@ -479,6 +488,12 @@ export const MarketplaceIpcRequestSchema = z.discriminatedUnion("operation", [
     .object({
       operation: z.literal("login"),
       input: MarketplaceLoginInputSchema
+    })
+    .strict(),
+  z
+    .object({
+      operation: z.literal("loginWithEmailCode"),
+      input: MarketplaceEmailLoginInputSchema
     })
     .strict(),
   z.object({ operation: z.literal("logout") }).strict(),

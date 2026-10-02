@@ -24,6 +24,7 @@ import {
 import { computed, ref, watch } from "vue";
 import { uiMessage } from "../ui-feedback";
 import AppIcon from "./AppIcon.vue";
+import AgentTeamParallelSwitch from "./AgentTeamParallelSwitch.vue";
 import LoadSubagentFromSkillDialog from "./LoadSubagentFromSkillDialog.vue";
 import PopupSelect, { type PopupSelectOption } from "./PopupSelect.vue";
 import { createCopiedSubagent } from "./agentTeamSettingsEditorHelpers";
@@ -64,6 +65,7 @@ const PARENT_AGENT_DESCRIPTION = computed(() =>
 
 const parentAgentId: LongAgentId = LONG_AGENT_IDS[0];
 const draftTeams = ref<LongAgentTeamSettingsInput["teams"]>([]);
+const draftParallelSubagents = ref(false);
 const editingSubagentId = ref<string | null>(null);
 const loadFromSkillOpen = ref(false);
 let generatedIdSequence = 0;
@@ -108,6 +110,7 @@ const THINKING_LABELS: Record<BuiltInReasoningLevel, string> = {
 watch(
   () => props.settings,
   (settings) => {
+    draftParallelSubagents.value = settings?.parallelSubagents ?? false;
     draftTeams.value = settings
       ? settings.teams.map((team) => ({
           parentAgentId: team.parentAgentId,
@@ -440,6 +443,7 @@ function saveSettings(): void {
   }
   const parsed = LongAgentTeamSettingsInputSchema.safeParse({
     workspaceType: "long",
+    parallelSubagents: draftParallelSubagents.value,
     teams: LONG_AGENT_IDS.map((parentAgentId) => {
       const team = draftTeams.value.find(
         (candidate) => candidate.parentAgentId === parentAgentId
@@ -477,6 +481,8 @@ function saveSettings(): void {
 }
 // Expose bindings used by the separate editor template.
 defineExpose({
+  AgentTeamParallelSwitch,
+  draftParallelSubagents,
   LONG_AGENT_SUBAGENT_MAX_COUNT,
   SHORT_AGENT_SUBAGENT_DESCRIPTION_MAX_LENGTH,
   SHORT_AGENT_SUBAGENT_NAME_MAX_LENGTH,

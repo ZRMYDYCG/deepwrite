@@ -80,6 +80,108 @@ function full(
 }
 
 describe("ConversationDatabase durability and isolation", () => {
+  it("lists archived conversations across scopes and permanently removes content without resurrection", async () => {
+    const { database, path } = await open();
+    const keys = ["conversation-history:one", "conversation-history:two"];
+    for (const [index, key] of keys.entries()) {
+      const updatedAt = `2026-09-1${index}T00:00:00.000Z`;
+      database.commit(
+        batch({
+          key,
+          sessionId: `session-${index}`,
+          batchId: `create-${index}`,
+          operations: [
+            {
+              type: "setMetadata",
+              value: { createdAt: updatedAt, updatedAt }
+            },
+            {
+              type: "putMessage",
+              messageId: `message-${index}`,
+              position: 0,
+              value: {
+                role: "user",
+                content: `archived-${index}`.repeat(1000)
+              }
+            }
+          ]
+        })
+      );
+      database.commit(
+        batch({
+          key,
+          sessionId: `session-${index}`,
+          batchId: `archive-${index}`,
+          expectedRevision: 1,
+          sequence: 2,
+          operations: [{ type: "setDeleted", deleted: true }]
+        })
+      );
+    }
+    const first = database.listArchived({ limit: 1 });
+    expect(first.entries.map((entry) => entry.key)).toEqual([keys[1]]);
+    expect(first.next).not.toBeNull();
+    const second = database.listArchived({ after: first.next!, limit: 1 });
+    expect(second.entries.map((entry) => entry.key)).toEqual([keys[0]]);
+    expect(second.next).toBeNull();
+
+    expect(() =>
+      database.purge({
+        key: keys[0]!,
+        sessionId: "session-0",
+        expectedRevision: 1
+      })
+    ).toThrow("changed");
+    expect(
+      database.purge({
+        key: keys[0]!,
+        sessionId: "session-0",
+        expectedRevision: 2
+      })
+    ).toEqual({ deleted: true });
+    expect(
+      database.purge({
+        key: keys[0]!,
+        sessionId: "session-0",
+        expectedRevision: 2
+      })
+    ).toEqual({ deleted: true });
+    expect(
+      database.session({ key: keys[0]!, sessionId: "session-0" })
+    ).toBeNull();
+    expect(database.listArchived({ limit: 50 }).entries).toHaveLength(1);
+    expect(() =>
+      database.commit(batch({ key: keys[0]!, sessionId: "session-0" }))
+    ).toThrow("permanently deleted");
+    expect(() =>
+      database.stage({
+        key: keys[0]!,
+        sessionId: "session-0",
+        stageId: "late-stage",
+        messageId: "late-message",
+        expectedRevision: 0,
+        generation: 0,
+        chunkId: "late-chunk",
+        sequence: 1,
+        value: { role: "user", content: "late" }
+      })
+    ).toThrow("permanently deleted");
+    expect(
+      database.database
+        .prepare(
+          "SELECT COUNT(*) AS count FROM messages WHERE scope_key = ? AND session_id = ?"
+        )
+        .get(keys[0]!, "session-0")?.count
+    ).toBe(0);
+    database.close();
+    const reopened = new ConversationDatabase(path);
+    databases.push(reopened);
+    expect(() =>
+      reopened.commit(batch({ key: keys[0]!, sessionId: "session-0" }))
+    ).toThrow("permanently deleted");
+    expect(reopened.listArchived({ limit: 50 }).entries).toHaveLength(1);
+  });
+
   it("preserves unknown JSON fields, raw tool text, proposal undo state and Unicode through bounded reads and restart", async () => {
     const { database, path } = await open();
     const message = JSON.parse(

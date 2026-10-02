@@ -4,6 +4,7 @@ import templateSource from "./AgentTeamSettingsPanel.template.html?raw";
 import longComponentSource from "./LongAgentTeamSettingsPanel.vue?raw";
 import longTemplateSource from "./LongAgentTeamSettingsPanel.template.html?raw";
 import metaSource from "./agentTeamSettingsMeta.ts?raw";
+import parallelSwitchSource from "./AgentTeamParallelSwitch.vue?raw";
 
 const longSource = `${longComponentSource}\n${longTemplateSource}`;
 
@@ -123,6 +124,22 @@ describe("AgentTeamSettingsPanel", () => {
     expect(source).toContain('@click="removeSubagent(index)"');
     expect(source).toContain('@click="saveSettings"');
     expect(source).toContain("WorkspaceAgentTeamSettingsInputSchema.safeParse");
+  });
+
+  it("edits and saves the team-wide parallel switch for every writing type", () => {
+    for (const panel of [source, longSource]) {
+      expect(panel).toContain("<AgentTeamParallelSwitch");
+      expect(panel).toContain('v-model="draftParallelSubagents"');
+      expect(panel).toContain(
+        "draftParallelSubagents.value = settings?.parallelSubagents ?? false"
+      );
+      expect(panel).toContain(
+        "parallelSubagents: draftParallelSubagents.value"
+      );
+    }
+    expect(parallelSwitchSource).toContain("SUBAGENT_PARALLEL_MAX_CONCURRENCY");
+    expect(parallelSwitchSource).toContain('role="switch"');
+    expect(parallelSwitchSource).toContain(':disabled="disabled"');
   });
 
   it("isolates long loading failures and keeps a successfully loaded sibling editable", () => {

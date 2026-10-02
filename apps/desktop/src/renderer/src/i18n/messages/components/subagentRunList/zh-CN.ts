@@ -9,5 +9,10 @@ export default {
     "正在启动独立上下文并接收执行事件…",
   handoffSummary: "交接摘要",
   completionNotes: "结束说明",
-  toolsMessage: "{arg0} 个工具"
+  toolsMessage: "{arg0} 个工具",
+  waitingForValue: "等待 {arg0}",
+  batchSummary: "{arg0} 个子任务",
+  batchActive: "{arg0} 个运行中",
+  batchQueued: "{arg0} 个排队",
+  batchFinished: "{arg0} 个已结束"
 };

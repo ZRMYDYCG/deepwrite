@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { createEnvelope } from "./envelope";
 import { CommandEnvelopeSchema } from "./system";
 import {
+  ConversationHistoryArchiveListQuerySchema,
+  ConversationHistoryPurgeQuerySchema,
   ConversationHistoryBatchSchema,
   ConversationHistoryDetailQuerySchema,
   ConversationHistoryMessagesQuerySchema
@@ -30,6 +32,36 @@ const batch = {
 };
 
 describe("incremental conversation history contracts", () => {
+  it("validates paged global archives and revision-checked permanent deletion", () => {
+    expect(
+      CommandEnvelopeSchema.parse(
+        createEnvelope(
+          "rendererState.history.listArchived",
+          ConversationHistoryArchiveListQuerySchema.parse({ limit: 50 }),
+          { id: "archive-list", correlationId: "archive-list" }
+        )
+      ).type
+    ).toBe("rendererState.history.listArchived");
+    expect(
+      ConversationHistoryArchiveListQuerySchema.safeParse({ limit: 101 })
+        .success
+    ).toBe(false);
+    expect(
+      ConversationHistoryPurgeQuerySchema.safeParse({
+        key: batch.key,
+        sessionId: batch.sessionId,
+        expectedRevision: 2
+      }).success
+    ).toBe(true);
+    expect(
+      ConversationHistoryPurgeQuerySchema.safeParse({
+        key: batch.key,
+        sessionId: batch.sessionId,
+        expectedRevision: -1
+      }).success
+    ).toBe(false);
+  });
+
   it("validates commands through the shared envelope and preserves future JSON fields", () => {
     const payload = ConversationHistoryBatchSchema.parse(batch);
     expect(

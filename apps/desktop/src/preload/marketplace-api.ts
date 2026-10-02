@@ -43,6 +43,14 @@ export const marketplace: C.DeepWriteApi["marketplace"] = {
       })
     );
   },
+  async loginWithEmailCode(input: C.MarketplaceEmailLoginInput) {
+    return C.MarketplaceSessionSchema.parse(
+      await invokeMarketplace({
+        operation: "loginWithEmailCode",
+        input: C.MarketplaceEmailLoginInputSchema.parse(input)
+      })
+    );
+  },
   async logout() {
     return C.MarketplaceSessionSchema.parse(
       await invokeMarketplace({ operation: "logout" })

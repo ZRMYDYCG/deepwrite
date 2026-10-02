@@ -211,8 +211,34 @@ export interface AgentToolTrace {
   isError?: boolean;
 }
 
+/**
+ * `queued` waits for dependencies or a free slot in a multi-task delegation;
+ * `skipped` never started because a dependency did not complete.
+ */
 export type AgentSubagentRunStatus =
-  "running" | "completed" | "error" | "stopped";
+  "queued" | "running" | "completed" | "error" | "stopped" | "skipped";
+
+/** Position of a child inside a multi-task `spawn_subagent` call. */
+export interface AgentSubagentBatchTask {
+  index: number;
+  key: string;
+  dependsOn: string[];
+}
+
+export function isActiveSubagentRun(
+  run: Pick<AgentSubagentRun, "status">
+): boolean {
+  return run.status === "running" || run.status === "queued";
+}
+
+/** Stable across the pending placeholder and the started child run. */
+export function subagentRunDetailId(
+  run: Pick<AgentSubagentRun, "parentToolCallId" | "batchTask">
+): string {
+  return run.batchTask
+    ? `${run.parentToolCallId}:${run.batchTask.index}`
+    : run.parentToolCallId;
+}
 
 export interface AgentRetryMetadata {
   state: "scheduled" | "trying";
@@ -269,6 +295,7 @@ export interface AgentSubagentRun {
   errorMessage?: string;
   usage?: AgentUsage;
   retry?: AgentRetryMetadata;
+  batchTask?: AgentSubagentBatchTask;
 }
 
 export type AgentProcessingStep =

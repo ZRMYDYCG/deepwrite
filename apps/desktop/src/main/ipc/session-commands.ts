@@ -178,7 +178,7 @@ export async function handleSessionCommands(
             .requireLongAgentConfigStore()
             .resolve(longWorkspace.activeAgentId)
         : undefined;
-      const { subagentDefinitions, subagentRuntimeConfigs } =
+      const { subagentDefinitions, subagentRuntimeConfigs, parallelSubagents } =
         await resolveAgentTeamRuntime(
           command.payload.agentTeamMode,
           agentProfile
@@ -195,7 +195,11 @@ export async function handleSessionCommands(
                 .requireAgentTeamConfigStore()
                 .resolve(workspaceType, parentAgentId),
             resolveModel: (modelId) =>
-              ctx.requireModelConfigStore().resolve(modelId)
+              ctx.requireModelConfigStore().resolve(modelId),
+            resolveParallelSubagents: (workspaceType) =>
+              ctx
+                .requireAgentTeamConfigStore()
+                .parallelSubagentsEnabled(workspaceType)
           }
         );
       const libraryAgentProfile = libraryWorkspace
@@ -262,6 +266,7 @@ export async function handleSessionCommands(
               : {}),
             ...(longAgentProfile ? { longAgentProfile } : {}),
             ...(subagentDefinitions ? { subagentDefinitions } : {}),
+            ...(parallelSubagents ? { parallelSubagents } : {}),
             ...(Object.keys(subagentRuntimeConfigs).length > 0
               ? { subagentRuntimeConfigs }
               : {}),

@@ -118,6 +118,7 @@ export function createAgentRunInput(
     ...(payload.subagentRuntimeConfigs
       ? { subagentRuntimeConfigs: payload.subagentRuntimeConfigs }
       : {}),
+    ...(payload.parallelSubagents ? { parallelSubagents: true } : {}),
     ...(payload.libraryManagement && context
       ? {
           libraryManagement: payload.libraryManagement,

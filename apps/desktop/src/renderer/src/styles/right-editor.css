@@ -331,6 +331,10 @@
   background: var(--surface-main);
 }
 
+.editor-document.without-metadata {
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
 .editor-document.is-readonly {
   background: var(--surface-raised);
 }

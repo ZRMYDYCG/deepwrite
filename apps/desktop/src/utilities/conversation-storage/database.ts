@@ -5,6 +5,8 @@ import type {
   ConversationHistoryOperation,
   ConversationHistoryMergeScopesQuery,
   ConversationHistoryMergeScopesResult,
+  ConversationHistoryPurgeQuery,
+  ConversationHistoryPurgeResult,
   ConversationHistoryStage,
   ConversationHistoryStageResult
 } from "@deepwrite/contracts";
@@ -17,6 +19,7 @@ import { batchFingerprint, StagedMessages } from "./staging";
 import { ConversationRuntimeRecovery } from "./runtime-recovery";
 import { setMetadata, setStagedMetadata } from "./metadata-mutations";
 import { ConversationScopeMerger } from "./scope-merger";
+import { purgeArchivedConversation } from "./purge";
 export { ConversationStorageError } from "./errors";
 
 export class ConversationDatabase extends ConversationQueries {
@@ -86,6 +89,17 @@ export class ConversationDatabase extends ConversationQueries {
         throw new ConversationStorageError(
           "scope_removed",
           "This conversation scope was removed; stale queued changes cannot restore it."
+        );
+      if (
+        this.sql
+          .get(
+            "SELECT 1 FROM purged_sessions WHERE scope_key = ? AND session_id = ?"
+          )
+          .get(batch.key, batch.sessionId)
+      )
+        throw new ConversationStorageError(
+          "session_purged",
+          "This conversation was permanently deleted."
         );
       const existing = this.sql
         .get(
@@ -185,6 +199,25 @@ export class ConversationDatabase extends ConversationQueries {
       this.database.exec("ROLLBACK");
       throw error;
     }
+  }
+
+  purge(query: ConversationHistoryPurgeQuery): ConversationHistoryPurgeResult {
+    const result = purgeArchivedConversation(
+      this.database,
+      this.sql,
+      this.nodes,
+      this.records,
+      query,
+      () => this.recovery.assertWriter()
+    );
+    // Content chunks are reference counted. Reclaim newly orphaned chunks now;
+    // regular bounded maintenance handles any remaining queue entries.
+    try {
+      this.collectUnreferencedChunks(4096);
+    } catch {
+      /* The durable deletion has committed. */
+    }
+    return result;
   }
 
   private apply(

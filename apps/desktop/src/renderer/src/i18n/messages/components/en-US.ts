@@ -6,6 +6,7 @@ import agentEditProposalCard from "./agentEditProposalCard/en-US";
 import agentEditProposalDiff from "./agentEditProposalDiff/en-US";
 import agentTeamCatalogFeature from "./agentTeamCatalogFeature/en-US";
 import agentTeamModeSelect from "./agentTeamModeSelect/en-US";
+import agentTeamParallelSwitch from "./agentTeamParallelSwitch/en-US";
 import agentTeamSettingsEditorHelpers from "./agentTeamSettingsEditorHelpers/en-US";
 import agentTeamSettingsMeta from "./agentTeamSettingsMeta/en-US";
 import agentTeamSettingsPanel from "./agentTeamSettingsPanel/en-US";
@@ -175,6 +176,7 @@ export default {
   agentEditProposalDiff,
   agentTeamCatalogFeature,
   agentTeamModeSelect,
+  agentTeamParallelSwitch,
   agentTeamSettingsEditorHelpers,
   agentTeamSettingsMeta,
   agentTeamSettingsPanel,

@@ -29,6 +29,7 @@ export type IconName =
   | "model"
   | "minus"
   | "more"
+  | "outline"
   | "panel-left"
   | "panel-right"
   | "panel-top"

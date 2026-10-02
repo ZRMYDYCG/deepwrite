@@ -121,6 +121,27 @@ describe("DeepWrite Pi runtime adapter: agent-context-and-tools", () => {
       // Consume before reading the parent agent's current tool set.
     }
     for await (const _event of runtime.start({
+      runId: "run_parallel_subagent",
+      sessionId: "session_parallel_subagent",
+      prompt: "并行检查人物",
+      thinkingLevel: "off",
+      agentProfile,
+      parallelSubagents: true,
+      subagentDefinitions: [
+        {
+          id: "character_reviewer",
+          name: "人物审校",
+          description: "检查人物设定冲突。",
+          systemPrompt: "只做人物一致性检查。",
+          enabled: true,
+          modelMode: "inherit"
+        }
+      ],
+      workspaceContext: { shortWorkspace }
+    })) {
+      // Consume before reading the parallel parent agent's tool set.
+    }
+    for await (const _event of runtime.start({
       runId: "run_without_subagent",
       sessionId: "session_without_subagent",
       prompt: "检查人物",
@@ -145,10 +166,27 @@ describe("DeepWrite Pi runtime adapter: agent-context-and-tools", () => {
       runtime as unknown as {
         conversationAgents: Map<
           string,
-          { state: { tools: Array<{ name: string }> } }
+          {
+            state: {
+              tools: Array<{ name: string; parameters?: unknown }>;
+            };
+          }
         >;
       }
     ).conversationAgents;
+    const spawnSchema = (sessionKey: string) =>
+      JSON.stringify(
+        cache
+          .get(sessionKey)
+          ?.state.tools.find(({ name }) => name === "spawn_subagent")
+          ?.parameters
+      );
+    expect(spawnSchema("session_parallel_subagent:short")).toContain(
+      "write_scope"
+    );
+    expect(spawnSchema("session_with_subagent:short")).not.toContain(
+      "write_scope"
+    );
     expect(
       cache
         .get("session_with_subagent:short")
@@ -476,7 +514,11 @@ describe("DeepWrite Pi runtime adapter: agent-context-and-tools", () => {
       }))
     );
     expect(
-      events.every((event) => event.payload.runtime === providerRuntime)
+      events.every(
+        (event) =>
+          "runtime" in event.payload &&
+          event.payload.runtime === providerRuntime
+      )
     ).toBe(true);
   });
 

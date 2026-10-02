@@ -35,6 +35,7 @@ import { useAgentConversation } from "./composables/useAgentConversation";
 import { useAppearance } from "./composables/useAppearance";
 import { useCatalogDocumentLoader } from "./composables/useCatalogDocumentLoader";
 import { useCatalogDocumentPersistence } from "./composables/useCatalogDocumentPersistence";
+import { useCatalogManuscriptFormatting } from "./composables/useCatalogManuscriptFormatting";
 import { useCatalogWorkspaceProjectionCoordinator } from "./composables/useCatalogWorkspaceProjectionCoordinator";
 import { conversationRuntimeRegistryStorePort } from "./composables/conversationRuntimeRegistryStorePort";
 import { useConversationRuntimeRegistryCoordinator } from "./composables/useConversationRuntimeRegistryCoordinator";
@@ -313,6 +314,7 @@ const {
   updateLanguage: updateAppLanguage,
   updatePermissionMode,
   updateShowContextUsage,
+  updateTextAttachmentMaxCharacters,
   updateContextCompaction,
   updateShowInMenuBar,
   updateUseNetworkProxy,
@@ -1633,6 +1635,25 @@ const agentActivity = useAgentActivityCoordinator({
   notifications: uiMessage
 });
 provide(AGENT_ACTIVITY_CONTEXT_KEY, agentActivity.context);
+const catalogManuscriptFormatting = useCatalogManuscriptFormatting({
+  documents,
+  drafts: editorDrafts,
+  ensureLoaded: async (documentIds) =>
+    catalogDocumentLoader.ensureLoaded(documentIds),
+  isWriteBlocked: (targets) =>
+    saveConflict.value !== null ||
+    savingDocumentIds.value.size > 0 ||
+    targets.some(
+      (document) =>
+        document.readOnly ||
+        documentHasAgentRunWriteBarrier(document) ||
+        acceptingAgentEditDocumentIds.value.has(document.id) ||
+        (document.workspaceId !== undefined &&
+          acceptingAgentEditWorkspaceIds.value.has(document.workspaceId))
+    ),
+  stage: stageEditorDrafts,
+  scheduleAutoSave: scheduleEditorAutoSave
+});
 const activeEditorEntrySearchItems = computed(() =>
   editorEntrySearchSources(liveWorkspaceDocuments.value, activeDocument.value)
 );
@@ -1645,6 +1666,7 @@ const writingEditorViewModel = computed(() => ({
   lockedLabel: editorLockedLabel.value,
   saving: editorSaving.value,
   manualSaving: manualSavingDocumentIds.value.has(activeDocument.value.id),
+  formatAllPending: catalogManuscriptFormatting.pending.value,
   autoSaveEnabled: editorAutoSaveEnabled.value,
   defaultViewMode: generalSettings.value.defaultTextViewMode,
   boundToCurrentBook: activeLibraryBoundToBook.value,
@@ -1943,18 +1965,21 @@ function applyDefaultApprovalMode(permissionMode: GeneralPermissionMode): void {
   conversationRuntimeRegistry.applyDefaultApprovalMode(permissionMode);
 }
 
-function stageEditorDraft(payload: {
-  id: string;
-  title: string;
-  content: string;
-}): void {
-  const persisted = documents.value.find(
-    (document) => document.id === payload.id
+function stageEditorDrafts(
+  payloads: readonly {
+    id: string;
+    title: string;
+    content: string;
+  }[]
+): void {
+  const persistedById = new Map(
+    documents.value.map((document) => [document.id, document])
   );
-  const existingDraft = editorDrafts.value[payload.id];
-  editorDrafts.value = {
-    ...editorDrafts.value,
-    [payload.id]: {
+  const nextDrafts = { ...editorDrafts.value };
+  for (const payload of payloads) {
+    const persisted = persistedById.get(payload.id);
+    const existingDraft = nextDrafts[payload.id];
+    nextDrafts[payload.id] = {
       title: payload.title,
       content: payload.content,
       dirty: true,
@@ -1973,8 +1998,17 @@ function stageEditorDraft(payload: {
         : persisted?.catalogProjectRevision === undefined
           ? {}
           : { baseProjectRevision: persisted.catalogProjectRevision })
-    }
-  };
+    };
+  }
+  editorDrafts.value = nextDrafts;
+}
+
+function stageEditorDraft(payload: {
+  id: string;
+  title: string;
+  content: string;
+}): void {
+  stageEditorDrafts([payload]);
 }
 
 function handleLiveDocumentChange(rawPayload: {
@@ -1984,6 +2018,21 @@ function handleLiveDocumentChange(rawPayload: {
 }): void {
   stageEditorDraft(rawPayload);
   scheduleEditorAutoSave(rawPayload.id);
+}
+
+function handleFormatAllBodies(): void {
+  const document = activeDocument.value;
+  if (
+    !document.workspaceId ||
+    document.draftFileKind !== "body" ||
+    (document.workspaceType !== "short" && document.workspaceType !== "script")
+  )
+    return;
+  void catalogManuscriptFormatting.formatAll(
+    document.workspaceId,
+    document.workspaceType,
+    generalSettings.value.bodyTextFormats[document.workspaceType]
+  );
 }
 
 const approvalNavigation = useLazyApprovalNavigationCoordinator({
@@ -2411,6 +2460,7 @@ onBeforeUnmount(() => {
     @update-auto-save="updateEditorAutoSave"
     @update-language="updateAppLanguage"
     @update-show-context-usage="updateShowContextUsage"
+    @update-text-attachment-max-characters="updateTextAttachmentMaxCharacters"
     @update-context-compaction="updateContextCompaction"
     @update-show-in-menu-bar="updateShowInMenuBar"
     @update-use-network-proxy="updateUseNetworkProxy"
@@ -2612,6 +2662,7 @@ onBeforeUnmount(() => {
       @collapse="rightCollapsed = true"
       @save="applyDocument"
       @live-change="handleLiveDocumentChange"
+      @format-all-bodies="handleFormatAllBodies"
       @insert-selection="insertEditorSelectionReference"
       @select-section="selectEditorSection"
       @create-section="createEditorSection"

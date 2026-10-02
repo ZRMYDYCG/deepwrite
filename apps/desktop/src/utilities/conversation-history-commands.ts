@@ -23,6 +23,12 @@ export async function handleConversationHistoryCommand(
     case "rendererState.history.list":
       payload = await history.list(command.payload);
       break;
+    case "rendererState.history.listArchived":
+      payload = await history.listArchived(command.payload);
+      break;
+    case "rendererState.history.purge":
+      payload = await history.purge(command.payload);
+      break;
     case "rendererState.history.session":
       payload = await history.session(command.payload);
       break;

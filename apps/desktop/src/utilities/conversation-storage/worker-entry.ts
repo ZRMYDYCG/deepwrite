@@ -1,6 +1,8 @@
 import { parentPort, workerData } from "node:worker_threads";
 import {
   ConversationHistoryBatchSchema,
+  ConversationHistoryArchiveListQuerySchema,
+  ConversationHistoryPurgeQuerySchema,
   ConversationHistoryMergeScopesQuerySchema,
   ConversationHistoryDetailQuerySchema,
   ConversationHistoryMetadataDetailQuerySchema,
@@ -83,6 +85,16 @@ port.on(
         case "list":
           result = database.list(
             ConversationHistoryListQuerySchema.parse(request.payload)
+          );
+          break;
+        case "listArchived":
+          result = database.listArchived(
+            ConversationHistoryArchiveListQuerySchema.parse(request.payload)
+          );
+          break;
+        case "purge":
+          result = database.purge(
+            ConversationHistoryPurgeQuerySchema.parse(request.payload)
           );
           break;
         case "session":

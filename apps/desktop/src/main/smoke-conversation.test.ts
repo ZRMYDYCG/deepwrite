@@ -18,6 +18,8 @@ function windowFor(database: ConversationDatabase): BrowserWindow {
       "metadataDetail",
       "turns",
       "list",
+      "listArchived",
+      "purge",
       "mergeScopes"
     ].map((name) => {
       const method = database[name as keyof ConversationDatabase] as (
@@ -48,7 +50,9 @@ it("serializes a self-contained Renderer persistence probe and verifies a closed
       reopened: false,
       staged: true,
       unknownRetained: true,
-      proposalRetained: true
+      proposalRetained: true,
+      archived: true,
+      purged: true
     });
     expect(first.chunkPages).toBeGreaterThan(1);
     expect(first.metadataChunkPages).toBeGreaterThan(1);

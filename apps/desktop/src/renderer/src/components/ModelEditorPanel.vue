@@ -7,7 +7,6 @@ import {
   type ModelEditorSavePayload
 } from "../composables/useModelEditor";
 import CreateCustomProviderDialog from "./CreateCustomProviderDialog.vue";
-import ModelCapacityEditor from "./ModelCapacityEditor.vue";
 import type { DraftModel } from "./modelSettingsDraft";
 import PopupSelect from "./PopupSelect.vue";
 
@@ -57,7 +56,6 @@ const {
   setModelMode,
   toggleThinkingLevelOption,
   updateCustomThinkingLevel,
-  setCapacity,
   save,
   test
 } = useModelEditor(
@@ -303,8 +301,6 @@ watch(fetchHintDialog, (message) => {
         </span>
       </label>
     </div>
-
-    <ModelCapacityEditor :model="editor" :saving="saving" @save="setCapacity" />
 
     <div v-if="editor.hasApiKey" class="model-key-row">
       <span>{{ t("theExistingKeyWillBeKept") }}</span>

@@ -26,6 +26,7 @@ import {
 import { computed, ref, watch } from "vue";
 import { uiMessage } from "../ui-feedback";
 import AppIcon from "./AppIcon.vue";
+import AgentTeamParallelSwitch from "./AgentTeamParallelSwitch.vue";
 import LoadSubagentFromSkillDialog from "./LoadSubagentFromSkillDialog.vue";
 import LongAgentTeamSettingsPanel from "./LongAgentTeamSettingsPanel.vue";
 import PopupSelect, { type PopupSelectOption } from "./PopupSelect.vue";
@@ -87,6 +88,7 @@ type EditableTeam = {
   subagents: ShortAgentSubagentDefinition[];
 };
 const draftTeams = ref<EditableTeam[]>([]);
+const draftParallelSubagents = ref(false);
 const editingSubagentId = ref<string | null>(null);
 let generatedIdSequence = 0;
 
@@ -207,6 +209,7 @@ watch(
   () => [props.settings, activeWorkspaceType.value] as const,
   () => {
     const settings = activeSettings.value;
+    draftParallelSubagents.value = settings?.parallelSubagents ?? false;
     draftTeams.value = settings
       ? settings.teams.map((team) => ({
           parentAgentId: team.parentAgentId,
@@ -478,6 +481,7 @@ function saveSettings(): void {
   }
   const parsed = WorkspaceAgentTeamSettingsInputSchema.safeParse({
     workspaceType,
+    parallelSubagents: draftParallelSubagents.value,
     teams
   });
   if (!parsed.success) {
@@ -490,6 +494,8 @@ function saveSettings(): void {
 // The template is kept in a separate file to keep this editor maintainable.
 // Exposing its bindings also gives static analysis an explicit cross-file boundary.
 defineExpose({
+  AgentTeamParallelSwitch,
+  draftParallelSubagents,
   SHORT_AGENT_SUBAGENT_DESCRIPTION_MAX_LENGTH,
   SHORT_AGENT_SUBAGENT_NAME_MAX_LENGTH,
   SHORT_AGENT_SUBAGENT_SYSTEM_PROMPT_MAX_LENGTH,

@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import { createScopedTranslator } from "../i18n";
 import { computed } from "vue";
-import type { AgentSubagentRun, ChatMessage } from "../types/conversation";
+import {
+  isActiveSubagentRun,
+  subagentRunDetailId,
+  type AgentSubagentRun,
+  type ChatMessage
+} from "../types/conversation";
 import {
   subagentDuration,
   subagentProcessingDisplayItems,
@@ -25,6 +30,28 @@ const props = defineProps<{
 }>();
 
 const runs = computed(() => props.runs ?? props.message.subagentRuns ?? []);
+
+/** Counts shown above a multi-task delegation. */
+const batchSummary = computed(() => {
+  if (runs.value.length < 2 || !runs.value.some((run) => run.batchTask)) {
+    return undefined;
+  }
+  const running = runs.value.filter((run) => run.status === "running").length;
+  const queued = runs.value.filter((run) => run.status === "queued").length;
+  const finished = runs.value.length - running - queued;
+  return [
+    t("batchSummary", { arg0: runs.value.length }),
+    ...(running ? [t("batchActive", { arg0: running })] : []),
+    ...(queued ? [t("batchQueued", { arg0: queued })] : []),
+    ...(finished ? [t("batchFinished", { arg0: finished })] : [])
+  ].join(" · ");
+});
+
+function waitingLabel(run: AgentSubagentRun): string | undefined {
+  return run.status === "queued" && run.batchTask?.dependsOn.length
+    ? t("waitingForValue", { arg0: run.batchTask.dependsOn.join("、") })
+    : undefined;
+}
 </script>
 
 <template>
@@ -33,13 +60,16 @@ const runs = computed(() => props.runs ?? props.message.subagentRuns ?? []);
     class="subagent-run-list"
     :aria-label="t('subagentRuns')"
   >
+    <p v-if="batchSummary" class="subagent-batch-summary">
+      {{ batchSummary }}
+    </p>
     <ConversationDetails
       v-for="run in runs"
-      :key="run.parentToolCallId"
-      :detail-id="run.parentToolCallId"
+      :key="subagentRunDetailId(run)"
+      :detail-id="subagentRunDetailId(run)"
       class="subagent-run-card"
       :class="`is-${run.status}`"
-      :aria-busy="run.status === 'running'"
+      :aria-busy="isActiveSubagentRun(run)"
     >
       <template #summary>
         <span class="subagent-run-icon" aria-hidden="true">
@@ -47,6 +77,9 @@ const runs = computed(() => props.runs ?? props.message.subagentRuns ?? []);
         </span>
         <span class="subagent-run-heading">
           <span class="subagent-run-title-row">
+            <span v-if="run.batchTask" class="subagent-run-key">{{
+              run.batchTask.key
+            }}</span>
             <strong>{{ run.name }}</strong>
             <span class="subagent-run-status" :class="`is-${run.status}`">
               <ConversationRunClock
@@ -68,6 +101,7 @@ const runs = computed(() => props.runs ?? props.message.subagentRuns ?? []);
               subagentDuration(run, now)
             }}</span>
           </ConversationRunClock>
+          <span v-if="waitingLabel(run)">{{ waitingLabel(run) }}</span>
           <span v-if="subagentRetryProgress(run)">{{
             subagentRetryProgress(run)
           }}</span>
@@ -118,7 +152,7 @@ const runs = computed(() => props.runs ?? props.message.subagentRuns ?? []);
               v-if="item.type === 'work-group'"
               :item="item"
               :streaming="run.status === 'running'"
-              :detail-id-prefix="run.parentToolCallId"
+              :detail-id-prefix="subagentRunDetailId(run)"
             />
             <div
               v-else-if="item.type === 'response'"
@@ -161,3 +195,28 @@ const runs = computed(() => props.runs ?? props.message.subagentRuns ?? []);
     </ConversationDetails>
   </section>
 </template>
+
+<style scoped>
+.subagent-batch-summary {
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.subagent-run-key {
+  flex: 0 0 auto;
+  padding: 1px 6px;
+  border: 1px solid var(--theme-line-soft);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-family: var(--code-font);
+  font-size: 0.714286rem;
+  line-height: 1.4;
+}
+
+.subagent-run-card.is-queued .subagent-run-icon,
+.subagent-run-card.is-skipped .subagent-run-icon {
+  opacity: 0.55;
+}
+</style>

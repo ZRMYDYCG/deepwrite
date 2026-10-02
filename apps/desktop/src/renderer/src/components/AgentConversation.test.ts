@@ -342,8 +342,9 @@ describe("AgentConversation edit proposal placement", () => {
     expect(composerSource).toContain(
       "emit('locateEditorReference', editorReference)"
     );
+    expect(composerLogicSource).toContain("createEditorReferenceAttachment(");
     expect(composerLogicSource).toContain(
-      "options.editorReferences().map(createEditorReferenceAttachment)"
+      "options.textAttachmentMaxCharacters()"
     );
     expect(composerSource).toContain(
       "emit('removeEditorReference', editorReference.id)"
@@ -488,7 +489,7 @@ describe("AgentConversation edit proposal placement", () => {
       expect(cardStart).toBeLessThan(loopEnd);
       expect(timeline).toContain("v-if=\"item.type === 'work-group'\"");
       expect(timeline).toContain("v-else-if=\"item.type === 'subagent'\"");
-      expect(timeline).toContain(':runs="[item.run]"');
+      expect(timeline).toContain(':runs="item.runs"');
     }
     expect(processingTimelineSource.slice(disclosureEnd)).not.toContain(
       "<SubagentRunList"

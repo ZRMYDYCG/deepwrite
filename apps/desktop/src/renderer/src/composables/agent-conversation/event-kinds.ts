@@ -17,6 +17,7 @@ export function isAgentEvent(event: SystemEventEnvelope): event is Extract<
       | "tool.call_stream"
       | "tool.call_requested"
       | "tool.execution_completed"
+      | "subagent.planned"
       | "subagent.started"
       | "subagent.activity"
       | "subagent.completed";
@@ -36,6 +37,7 @@ export function isAgentEvent(event: SystemEventEnvelope): event is Extract<
     event.type === "tool.call_stream" ||
     event.type === "tool.call_requested" ||
     event.type === "tool.execution_completed" ||
+    event.type === "subagent.planned" ||
     event.type === "subagent.started" ||
     event.type === "subagent.activity" ||
     event.type === "subagent.completed"

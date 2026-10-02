@@ -99,6 +99,22 @@ describe("DesktopSyncMetadataStore", () => {
     expect(await store.read()).toEqual(metadata());
   });
 
+  it("seals a copy for writers that store sync state themselves, and refuses when secure storage is unavailable", async () => {
+    const { root, store } = await createStore();
+    const sealed = await store.seal(metadata());
+    expect(JSON.stringify(sealed)).not.toContain(KEY);
+    expect(JSON.stringify(sealed)).toContain("sealed:v1:");
+    // Writing an already sealed copy keeps it sealed and readable.
+    await store.write(sealed);
+    expect(
+      await readFile(join(root, "device-sync.json"), "utf8")
+    ).not.toContain(KEY);
+    expect(await store.read()).toEqual(metadata());
+
+    storage.available = false;
+    await expect(store.seal(metadata())).rejects.toThrow("安全存储");
+  });
+
   it("refuses to write a key as plaintext when secure storage is unavailable", async () => {
     const { root, store } = await createStore();
     storage.available = false;

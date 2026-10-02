@@ -76,7 +76,7 @@ const emit = defineEmits<{
         <SubagentRunList
           v-else-if="item.type === 'subagent'"
           :message="message"
-          :runs="[item.run]"
+          :runs="item.runs"
         />
         <ConversationProcessingItem
           v-else
@@ -125,7 +125,7 @@ const emit = defineEmits<{
           <SubagentRunList
             v-else-if="item.type === 'subagent'"
             :message="message"
-            :runs="[item.run]"
+            :runs="item.runs"
           />
           <ConversationProcessingItem
             v-else

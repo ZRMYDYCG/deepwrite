@@ -214,7 +214,10 @@ describe("RightEditorPane expert draft navigation", () => {
     expect(source).toContain("isTransientlyReadOnly: () => props.locked");
     expect(source).toContain("agentRunningReadOnly");
     expect(source).toContain(':readonly="document.readOnly || locked"');
-    expect(source).toContain(":class=\"{ 'is-readonly': document.readOnly }\"");
+    expect(source).toContain("'is-readonly': document.readOnly");
+    expect(source).toContain(
+      "'without-metadata': document.domain === 'creation'"
+    );
     expect(source).not.toContain(
       ":class=\"{ 'is-readonly': document.readOnly || locked }\""
     );

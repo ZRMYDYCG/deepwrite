@@ -23,6 +23,13 @@ export async function runApplicationSmoke(
   window: BrowserWindow,
   setEventTap: (tap: ((event: SystemEventEnvelope) => void) | undefined) => void
 ): Promise<void> {
+  if (process.env.DEEPWRITE_SMOKE_SUITE === "conversation") {
+    const conversation = await runConversationSmoke(window);
+    console.log(
+      `DEEPWRITE_SMOKE_OK ${JSON.stringify({ health, conversation })}`
+    );
+    return;
+  }
   if (process.env.DEEPWRITE_SMOKE_SUITE === "i18n") {
     const localization = await runI18nSmoke(window);
     console.log(

@@ -3,7 +3,13 @@ import { createScopedTranslator } from "../i18n";
 import { onBeforeUnmount, onMounted, ref, useId } from "vue";
 
 const t = createScopedTranslator("components.conversationHistoryDeleteDialog");
-const props = defineProps<{ title: string; busy: boolean }>();
+const props = defineProps<{
+  mode: "one" | "selected" | "all";
+  title?: string | undefined;
+  count?: number | undefined;
+  processed?: number | undefined;
+  busy: boolean;
+}>();
 const emit = defineEmits<{ close: []; confirm: [] }>();
 const titleId = useId();
 const descriptionId = useId();
@@ -52,13 +58,29 @@ onBeforeUnmount(() => {
       >
         <h2 :id="titleId">
           {{
-            t("deleteMessage", {
-              arg0: title ?? ""
-            })
+            mode === "all"
+              ? t("deleteAllMessages")
+              : mode === "selected"
+                ? t("deleteSelectedMessages", { count: count ?? 0 })
+                : t("deleteMessage", { arg0: title ?? "" })
           }}
         </h2>
         <p :id="descriptionId">
-          {{ t("theConversationWillMoveToDeletedAndCanBe") }}
+          {{
+            mode === "all"
+              ? t("deleteAllDescription")
+              : mode === "selected"
+                ? t("deleteSelectedDescription")
+                : t("permanentDeletionCannotBeUndone")
+          }}
+          <span v-if="mode !== 'one'" class="conversation-delete-progress">
+            <br />
+            {{
+              busy
+                ? t("deletionProgress", { count: processed ?? 0 })
+                : t("bulkDeletionMayTakeTime")
+            }}
+          </span>
         </p>
         <footer>
           <button

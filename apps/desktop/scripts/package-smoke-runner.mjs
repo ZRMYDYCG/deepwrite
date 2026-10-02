@@ -38,6 +38,7 @@ export async function runPackagedSmoke(
       [
         `--user-data-dir=${profile}`,
         ...(targetPlatform === "mac" ? ["--use-mock-keychain"] : []),
+        "--use-fake-device-for-media-stream",
         "--password-store=basic"
       ],
       {

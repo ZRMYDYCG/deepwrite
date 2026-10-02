@@ -185,6 +185,17 @@ export class LegacyScopeRecords {
         "messages"
       );
       if (!child) throw new Error("Legacy conversation messages are missing.");
+      if (
+        this.sql
+          .get(
+            "SELECT 1 FROM purged_sessions WHERE scope_key = ? AND session_id = ?"
+          )
+          .get(key, sessionId)
+      ) {
+        this.nodes.destroy(metadata);
+        this.nodes.destroy(child);
+        return;
+      }
       this.sql
         .get(
           "INSERT INTO sessions(scope_key, session_id, metadata_ref, updated_at, legacy_position, revision, generation) VALUES (?, ?, ?, ?, ?, 1, 1) ON CONFLICT(scope_key, session_id) DO UPDATE SET metadata_ref = excluded.metadata_ref, updated_at = excluded.updated_at, legacy_position = excluded.legacy_position, deleted = 0"
@@ -207,10 +218,18 @@ export class LegacyScopeRecords {
       this.nodes.releaseContainer(child);
     });
     this.nodes.releaseContainer(extracted.child);
+    const activeId = this.string(root, "activeSessionId");
+    const activeExists = activeId
+      ? this.sql
+          .get(
+            "SELECT 1 FROM sessions WHERE scope_key = ? AND session_id = ? AND deleted = 0"
+          )
+          .get(key, activeId)
+      : false;
     this.sql
       .get(
         "UPDATE scopes SET metadata_ref = ?, active_session_id = ?, removed = 0 WHERE key = ?"
       )
-      .run(JSON.stringify(root), this.string(root, "activeSessionId"), key);
+      .run(JSON.stringify(root), activeExists ? activeId : null, key);
   }
 }

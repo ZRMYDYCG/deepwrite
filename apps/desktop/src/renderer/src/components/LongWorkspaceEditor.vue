@@ -39,7 +39,6 @@ import EditorPaneToggle from "./EditorPaneToggle.vue";
 import EditorTextTools from "./EditorTextTools.vue";
 import { useBodyTextFormatting } from "../composables/useBodyTextFormatting";
 import { longBodyTextKind } from "../utils/bodyTextTarget";
-import DocumentMetaRow from "./DocumentMetaRow.vue";
 import EditorSearchHighlight from "./EditorSearchHighlight.vue";
 import LongCharacterNavigation from "./LongCharacterNavigation.vue";
 import LongContinuityLedgerNavigation from "./LongContinuityLedgerNavigation.vue";
@@ -52,6 +51,7 @@ import LongManuscriptNavigation from "./LongManuscriptNavigation.vue";
 import LongPlotStoryListPane from "./LongPlotStoryListPane.vue";
 import LongWorldbuildingNavigation from "./LongWorldbuildingNavigation.vue";
 import MarkdownContent from "./MarkdownContent.vue";
+import PreviewOutlinePopover from "./PreviewOutlinePopover.vue";
 import {
   useLongEditorDeleteDialogs,
   type LongNavigationDeleteTarget
@@ -784,22 +784,6 @@ const currentSaving = computed(
       false
     )
 );
-const documentEyebrow = computed(() => {
-  const role = currentSelectionFile.value?.role;
-  if (props.selection?.root === "draft") {
-    if (role === "character-state") return t("novelChapterCharacterState");
-    if (role === "handoff") return t("novelChapterHandoff");
-    return t("novelChapterManuscript");
-  }
-  if (props.selection?.root === "worldbuilding") return t("novelWorldbuilding");
-  if (props.selection?.root === "character_design")
-    return t("novelCharacterProfile");
-  if (props.selection?.root === "plot_design") return t("novelPlotDesign");
-  if (props.selection?.root === "continuity_ledger") {
-    return t("novelContinuityRecord");
-  }
-  return t("novelManuscript");
-});
 const canUseTextTools = computed(
   () =>
     !currentIsForeshadowingView.value &&
@@ -1843,6 +1827,15 @@ onBeforeUnmount(() => {
             @toggle-find="toggleFindPanel"
             @format="formatBody"
           />
+          <PreviewOutlinePopover
+            v-if="viewMode === 'preview' && canUseTextTools"
+            icon-only
+            :content="currentVisibleContent"
+            :preview-element="documentPreview"
+            :document-key="
+              currentSelectionFile?.file.id ?? selection?.key ?? ''
+            "
+          />
 
           <LongEditorFindReplaceBar
             v-if="findPanelOpen"
@@ -1995,15 +1988,6 @@ onBeforeUnmount(() => {
                   'is-readonly': currentReadOnly
                 }"
               >
-                <DocumentMetaRow
-                  variant="long"
-                  :view-mode="viewMode"
-                  :content="currentVisibleContent"
-                  :preview-element="documentPreview"
-                  :document-key="currentStoryPlot.id"
-                >
-                  <span>{{ t("storyEventManuscript") }}</span>
-                </DocumentMetaRow>
                 <input
                   :value="currentStoryPlot.title"
                   class="long-story-plot-title-input"
@@ -2059,6 +2043,13 @@ onBeforeUnmount(() => {
                       @redo="redo"
                       @toggle-find="toggleFindPanel"
                       @format="formatBody"
+                    />
+                    <PreviewOutlinePopover
+                      v-if="viewMode === 'preview'"
+                      icon-only
+                      :content="currentVisibleContent"
+                      :preview-element="documentPreview"
+                      :document-key="currentStoryPlot.id"
                     />
 
                     <LongEditorFindReplaceBar
@@ -2170,21 +2161,14 @@ onBeforeUnmount(() => {
           :title="currentDocumentTitle"
           :title-editable="Boolean(currentStructureTitleTarget)"
           :title-read-only="currentStructureTitleReadOnly"
-          :eyebrow="documentEyebrow"
           :format="currentDocumentFormat"
           :content="currentVisibleContent"
-          :document-key="currentSelectionFile?.file.id ?? selection?.key ?? ''"
           :view-mode="viewMode"
           :read-only="currentReadOnly"
           :busy="isDocumentContentBusy"
           :search-matches="searchMatches"
           :active-search-index="currentMatchIndex"
           :search-highlight-visible="findPanelOpen"
-          :committed-notice="
-            currentIsCommittedEditableDocument
-              ? currentCommittedEditNotice
-              : undefined
-          "
           @title-change="saveStructureTitle"
           @title-keydown="handleStructureTitleKeydown"
           @beforeinput="handleEditorBeforeInput"
@@ -2240,46 +2224,6 @@ onBeforeUnmount(() => {
             </button>
           </div>
           <template v-else>
-            <DocumentMetaRow
-              variant="long"
-              :view-mode="viewMode"
-              :content="currentVisibleContent"
-              :preview-element="documentPreview"
-              :document-key="
-                currentSelectionFile?.file.id ?? selection?.key ?? ''
-              "
-            >
-              <span>{{ documentEyebrow }}</span>
-              <span v-if="currentDocumentFormat" class="long-document-format">
-                {{ currentDocumentFormat }}
-              </span>
-              <span
-                v-if="currentIsCommittedEditableDocument"
-                class="long-committed-content-notice"
-              >
-                {{ currentCommittedEditNotice }}
-              </span>
-              <span v-else-if="currentReadOnly" class="long-readonly-badge">
-                {{ t("readOnlyContent") }}
-              </span>
-              <template #actions>
-                <button
-                  v-if="
-                    currentUsesTopWorldbuildingTabs &&
-                    currentWorldbuildingItem &&
-                    !currentReadOnly
-                  "
-                  class="long-worldbuilding-delete-button"
-                  type="button"
-                  :disabled="locked"
-                  @click="
-                    openWorldbuildingItemDelete(currentWorldbuildingItem.id)
-                  "
-                >
-                  {{ t("deleteEntry") }}
-                </button>
-              </template>
-            </DocumentMetaRow>
             <input
               v-if="
                 currentIsWorldbuildingList &&
@@ -2612,18 +2556,22 @@ onBeforeUnmount(() => {
 
       <footer class="long-editor-footer">
         <LongEditorFooterMeta
-          :book-id="bookId"
-          :workspace-index="workspaceIndex"
-          :body-file-id="
+          :is-chapter-body="
             selection.root === 'draft' && currentSelectionFile?.role === 'body'
-              ? currentSelectionFile.file.id
-              : undefined
           "
           :character-count="characterCount"
-          :document-states="documentStates"
-          :ensure-documents-loaded="ensureDocumentsLoaded"
           :auto-save-enabled="autoSaveEnabled || currentIsForeshadowingView"
         />
+        <span
+          v-if="currentIsCommittedEditableDocument"
+          class="long-editor-status"
+          :title="currentCommittedEditNotice"
+        >
+          {{ currentCommittedEditNotice }}
+        </span>
+        <span v-else-if="currentReadOnly" class="long-editor-status">
+          {{ t("readOnlyContent") }}
+        </span>
         <span class="long-footer-spacer" />
         <button
           v-if="!currentIsForeshadowingView"
@@ -2874,7 +2822,7 @@ onBeforeUnmount(() => {
 .long-editor-writing-surface {
   --long-document-inline-padding: clamp(18px, 2vw, 24px);
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
   height: 100%;
   min-height: 0;
   padding: 28px 0 18px;
@@ -2890,50 +2838,6 @@ onBeforeUnmount(() => {
 
 .long-editor-writing-surface.is-readonly {
   background: var(--surface-raised);
-}
-
-.long-document-format,
-.long-readonly-badge,
-.long-committed-content-notice {
-  padding: 2px 6px;
-  border: 1px solid var(--theme-line);
-  border-radius: 8px;
-  font-size: 0.607143rem;
-}
-
-.long-readonly-badge {
-  border-color: color-mix(in srgb, var(--warning) 28%, var(--theme-line));
-  background: color-mix(in srgb, var(--warning) 10%, var(--surface-raised));
-  color: var(--warning);
-}
-
-.long-committed-content-notice {
-  min-width: 0;
-  border-color: color-mix(in srgb, var(--accent) 24%, var(--theme-line));
-  background: color-mix(in srgb, var(--accent) 8%, var(--surface-raised));
-  color: var(--text-secondary);
-  line-height: 1.45;
-  white-space: normal;
-}
-
-.long-worldbuilding-delete-button {
-  margin-left: 0;
-  padding: 2px 6px;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--text-tertiary);
-  font-size: 0.642857rem;
-  cursor: pointer;
-}
-
-.long-worldbuilding-delete-button:hover:not(:disabled) {
-  background: var(--surface-hover);
-  color: var(--danger);
-}
-
-.long-worldbuilding-delete-button:disabled {
-  cursor: default;
-  opacity: 0.45;
 }
 
 .long-document-title-input,
@@ -3118,6 +3022,15 @@ onBeforeUnmount(() => {
   font-size: 0.678571rem;
 }
 
+.long-editor-status {
+  min-width: 0;
+  max-width: 40%;
+  overflow: hidden;
+  color: var(--text-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .long-editor-footer .long-editor-save-button {
   flex: 0 0 auto;
   height: max(26px, 1.9em);
@@ -3173,7 +3086,7 @@ onBeforeUnmount(() => {
 }
 
 @container (max-width: 27rem) {
-  .long-editor-footer > span:nth-child(2) {
+  .long-footer-spacer {
     display: none;
   }
 }
@@ -3303,7 +3216,7 @@ onBeforeUnmount(() => {
 .long-story-plot-writing-surface {
   --long-document-inline-padding: clamp(16px, 2vw, 20px);
   display: grid;
-  grid-template-rows: auto auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
   flex: 1 1 auto;
   height: 100%;
   min-height: 0;

@@ -23,8 +23,9 @@ const props = withDefaults(
     content: string;
     previewElement: HTMLElement | null;
     documentKey?: string;
+    iconOnly?: boolean;
   }>(),
-  { documentKey: "" }
+  { documentKey: "", iconOnly: false }
 );
 
 const trigger = ref<HTMLButtonElement | null>(null);
@@ -205,6 +206,7 @@ onBeforeUnmount(() => {
     <button
       ref="trigger"
       class="preview-outline-trigger"
+      :class="{ 'is-icon-only': iconOnly }"
       type="button"
       aria-haspopup="dialog"
       :aria-controls="open ? cardId : undefined"
@@ -214,8 +216,8 @@ onBeforeUnmount(() => {
       @click="toggleCard"
       @keydown="handleTriggerKeydown"
     >
-      <AppIcon name="list" :size="13" />
-      <span>{{ t("outline") }}</span>
+      <AppIcon name="outline" :size="iconOnly ? 16 : 13" />
+      <span v-if="!iconOnly">{{ t("outline") }}</span>
     </button>
 
     <Teleport to="body">
@@ -239,7 +241,6 @@ onBeforeUnmount(() => {
                 })
               }}</span>
             </div>
-            <AppIcon name="list" :size="16" />
           </header>
           <nav
             v-if="headings.length"
@@ -261,7 +262,7 @@ onBeforeUnmount(() => {
             </button>
           </nav>
           <div v-else class="preview-outline-empty">
-            <AppIcon name="list" :size="18" />
+            <AppIcon name="outline" :size="18" />
             <span>{{ t("noMarkdownHeadingsInThisManuscript") }}</span>
           </div>
         </section>

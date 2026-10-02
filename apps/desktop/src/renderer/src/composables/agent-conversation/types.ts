@@ -110,6 +110,10 @@ export type SubagentEventEnvelope = Extract<
   }
 >;
 export type SubagentEventPayload = SubagentEventEnvelope["payload"];
+export type SubagentPlannedEventEnvelope = Extract<
+  SystemEventEnvelope,
+  { type: "subagent.planned" }
+>;
 export type SubagentActivityEventEnvelope = Extract<
   SubagentEventEnvelope,
   {

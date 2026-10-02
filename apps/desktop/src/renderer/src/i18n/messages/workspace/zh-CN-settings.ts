@@ -146,7 +146,7 @@ export default {
   },
   voiceSettings: {
     systemDefaultMicrophone: "系统默认麦克风",
-    failedToReadVoiceSettingsPleaseTryAgain: "语音配置读取失败，请重试。",
+    failedToReadVoiceSettingsPleaseTryAgain: "语音模型配置读取失败，请重试。",
     failedToReadVoiceUsagePleaseTryAgain: "语音用量读取失败，请重试。",
     microphone: "麦克风 {value}",
     selectedMicrophoneNotCurrentlyDetected: "已选麦克风（暂未检测到）",
@@ -154,8 +154,8 @@ export default {
     enterAnHttpsEndpointWithoutCredentialsQueryParametersOr:
       "请输入不含账号密码、查询参数和片段的 HTTPS 接口地址。",
     enterTheSpeechRecognitionModel: "请填写语音识别模型。",
-    voiceSettingsSaved: "语音配置已保存。",
-    failedToSaveVoiceSettingsPleaseTryAgain: "语音配置保存失败，请重试。"
+    voiceSettingsSaved: "语音模型配置已保存。",
+    failedToSaveVoiceSettingsPleaseTryAgain: "语音模型配置保存失败，请重试。"
   },
   voiceUsageSummary: {
     today: "今日",
@@ -203,13 +203,13 @@ export default {
     microphoneAccessIsDisabledAllowDeepwriteToUseThe:
       "麦克风权限未开启，请在系统设置中允许 DeepWrite 使用麦克风。",
     theSelectedMicrophoneWasNotFoundSelectAnotherIn:
-      "找不到所选麦克风，请在语音配置中重新选择。",
+      "找不到所选麦克风，请在语音模型配置中重新选择。",
     theMicrophoneIsUnavailableCheckWhetherItIsDisconnected:
       "麦克风暂时无法使用，请检查设备是否已断开或被其他应用占用。",
     speechRecognitionFailedPleaseTryAgain: "语音识别失败，请重试。",
     voiceInputIsOnlyAvailableInTheDesktopApp: "语音输入仅支持桌面客户端。",
     saveTheSelectedProviderSApiKeyInSettings:
-      "请先在“设置 → 语音配置”中保存所选服务的 API Key。",
+      "请先在“设置 → 语音模型配置”中保存所选服务的 API Key。",
     theMicrophoneDisconnectedThisRecordingWasCanceled:
       "麦克风已断开，本次录音已取消。",
     theSpeechRecognitionResponseDoesNotMatchPleaseTry:

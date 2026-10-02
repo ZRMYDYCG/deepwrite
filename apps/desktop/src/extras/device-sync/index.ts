@@ -46,7 +46,8 @@ export function createDesktopDeviceSync(
   const metadata = new DesktopSyncMetadataStore(root);
   const initialization = createInitializationWorkspace(root, metadata, {
     ...options,
-    request
+    request,
+    seal: (value) => metadata.seal(value)
   });
   return new DeviceSyncService({
     runtime: {

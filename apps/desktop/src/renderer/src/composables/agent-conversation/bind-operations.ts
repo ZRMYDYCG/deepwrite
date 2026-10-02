@@ -113,6 +113,10 @@ export function bindConversationOperations(
     undefined,
     ctx
   );
+  ctx.handleSubagentPlanned = subagentEvents.handleSubagentPlanned.bind(
+    undefined,
+    ctx
+  );
   ctx.acceptsRunEvent = approvals.acceptsRunEvent.bind(undefined, ctx);
   ctx.rememberRunApprovalMode = approvals.rememberRunApprovalMode.bind(
     undefined,

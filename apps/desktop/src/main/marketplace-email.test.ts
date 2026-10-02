@@ -7,7 +7,11 @@ vi.mock("electron", () => ({
   safeStorage: { isEncryptionAvailable: () => false }
 }));
 import { MarketplaceClient } from "./marketplace-client";
-import { MarketplaceRegisterInputSchema } from "@deepwrite/contracts";
+import {
+  MarketplaceEmailLoginInputSchema,
+  MarketplaceLoginInputSchema,
+  MarketplaceRegisterInputSchema
+} from "@deepwrite/contracts";
 const roots: string[] = [];
 const user = {
   id: "test-user",
@@ -64,6 +68,69 @@ it("requires email and a six-digit string for new registration", () => {
       emailCode: "012345"
     }).email
   ).toBe("test@example.test");
+});
+it("accepts username or email with a password and validates code login", () => {
+  expect(
+    MarketplaceLoginInputSchema.parse({
+      email: " Test@Example.test ",
+      password: "invalid-password"
+    })
+  ).toEqual({ email: "test@example.test", password: "invalid-password" });
+  expect(
+    MarketplaceLoginInputSchema.safeParse({
+      username: "test-user",
+      email: "test@example.test",
+      password: "invalid-password"
+    }).success
+  ).toBe(false);
+  expect(
+    MarketplaceEmailLoginInputSchema.parse({
+      email: " Test@Example.test ",
+      emailCode: "012345"
+    })
+  ).toEqual({ email: "test@example.test", emailCode: "012345" });
+  expect(
+    MarketplaceEmailLoginInputSchema.safeParse({
+      email: "test@example.test",
+      emailCode: "12345"
+    }).success
+  ).toBe(false);
+});
+it("routes password and code email login without exposing session tokens", async () => {
+  const { client, fetcher } = await setup(async (url) =>
+    url.endsWith("/auth/login/code")
+      ? json({ user, token, expires_at: "2099-01-01T00:00:00.000Z" })
+      : json({ expires_in: 300, retry_after: 60 })
+  );
+  await client.login({
+    email: " Test@Example.test ",
+    password: "invalid-password"
+  });
+  expect(JSON.parse(String(fetcher.mock.calls.at(-1)?.[1]?.body))).toEqual({
+    email: "test@example.test",
+    password: "invalid-password"
+  });
+  await client.sendEmailCode({
+    email: "Test@Example.test",
+    purpose: "login"
+  });
+  const sent = fetcher.mock.calls.at(-1);
+  expect(sent?.[0]).toBe(
+    "https://example.test/market/v1/auth/login/email-code"
+  );
+  expect(new Headers(sent?.[1]?.headers).has("Authorization")).toBe(false);
+  const session = await client.loginWithEmailCode({
+    email: " Test@Example.test ",
+    emailCode: "012345"
+  });
+  const redeemed = fetcher.mock.calls.at(-1);
+  expect(redeemed?.[0]).toBe("https://example.test/market/v1/auth/login/code");
+  expect(new Headers(redeemed?.[1]?.headers).has("Authorization")).toBe(false);
+  expect(JSON.parse(String(redeemed?.[1]?.body))).toEqual({
+    email: "test@example.test",
+    email_code: "012345"
+  });
+  expect(JSON.stringify(session)).not.toContain(token);
 });
 it("routes registration codes anonymously and binding codes with the current account token", async () => {
   const { client, fetcher } = await setup(async () =>
