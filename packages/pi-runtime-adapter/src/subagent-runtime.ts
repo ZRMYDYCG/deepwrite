@@ -30,6 +30,8 @@ export { buildSubagentSystemPrompt } from "./subagent-helpers";
 export { DEFAULT_SUBAGENT_TIMEOUT_MS } from "./subagent-timeout";
 
 const BATCH_RESULT_MAX_LENGTH = 40_000;
+// 60 tasks × 600 characters stays within BATCH_RESULT_MAX_LENGTH.
+const BATCH_RESULT_MIN_PER_TASK = 600;
 const STATUS_LABELS: Record<SubagentTaskOutcome["status"], string> = {
   completed: "已完成",
   error: "失败",
@@ -59,10 +61,7 @@ function spawnParameters(
         subagent_id: StringEnum(definitions.map((definition) => definition.id)),
         task: Type.String({ minLength: 1, maxLength: 20_000 }),
         depends_on: Type.Optional(
-          Type.Array(taskKey, {
-            maxItems: SUBAGENT_TASK_BATCH_MAX_COUNT - 1,
-            description: "必须先完成的任务 key。"
-          })
+          Type.Array(taskKey, { description: "必须先完成的任务 key。" })
         ),
         ...(parallel
           ? {
@@ -82,7 +81,9 @@ function spawnParameters(
           })
         )
       }),
-      { minItems: 1, maxItems: SUBAGENT_TASK_BATCH_MAX_COUNT }
+      // The count limit is checked at execution (planSubagentTasks): a schema
+      // `maxItems` would reject the whole call before any task ran.
+      { minItems: 1 }
     )
   });
 }
@@ -95,6 +96,7 @@ function spawnDescription(
     parallel
       ? `调用预先配置的子智能体完成明确、边界清晰的子任务。当前团队已开启并行：互不依赖的任务同时运行，最多 ${SUBAGENT_PARALLEL_MAX_CONCURRENCY} 个。调用会阻塞到全部任务结束，只返回各任务的最终交接摘要。`
       : "调用预先配置的子智能体完成明确、边界清晰的子任务。tasks 按依赖关系和列表顺序逐个执行；调用会阻塞到全部任务结束，只返回各任务的最终交接摘要。单个委派只需提交一个任务。",
+    `单次调用最多 ${SUBAGENT_TASK_BATCH_MAX_COUNT} 个任务；任务多于可同时运行的数量时会自动排队，无需自行分批。`,
     "depends_on 填写必须先完成的任务 key：前置任务失败时本任务跳过，前置交接摘要会自动提供给本任务。每个任务都要独立写清背景与要求，子智能体看不到彼此的过程。",
     ...(parallel
       ? [
@@ -140,7 +142,7 @@ function formatSpawnResult(
     counts.set(outcome.status, (counts.get(outcome.status) ?? 0) + 1);
   }
   const perTask = Math.max(
-    1_000,
+    BATCH_RESULT_MIN_PER_TASK,
     Math.floor(BATCH_RESULT_MAX_LENGTH / tasks.length)
   );
   const queued = tasks.filter((task) => task.implicitDependsOn.length > 0);

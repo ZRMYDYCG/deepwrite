@@ -1,3 +1,4 @@
+import { SUBAGENT_TASK_BATCH_MAX_COUNT } from "@deepwrite/contracts";
 import type { AgentTool } from "@earendil-works/pi-agent-core";
 import { Type } from "typebox";
 import { describe, expect, it } from "vitest";
@@ -93,7 +94,9 @@ describe("subagent task plan", () => {
         { key: "b", subagent_id: "reviewer", task: "y", depends_on: ["a"] }
       ])
     ).toThrow("任务依赖形成循环");
-    expect(() => plan([])).toThrow("tasks 必须包含 1 到 20 个子任务");
+    expect(() => plan([])).toThrow(
+      `tasks 必须包含 1 到 ${SUBAGENT_TASK_BATCH_MAX_COUNT} 个子任务`
+    );
     expect(() => plan([{ subagent_id: "unknown", task: "x" }])).toThrow(
       "未知或已停用的子智能体：unknown"
     );

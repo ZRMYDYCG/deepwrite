@@ -89,13 +89,14 @@ export function planSubagentTasks(
   definitions: readonly RuntimeSubagentDefinition[],
   parallel: boolean
 ): SubagentTaskRequest[] {
-  if (
-    !Array.isArray(rawTasks) ||
-    rawTasks.length === 0 ||
-    rawTasks.length > SUBAGENT_TASK_BATCH_MAX_COUNT
-  ) {
+  if (!Array.isArray(rawTasks) || rawTasks.length === 0) {
     throw new Error(
       `tasks 必须包含 1 到 ${SUBAGENT_TASK_BATCH_MAX_COUNT} 个子任务。`
+    );
+  }
+  if (rawTasks.length > SUBAGENT_TASK_BATCH_MAX_COUNT) {
+    throw new Error(
+      `tasks 必须包含 1 到 ${SUBAGENT_TASK_BATCH_MAX_COUNT} 个子任务，本次提交了 ${rawTasks.length} 个，未执行任何任务。请按依赖关系拆成多次调用，每次不超过 ${SUBAGENT_TASK_BATCH_MAX_COUNT} 个。`
     );
   }
   const keys = new Set<string>();

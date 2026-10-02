@@ -14,6 +14,7 @@ import {
   SubagentPlannedEventEnvelopeSchema,
   SubagentPlannedPayloadSchema,
   SubagentStartedPayloadSchema,
+  SUBAGENT_TASK_BATCH_MAX_COUNT,
   createEnvelope,
   createDefaultCreativePlotStages,
   createShortWorkspaceContentRevision,
@@ -273,7 +274,11 @@ describe("agent-team contracts", () => {
       SubagentStartedPayloadSchema.safeParse({
         ...base,
         task: "检查衔接",
-        batchTask: { index: 20, key: "review", dependsOn: [] }
+        batchTask: {
+          index: SUBAGENT_TASK_BATCH_MAX_COUNT,
+          key: "review",
+          dependsOn: []
+        }
       }).success
     ).toBe(false);
     const planned = {

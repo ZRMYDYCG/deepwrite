@@ -21,8 +21,13 @@ export const SHORT_AGENT_SUBAGENT_SYSTEM_PROMPT_MAX_LENGTH = 20_000;
 export const SHORT_AGENT_SUBAGENT_MODEL_ID_MAX_LENGTH = 120;
 /** Upper bound of children a parallel team runs at the same time. */
 export const SUBAGENT_PARALLEL_MAX_CONCURRENCY = 5;
-/** Upper bound of tasks one `spawn_subagent` call may submit. */
-export const SUBAGENT_TASK_BATCH_MAX_COUNT = 20;
+/**
+ * Upper bound of tasks one `spawn_subagent` call accepts. Tasks beyond the
+ * concurrency limit queue in the scheduler, so this only guards against a
+ * runaway call; it is enforced at execution with an actionable message, never
+ * as a schema rejection that would discard the whole call.
+ */
+export const SUBAGENT_TASK_BATCH_MAX_COUNT = 60;
 
 /**
  * Team-wide switch: when on, independent subagent tasks of one delegation

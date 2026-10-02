@@ -3,10 +3,12 @@ import {
   createModels,
   fauxAssistantMessage,
   fauxProvider,
+  validateToolArguments,
   type Api,
   type Model
 } from "@earendil-works/pi-ai";
 import { describe, expect, it } from "vitest";
+import { SUBAGENT_TASK_BATCH_MAX_COUNT } from "@deepwrite/contracts";
 import {
   buildSpawnSubagentTool,
   isSubagentToolProgressDetails,
@@ -228,6 +230,45 @@ describe("spawn_subagent task lists", () => {
     expect(childProgressOf(updates).every((item) => !item.batchTask)).toBe(
       true
     );
+  });
+
+  it("does not reject a large task list at schema validation", async () => {
+    const count = SUBAGENT_TASK_BATCH_MAX_COUNT;
+    const tool = harness({
+      parallel: true,
+      responses: Array.from({ length: count + 1 }, () =>
+        fauxAssistantMessage("审阅完成")
+      )
+    });
+    const taskList = (size: number) =>
+      Array.from({ length: size }, (_, index) => ({
+        key: `d${index + 1}`,
+        subagent_id: "reviewer",
+        task: `审阅第 ${index + 1} 章`
+      }));
+    const validate = (size: number) =>
+      validateToolArguments(tool, {
+        type: "toolCall",
+        id: "parent-call",
+        name: tool.name,
+        arguments: { tasks: taskList(size) }
+      });
+    // One more than the old schema cap of 20 must pass validation and run.
+    expect(() => validate(21)).not.toThrow();
+    expect(() => validate(count + 1)).not.toThrow();
+
+    const result = await tool.execute("parent-call", {
+      tasks: taskList(21)
+    });
+    const text =
+      result.content[0]?.type === "text" ? result.content[0].text : "";
+    expect(text).toContain("共 21 个，完成 21 个");
+
+    // Beyond the ceiling the call is refused with a message the model can act
+    // on, rather than a schema failure.
+    await expect(
+      tool.execute("parent-call", { tasks: taskList(count + 1) })
+    ).rejects.toThrow(`本次提交了 ${count + 1} 个，未执行任何任务`);
   });
 
   it("offers write_scope only to parallel teams", () => {
