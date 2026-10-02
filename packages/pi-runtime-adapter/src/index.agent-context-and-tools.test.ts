@@ -168,24 +168,27 @@ describe("DeepWrite Pi runtime adapter: agent-context-and-tools", () => {
           string,
           {
             state: {
-              tools: Array<{ name: string; parameters?: unknown }>;
+              tools: Array<{
+                name: string;
+                parameters?: unknown;
+                description?: string;
+              }>;
             };
           }
         >;
       }
     ).conversationAgents;
-    const spawnSchema = (sessionKey: string) =>
-      JSON.stringify(
-        cache
-          .get(sessionKey)
-          ?.state.tools.find(({ name }) => name === "spawn_subagent")
-          ?.parameters
-      );
-    expect(spawnSchema("session_parallel_subagent:short")).toContain(
-      "write_scope"
+    // Parallel mode is visible in the tool's description.
+    const spawnDescription = (sessionKey: string) =>
+      cache
+        .get(sessionKey)
+        ?.state.tools.find(({ name }) => name === "spawn_subagent")
+        ?.description;
+    expect(spawnDescription("session_parallel_subagent:short")).toContain(
+      "当前团队已开启并行"
     );
-    expect(spawnSchema("session_with_subagent:short")).not.toContain(
-      "write_scope"
+    expect(spawnDescription("session_with_subagent:short")).not.toContain(
+      "当前团队已开启并行"
     );
     expect(
       cache

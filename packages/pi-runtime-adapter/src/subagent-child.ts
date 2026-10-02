@@ -27,10 +27,10 @@ import type {
   SubagentToolProgress
 } from "./subagent-types";
 import {
-  applySubagentWriteScope,
-  subagentWriteScopeNote,
+  applySubagentWriteLock,
+  subagentParallelNote,
   type SubagentWriteLock
-} from "./subagent-write-scope";
+} from "./subagent-write-lock";
 
 const HANDOFF_SUMMARY_MAX_LENGTH = 6_000;
 
@@ -184,19 +184,25 @@ export async function runSubagentTask(
     if (libraryManager && !prepared)
       throw new Error("资料库管理运行上下文不可用。");
     if (prepared?.contextPolicy) childContextPolicy = prepared.contextPolicy;
-    const childTools = applySubagentWriteScope(
-      (
-        prepared?.tools ??
-        input.buildChildTools((listener) => compactionListeners.add(listener))
-      ).filter(
-        (tool) =>
-          tool.name !== "spawn_subagent" &&
-          (libraryManager ||
-            (tool.name !== "load_skill" && tool.name !== "ask_user_question"))
-      ),
-      request.writeScope,
-      context.writeLock
+    const builtTools = (
+      prepared?.tools ??
+      input.buildChildTools((listener) => compactionListeners.add(listener))
+    ).filter(
+      (tool) =>
+        tool.name !== "spawn_subagent" &&
+        (libraryManager ||
+          (tool.name !== "load_skill" && tool.name !== "ask_user_question"))
     );
+    // Library managers own their tools; only the work's write tools of a
+    // parallel child share the lock.
+    const sharesWorkspace = input.parallel === true && !libraryManager;
+    const childTools = sharesWorkspace
+      ? applySubagentWriteLock(
+          builtTools,
+          context.writeLock,
+          `「${definition.name}」（${request.key}）`
+        )
+      : builtTools;
     if (libraryManager) {
       for (const [index, tool] of childTools.entries()) {
         childTools[index] = {
@@ -232,7 +238,7 @@ export async function runSubagentTask(
           childDefinition,
           childTools,
           prepared ? undefined : input.systemPromptRequirements,
-          subagentWriteScopeNote(request.writeScope)
+          sharesWorkspace ? subagentParallelNote() : undefined
         ),
         model: childModel,
         thinkingLevel: childThinkingLevel,

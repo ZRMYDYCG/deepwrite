@@ -1,12 +1,19 @@
-import type { AgentToolResult, StreamFn } from "@earendil-works/pi-agent-core";
+import type {
+  AgentTool,
+  AgentToolResult,
+  StreamFn
+} from "@earendil-works/pi-agent-core";
 import {
   createModels,
   fauxAssistantMessage,
   fauxProvider,
+  fauxToolCall,
   validateToolArguments,
   type Api,
+  type Context,
   type Model
 } from "@earendil-works/pi-ai";
+import { Type } from "typebox";
 import { describe, expect, it } from "vitest";
 import { SUBAGENT_TASK_BATCH_MAX_COUNT } from "@deepwrite/contracts";
 import {
@@ -45,6 +52,8 @@ function harness(options: {
   parallel: boolean;
   definitions?: RuntimeSubagentDefinition[];
   streamGate?: number;
+  childTools?: () => AgentTool[];
+  onContext?: (context: Context) => void;
 }) {
   const faux = fauxProvider({
     api: `subagent-parallel-${Math.random()}`,
@@ -61,6 +70,7 @@ function harness(options: {
   const gate = deferred<void>();
   const streamFn: StreamFn = async (requestModel, context, streamOptions) => {
     arrivals += 1;
+    options.onContext?.(context);
     if (arrivals >= (options.streamGate ?? 1)) gate.resolve();
     await gate.promise;
     return source(requestModel, context, streamOptions);
@@ -72,7 +82,7 @@ function harness(options: {
     thinkingLevel: "medium",
     streamFn,
     definitions: options.definitions ?? [writer, reviewer],
-    buildChildTools: () => [],
+    buildChildTools: options.childTools ?? (() => []),
     createRunId: () => `subrun_${++sequence}`,
     parallel: options.parallel
   });
@@ -116,18 +126,8 @@ describe("spawn_subagent task lists", () => {
       "parent-call",
       {
         tasks: [
-          {
-            key: "c3",
-            subagent_id: "chapter_writer",
-            task: "写第三章",
-            write_scope: ["chapter_3"]
-          },
-          {
-            key: "c4",
-            subagent_id: "chapter_writer",
-            task: "写第四章",
-            write_scope: ["chapter_4"]
-          }
+          { key: "c3", subagent_id: "chapter_writer", task: "写第三章" },
+          { key: "c4", subagent_id: "chapter_writer", task: "写第四章" }
         ]
       },
       undefined,
@@ -271,10 +271,106 @@ describe("spawn_subagent task lists", () => {
     ).rejects.toThrow(`本次提交了 ${count + 1} 个，未执行任何任务`);
   });
 
-  it("offers write_scope only to parallel teams", () => {
-    const schemaOf = (parallel: boolean) =>
-      JSON.stringify(harness({ parallel, responses: [] }).parameters);
-    expect(schemaOf(true)).toContain("write_scope");
-    expect(schemaOf(false)).not.toContain("write_scope");
+  it("has no write_scope parameter and ignores it in older calls", () => {
+    for (const parallel of [true, false]) {
+      const tool = harness({ parallel, responses: [] });
+      expect(JSON.stringify(tool.parameters)).not.toContain("write_scope");
+      expect(
+        tool.prepareArguments?.({
+          tasks: [
+            {
+              subagent_id: "chapter_writer",
+              task: "写",
+              write_scope: ["chapter_3"],
+              depends_on: ["a"]
+            }
+          ]
+        })
+      ).toEqual({
+        tasks: [
+          { subagent_id: "chapter_writer", task: "写", depends_on: ["a"] }
+        ]
+      });
+    }
+    // Ordering guidance is for the parent of a parallel team only.
+    expect(harness({ parallel: true, responses: [] }).description).toContain(
+      "用 depends_on 排在它后面"
+    );
+    expect(
+      harness({ parallel: false, responses: [] }).description
+    ).not.toContain("不要让并行任务修改同一对象");
+  });
+});
+
+describe("writes of parallel children", () => {
+  /** First `edit` is accepted, the next one finds the object already changed. */
+  function conflictingEdit() {
+    const state = { active: 0, peak: 0, calls: 0 };
+    const tool: AgentTool = {
+      name: "edit",
+      label: "edit",
+      description: "edit",
+      parameters: Type.Object({ id: Type.String() }),
+      execute: async () => {
+        state.active += 1;
+        state.peak = Math.max(state.peak, state.active);
+        state.calls += 1;
+        const first = state.calls === 1;
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        state.active -= 1;
+        return {
+          content: [
+            { type: "text", text: first ? "已形成提案" : "未修改：请先读取" }
+          ],
+          details: { kind: first ? "workspace-mutation" : "none" }
+        };
+      }
+    };
+    return { state, tool };
+  }
+
+  const editThenFinish = () =>
+    Array.from(
+      { length: 4 },
+      () => (context: Context) =>
+        context.messages.some((message) => message.role === "toolResult")
+          ? fauxAssistantMessage("完成")
+          : fauxAssistantMessage(fauxToolCall("edit", { id: "chapter_3" }), {
+              stopReason: "toolUse"
+            })
+    );
+
+  async function runTwoWriters(parallel: boolean) {
+    const { state, tool: edit } = conflictingEdit();
+    const contexts: Context[] = [];
+    const tool = harness({
+      parallel,
+      streamGate: parallel ? 2 : 1,
+      responses: editThenFinish(),
+      childTools: () => [edit],
+      onContext: (context) => contexts.push(context)
+    });
+    await tool.execute("parent-call", {
+      tasks: [
+        { key: "a", subagent_id: "chapter_writer", task: "改第三章" },
+        { key: "b", subagent_id: "chapter_writer", task: "也改第三章" }
+      ]
+    });
+    return { state, contexts: JSON.stringify(contexts) };
+  }
+
+  it("runs them one at a time and tells the later child who changed the object", async () => {
+    const { state, contexts } = await runTwoWriters(true);
+    expect(state.calls).toBe(2);
+    expect(state.peak).toBe(1);
+    expect(contexts).toContain("与其他子智能体并行运行");
+    expect(contexts).toContain("chapter_3 刚被并行子任务 「单章写手」（");
+  });
+
+  it("adds no parallel behavior to a serial team", async () => {
+    const { state, contexts } = await runTwoWriters(false);
+    expect(state.calls).toBe(2);
+    expect(contexts).not.toContain("与其他子智能体并行运行");
+    expect(contexts).not.toContain("刚被并行子任务");
   });
 });

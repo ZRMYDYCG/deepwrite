@@ -3,10 +3,6 @@ import type {
   RuntimeSubagentDefinition,
   SubagentTaskRequest
 } from "./subagent-types";
-import {
-  parseSubagentWriteScope,
-  writeScopesConflict
-} from "./subagent-write-scope";
 
 const TASK_KEY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$/;
 
@@ -15,7 +11,6 @@ interface RawSubagentTask {
   subagent_id?: unknown;
   task?: unknown;
   depends_on?: unknown;
-  write_scope?: unknown;
   library_id?: unknown;
 }
 
@@ -44,50 +39,13 @@ function assertAcyclic(tasks: readonly SubagentTaskRequest[]): void {
   for (const task of tasks) visit(task.key, []);
 }
 
-/** Whether `from` already waits for `to`, directly or transitively. */
-function dependsOn(
-  byKey: ReadonlyMap<string, SubagentTaskRequest>,
-  from: string,
-  to: string
-): boolean {
-  const seen = new Set<string>();
-  const pending = [...(byKey.get(from)?.dependsOn ?? [])];
-  while (pending.length > 0) {
-    const key = pending.pop()!;
-    if (key === to) return true;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    pending.push(...(byKey.get(key)?.dependsOn ?? []));
-  }
-  return false;
-}
-
-/** Later tasks whose write scope overlaps an earlier one wait for it. */
-function orderOverlappingScopes(tasks: readonly SubagentTaskRequest[]): void {
-  const byKey = new Map(tasks.map((task) => [task.key, task]));
-  for (const [laterIndex, later] of tasks.entries()) {
-    for (const earlier of tasks.slice(0, laterIndex)) {
-      if (!writeScopesConflict(earlier.writeScope, later.writeScope)) continue;
-      if (
-        dependsOn(byKey, later.key, earlier.key) ||
-        dependsOn(byKey, earlier.key, later.key)
-      ) {
-        continue;
-      }
-      later.dependsOn.push(earlier.key);
-      later.implicitDependsOn.push(earlier.key);
-    }
-  }
-}
-
 /**
  * Validates one `spawn_subagent` task list. Throwing returns the message to
  * the parent model as a tool error so it can correct the arrangement.
  */
 export function planSubagentTasks(
   rawTasks: unknown,
-  definitions: readonly RuntimeSubagentDefinition[],
-  parallel: boolean
+  definitions: readonly RuntimeSubagentDefinition[]
 ): SubagentTaskRequest[] {
   if (!Array.isArray(rawTasks) || rawTasks.length === 0) {
     throw new Error(
@@ -133,12 +91,6 @@ export function planSubagentTasks(
     }
     const task = String(raw.task ?? "").trim();
     if (!task) throw new Error("子智能体任务不能为空。");
-    const writeScope = parallel
-      ? stringList(raw.write_scope, "write_scope", key)
-      : [];
-    if (libraryManager && writeScope.length > 0) {
-      throw new Error("资料库管理成员不使用 write_scope。");
-    }
 
     return {
       index,
@@ -147,14 +99,7 @@ export function planSubagentTasks(
       task,
       ...(libraryId ? { libraryId } : {}),
       dependsOn: stringList(raw.depends_on, "depends_on", key),
-      implicitDependsOn: [],
-      ...(parallel
-        ? {
-            writeScope: libraryManager
-              ? { kind: "exclusive" as const }
-              : parseSubagentWriteScope(writeScope)
-          }
-        : {})
+      ...(libraryManager ? { exclusive: true } : {})
     };
   });
 
@@ -169,6 +114,5 @@ export function planSubagentTasks(
     }
   }
   assertAcyclic(tasks);
-  if (parallel) orderOverlappingScopes(tasks);
   return tasks;
 }

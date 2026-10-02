@@ -61,15 +61,6 @@ export type SubagentProjectedActivity =
       isError: boolean;
     };
 
-/** Which workspace objects a child of a parallel team may change. */
-export type SubagentWriteScope =
-  | { kind: "read-only" }
-  | { kind: "objects"; ids: ReadonlySet<string> }
-  /** Directory changes; never runs beside another writing task. */
-  | { kind: "structure" }
-  /** Library managers own their tools and always run alone. */
-  | { kind: "exclusive" };
-
 /** One validated entry of a `spawn_subagent` task list. */
 export interface SubagentTaskRequest {
   index: number;
@@ -77,12 +68,9 @@ export interface SubagentTaskRequest {
   definition: RuntimeSubagentDefinition;
   task: string;
   libraryId?: string;
-  /** Final dependencies, including `implicitDependsOn`. */
   dependsOn: string[];
-  /** Added by the scheduler because write scopes overlap. */
-  implicitDependsOn: string[];
-  /** Present only for parallel teams. */
-  writeScope?: SubagentWriteScope;
+  /** Library managers own their tools and never run beside another task. */
+  exclusive?: boolean;
 }
 
 export type SubagentTaskStatus = "completed" | "error" | "aborted" | "skipped";
@@ -236,8 +224,8 @@ export interface BuildSpawnSubagentToolInput {
   depth?: number;
   createRunId?: () => string;
   /**
-   * Team-wide parallel mode: independent tasks run concurrently and every
-   * task declares the objects it may write.
+   * Team-wide parallel mode: independent tasks run concurrently, and their
+   * writes to the work are serialized by a shared lock.
    */
   parallel?: boolean;
 }

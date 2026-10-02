@@ -133,7 +133,7 @@ export function buildSubagentSystemPrompt(
   definition: RuntimeSubagentDefinition,
   childTools: readonly AgentTool[],
   systemPromptRequirements?: string,
-  writeScopeNote?: string
+  runtimeNote?: string
 ): string {
   const toolLines = childTools.map((tool) => {
     const label =
@@ -154,7 +154,7 @@ export function buildSubagentSystemPrompt(
       ? "你继承了主智能体调用时的对话快照。历史工具结果仅供理解任务，不代表你拥有那些工具或已经读取过待编辑条目；必须使用自己的工具重新读取。"
       : "你由当前主智能体为一个明确子任务临时创建。本次运行使用全新上下文，不继承主对话历史。",
     "你不能创建或调用其它子智能体。",
-    ...(writeScopeNote ? [writeScopeNote] : []),
+    ...(runtimeNote ? [runtimeNote] : []),
     ...(toolLines.length > 0
       ? [
           "本轮可用工具：",

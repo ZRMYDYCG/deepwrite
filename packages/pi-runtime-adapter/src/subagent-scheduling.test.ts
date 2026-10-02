@@ -10,10 +10,9 @@ import type {
 import { runSubagentTasks } from "./subagent-scheduler";
 import { planSubagentTasks } from "./subagent-task-plan";
 import {
-  applySubagentWriteScope,
-  createSubagentWriteLock,
-  parseSubagentWriteScope
-} from "./subagent-write-scope";
+  applySubagentWriteLock,
+  createSubagentWriteLock
+} from "./subagent-write-lock";
 
 const writer: RuntimeSubagentDefinition = {
   id: "chapter_writer",
@@ -54,19 +53,13 @@ describe("subagent task plan", () => {
           { subagent_id: "chapter_writer", task: "写第一章" },
           { subagent_id: "reviewer", task: "审阅", depends_on: ["t1"] }
         ],
-        definitions,
-        false
-      ).map(({ key, dependsOn, writeScope }) => ({
-        key,
-        dependsOn,
-        writeScope
-      }))
+        definitions
+      ).map(({ key, dependsOn }) => ({ key, dependsOn }))
     ).toEqual([
-      { key: "t1", dependsOn: [], writeScope: undefined },
-      { key: "t2", dependsOn: ["t1"], writeScope: undefined }
+      { key: "t1", dependsOn: [] },
+      { key: "t2", dependsOn: ["t1"] }
     ]);
-    const plan = (tasks: unknown) =>
-      planSubagentTasks(tasks, definitions, true);
+    const plan = (tasks: unknown) => planSubagentTasks(tasks, definitions);
     expect(() =>
       plan([
         { key: "a", subagent_id: "chapter_writer", task: "x" },
@@ -102,99 +95,37 @@ describe("subagent task plan", () => {
     );
   });
 
-  it("orders overlapping write scopes and keeps disjoint ones parallel", () => {
+  it("keeps the order the parent gave and adds none of its own", () => {
     const tasks = planSubagentTasks(
       [
-        {
-          key: "c3",
-          subagent_id: "chapter_writer",
-          task: "写第三章",
-          write_scope: ["chapter_3"]
-        },
-        {
-          key: "c4",
-          subagent_id: "chapter_writer",
-          task: "写第四章",
-          write_scope: ["chapter_4"]
-        },
-        {
-          key: "polish",
-          subagent_id: "chapter_writer",
-          task: "润色第三章",
-          write_scope: ["chapter_3"]
-        },
-        { key: "read", subagent_id: "reviewer", task: "通读" },
+        { key: "c3", subagent_id: "chapter_writer", task: "写第三章" },
+        { key: "polish", subagent_id: "chapter_writer", task: "润色第三章" },
         {
           key: "dir",
           subagent_id: "chapter_writer",
           task: "新增第五章",
-          write_scope: ["structure", "chapter_5"]
+          depends_on: ["c3", "polish"]
         }
       ],
-      definitions,
-      true
+      definitions
     );
-    const byKey = new Map(tasks.map((task) => [task.key, task]));
-    expect(byKey.get("c4")!.dependsOn).toEqual([]);
-    expect(byKey.get("polish")!.implicitDependsOn).toEqual(["c3"]);
-    expect(byKey.get("read")!.dependsOn).toEqual([]);
-    expect(byKey.get("read")!.writeScope).toEqual({ kind: "read-only" });
-    expect(byKey.get("dir")!.writeScope).toEqual({ kind: "structure" });
-    // A structure task waits for every earlier writer.
-    expect(byKey.get("dir")!.implicitDependsOn).toEqual(["c3", "c4", "polish"]);
+    expect(tasks.map(({ key, dependsOn }) => [key, dependsOn])).toEqual([
+      ["c3", []],
+      ["polish", []],
+      ["dir", ["c3", "polish"]]
+    ]);
   });
 
-  it("does not add ordering when an explicit dependency already exists", () => {
-    const [, second] = planSubagentTasks(
-      [
-        {
-          key: "a",
-          subagent_id: "chapter_writer",
-          task: "x",
-          write_scope: ["chapter_1"]
-        },
-        {
-          key: "b",
-          subagent_id: "chapter_writer",
-          task: "y",
-          write_scope: ["chapter_1"],
-          depends_on: ["a"]
-        }
-      ],
-      definitions,
-      true
-    );
-    expect(second!.implicitDependsOn).toEqual([]);
-  });
-
-  it("runs library managers alone and keeps their own target rules", () => {
+  it("marks library managers exclusive and keeps their own target rules", () => {
     const [manager] = planSubagentTasks(
       [{ subagent_id: "material_manager", task: "整理", library_id: "lib-1" }],
-      definitions,
-      true
+      definitions
     );
-    expect(manager).toMatchObject({
-      libraryId: "lib-1",
-      writeScope: { kind: "exclusive" }
-    });
-    expect(() =>
-      planSubagentTasks(
-        [
-          {
-            subagent_id: "material_manager",
-            task: "整理",
-            write_scope: ["chapter_1"]
-          }
-        ],
-        definitions,
-        true
-      )
-    ).toThrow("资料库管理成员不使用 write_scope");
+    expect(manager).toMatchObject({ libraryId: "lib-1", exclusive: true });
     expect(() =>
       planSubagentTasks(
         [{ subagent_id: "chapter_writer", task: "写", library_id: "lib-1" }],
-        definitions,
-        true
+        definitions
       )
     ).toThrow("普通团队成员不能指定资料库管理目标");
   });
@@ -210,8 +141,6 @@ function request(
     definition: writer,
     task: key,
     dependsOn: [],
-    implicitDependsOn: [],
-    writeScope: { kind: "read-only" },
     ...options
   };
 }
@@ -243,7 +172,47 @@ describe("subagent scheduler", () => {
     );
   });
 
-  it("skips explicit dependents of a failure but not scope-ordered tasks", async () => {
+  it("runs an exclusive task alone", async () => {
+    const run = async (tasks: SubagentTaskRequest[]): Promise<string[]> => {
+      const events: string[] = [];
+      let active = 0;
+      await runSubagentTasks({
+        tasks,
+        maxConcurrency: 5,
+        runTask: async (task) => {
+          active += 1;
+          events.push(`${task.key}:start:${active}`);
+          await new Promise((resolve) => setTimeout(resolve, 5));
+          events.push(`${task.key}:end`);
+          active -= 1;
+          return { status: "completed", summary: "ok" };
+        },
+        settleUnstarted: () => {}
+      });
+      return events;
+    };
+    // Waits for the tasks already running, then nothing joins it.
+    expect(
+      await run([
+        request("a"),
+        request("lib", { exclusive: true }),
+        request("b")
+      ])
+    ).toEqual([
+      "a:start:1",
+      "b:start:2",
+      "a:end",
+      "b:end",
+      "lib:start:1",
+      "lib:end"
+    ]);
+    // Starting first, it keeps the later tasks waiting until it ends.
+    expect(
+      await run([request("lib", { exclusive: true }), request("a")])
+    ).toEqual(["lib:start:1", "lib:end", "a:start:1", "a:end"]);
+  });
+
+  it("skips the dependents of a failure, even through a chain", async () => {
     const started: string[] = [];
     const unstarted: Array<[string, SubagentTaskOutcome]> = [];
     const handoffKeys: Record<string, string[]> = {};
@@ -251,10 +220,6 @@ describe("subagent scheduler", () => {
       tasks: [
         request("dependent", { dependsOn: ["broken"] }),
         request("broken"),
-        request("ordered", {
-          dependsOn: ["broken"],
-          implicitDependsOn: ["broken"]
-        }),
         request("ok"),
         request("after_ok", { dependsOn: ["ok", "dependent"] })
       ],
@@ -268,8 +233,8 @@ describe("subagent scheduler", () => {
       },
       settleUnstarted: (task, outcome) => unstarted.push([task.key, outcome])
     });
-    expect(started.sort()).toEqual(["broken", "ok", "ordered"]);
-    expect(handoffKeys.ordered).toEqual([]);
+    expect(started.sort()).toEqual(["broken", "ok"]);
+    expect(handoffKeys.ok).toEqual([]);
     expect(unstarted.map(([key, outcome]) => [key, outcome.status])).toEqual([
       ["dependent", "skipped"],
       ["after_ok", "skipped"]
@@ -313,74 +278,123 @@ describe("subagent scheduler", () => {
   });
 });
 
-function writeTool(name: string, calls: string[]): AgentTool {
+/** A write tool whose outcome the test decides per call. */
+function writeTool(
+  name: string,
+  respond: (args: Record<string, unknown>) => "proposal" | "refusal" | "throw"
+): AgentTool {
   return {
     name,
     label: name,
     description: name,
     parameters: Type.Object({}),
     execute: async (_id, args) => {
-      calls.push(`${name}:${JSON.stringify(args)}`);
-      return { content: [{ type: "text", text: "ok" }], details: {} };
+      const outcome = respond(args as Record<string, unknown>);
+      if (outcome === "throw") throw new Error("不存在该对象");
+      return {
+        content: [{ type: "text", text: outcome }],
+        details: {
+          kind: outcome === "proposal" ? "workspace-mutation" : "none"
+        }
+      };
     }
   };
 }
 
-describe("subagent write scope", () => {
-  it("removes write tools from read-only tasks", () => {
-    const calls: string[] = [];
+function textOf(result: Awaited<ReturnType<AgentTool["execute"]>>): string {
+  return result.content
+    .map((part) => (part.type === "text" ? part.text : ""))
+    .join("\n");
+}
+
+describe("subagent write lock", () => {
+  it("wraps only the tools that change the work", () => {
     const tools = ["read", "edit", "create", "delete", "list"].map((name) =>
-      writeTool(name, calls)
+      writeTool(name, () => "proposal")
     );
-    expect(
-      applySubagentWriteScope(
-        tools,
-        parseSubagentWriteScope([]),
-        createSubagentWriteLock()
-      ).map((tool) => tool.name)
-    ).toEqual(["read", "list"]);
+    const guarded = applySubagentWriteLock(
+      tools,
+      createSubagentWriteLock(),
+      "A"
+    );
+    expect(guarded.map((tool) => tool.name)).toEqual([
+      "read",
+      "edit",
+      "create",
+      "delete",
+      "list"
+    ]);
+    expect(guarded[0]).toBe(tools[0]);
+    expect(guarded[4]).toBe(tools[4]);
+    expect(guarded[1]).not.toBe(tools[1]);
   });
 
-  it("checks targets of scoped writes, including chapter files", async () => {
-    const calls: string[] = [];
-    const [edit, create, del, commit] = applySubagentWriteScope(
-      ["edit", "create", "delete", "propose_continuity_commit"].map((name) =>
-        writeTool(name, calls)
-      ),
-      parseSubagentWriteScope(["chapter_3"]),
-      createSubagentWriteLock()
+  it("names the child that changed an object first when a write is refused", async () => {
+    const lock = createSubagentWriteLock();
+    const accepted = new Set<string>(["chapter_3"]);
+    const decide = (args: Record<string, unknown>) =>
+      accepted.has(String(args.chapter_id ?? args.id)) ? "proposal" : "refusal";
+    const [editA] = applySubagentWriteLock(
+      [writeTool("edit", decide)],
+      lock,
+      "「写手甲」（a）"
     );
-    await edit!.execute("1", { id: "chapter_3", document: "body" });
-    await edit!.execute("2", {
-      id: "character_li",
-      document: "current_state",
-      chapter_id: "chapter_3"
-    });
-    await del!.execute("3", { id: "chapter_3", document: "handoff" });
-    await expect(
-      edit!.execute("4", { id: "chapter_4", document: "body" })
-    ).rejects.toThrow("对象 chapter_4 不在本任务的写入范围");
-    await expect(
-      edit!.execute("5", { id: "character_li", document: "core_profile" })
-    ).rejects.toThrow("不在本任务的写入范围");
-    await expect(
-      create!.execute("6", { kind: "chapter_card" })
-    ).rejects.toThrow("没有声明 structure");
-    await expect(del!.execute("7", { id: "chapter_3" })).rejects.toThrow(
-      "没有声明 structure"
+    const [editB] = applySubagentWriteLock(
+      [writeTool("edit", decide)],
+      lock,
+      "「写手乙」（b）"
     );
-    await expect(commit!.execute("8", {})).rejects.toThrow(
-      "没有声明 structure"
-    );
-    expect(calls).toHaveLength(3);
 
-    const [structureCreate] = applySubagentWriteScope(
-      [writeTool("create", calls)],
-      parseSubagentWriteScope(["structure"]),
-      createSubagentWriteLock()
+    // A changes chapter 3, including through a chapter-scoped character file.
+    await editA!.execute("1", { id: "chapter_3" });
+    await editA!.execute("2", { id: "character_li", chapter_id: "chapter_3" });
+    expect(lock.lastWriter.get("chapter_3")).toBe("「写手甲」（a）");
+
+    accepted.clear();
+    const refused = textOf(await editB!.execute("3", { id: "chapter_3" }));
+    expect(refused).toContain("refusal");
+    expect(refused).toContain("chapter_3 刚被并行子任务 「写手甲」（a） 修改");
+    // Another object, or the author's own earlier change, gets no note.
+    expect(textOf(await editB!.execute("4", { id: "chapter_9" }))).toBe(
+      "refusal"
     );
-    await structureCreate!.execute("9", { kind: "chapter_card" });
-    expect(calls).toHaveLength(4);
+    expect(textOf(await editA!.execute("5", { id: "chapter_3" }))).toBe(
+      "refusal"
+    );
+
+    accepted.add("chapter_3");
+    await editB!.execute("6", { id: "chapter_3" });
+    accepted.clear();
+    expect(textOf(await editA!.execute("7", { id: "chapter_3" }))).toContain(
+      "刚被并行子任务 「写手乙」（b） 修改"
+    );
+  });
+
+  it("annotates a failed delete or edit and still rethrows it", async () => {
+    const lock = createSubagentWriteLock();
+    const [createA, deleteA] = applySubagentWriteLock(
+      [
+        writeTool("create", () => "proposal"),
+        writeTool("delete", () => "proposal")
+      ],
+      lock,
+      "甲"
+    );
+    const [editB] = applySubagentWriteLock(
+      [writeTool("edit", () => "throw")],
+      lock,
+      "乙"
+    );
+    // Creating names no existing object, so it leaves no trace.
+    await createA!.execute("1", { kind: "chapter_card" });
+    expect(lock.lastWriter.size).toBe(0);
+    await deleteA!.execute("2", { id: "chapter_5" });
+    await expect(editB!.execute("3", { id: "chapter_5" })).rejects.toThrow(
+      /不存在该对象\n提示：chapter_5 刚被并行子任务 甲 修改/
+    );
+    await expect(editB!.execute("4", { id: "chapter_6" })).rejects.toThrow(
+      /^不存在该对象$/
+    );
   });
 
   it("serializes write calls of concurrent children", async () => {

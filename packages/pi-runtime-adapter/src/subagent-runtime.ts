@@ -14,10 +14,7 @@ import {
 import { textResult } from "./subagent-helpers";
 import { runSubagentTasks } from "./subagent-scheduler";
 import { planSubagentTasks } from "./subagent-task-plan";
-import {
-  createSubagentWriteLock,
-  SUBAGENT_STRUCTURE_SCOPE
-} from "./subagent-write-scope";
+import { createSubagentWriteLock } from "./subagent-write-lock";
 import type {
   BuildSpawnSubagentToolInput,
   RuntimeSubagentDefinition,
@@ -39,10 +36,7 @@ const STATUS_LABELS: Record<SubagentTaskOutcome["status"], string> = {
   skipped: "已跳过"
 };
 
-function spawnParameters(
-  definitions: readonly RuntimeSubagentDefinition[],
-  parallel: boolean
-) {
+function spawnParameters(definitions: readonly RuntimeSubagentDefinition[]) {
   const taskKey = Type.String({
     minLength: 1,
     maxLength: 40,
@@ -63,16 +57,6 @@ function spawnParameters(
         depends_on: Type.Optional(
           Type.Array(taskKey, { description: "必须先完成的任务 key。" })
         ),
-        ...(parallel
-          ? {
-              write_scope: Type.Optional(
-                Type.Array(Type.String({ minLength: 1, maxLength: 160 }), {
-                  maxItems: 50,
-                  description: `本任务可以修改的对象 id；不填即只读。新增、删除对象或提交连续性记录填写 "${SUBAGENT_STRUCTURE_SCOPE}"。`
-                })
-              )
-            }
-          : {}),
         library_id: Type.Optional(
           Type.String({
             minLength: 1,
@@ -100,8 +84,7 @@ function spawnDescription(
     "depends_on 填写必须先完成的任务 key：前置任务失败时本任务跳过，前置交接摘要会自动提供给本任务。每个任务都要独立写清背景与要求，子智能体看不到彼此的过程。",
     ...(parallel
       ? [
-          "把前后无关的子任务放进同一次调用，让它们并行。",
-          `write_scope 声明任务可以修改的对象，填写对象的稳定 id（与 edit 工具的 id 相同；长篇章节 id 覆盖该章全部文档）。不填写即为只读任务，没有写入工具。新增、删除对象或提交连续性记录需要填写 "${SUBAGENT_STRUCTURE_SCOPE}"，这类任务不会与其他写入任务同时运行。写入范围重叠的任务会自动按列表顺序排队。`
+          "把前后无关的子任务放进同一次调用，让它们并行。并行任务的写入由系统逐个执行，但先后顺序和是否冲突由你安排：不要让并行任务修改同一对象；某任务要读取或接着改另一任务的成果，用 depends_on 排在它后面；新增、删除对象和提交连续性记录要按需要的顺序用 depends_on 串起来。后写的任务发现对象已被改动会被拒绝并要求重读。"
         ]
       : []),
     "可用子智能体：",
@@ -112,10 +95,26 @@ function spawnDescription(
   ].join("\n");
 }
 
-/** Older conversations called the tool with one flat task. */
+/** Drops `write_scope`, which earlier versions of this tool accepted. */
+function withoutLegacyWriteScope(tasks: unknown): unknown {
+  if (!Array.isArray(tasks)) return tasks;
+  return tasks.map((task: unknown) => {
+    if (typeof task !== "object" || task === null || !("write_scope" in task)) {
+      return task;
+    }
+    const { write_scope: _legacy, ...rest } = task as Record<string, unknown>;
+    return rest;
+  });
+}
+
+/** Older conversations called the tool with one flat task or `write_scope`. */
 function normalizeSpawnArguments(args: unknown): unknown {
-  if (typeof args !== "object" || args === null || "tasks" in args) {
-    return args;
+  if (typeof args !== "object" || args === null) return args;
+  if ("tasks" in args) {
+    return {
+      ...args,
+      tasks: withoutLegacyWriteScope((args as { tasks: unknown }).tasks)
+    };
   }
   const legacy = args as Record<string, unknown>;
   if (legacy.subagent_id === undefined) return args;
@@ -145,7 +144,6 @@ function formatSpawnResult(
     BATCH_RESULT_MIN_PER_TASK,
     Math.floor(BATCH_RESULT_MAX_LENGTH / tasks.length)
   );
-  const queued = tasks.filter((task) => task.implicitDependsOn.length > 0);
   return [
     `子智能体任务已全部结束：共 ${tasks.length} 个，完成 ${counts.get("completed") ?? 0} 个，失败 ${counts.get("error") ?? 0} 个，中止 ${counts.get("aborted") ?? 0} 个，跳过 ${counts.get("skipped") ?? 0} 个。`,
     ...tasks.map((task) => {
@@ -155,17 +153,7 @@ function formatSpawnResult(
           ? `${outcome.summary.slice(0, perTask)}…（已截断）`
           : outcome.summary;
       return `【${task.key}｜${task.definition.name}｜${STATUS_LABELS[outcome.status]}】\n${summary}`;
-    }),
-    ...(queued.length > 0
-      ? [
-          `写入范围重叠，已自动排队：${queued
-            .map(
-              (task) =>
-                `${task.key} 在 ${task.implicitDependsOn.join("、")} 之后运行`
-            )
-            .join("；")}。`
-        ]
-      : [])
+    })
   ].join("\n\n");
 }
 
@@ -182,7 +170,7 @@ export function buildSpawnSubagentTool(
   );
   if (definitions.length === 0 || (input.depth ?? 0) > 0) return undefined;
   const parallel = input.parallel === true;
-  const parameters = spawnParameters(definitions, parallel);
+  const parameters = spawnParameters(definitions);
 
   const tool: AgentTool<typeof parameters, SubagentToolDetails> = {
     name: "spawn_subagent",
@@ -209,7 +197,7 @@ export function buildSpawnSubagentTool(
       const normalized = normalizeSpawnArguments(params) as {
         tasks?: unknown;
       };
-      const tasks = planSubagentTasks(normalized.tasks, definitions, parallel);
+      const tasks = planSubagentTasks(normalized.tasks, definitions);
       if (tasks.length > 1) {
         // Queued cards show member names and final ordering at once.
         onUpdate?.(

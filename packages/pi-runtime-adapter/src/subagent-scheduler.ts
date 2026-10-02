@@ -2,7 +2,6 @@ import type {
   SubagentTaskOutcome,
   SubagentTaskRequest
 } from "./subagent-types";
-import { writeScopesConflict } from "./subagent-write-scope";
 
 /** Summary of a finished dependency, handed to the task that waited for it. */
 export interface SubagentHandoff {
@@ -31,18 +30,15 @@ function failedExplicitDependency(
   outcomes: ReadonlyMap<string, SubagentTaskOutcome>
 ): string | undefined {
   return request.dependsOn.find(
-    (key) =>
-      !request.implicitDependsOn.includes(key) &&
-      outcomes.has(key) &&
-      outcomes.get(key)!.status !== "completed"
+    (key) => outcomes.has(key) && outcomes.get(key)!.status !== "completed"
   );
 }
 
 /**
- * Runs a validated task list. A task starts when every dependency finished,
- * fewer than `maxConcurrency` tasks run, and no running task overlaps its
- * write scope. Only explicit dependencies propagate failure; ordering added
- * for overlapping scopes waits for any terminal status.
+ * Runs a validated task list. A task starts when every dependency finished and
+ * fewer than `maxConcurrency` tasks run; an exclusive task also waits for the
+ * running ones to end and keeps later tasks from starting until it ends. A
+ * failed dependency skips its dependents.
  */
 export async function runSubagentTasks(
   options: RunSubagentTasksOptions
@@ -108,10 +104,11 @@ export async function runSubagentTasks(
     }
     if (!request.dependsOn.every((key) => outcomes.has(key))) return false;
     if (running.size >= maxConcurrency) return false;
-    const overlapsRunning = [...running.keys()].some((key) =>
-      writeScopesConflict(byKey.get(key)!.writeScope, request.writeScope)
-    );
-    if (overlapsRunning) return false;
+    const blockedByExclusive =
+      running.size > 0 &&
+      (request.exclusive ||
+        [...running.keys()].some((key) => byKey.get(key)!.exclusive));
+    if (blockedByExclusive) return false;
     start(request);
     return true;
   };
