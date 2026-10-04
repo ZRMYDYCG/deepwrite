@@ -39,6 +39,7 @@ const definition = {
   description: "写作",
   systemPrompt: "完成委派",
   enabled: true,
+  agentMode: "standard" as const,
   modelMode: "inherit" as const
 };
 

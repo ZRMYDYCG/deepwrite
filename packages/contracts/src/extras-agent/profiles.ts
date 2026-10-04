@@ -1,4 +1,10 @@
+import {
+  BookTitleDesignProfileSchema,
+  BookSynopsisDesignProfileSchema,
+  BookCoverDesignProfileSchema
+} from "../book-identity/profiles";
 import { z } from "zod";
+import { LongBookDecompositionProfileSchema } from "../long-book-decomposition/profile";
 import { LONG_BOOK_ANALYSIS_MAX_PERSISTED_PRESETS } from "../long-book-analysis-limits";
 import { LongBookAnalysisPresetSchema } from "../long-book-analysis-presets";
 import { REVISION_METHOD_LIMIT } from "../revision-analysis";
@@ -41,9 +47,13 @@ export type StyleComparisonProfile = z.infer<
  * Tools and the non-editable run boundary stay in the agent definition.
  */
 export const EXTRAS_AGENT_PROFILE_SCHEMAS = {
+  "book-title-design": BookTitleDesignProfileSchema,
+  "book-synopsis-design": BookSynopsisDesignProfileSchema,
+  "book-cover-design": BookCoverDesignProfileSchema,
   "revision-analysis": RevisionAnalysisProfileSchema,
   "short-book-analysis": ShortBookAnalysisPresetSchema,
   "long-book-analysis": LongBookAnalysisPresetSchema,
+  "long-book-decomposition": LongBookDecompositionProfileSchema,
   "style-comparison": StyleComparisonProfileSchema,
   "chat-normal": ChatNormalProfileSchema,
   "chat-project": ChatProjectProfileSchema,
@@ -53,9 +63,13 @@ export type ExtrasAgentProfile<A extends ExtrasAgentId = ExtrasAgentId> =
   z.infer<(typeof EXTRAS_AGENT_PROFILE_SCHEMAS)[A]>;
 
 export const EXTRAS_AGENT_MAX_PROFILES: Record<ExtrasAgentId, number> = {
+  "book-title-design": 20,
+  "book-synopsis-design": 20,
+  "book-cover-design": 20,
   "revision-analysis": 20,
   "short-book-analysis": 50,
   "long-book-analysis": LONG_BOOK_ANALYSIS_MAX_PERSISTED_PRESETS,
+  "long-book-decomposition": 20,
   "style-comparison": 20,
   "chat-normal": 20,
   "chat-project": 10_000,
@@ -99,9 +113,16 @@ function settingsVariant<
 }
 
 export const ExtrasAgentSettingsSchema = z.discriminatedUnion("agentId", [
+  settingsVariant("book-title-design", BookTitleDesignProfileSchema),
+  settingsVariant("book-synopsis-design", BookSynopsisDesignProfileSchema),
+  settingsVariant("book-cover-design", BookCoverDesignProfileSchema),
   settingsVariant("revision-analysis", RevisionAnalysisProfileSchema),
   settingsVariant("short-book-analysis", ShortBookAnalysisPresetSchema),
   settingsVariant("long-book-analysis", LongBookAnalysisPresetSchema),
+  settingsVariant(
+    "long-book-decomposition",
+    LongBookDecompositionProfileSchema
+  ),
   settingsVariant("style-comparison", StyleComparisonProfileSchema),
   settingsVariant("chat-normal", ChatNormalProfileSchema),
   // Projects and roles may share display names; ids keep them apart.
@@ -121,6 +142,18 @@ export type ExtrasAgentSettingsOf<A extends ExtrasAgentId> = Extract<
 const withoutBuiltin = { builtin: true } as const;
 export const ExtrasAgentSettingsInputSchema = z.discriminatedUnion("agentId", [
   settingsVariant(
+    "book-title-design",
+    BookTitleDesignProfileSchema.omit(withoutBuiltin)
+  ),
+  settingsVariant(
+    "book-synopsis-design",
+    BookSynopsisDesignProfileSchema.omit(withoutBuiltin)
+  ),
+  settingsVariant(
+    "book-cover-design",
+    BookCoverDesignProfileSchema.safeExtend({ builtin: z.never().optional() })
+  ),
+  settingsVariant(
     "revision-analysis",
     RevisionAnalysisProfileSchema.omit(withoutBuiltin)
   ),
@@ -131,6 +164,12 @@ export const ExtrasAgentSettingsInputSchema = z.discriminatedUnion("agentId", [
   settingsVariant(
     "long-book-analysis",
     LongBookAnalysisPresetSchema.omit(withoutBuiltin)
+  ),
+  settingsVariant(
+    "long-book-decomposition",
+    LongBookDecompositionProfileSchema.safeExtend({
+      builtin: z.never().optional()
+    })
   ),
   settingsVariant(
     "style-comparison",

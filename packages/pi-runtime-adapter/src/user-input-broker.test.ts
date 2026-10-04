@@ -86,3 +86,58 @@ describe("AgentUserInputBroker", () => {
     await expect(waiting).rejects.toMatchObject({ name: "AbortError" });
   });
 });
+
+describe("AgentUserInputBroker draw selections", () => {
+  const drawRequest = {
+    ...request,
+    requestId: "request_draw",
+    questions: [{ id: "draw", question: "选一份交给主智能体。" }],
+    draw: {
+      parentToolCallId: "call_1",
+      subagentId: "titler",
+      name: "标题助手",
+      task: "起标题",
+      count: 3,
+      candidates: [
+        { id: "c1", index: 0, subagentRunId: "subrun_1", text: "甲" },
+        { id: "c3", index: 2, subagentRunId: "subrun_3", text: "丙" }
+      ]
+    }
+  };
+  const answer = (selectedOptionIds: string[], text?: string) => ({
+    sessionId: request.sessionId,
+    runId: request.runId,
+    requestId: drawRequest.requestId,
+    answers: [{ id: "draw", selectedOptionIds, ...(text ? { text } : {}) }]
+  });
+
+  it("accepts one listed candidate or reject, each with an optional note", async () => {
+    const broker = new AgentUserInputBroker();
+    const picked = broker.wait(drawRequest);
+    broker.resolve(answer(["c3"], "再短一点"));
+    await expect(picked).resolves.toMatchObject({
+      answers: [{ selectedOptionIds: ["c3"], text: "再短一点" }]
+    });
+
+    const rejected = broker.wait(drawRequest);
+    broker.resolve(answer(["reject"]));
+    await expect(rejected).resolves.toMatchObject({
+      answers: [{ selectedOptionIds: ["reject"] }]
+    });
+  });
+
+  it("rejects unknown candidates, several picks and note-only answers", () => {
+    const broker = new AgentUserInputBroker();
+    void broker.wait(drawRequest);
+    for (const invalid of [
+      answer(["c2"]),
+      answer(["c1", "c3"]),
+      {
+        ...answer([]),
+        answers: [{ id: "draw", text: "只写附言" }]
+      }
+    ]) {
+      expect(() => broker.resolve(invalid)).toThrow(/抽卡选择/u);
+    }
+  });
+});

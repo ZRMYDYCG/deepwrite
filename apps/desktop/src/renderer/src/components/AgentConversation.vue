@@ -33,6 +33,7 @@ import AppIcon from "./AppIcon.vue";
 import ConversationHistoryMenu from "./ConversationHistoryMenu.vue";
 import AgentActivityFloatPanel from "./AgentActivityFloatPanel.vue";
 import AgentUserInputCard from "./AgentUserInputCard.vue";
+import SubagentDrawPickerCard from "./SubagentDrawPickerCard.vue";
 import ConversationComposer from "./ConversationComposer.vue";
 import ConversationMessageList from "./ConversationMessageList.vue";
 import ConversationTurnNavigator from "./ConversationTurnNavigator.vue";
@@ -385,7 +386,15 @@ const {
 
       <footer v-if="userInputRequest" class="composer-wrap">
         <div class="composer-stack">
+          <SubagentDrawPickerCard
+            v-if="userInputRequest.draw"
+            :request="{ ...userInputRequest, draw: userInputRequest.draw }"
+            :submitting="userInputSubmitting"
+            :messages="messages"
+            @submit="emit('submitUserInput', $event)"
+          />
           <AgentUserInputCard
+            v-else
             :request="userInputRequest"
             :submitting="userInputSubmitting"
             @submit="emit('submitUserInput', $event)"

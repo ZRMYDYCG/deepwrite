@@ -4,7 +4,7 @@ import processingItemSource from "./ConversationProcessingItem.vue?raw";
 import streamedContentSource from "./StreamedContent.vue?raw";
 import streamingMarkdownSource from "./StreamingMarkdown.vue?raw";
 import streamingTextSource from "./StreamingText.vue?raw";
-import subagentSource from "./SubagentRunList.vue?raw";
+import subagentSource from "./SubagentRunDetail.vue?raw";
 import workGroupSource from "./ConversationWorkGroup.vue?raw";
 
 describe("streaming conversation content", () => {
@@ -47,7 +47,7 @@ describe("streaming conversation content", () => {
       processingItemSource.match(/:content="item\.content"/g)
     ).toHaveLength(2);
     expect(processingItemSource).toContain(':streaming="streaming"');
-    expect(messageItemSource).toContain(':content="visibleResponse(message)"');
+    expect(messageItemSource).toContain(':content="response"');
     expect(messageItemSource).not.toContain("<MessageMarkdown");
     expect(processingItemSource).not.toContain("<MessageMarkdown");
   });

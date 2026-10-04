@@ -7,7 +7,8 @@ import {
   DeviceSyncInventorySchema,
   syncErrorMessage,
   type CommandEnvelope,
-  type CommandResult
+  type CommandResult,
+  type SystemEventEnvelope
 } from "@deepwrite/contracts";
 import { DesktopSyncWorkspace } from "./device-sync-workspace";
 import type { FolderCatalogStore } from "./folder-catalog-store";
@@ -18,16 +19,23 @@ export function withDeviceSyncCommands(
   userDataPath: string,
   catalog: () => Promise<FolderCatalogStore>,
   long: LongWorkspaceService,
-  handler: (command: CommandEnvelope) => Promise<CommandResult>
+  handler: (
+    command: CommandEnvelope,
+    emitEvent?: (event: SystemEventEnvelope) => void
+  ) => Promise<CommandResult>
 ) {
   const workspace = new DesktopSyncWorkspace(userDataPath, catalog, long);
   let tail: Promise<unknown> = Promise.resolve();
-  return (command: CommandEnvelope): Promise<CommandResult> => {
+  return (
+    command: CommandEnvelope,
+    emitEvent?: (event: SystemEventEnvelope) => void
+  ): Promise<CommandResult> => {
     const result = tail.then(async (): Promise<CommandResult> => {
       try {
         await recoverDesktopInitialization(userDataPath);
         await workspace.recover();
-        if (command.type !== "deviceSync.workspace") return handler(command);
+        if (command.type !== "deviceSync.workspace")
+          return handler(command, emitEvent);
         const input = command.payload;
         let payload: unknown = {};
         switch (input.operation) {

@@ -3,6 +3,7 @@ import { expectSourceToContain } from "../../test-utils/sourceText";
 import source from "./WorkspaceShell.vue?raw";
 import featureModulesSource from "./components/WorkspaceFeatureModules.vue?raw";
 import featureHostSource from "./composables/useWorkspaceFeatureHostCoordinator.ts?raw";
+import catalogCoordinatorSource from "./composables/useAgentTeamCatalogCoordinator.ts?raw";
 import coordinatorSource from "./composables/useSettingsFeatureCoordinator.ts?raw";
 import lifecycleSource from "./composables/useWorkspaceLifecycleCoordinator.ts?raw";
 import layoutSource from "./stores/layoutFeatureNavigation.ts?raw";
@@ -27,8 +28,11 @@ describe("App agent-team integration", () => {
     expect(source).toContain("useSettingsFeatureCoordinator({");
     expect(source).toContain("loadAgentTeamSettings,");
     expect(source).toContain("saveAgentTeamSettings,");
-    expect(coordinatorSource).toContain("api.agentTeams.list()");
-    expect(coordinatorSource).toContain("api.agentTeams.save(input)");
+    expect(coordinatorSource).toContain(
+      "useAgentTeamCatalogCoordinator(context)"
+    );
+    expect(catalogCoordinatorSource).toContain("api.agentTeams.list()");
+    expect(catalogCoordinatorSource).toContain("api.agentTeams.save(input)");
     expect(source).toContain('@save-agent-team="saveAgentTeamSettings"');
     expect(featureModulesSource).toContain(
       "@save=\"emit('saveAgentTeam', $event)\""
@@ -74,8 +78,12 @@ describe("App agent-team integration", () => {
 
   it("loads and saves all workspace team settings through one catalog", () => {
     expect(settingsSource).toContain("const agentTeamCatalog = shallowRef");
-    expect(coordinatorSource).toContain("settingsStore.ensureAgentTeamsLoaded");
-    expect(coordinatorSource).toContain("api.agentTeams.setEnabled(input)");
+    expect(catalogCoordinatorSource).toContain(
+      "settingsStore.ensureAgentTeamsLoaded"
+    );
+    expect(catalogCoordinatorSource).toContain(
+      "api.agentTeams.setEnabled(input)"
+    );
     expect(featureModulesSource).toContain(':catalog="module.catalog"');
     expect(featureModulesSource).toContain(
       "@set-enabled=\"emit('setAgentTeamEnabled', $event)\""

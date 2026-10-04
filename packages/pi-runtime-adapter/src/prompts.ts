@@ -21,6 +21,10 @@ export {
   scriptRuntimeSystemRequirements,
   shortRuntimeSystemRequirements
 } from "./prompts-writing";
+export {
+  scriptReadOnlyRuntimeSystemRequirements,
+  shortReadOnlyRuntimeSystemRequirements
+} from "./prompts-writing-readonly";
 
 export {
   buildDeepWriteSystemPrompt,

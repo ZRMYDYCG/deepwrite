@@ -1,0 +1,21 @@
+export default {
+  adoptedCandidateValue: "已采用候选 {arg0}",
+  waitingForYourChoice: "等待选择",
+  evaluating: "评估中",
+  noneAdopted: "未采用",
+  stopped: "已停止",
+  failed: "失败",
+  drawingValueValue: "抽卡中 {arg0}/{arg1}",
+  evaluatorChoseValue: "评估助手选择了候选 {arg0}",
+  onlyValueSucceeded: "只有候选 {arg0} 成功，已直接采用",
+  youChoseValue: "你选择了候选 {arg0}",
+  youAdoptedNone: "你没有采用任何候选，任务已按未完成交回主智能体",
+  evaluatorHandedTheChoiceToYou: "评估助手没有完成选择，已改为由你选择",
+  drawEndedWithoutAResult: "抽卡没有产生结果",
+  drawValue: "抽卡×{arg0}",
+  drawSummary: "抽卡概况",
+  finishedValueValue: "{arg0}/{arg1} 份完成",
+  taskAssignedByPrimaryAgent: "主智能体下发的任务",
+  yourNoteValue: "附言：{arg0}",
+  candidates: "候选结果"
+};

@@ -103,7 +103,8 @@ export default {
     freeModelDisabledAndHiddenFromModelSettings:
       "免费模型已停用，并从模型配置中隐藏。",
     failedToUpdateFreeModelStatus: "更新免费模型启用状态失败。",
-    modelConnectionTestFailed: "模型连接测试失败。"
+    modelConnectionTestFailed: "模型连接测试失败。",
+    modelConnectionTestFailedWithReason: "模型连接测试失败：{reason}"
   },
   appearanceThemeRuntime: {
     warmPaper: "暖纸",
@@ -115,7 +116,23 @@ export default {
     dataMigrationIsReadyTheAppWillRestart: "数据迁移已准备完成，应用即将重启。",
     failedToChangeTheUserDataDirectoryPleaseTry:
       "更改用户数据目录失败，请重试。",
-    failedToOpenDirectoryPleaseTryAgain: "打开目录失败，请重试。"
+    failedToChangeTheUserDataDirectoryWithReason:
+      "更改用户数据目录失败：{reason}",
+    failedToOpenDirectoryPleaseTryAgain: "打开目录失败，请重试。",
+    storageBusy: "有任务正在运行或存储操作尚未结束，请完成后再更改存储位置。",
+    invalidDirectory:
+      "请选择本机上的普通文件夹，不能使用快捷方式、符号链接或目录联接。",
+    unresolvablePath:
+      "无法识别所选文件夹的真实路径。虚拟盘、云盘挂载盘等位置可能不受支持，请选择本机磁盘上的普通文件夹。",
+    overlapsInstallation:
+      "用户数据目录不能位于应用安装目录内，也不能包含安装目录，请选择其他文件夹。",
+    nestedLocation:
+      "新位置不能位于当前用户数据目录内，也不能包含当前目录，请选择独立文件夹。",
+    targetNotEmpty:
+      "所选位置中的 DeepWriteData 文件夹已有文件。为避免覆盖，请选择其他位置。",
+    notWritable: "没有所选位置的写入权限，请选择其他文件夹。",
+    saveFailed: "当前对话尚未保存完成，已取消迁移，请稍后重试。",
+    openFailed: "无法打开存储目录，请检查目录是否存在且可访问。"
   },
   modelEditor: {
     automaticRecommended: "自动（推荐）",

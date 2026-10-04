@@ -135,8 +135,8 @@ export async function readSecureTextFile(
     updatedAt: info.mtime.toISOString(),
     identity: projectTransactionFileIdentity(info),
     size: Number(info.size),
-    mtimeMs: Number(info.mtimeMs),
-    ctimeMs: Number(info.ctimeMs)
+    mtimeNs: info.mtimeNs,
+    ctimeNs: info.ctimeNs
   };
 }
 
@@ -177,8 +177,8 @@ export async function secureTextFileMetadataMatches(
     return (
       projectTransactionFileIdentity(info) === cached.identity &&
       Number(info.size) === cached.size &&
-      Number(info.mtimeMs) === cached.mtimeMs &&
-      Number(info.ctimeMs) === cached.ctimeMs
+      info.mtimeNs === cached.mtimeNs &&
+      info.ctimeNs === cached.ctimeNs
     );
   } finally {
     await handle.close();
@@ -231,6 +231,8 @@ export async function readNoFollowFile(
       after.dev !== info.dev ||
       after.ino !== info.ino ||
       after.nlink !== 1n ||
+      after.mtimeNs !== info.mtimeNs ||
+      after.ctimeNs !== info.ctimeNs ||
       after.size !== BigInt(bytes.byteLength) ||
       bytes.byteLength > maxBytes
     ) {

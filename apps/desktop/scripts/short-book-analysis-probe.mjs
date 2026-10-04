@@ -4,6 +4,10 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import { spawn } from "node:child_process";
+import { assertElectronLaunchAllowed } from "../../../tools/electron-launch-environment.mjs";
+
+assertElectronLaunchAllowed();
+
 const root = fileURLToPath(new URL("../../..", import.meta.url));
 const output =
   process.argv[2] ?? join(tmpdir(), "deepwrite-short-analysis-probe");

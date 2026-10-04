@@ -24,7 +24,8 @@ import {
   type AgentTeamProfileTargetInput,
   type AgentTeamWorkspaceType,
   type ShortAgentSubagentDefinition,
-  type WorkspaceAgentId
+  type WorkspaceAgentId,
+  withAgentTeamEnabled
 } from "@deepwrite/contracts";
 import {
   AGENT_TEAM_CATALOG_DISK_VERSION,
@@ -177,11 +178,11 @@ export class AgentTeamConfigStore {
   ): Promise<AgentTeamCatalogSnapshot> {
     const input = AgentTeamProfileSetEnabledInputSchema.parse(rawInput);
     return this.mutate((snapshot) => {
-      const team = this.requireTeam(snapshot, input.teamId);
-      if (input.enabled) snapshot.enabledTeamIds[team.workspaceType] = team.id;
-      else if (snapshot.enabledTeamIds[team.workspaceType] === team.id) {
-        delete snapshot.enabledTeamIds[team.workspaceType];
-      }
+      snapshot.enabledTeamIds = withAgentTeamEnabled(
+        snapshot.enabledTeamIds,
+        this.requireTeam(snapshot, input.teamId),
+        input.enabled
+      );
     });
   }
 

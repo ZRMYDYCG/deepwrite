@@ -10,6 +10,7 @@ import {
   parseStoredUsage,
   parseStoredToolTrace
 } from "./parse-runtime";
+import { parseStoredDrawRef } from "./parse-subagent-draw";
 
 const t = createScopedTranslator("workspace.parseSubagent");
 export function parseStoredSubagentStep(
@@ -91,6 +92,7 @@ export function parseStoredSubagentRun(
   const restoredWhileQueued = value.status === "queued";
   const restoredWhileRunning = value.status === "running";
   const batchTask = parseStoredBatchTask(value.batchTask);
+  const draw = parseStoredDrawRef(value.draw);
   const restoredAt = new Date().toISOString();
   const normalizedToolCalls = restoredWhileRunning
     ? toolCalls.map((toolCall) =>
@@ -143,7 +145,11 @@ export function parseStoredSubagentRun(
             }
           : {}),
     ...(usage ? { usage } : {}),
-    ...(batchTask ? { batchTask } : {})
+    ...(batchTask ? { batchTask } : {}),
+    ...(draw ? { draw } : {}),
+    ...(Number.isSafeInteger(value.drawCount)
+      ? { drawCount: value.drawCount as number }
+      : {})
   };
 }
 

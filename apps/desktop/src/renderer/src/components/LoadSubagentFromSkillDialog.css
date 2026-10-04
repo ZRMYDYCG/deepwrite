@@ -1,0 +1,78 @@
+.load-subagent-skill-dialog {
+  width: min(880px, calc(100vw - 48px));
+  max-height: min(800px, calc(100vh - 60px));
+}
+.dialog-lede {
+  margin: 6px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.857143rem;
+  line-height: 1.55;
+}
+.authoring-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  padding: 18px 22px;
+}
+.authoring-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+.authoring-side {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+}
+.authoring-section {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--theme-line-soft);
+  border-radius: 12px;
+  background: var(--surface-muted);
+}
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.928571rem;
+  font-weight: 650;
+}
+.step-number {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--text-primary);
+  font-size: 0.714286rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.section-hint {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.821429rem;
+  line-height: 1.55;
+}
+.empty-skills {
+  margin: 0;
+  padding: 16px;
+  border-radius: 10px;
+  background: var(--surface-main);
+  color: var(--text-secondary);
+  font-size: 0.857143rem;
+}
+.workspace-dialog > .dialog-actions {
+  flex: none;
+  margin: 0;
+  padding: 14px 22px 18px;
+  border-top: 1px solid var(--theme-line-soft);
+}

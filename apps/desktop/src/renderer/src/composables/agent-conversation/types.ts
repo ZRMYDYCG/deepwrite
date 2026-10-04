@@ -114,6 +114,10 @@ export type SubagentPlannedEventEnvelope = Extract<
   SystemEventEnvelope,
   { type: "subagent.planned" }
 >;
+export type SubagentDrawUpdatedEventEnvelope = Extract<
+  SystemEventEnvelope,
+  { type: "subagent.draw_updated" }
+>;
 export type SubagentActivityEventEnvelope = Extract<
   SubagentEventEnvelope,
   {
@@ -131,6 +135,14 @@ export interface PendingAgentTextDelta {
   runId: string;
   messageId: string;
   runtime: AgentRuntimeRef;
+  eventId: string;
+  createdAt: string;
+  chunks: string[];
+}
+/** Thinking or handoff text of one child, held until the next frame. */
+export interface PendingSubagentTextDelta {
+  run: AgentSubagentRun;
+  type: "thinking_delta" | "message_delta";
   eventId: string;
   createdAt: string;
   chunks: string[];

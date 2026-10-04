@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ShortAgentSubagentDefinition } from "@deepwrite/contracts";
 import {
+  agentTeamDraftSignature,
   createCopiedSubagent,
   nextCopiedSubagentName
 } from "./agentTeamSettingsEditorHelpers";
@@ -46,6 +47,8 @@ describe("createCopiedSubagent", () => {
       description: "负责小节写作",
       systemPrompt: "只写指定小节。",
       enabled: true,
+      // The mode of the source is part of what a copy keeps.
+      agentMode: "pure-bare" as const,
       modelMode: "custom" as const,
       modelId: "model_custom",
       thinkingLevel: "high" as const
@@ -68,6 +71,7 @@ describe("createCopiedSubagent", () => {
       description: "负责小节写作",
       systemPrompt: "只写指定小节。",
       enabled: true,
+      agentMode: "standard" as const,
       modelMode: "inherit" as const
     };
     const second = {
@@ -84,5 +88,53 @@ describe("createCopiedSubagent", () => {
       "subagent_second"
     ]);
     expect(subagents[1]?.name).toBe("写手小弟 2");
+  });
+});
+
+describe("agentTeamDraftSignature", () => {
+  const subagent: ShortAgentSubagentDefinition = {
+    id: "subagent_a",
+    name: "连续性审阅",
+    description: "检查前后一致性",
+    systemPrompt: "只核对设定。",
+    enabled: true,
+    agentMode: "standard",
+    modelMode: "inherit"
+  };
+  const sign = (item: ShortAgentSubagentDefinition, parallel = false): string =>
+    agentTeamDraftSignature(parallel, [
+      { parentAgentId: "short", subagents: [item] }
+    ]);
+
+  it("is stable for an unchanged draft", () => {
+    expect(sign({ ...subagent })).toBe(sign(subagent));
+  });
+
+  it("changes when persisted fields or the team parallel switch change", () => {
+    const base = sign(subagent);
+    expect(sign({ ...subagent, name: "连续性审阅 2" })).not.toBe(base);
+    expect(sign({ ...subagent, enabled: false })).not.toBe(base);
+    expect(sign({ ...subagent, agentMode: "pure-read" })).not.toBe(base);
+    expect(sign(subagent, true)).not.toBe(base);
+  });
+
+  it("ignores model leftovers that are not persisted for inherited models", () => {
+    expect(
+      sign({ ...subagent, modelId: "model-a", thinkingLevel: "high" })
+    ).toBe(sign(subagent));
+  });
+
+  it("only keeps the temperature while reasoning is off", () => {
+    const custom: ShortAgentSubagentDefinition = {
+      ...subagent,
+      modelMode: "custom",
+      modelId: "model-a",
+      thinkingLevel: "high",
+      temperature: 0.7
+    };
+    expect(sign({ ...custom, temperature: 1 })).toBe(sign(custom));
+    expect(sign({ ...custom, thinkingLevel: "off", temperature: 1 })).not.toBe(
+      sign({ ...custom, thinkingLevel: "off", temperature: 0.7 })
+    );
   });
 });

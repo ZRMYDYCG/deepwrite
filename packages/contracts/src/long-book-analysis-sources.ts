@@ -35,6 +35,11 @@ export type LongBookAnalysisDiagnostic = z.infer<
 export const LongBookAnalysisSourceSchema = z
   .object({
     id: LongBookAnalysisIdSchema,
+    revision: z.number().int().positive().optional(),
+    fingerprint: z
+      .string()
+      .regex(/^[a-f0-9]{64}$/u)
+      .optional(),
     kind: z.enum(["txt", "directory"]),
     name: z.string().trim().min(1).max(1_024),
     chapters: z

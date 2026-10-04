@@ -6,7 +6,16 @@ import ChapterEditor from "./ChapterEditor.vue";
 import type { LongBookAnalysisController } from "./useLongBookAnalysis";
 
 const t = createScopedTranslator("extras.longBookAnalysis");
-const props = defineProps<{ controller: LongBookAnalysisController }>();
+const props = defineProps<{
+  controller: Pick<
+    LongBookAnalysisController,
+    "source" | "isBusy" | "sourceSaving" | "sourceDeleting" | "replaceChapters"
+  >;
+  /** Overrides for pages whose scope differs from a 50-chapter analysis. */
+  emptyTitle?: string;
+  emptyHelp?: string;
+  emptyChips?: readonly string[];
+}>();
 const expanded = ref(false);
 const source = computed(() => props.controller.source.value);
 const characters = computed(
@@ -52,18 +61,30 @@ watch(
     <ChapterEditor
       v-if="expanded"
       :source="source"
-      :disabled="controller.isBusy.value"
+      :disabled="
+        controller.isBusy.value ||
+        controller.sourceSaving.value ||
+        controller.sourceDeleting.value
+      "
       @update="controller.replaceChapters($event)"
     />
   </section>
   <section v-else class="analysis-card analysis-empty-source">
     <div class="analysis-empty-icon"><AppIcon name="book" :size="24" /></div>
     <div class="analysis-empty-copy">
-      <strong>{{ t("importNovelToStart") }}</strong>
-      <p>{{ t("novelImportHelp") }}</p>
+      <strong>{{ emptyTitle ?? t("importNovelToStart") }}</strong>
+      <p>{{ emptyHelp ?? t("novelImportHelp") }}</p>
     </div>
     <div class="analysis-empty-meta">
-      <span>TXT / Markdown</span><span>{{ t("maxFiftyChapters") }}</span>
+      <template v-if="emptyChips"
+        ><span v-for="chip in emptyChips" :key="chip">{{
+          chip
+        }}</span></template
+      >
+      <template v-else
+        ><span>TXT / Markdown</span
+        ><span>{{ t("maxFiftyChapters") }}</span></template
+      >
     </div>
   </section>
 </template>

@@ -1,5 +1,6 @@
 import { createScopedTranslator } from "../../i18n";
 import type { AgentConversationContext } from "./context";
+import { queueSubagentTextDelta } from "./subagent-text-deltas";
 import type {
   SubagentEventEnvelope,
   SubagentPlannedEventEnvelope
@@ -15,6 +16,8 @@ type SubagentEventsContext = Pick<
   | "handleSubagentRetryScheduled"
   | "acceptsSubagentRetryActivity"
   | "messageMutations"
+  | "pendingSubagentTextDeltas"
+  | "scheduleStreamPresentation"
   | "earlierTimestamp"
   | "subagentTurnCheckpointByRun"
   | "subagentTurnKey"
@@ -67,34 +70,22 @@ export function handleSubagentEvent(
       return;
     }
     if (!ctx.acceptsSubagentRetryActivity(event, run)) return;
-    if (activity.type === "thinking_delta") {
-      ctx.messageMutations.appendText(run, "thinking", activity.delta);
-      const lastStep = run.processingSteps.at(-1);
-      if (lastStep?.type === "thinking") {
-        ctx.messageMutations.appendText(lastStep, "content", activity.delta);
-      } else {
-        run.processingSteps.push({
-          id: event.id,
-          type: "thinking",
-          content: activity.delta,
+    if (
+      activity.type === "thinking_delta" ||
+      activity.type === "message_delta"
+    ) {
+      queueSubagentTextDelta(
+        ctx,
+        ctx.subagentTurnKey(event.payload.runId, event.payload.subagentRunId),
+        run,
+        {
+          type: activity.type,
+          text: activity.delta,
+          eventId: event.id,
           createdAt: event.timestamp
-        });
-      }
-      return;
-    }
-    if (activity.type === "message_delta") {
-      run.output = `${run.output ?? ""}${activity.delta}`;
-      const lastStep = run.processingSteps.at(-1);
-      if (lastStep?.type === "response") {
-        ctx.messageMutations.appendText(lastStep, "content", activity.delta);
-      } else {
-        run.processingSteps.push({
-          id: event.id,
-          type: "response",
-          content: activity.delta,
-          createdAt: event.timestamp
-        });
-      }
+        }
+      );
+      ctx.scheduleStreamPresentation();
       return;
     }
     let toolCall = run.toolCalls.find(
@@ -243,6 +234,7 @@ export function handleSubagentPlanned(
       run.task = planned.task;
       run.runtime = { ...planned.runtime };
       run.batchTask = batchTask;
+      if (planned.drawCount !== undefined) run.drawCount = planned.drawCount;
       continue;
     }
     (message.subagentRuns ??= []).push({
@@ -256,7 +248,10 @@ export function handleSubagentPlanned(
       toolCalls: [],
       processingSteps: [],
       startedAt: event.timestamp,
-      batchTask
+      batchTask,
+      ...(planned.drawCount !== undefined
+        ? { drawCount: planned.drawCount }
+        : {})
     });
   }
 }

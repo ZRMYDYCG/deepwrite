@@ -12,11 +12,27 @@ import type { LongBookAnalysisController } from "./useLongBookAnalysis";
 const t = createScopedTranslator("extras.longBookAnalysis");
 
 const props = defineProps<{
-  controller: LongBookAnalysisController;
+  controller: Pick<
+    LongBookAnalysisController,
+    | "source"
+    | "savedSources"
+    | "sourcesLoading"
+    | "sourceSaving"
+    | "sourceDeleting"
+    | "loadSavedSources"
+    | "loadSavedSource"
+    | "deleteSavedSource"
+    | "chooseSource"
+    | "isBusy"
+  >;
+  disabled?: boolean;
+  /** Replaces the default "preset management" label, e.g. for profiles. */
+  manageLabel?: string;
 }>();
 const emit = defineEmits<{
   managePresets: [];
 }>();
+const manageText = computed(() => props.manageLabel ?? t("managePresets"));
 
 const importedAtFormatter = computed(
   () =>
@@ -26,6 +42,13 @@ const importedAtFormatter = computed(
     })
 );
 const sourceId = computed(() => props.controller.source.value?.id ?? "");
+const controlsDisabled = computed(
+  () =>
+    props.disabled ||
+    props.controller.isBusy.value ||
+    props.controller.sourceSaving.value ||
+    props.controller.sourceDeleting.value
+);
 const savedSourceOptions = computed<PopupSelectOption[]>(() =>
   props.controller.savedSources.value.map((savedSource) => ({
     value: savedSource.id,
@@ -35,7 +58,9 @@ const savedSourceOptions = computed<PopupSelectOption[]>(() =>
       chapters: savedSource.chapterCount.toLocaleString(locale.value),
       characters: savedSource.characterCount.toLocaleString(locale.value),
       date: importedAtFormatter.value.format(new Date(savedSource.importedAt))
-    })
+    }),
+    actionIcon: "trash",
+    actionLabel: t("deleteNovel", { title: savedSource.name })
   }))
 );
 const savedSourcePlaceholder = computed(() => {
@@ -67,6 +92,22 @@ async function loadSavedSource(value: string | number): Promise<void> {
   }
 }
 
+async function deleteSavedSource(value: string | number): Promise<void> {
+  const id = String(value);
+  const saved = props.controller.savedSources.value.find(
+    (item) => item.id === id
+  );
+  if (controlsDisabled.value || !saved) return;
+  if (!window.confirm(t("deleteNovelConfirmation", { title: saved.name })))
+    return;
+  try {
+    await props.controller.deleteSavedSource(id);
+    uiMessage.success(t("novelDeleted"));
+  } catch (error: unknown) {
+    uiMessage.error(formatError(error, t("novelDeleteFailed")));
+  }
+}
+
 onMounted(() => {
   void props.controller.loadSavedSources().catch((error: unknown) => {
     uiMessage.error(formatError(error, t("novelLoadFailed")));
@@ -83,12 +124,13 @@ onMounted(() => {
         :accessible-label="t('chooseImportedNovel')"
         :placeholder="savedSourcePlaceholder"
         :disabled="
-          controller.isBusy.value ||
+          controlsDisabled ||
           controller.sourcesLoading.value ||
           savedSourceOptions.length === 0
         "
         :menu-min-width="320"
         @change="loadSavedSource"
+        @option-action="deleteSavedSource"
       >
         <template #prefix>
           <AppIcon name="book" :size="15" />
@@ -98,26 +140,26 @@ onMounted(() => {
     <div class="analysis-page-actions">
       <button
         type="button"
-        :disabled="controller.isBusy.value"
+        :disabled="controlsDisabled"
         @click="importSource('txt')"
       >
         <AppIcon name="file" :size="16" />{{ t("importTxt") }}
       </button>
       <button
         type="button"
-        :disabled="controller.isBusy.value"
+        :disabled="controlsDisabled"
         @click="importSource('directory')"
       >
         <AppIcon name="folder" :size="16" />{{ t("chapterFolder") }}
       </button>
       <button
         type="button"
-        :title="t('managePresets')"
-        :aria-label="t('managePresets')"
-        :disabled="controller.isBusy.value"
+        :title="manageText"
+        :aria-label="manageText"
+        :disabled="controlsDisabled"
         @click="emit('managePresets')"
       >
-        {{ t("managePresets") }}
+        {{ manageText }}
       </button>
       <slot />
     </div>

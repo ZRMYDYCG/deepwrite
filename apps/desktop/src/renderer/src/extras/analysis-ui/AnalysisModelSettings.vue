@@ -22,6 +22,10 @@ const props = defineProps<{
   modelId: string;
   thinkingLevel: ThinkingLevel;
   disabled?: boolean;
+  /** Names this selection (e.g. reading vs. integration) in the panel. */
+  label?: string;
+  /** Show the chosen model and thinking level in the trigger like a field. */
+  field?: boolean;
 }>();
 const emit = defineEmits<{
   "update:modelId": [value: string];
@@ -153,20 +157,22 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="analysis-model-settings">
+  <div class="analysis-model-settings" :class="{ 'is-field': field }">
     <button
       ref="trigger"
       type="button"
       class="analysis-model-trigger"
       :title="summary"
-      :aria-label="t('analysisUi.modelSettings')"
+      :aria-label="label ?? t('analysisUi.modelSettings')"
       :aria-expanded="open"
       :aria-controls="open ? panelId : undefined"
       aria-haspopup="dialog"
       :disabled="disabled"
       @click="toggle"
     >
-      <AppIcon name="settings" :size="16" />{{ t("analysisUi.modelSettings") }}
+      <AppIcon name="settings" :size="16" />
+      <span v-if="field" class="analysis-model-summary">{{ summary }}</span>
+      <template v-else>{{ t("analysisUi.modelSettings") }}</template>
     </button>
     <Teleport to="body">
       <section
@@ -181,7 +187,7 @@ onBeforeUnmount(() => {
       >
         <header>
           <strong :id="`${panelId}-title`">{{
-            t("analysisUi.modelSettings")
+            label ?? t("analysisUi.modelSettings")
           }}</strong>
           <button
             type="button"
@@ -192,7 +198,11 @@ onBeforeUnmount(() => {
           </button>
         </header>
         <label>
-          <span>{{ t("longBookAnalysis.analysisModel") }}</span>
+          <span>{{
+            label
+              ? t("analysisUi.modelField")
+              : t("longBookAnalysis.analysisModel")
+          }}</span>
           <PopupSelect
             ref="modelControl"
             :model-value="modelId"

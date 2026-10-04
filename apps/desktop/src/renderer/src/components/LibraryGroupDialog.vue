@@ -276,7 +276,8 @@ watch(
       : {};
     resolving.value = false;
     void nextTick(() => titleInput.value?.focus());
-  }
+  },
+  { immediate: true }
 );
 
 onMounted(() => document.addEventListener("keydown", handleKeydown));

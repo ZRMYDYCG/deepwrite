@@ -4,6 +4,7 @@ import type {
   PendingAgentTextDelta
 } from "./types";
 import { STREAM_PRESENTATION_FALLBACK_MS } from "./shared";
+import { flushPendingSubagentTextDeltas } from "./subagent-text-deltas";
 
 type StreamingContext = Pick<
   AgentConversationContext,
@@ -13,6 +14,7 @@ type StreamingContext = Pick<
   | "messageMutations"
   | "clearStreamPresentationSchedule"
   | "pendingAgentTextDelta"
+  | "pendingSubagentTextDeltas"
   | "applyAgentTextDelta"
   | "flushPendingAgentTextDelta"
   | "scheduleStreamPresentation"
@@ -75,6 +77,7 @@ export function flushPendingAgentTextDelta(ctx: StreamingContext): void {
   const pending = ctx.pendingAgentTextDelta;
   ctx.pendingAgentTextDelta = undefined;
   if (pending) ctx.applyAgentTextDelta(pending);
+  flushPendingSubagentTextDeltas(ctx);
 }
 export function scheduleStreamPresentation(ctx: StreamingContext): void {
   if (typeof globalThis.requestAnimationFrame !== "function") {

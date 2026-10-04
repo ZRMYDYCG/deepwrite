@@ -37,7 +37,7 @@ export default {
   exportEpub: "导出正文为 EPUB",
   epubBook: "EPUB 电子书",
   export: "导出",
-  chooseUserData: "选择用户数据目录（空文件夹）",
+  chooseUserData: "选择用户数据目录",
   migrateUserData: "迁移用户数据",
   confirmMigration: "保存当前数据并重启以迁移存储位置？",
   cancel: "取消",

@@ -19,5 +19,10 @@ export default {
   subagentIDsMustBeUniqueWithinAPrimaryAgent:
     "同一主智能体下的子智能体 ID 不能重复",
   subagentNamesMustBeUniqueWithinAPrimaryAgent:
-    "同一主智能体下的子智能体名称不能重复"
+    "同一主智能体下的子智能体名称不能重复",
+  temperatureValue: "温度 {arg0}",
+  usePrimaryAgentModel: "跟随主智能体",
+  separateConfigurationNoModelSelected: "单独配置（未选模型）",
+  valueOffTemperatureValue: "{arg0} · 关闭 · 温度 {arg1}",
+  evaluatorOfValue: "{arg0}的评估助手"
 };

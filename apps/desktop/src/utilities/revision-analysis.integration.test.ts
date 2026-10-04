@@ -96,6 +96,7 @@ describe("revision analysis runtime to persisted skill", () => {
       await expect(
         runExtrasAgent(
           {
+            evaluationMode: true,
             configStore: () => settings,
             chatSources: {
               core: async () => {

@@ -1,4 +1,10 @@
+import {
+  BookIdentityFieldSchema,
+  BookIdentityIdSchema
+} from "../book-identity/limits";
 import { z } from "zod";
+import { DecompositionReceiptSchema } from "../long-book-decomposition/target";
+import { DecompositionIdSchema } from "../long-book-decomposition/limits";
 import { EnvelopeBaseSchema, type Envelope } from "../envelope";
 import {
   LongBookAnalysisNoteWriteSchema,
@@ -14,6 +20,28 @@ const UnitIdSchema = z.string().trim().min(1).max(120);
 
 /** A structured result an extras agent hands back for the user to review. */
 export const ExtrasAgentOutputSchema = z.discriminatedUnion("kind", [
+  z
+    .object({
+      kind: z.literal("book-identity-round"),
+      field: BookIdentityFieldSchema,
+      roundId: BookIdentityIdSchema,
+      bookKey: z.string().min(1).max(600),
+      candidateCount: z.number().int().min(1).max(20),
+      revision: z.number().int().positive()
+    })
+    .strict(),
+  z.object({
+    kind: z.enum([
+      "decomposition-card",
+      "decomposition-registry",
+      "decomposition-asset",
+      "decomposition-review"
+    ]),
+    outputVersion: z.number().int().positive(),
+    unitId: DecompositionIdSchema,
+    receipt: DecompositionReceiptSchema,
+    summary: z.string().max(1000).optional()
+  }),
   z.object({
     kind: z.literal("revision-analysis-result"),
     result: RevisionAnalysisResultSchema

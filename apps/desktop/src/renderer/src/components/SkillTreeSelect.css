@@ -1,0 +1,197 @@
+.skill-tree {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+}
+.skill-tree-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.skill-search {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 0 10px;
+  border: 1px solid var(--theme-line);
+  border-radius: 9px;
+  background: var(--surface-main);
+  color: var(--text-tertiary);
+}
+.skill-search:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.skill-search input {
+  flex: 1;
+  min-width: 0;
+  min-height: 34px;
+  border: 0;
+  outline: 0;
+  background: none;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.857143rem;
+}
+.skill-search input::placeholder {
+  color: var(--text-tertiary);
+}
+.skill-selected-count {
+  flex: none;
+  color: var(--text-tertiary);
+  font-size: 0.785714rem;
+  font-variant-numeric: tabular-nums;
+}
+.skill-selected-count.is-full {
+  color: var(--accent);
+  font-weight: 650;
+}
+.skill-tree-scroll {
+  max-height: min(320px, 40vh);
+  overflow: auto;
+  padding: 6px;
+  border: 1px solid var(--theme-line-soft);
+  border-radius: 10px;
+  background: var(--surface-main);
+}
+.skill-tree-empty {
+  margin: 0;
+  padding: 18px 8px;
+  color: var(--text-tertiary);
+  font-size: 0.857143rem;
+  text-align: center;
+}
+.skill-node-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.skill-node-list .skill-node-list {
+  margin-left: 12px;
+  padding-left: 8px;
+  border-left: 1px solid var(--theme-line-soft);
+}
+.skill-node-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  min-height: 32px;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.857143rem;
+  text-align: left;
+  cursor: pointer;
+}
+.skill-node-row:hover {
+  background: var(--surface-hover);
+}
+.skill-node-row:focus-visible,
+.skill-chips button:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  outline-offset: -2px;
+}
+.skill-node-library {
+  font-weight: 650;
+}
+.skill-node-stage {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+.skill-node-chevron {
+  flex: none;
+  color: var(--text-tertiary);
+  transition: transform 150ms ease;
+}
+.skill-node-chevron.is-open {
+  transform: rotate(90deg);
+}
+.skill-node-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.skill-node-tag,
+.skill-node-count {
+  flex: none;
+  color: var(--text-tertiary);
+  font-size: 0.714286rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.skill-node-tag {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--surface-muted);
+}
+.skill-node-count.has-selection {
+  color: var(--accent);
+  font-weight: 650;
+}
+.skill-node-skill {
+  font-weight: 500;
+}
+.skill-node-skill.is-selected {
+  background: var(--accent-soft);
+}
+.skill-node-skill input {
+  flex: none;
+  margin: 0;
+  accent-color: var(--accent);
+}
+.skill-node-skill:has(input:disabled) {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+.skill-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.skill-chips li {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 3px 4px 3px 10px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--text-primary);
+  font-size: 0.785714rem;
+}
+.skill-chips li > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.skill-chips button {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.skill-chips button:hover:not(:disabled) {
+  background: var(--surface-selected);
+  color: var(--text-primary);
+}
+.skill-chips button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}

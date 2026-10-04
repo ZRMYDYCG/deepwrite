@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" fill="#2C2C2A" width="1000" height="940" viewBox="0 0 1000 940" role="img">
+<svg xmlns="http://www.w3.org/2000/svg" fill="#2C2C2A" width="1000" height="1000" viewBox="0 0 1000 1000" role="img">
   <title>界面线框：开始前设置</title>
-  <desc>长篇整书拆解开始前的设置：来源、模式、真实目标选择或即时新建、方案与模型、预估。目标创建并绑定后才调用模型，运行中直接保存到书籍或素材库。</desc>
+  <desc>长篇整书拆解在完成书籍导入和章节/范围确认后的设置：已确认来源、模式、真实目标选择或即时新建、方案与模型、预估。来源确认和目标绑定均成功后才调用模型，运行中直接保存到书籍或素材库。</desc>
   <defs>
     <style>
       svg { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC", sans-serif; }
@@ -24,8 +24,8 @@
       .metric { font-size: 18px; font-weight: 600; }
     </style>
   </defs>
-  <rect width="1000" height="940" fill="#FFFFFF"/>
-  <rect x="20" y="20" width="960" height="900" rx="12" fill="#FFFFFF" stroke="#D3D1C7"/>
+  <rect width="1000" height="1000" fill="#FFFFFF"/>
+  <rect x="20" y="20" width="960" height="960" rx="12" fill="#FFFFFF" stroke="#D3D1C7"/>
   <path d="M20 56 V32 Q20 20 32 20 H968 Q980 20 980 32 V56 Z" fill="#F7F6F2"/>
   <line x1="20" y1="56" x2="980" y2="56" stroke="#E5E3DA"/>
   <circle cx="42" cy="38" r="5" fill="#D3D1C7"/>
@@ -33,8 +33,8 @@
   <circle cx="78" cy="38" r="5" fill="#D3D1C7"/>
   <text class="small" x="500" y="42" text-anchor="middle">DeepWrite</text>
 
-  <path d="M20 56 H210 V920 H32 Q20 920 20 908 Z" fill="#F7F6F2"/>
-  <line x1="210" y1="56" x2="210" y2="920" stroke="#E5E3DA"/>
+  <path d="M20 56 H210 V980 H32 Q20 980 20 968 Z" fill="#F7F6F2"/>
+  <line x1="210" y1="56" x2="210" y2="980" stroke="#E5E3DA"/>
   <text class="side" x="40" y="92">创作空间</text>
   <text class="side" x="40" y="120">素材库</text>
   <text class="side" x="40" y="148">技能库</text>
@@ -52,7 +52,7 @@
 
   <text class="eyebrow" x="250" y="92">更多功能</text>
   <text class="h1" x="250" y="122">长篇整书拆解</text>
-  <text class="desc" x="250" y="146">先准备目标，再拆解整本长篇；完成的内容直接写入书籍或素材库</text>
+  <text class="desc" x="250" y="146">先导入并确认章节，再准备目标；开始后逐步写入真实书籍或素材库</text>
   <rect x="598" y="98" width="88" height="30" rx="8" fill="#FFFFFF" stroke="#B4B2A9"/>
   <text class="btn" x="642" y="118" text-anchor="middle">导入 TXT</text>
   <rect x="694" y="98" width="100" height="30" rx="8" fill="#FFFFFF" stroke="#B4B2A9"/>
@@ -60,8 +60,8 @@
   <rect x="846" y="98" width="94" height="30" rx="8" fill="#2C2C2A"/>
   <text class="btn-p" x="893" y="118" text-anchor="middle">开始拆解</text>
 
-  <rect x="250" y="166" width="690" height="96" rx="10" fill="#FFFFFF" stroke="#E5E3DA"/>
-  <text class="ct" x="270" y="192">来源</text>
+  <rect x="250" y="166" width="690" height="148" rx="10" fill="#FFFFFF" stroke="#E5E3DA"/>
+  <text class="ct" x="270" y="192">来源（已完成导入与校对）</text>
   <rect x="740" y="176" width="184" height="30" rx="8" fill="#FFFFFF" stroke="#B4B2A9"/>
   <text class="body" x="752" y="196">已导入的书</text>
   <text class="body" x="912" y="196" text-anchor="end">▾</text>
@@ -69,8 +69,12 @@
   <text class="muted" x="380" y="226">1,024 章 · 312 万字 · 3 卷 · 识别提示 0 条</text>
   <text class="muted" x="270" y="250">拆解范围：第 1 章 – 第 1024 章</text>
   <text class="link" x="520" y="250">修改范围</text>
-  <text class="link" x="590" y="250">章节校对</text>
+  <text class="muted" x="270" y="282">章节与范围已保存并确认 · 1,024 章参与拆解</text>
+  <rect x="784" y="269" width="140" height="30" rx="8" fill="#FFFFFF" stroke="#B4B2A9"/>
+  <text class="btn" x="854" y="289" text-anchor="middle">返回章节校对</text>
+  <text class="small" x="270" y="304">修改章节或范围后，请重新确认</text>
 
+  <g transform="translate(0 60)">
   <rect x="250" y="278" width="690" height="102" rx="10" fill="#FFFFFF" stroke="#E5E3DA"/>
   <text class="ct" x="270" y="304">拆解模式</text>
   <rect x="270" y="316" width="326" height="50" rx="8" fill="#FFFFFF" stroke="#2C2C2A" stroke-width="1.6"/>
@@ -91,7 +95,7 @@
   <text class="btn" x="761" y="458" text-anchor="middle">即时新建</text>
   <rect x="820" y="438" width="104" height="30" rx="8" fill="#FFFFFF" stroke="#B4B2A9"/>
   <text class="btn" x="872" y="458" text-anchor="middle">自动创建</text>
-  <text class="small" x="270" y="492">目标准备成功后才能开跑；已写内容实时保存，停止后可继续</text>
+  <text class="small" x="270" y="492">章节已确认、目标准备成功后才能开跑；已写内容实时保存，停止后可继续</text>
 
   <g transform="translate(0 124)">
   <rect x="250" y="396" width="690" height="124" rx="10" fill="#FFFFFF" stroke="#E5E3DA"/>
@@ -154,5 +158,6 @@
   <text class="metric" x="780" y="718">1–2 小时</text>
   <text class="small" x="780" y="740">预计耗时</text>
   <text class="small" x="270" y="766">按所选模型计价；可以先拆一段章节看效果</text>
+  </g>
   </g>
 </svg>

@@ -1,4 +1,5 @@
 import {
+  SUBAGENT_CHILD_RUN_MAX_CONCURRENCY,
   SUBAGENT_PARALLEL_MAX_CONCURRENCY,
   SUBAGENT_TASK_BATCH_MAX_COUNT
 } from "@deepwrite/contracts";
@@ -11,7 +12,15 @@ import {
   runSubagentTask,
   type SubagentTaskContext
 } from "./subagent-child";
+import { runSubagentDrawTask } from "./subagent-draw";
 import { textResult } from "./subagent-helpers";
+import {
+  subagentAgentMode,
+  subagentDrawLabel,
+  subagentDrawSettings,
+  subagentModeLabel
+} from "./subagent-mode";
+import { createConcurrencyLimiter } from "./concurrency-limiter";
 import { runSubagentTasks } from "./subagent-scheduler";
 import { planSubagentTasks } from "./subagent-task-plan";
 import { createSubagentWriteLock } from "./subagent-write-lock";
@@ -74,7 +83,8 @@ function spawnParameters(definitions: readonly RuntimeSubagentDefinition[]) {
 
 function spawnDescription(
   definitions: readonly RuntimeSubagentDefinition[],
-  parallel: boolean
+  parallel: boolean,
+  workspaceWrites: boolean
 ): string {
   return [
     parallel
@@ -82,16 +92,24 @@ function spawnDescription(
       : "调用预先配置的子智能体完成明确、边界清晰的子任务。tasks 按依赖关系和列表顺序逐个执行；调用会阻塞到全部任务结束，只返回各任务的最终交接摘要。单个委派只需提交一个任务。",
     `单次调用最多 ${SUBAGENT_TASK_BATCH_MAX_COUNT} 个任务；任务多于可同时运行的数量时会自动排队，无需自行分批。`,
     "depends_on 填写必须先完成的任务 key：前置任务失败时本任务跳过，前置交接摘要会自动提供给本任务。每个任务都要独立写清背景与要求，子智能体看不到彼此的过程。",
-    ...(parallel
+    ...(parallel && workspaceWrites
       ? [
           "把前后无关的子任务放进同一次调用，让它们并行。并行任务的写入由系统逐个执行，但先后顺序和是否冲突由你安排：不要让并行任务修改同一对象；某任务要读取或接着改另一任务的成果，用 depends_on 排在它后面；新增、删除对象和提交连续性记录要按需要的顺序用 depends_on 串起来。后写的任务发现对象已被改动会被拒绝并要求重读。"
         ]
       : []),
-    "可用子智能体：",
-    ...definitions.map(
-      (definition) =>
-        `- ${definition.name} (${definition.id})：${definition.description}`
+    ...(definitions.some(
+      (definition) => subagentAgentMode(definition) !== "standard"
     )
+      ? [
+          "带［纯净］标记的成员是受限运行模式：只读成员不能修改作品，无工具成员既看不到作品与素材也不能调用任何工具，需要写入时交给常规成员，或自行根据它们的交接摘要写入。"
+        ]
+      : []),
+    "可用子智能体：",
+    ...definitions.map((definition) => {
+      const label = subagentModeLabel(subagentAgentMode(definition));
+      const draw = subagentDrawSettings(definition);
+      return `- ${definition.name} (${definition.id})${label ?? ""}${draw ? subagentDrawLabel(draw) : ""}：${definition.description}`;
+    })
   ].join("\n");
 }
 
@@ -170,12 +188,13 @@ export function buildSpawnSubagentTool(
   );
   if (definitions.length === 0 || (input.depth ?? 0) > 0) return undefined;
   const parallel = input.parallel === true;
+  const workspaceWrites = input.workspaceAccess !== "none";
   const parameters = spawnParameters(definitions);
 
   const tool: AgentTool<typeof parameters, SubagentToolDetails> = {
     name: "spawn_subagent",
     label: "调用子智能体",
-    description: spawnDescription(definitions, parallel),
+    description: spawnDescription(definitions, parallel, workspaceWrites),
     parameters,
     ...piStrictToolSampling(parameters),
     prepareArguments: (args) =>
@@ -206,20 +225,27 @@ export function buildSpawnSubagentTool(
             progress: {
               type: "planned",
               parentToolCallId,
-              tasks: tasks.map((request) => ({
-                index: request.index,
-                key: request.key,
-                dependsOn: [...request.dependsOn],
-                subagentId: request.definition.id,
-                name: request.definition.name,
-                task: request.task,
-                runtime: childRuntime(input, request)
-              }))
+              tasks: tasks.map((request) => {
+                const draw = subagentDrawSettings(request.definition);
+                return {
+                  index: request.index,
+                  key: request.key,
+                  dependsOn: [...request.dependsOn],
+                  subagentId: request.definition.id,
+                  name: request.definition.name,
+                  task: request.task,
+                  runtime: childRuntime(input, request),
+                  ...(draw ? { drawCount: draw.count } : {})
+                };
+              })
             }
           })
         );
       }
       const writeLock = createSubagentWriteLock();
+      const limiter = createConcurrencyLimiter(
+        SUBAGENT_CHILD_RUN_MAX_CONCURRENCY
+      );
       const contextFor = (
         request: SubagentTaskRequest
       ): SubagentTaskContext => ({
@@ -242,8 +268,20 @@ export function buildSpawnSubagentTool(
         tasks,
         maxConcurrency: parallel ? SUBAGENT_PARALLEL_MAX_CONCURRENCY : 1,
         ...(signal ? { signal } : {}),
-        runTask: (request, handoffs) =>
-          runSubagentTask(input, contextFor(request), handoffs),
+        runTask: (request, handoffs) => {
+          const draw = subagentDrawSettings(request.definition);
+          return draw
+            ? runSubagentDrawTask(
+                input,
+                contextFor(request),
+                handoffs,
+                draw,
+                limiter
+              )
+            : limiter.run(() =>
+                runSubagentTask(input, contextFor(request), handoffs)
+              );
+        },
         settleUnstarted: (request, outcome) =>
           reportUnstartedSubagentTask(input, contextFor(request), outcome)
       });

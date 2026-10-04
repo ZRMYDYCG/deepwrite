@@ -93,6 +93,8 @@ export const ConversationHistoryMessageSchema = z
     messageId: ConversationHistoryIdSchema,
     position: RevisionSchema,
     value: ConversationHistoryRecordSchema,
+    /** Display-only text when content is deferred; never a replacement body. */
+    preview: z.string().max(300).optional(),
     details: z.array(ConversationHistoryDetailReferenceSchema),
     byteLength: RevisionSchema
   })

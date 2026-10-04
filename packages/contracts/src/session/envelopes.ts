@@ -35,10 +35,12 @@ import {
 import {
   SubagentActivityPayloadSchema,
   SubagentCompletedPayloadSchema,
+  SubagentDrawUpdatedPayloadSchema,
   SubagentPlannedPayloadSchema,
   SubagentStartedPayloadSchema,
   type SubagentActivityPayload,
   type SubagentCompletedPayload,
+  type SubagentDrawUpdatedPayload,
   type SubagentPlannedPayload,
   type SubagentStartedPayload
 } from "./subagent";
@@ -117,6 +119,13 @@ export const SubagentCompletedEventEnvelopeSchema = EnvelopeBaseSchema.extend({
   type: z.literal("subagent.completed"),
   payload: SubagentCompletedPayloadSchema
 }).superRefine(validateAgentEventContext);
+
+export const SubagentDrawUpdatedEventEnvelopeSchema = EnvelopeBaseSchema.extend(
+  {
+    type: z.literal("subagent.draw_updated"),
+    payload: SubagentDrawUpdatedPayloadSchema
+  }
+).superRefine(validateAgentEventContext);
 
 export const AgentThinkingDeltaEventEnvelopeSchema = EnvelopeBaseSchema.extend({
   type: z.literal("agent.thinking_delta"),
@@ -280,6 +289,10 @@ export type SubagentActivityEventEnvelope = Envelope<
 export type SubagentCompletedEventEnvelope = Envelope<
   SubagentCompletedPayload,
   "subagent.completed"
+>;
+export type SubagentDrawUpdatedEventEnvelope = Envelope<
+  SubagentDrawUpdatedPayload,
+  "subagent.draw_updated"
 >;
 export type AgentThinkingDeltaEventEnvelope = Envelope<
   AgentThinkingDeltaPayload,

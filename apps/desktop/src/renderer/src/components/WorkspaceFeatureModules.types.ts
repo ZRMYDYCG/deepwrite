@@ -119,6 +119,14 @@ export interface ZhuqueDetectionFeatureModule {
 
 export type WorkspaceFeatureModule =
   | {
+      kind: "long-book-decomposition";
+      controller:
+        | import("../extras/long-book-decomposition/useLongBookDecomposition").LongBookDecompositionController
+        | null;
+      models: readonly ModelConfig[];
+      catalogSnapshot: CatalogSnapshot | null;
+    }
+  | {
       kind: "revision-analysis";
       controller:
         | import("../extras/revision-analysis/useRevisionAnalysis").RevisionAnalysisController
@@ -138,7 +146,7 @@ export type WorkspaceFeatureModule =
   | AgentTeamFeatureModule
   | DirectoryFeatureModule
   | {
-      kind: "style-comparison";
+      kind: "style-comparison" | "book-identity";
       models: readonly ModelConfig[];
       preferredModelId: string | null;
     }

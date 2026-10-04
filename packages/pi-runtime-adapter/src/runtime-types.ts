@@ -11,11 +11,14 @@ import type {
   AgentUsage,
   AgentUsageObservationStatus,
   SubagentBatchTask,
+  SubagentDrawRef,
+  SubagentDrawUpdatedPayload,
   SubagentPlannedTask,
   AgentWriteApprovalMode,
   ContextCompactionRequest,
   ContextCompactionRunSettings,
   ConversationCheckpoint,
+  AgentUserInputDraw,
   AgentUserInputQuestion,
   AgentUserInputSource,
   SessionUserInputResponsePayload,
@@ -83,6 +86,8 @@ export interface AgentUserInputRequest {
   toolCallId: string;
   source: AgentUserInputSource;
   questions: AgentUserInputQuestion[];
+  /** Candidates of a `subagent_draw` request. */
+  draw?: AgentUserInputDraw;
 }
 
 export type AgentUserInputRequester = (
@@ -243,6 +248,7 @@ export type AgentRuntimeEvent =
         toolCallId: string;
         source: AgentUserInputSource;
         questions: AgentUserInputQuestion[];
+        draw?: AgentUserInputDraw;
         runtime: AgentRuntimeRef;
       };
     }
@@ -258,6 +264,7 @@ export type AgentRuntimeEvent =
         task: string;
         runtime: AgentRuntimeRef;
         batchTask?: SubagentBatchTask;
+        draw?: SubagentDrawRef;
       };
     }
   | {
@@ -280,6 +287,7 @@ export type AgentRuntimeEvent =
         name: string;
         activity: SubagentActivity;
         runtime: AgentRuntimeRef;
+        draw?: SubagentDrawRef;
       };
     }
   | {
@@ -297,7 +305,14 @@ export type AgentRuntimeEvent =
         usage?: AgentUsage;
         runtime: AgentRuntimeRef;
         batchTask?: SubagentBatchTask;
+        draw?: SubagentDrawRef;
       };
+    }
+  | {
+      type: "subagent.draw_updated";
+      runId: string;
+      sessionId: string;
+      payload: Omit<SubagentDrawUpdatedPayload, "sessionId" | "runId">;
     }
   | {
       type: "workspace.editor_mutation";

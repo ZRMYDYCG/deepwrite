@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { EnvelopeBaseSchema } from "./envelope";
+import { HttpsBaseUrlSchema } from "./https-base-url";
 
 export const VOICE_MAX_DURATION_MS = 600_000;
 // Ten minutes of 16 kHz mono PCM16 WAV is about 25.6 million base64 characters.
@@ -14,28 +15,9 @@ export type VoiceProfileId = z.infer<typeof VoiceProfileIdSchema>;
 export const VoiceLanguageSchema = z.enum(["auto", "zh", "en"]);
 export type VoiceLanguage = z.infer<typeof VoiceLanguageSchema>;
 
-const BaseUrlSchema = z
-  .string()
-  .trim()
-  .url()
-  .max(2048)
-  .refine((value) => {
-    try {
-      const url = new URL(value);
-      return (
-        url.protocol === "https:" &&
-        !url.username &&
-        !url.password &&
-        !url.search &&
-        !url.hash
-      );
-    } catch {
-      return false;
-    }
-  }, "请填写不含密钥或查询参数的 HTTPS 接口地址。");
 const ProfileFields = {
   id: VoiceProfileIdSchema,
-  baseUrl: BaseUrlSchema,
+  baseUrl: HttpsBaseUrlSchema,
   model: z.string().trim().min(1).max(160)
 };
 export const VoiceProfileSchema = z

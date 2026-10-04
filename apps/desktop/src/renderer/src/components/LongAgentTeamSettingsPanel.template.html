@@ -21,275 +21,63 @@
   {{ t('noNovelAgentTeamSettingsAvailable') }}
 </div>
 
-<div v-else class="team-layout">
-  <div class="team-editor">
-    <header class="team-heading">
-      <div>
-        <span>{{ t('novelPrimaryAgent') }}</span>
-        <h3>{{ parentAgentLabel }}</h3>
-        <p>{{ PARENT_AGENT_DESCRIPTION }}</p>
-      </div>
-      <div class="team-heading-actions">
-        <button
-          type="button"
-          class="secondary-button"
-          :disabled="
-            formDisabled ||
-            activeTeam.subagents.length >= LONG_AGENT_SUBAGENT_MAX_COUNT
-          "
-          @click="openLoadFromSkill"
-        >
-          <AppIcon name="wand" :size="15" />
-          {{ t('loadFromSkillLibrary') }}
-        </button>
-        <button
-          type="button"
-          class="secondary-button"
-          :disabled="
-            formDisabled ||
-            activeTeam.subagents.length >= LONG_AGENT_SUBAGENT_MAX_COUNT
-          "
-          @click="addSubagent()"
-        >
-          <AppIcon name="plus" :size="15" />
-          {{ t('addSubagent') }}
-        </button>
-      </div>
-    </header>
+<div v-else class="team-editor">
+  <AgentTeamParallelSwitch
+    v-model="draftParallelSubagents"
+    :disabled="formDisabled"
+  />
 
-    <div v-if="!activeTeam.subagents.length" class="empty-team">
-      <strong>{{ t('noSubagentsYet') }}</strong>
-      <p>{{ t('afterYouAddSubagentsThePrimaryAgentUsesTheir') }}</p>
-    </div>
-
-    <div v-else class="subagent-list">
-      <article
-        v-for="(definition, index) in activeTeam.subagents"
-        :key="definition.id"
-        class="subagent-card"
-        :class="{ 'is-editing': editingSubagentId === definition.id }"
-      >
-        <header class="subagent-summary">
-          <div class="subagent-copy">
-            <div class="subagent-title-row">
-              <strong>{{ definition.name || t('untitledSubagent') }}</strong>
-              <span :class="{ 'is-disabled': !definition.enabled }">
-                {{ definition.enabled ? t('enabled') : t('disabled') }}
-              </span>
-              <span class="model-badge"
-                >{{ subagentModelSummary(definition) }}</span
-              >
-            </div>
-            <p>
-              {{ definition.description ||
-              t('describeItsCapabilitiesSoThePrimaryAgentKnowsWhen') }}
-            </p>
-          </div>
-          <label
-            class="enable-toggle"
-            :title="definition.enabled ? t('disable') : t('enable')"
-          >
-            <input
-              type="checkbox"
-              :checked="definition.enabled"
-              :disabled="formDisabled"
-              :aria-label="t('valueEnabledStatus', { arg0: definition.name || t('subagent') })"
-              @change="toggleSubagent(definition, $event)"
-            />
-          </label>
-          <button
-            type="button"
-            class="icon-button"
-            :disabled="formDisabled"
-            :aria-label="t('editValue', { arg0: definition.name })"
-            @click="editSubagent(definition.id)"
-          >
-            <AppIcon name="edit" :size="15" />
-          </button>
-          <button
-            type="button"
-            class="icon-button"
-            :disabled="
-              formDisabled ||
-              activeTeam.subagents.length >= LONG_AGENT_SUBAGENT_MAX_COUNT
-            "
-            :aria-label="t('duplicateValue', { arg0: definition.name })"
-            :title="t('duplicate')"
-            @click="duplicateSubagent(index)"
-          >
-            <AppIcon name="copy" :size="15" />
-          </button>
-          <button
-            type="button"
-            class="icon-button is-danger"
-            :disabled="formDisabled"
-            :aria-label="t('deleteValue', { arg0: definition.name })"
-            @click="removeSubagent(index)"
-          >
-            <AppIcon name="trash" :size="15" />
-          </button>
-        </header>
-
-        <div v-if="editingSubagentId === definition.id" class="subagent-form">
-          <div class="form-field">
-            <span>{{ t('modelSettings') }}</span>
-            <div
-              class="model-mode-options"
-              role="radiogroup"
-              :aria-label="t('novelSubagentModelSettings')"
-            >
-              <label
-                :class="{ 'is-selected': definition.modelMode !== 'custom' }"
-              >
-                <input
-                  type="radio"
-                  :name="`long-subagent-model-mode-${definition.id}`"
-                  value="inherit"
-                  :checked="definition.modelMode !== 'custom'"
-                  :disabled="formDisabled"
-                  @change="setModelMode(definition, 'inherit')"
-                />
-                {{ t('usePrimaryAgentModel') }}
-              </label>
-              <label
-                :class="{ 'is-selected': definition.modelMode === 'custom' }"
-              >
-                <input
-                  type="radio"
-                  :name="`long-subagent-model-mode-${definition.id}`"
-                  value="custom"
-                  :checked="definition.modelMode === 'custom'"
-                  :disabled="formDisabled"
-                  @change="setModelMode(definition, 'custom')"
-                />
-                {{ t('configureModelSeparately') }}
-              </label>
-            </div>
-            <div
-              v-if="definition.modelMode === 'custom'"
-              class="model-run-settings"
-            >
-              <PopupSelect
-                class="model-select"
-                :model-value="definition.modelId ?? ''"
-                :options="modelOptions"
-                :accessible-label="t('selectNovelSubagentModel')"
-                :placeholder="t('selectAModel')"
-                size="large"
-                :disabled="formDisabled || modelOptions.length === 0"
-                :menu-min-width="260"
-                :menu-z-index="1200"
-                @update:model-value="setModelId(definition, String($event))"
-              >
-                <template #prefix><AppIcon name="model" :size="14" /></template>
-              </PopupSelect>
-              <PopupSelect
-                class="model-select"
-                :model-value="definition.thinkingLevel ?? ''"
-                :options="thinkingOptionsFor(definition)"
-                :accessible-label="t('selectNovelSubagentReasoningLevel')"
-                :placeholder="t('selectAReasoningLevel')"
-                size="large"
-                :disabled="formDisabled || !definition.modelId"
-                :menu-min-width="200"
-                :menu-z-index="1200"
-                @update:model-value="
-                  setThinkingLevel(definition, String($event))
-                "
-              >
-                <template #prefix><AppIcon name="brain" :size="14" /></template>
-              </PopupSelect>
-              <PopupSelect
-                v-if="definition.thinkingLevel === 'off'"
-                class="model-select"
-                :model-value="definition.temperature ?? ''"
-                :options="temperatureOptionsFor(definition)"
-                :accessible-label="t('selectNovelSubagentTemperature')"
-                :placeholder="t('selectATemperature')"
-                size="large"
-                :disabled="formDisabled || !definition.modelId"
-                :menu-min-width="180"
-                :menu-z-index="1200"
-                @update:model-value="
-                  setTemperature(definition, Number($event))
-                "
-              >
-                <template #prefix
-                  ><AppIcon name="temperature" :size="14"
-                /></template>
-              </PopupSelect>
-              <p v-if="modelOptions.length === 0" class="model-empty-hint">
-                {{ t('noModelsAvailableAddOneInModelSettingsFirst') }}
-              </p>
-            </div>
-          </div>
-          <label class="form-field">
-            <span>{{ t('name') }}</span>
-            <input
-              v-model="definition.name"
-              type="text"
-              :maxlength="SHORT_AGENT_SUBAGENT_NAME_MAX_LENGTH"
-              :disabled="formDisabled"
-              :placeholder="t('forExampleContinuityReview')"
-            />
-          </label>
-          <label class="form-field">
-            <span>{{ t('capabilities') }}</span>
-            <textarea
-              v-model="definition.description"
-              class="description-input"
-              :maxlength="SHORT_AGENT_SUBAGENT_DESCRIPTION_MAX_LENGTH"
-              :disabled="formDisabled"
-              :placeholder="t('describeTheTasksItHandlesSoThePrimaryAgent')"
-            />
-          </label>
-          <label class="form-field">
-            <span>{{ t('systemPrompt') }}</span>
-            <textarea
-              v-model="definition.systemPrompt"
-              class="prompt-input"
-              :maxlength="SHORT_AGENT_SUBAGENT_SYSTEM_PROMPT_MAX_LENGTH"
-              :disabled="formDisabled"
-              spellcheck="false"
-              :placeholder="t('defineTheSubagentSRoleMethodsAndHandoffRequirements')"
-            />
-          </label>
-          <div class="form-meta">
-            <span>ID：<code>{{ definition.id }}</code></span>
-            <button
-              type="button"
-              :disabled="formDisabled"
-              @click="finishEditing"
-            >
-              {{ t('doneEditing') }}
-            </button>
-          </div>
-        </div>
-      </article>
-    </div>
-
-    <AgentTeamParallelSwitch
-      v-model="draftParallelSubagents"
+  <AgentTeamSubagentSection
+    :count="activeTeam.subagents.length"
+    :limit="LONG_AGENT_SUBAGENT_MAX_COUNT"
+    :description="PARENT_AGENT_DESCRIPTION"
+    :note="t('subagentsUseThePrimaryAgentSModelByDefault')"
+    :disabled="formDisabled"
+    :limit-reached="activeTeam.subagents.length >= LONG_AGENT_SUBAGENT_MAX_COUNT"
+    @load-from-skill="openLoadFromSkill"
+    @add="addSubagent()"
+  >
+    <AgentTeamSubagentCard
+      v-for="(definition, index) in activeTeam.subagents"
+      :key="definition.id"
+      :subagent="definition"
+      :editing="editingSubagentId === definition.id"
       :disabled="formDisabled"
-    />
-
-    <footer class="panel-actions">
-      <span
-        >{{ t('primaryAgentSubagentsMessage', { arg0:
-        (activeTeam.subagents.length) ?? "", arg1:
-        (LONG_AGENT_SUBAGENT_MAX_COUNT) ?? "" }) }}</span
-      >
-      <button
-        type="button"
-        class="primary-button"
+      :duplicate-disabled="activeTeam.subagents.length >= LONG_AGENT_SUBAGENT_MAX_COUNT"
+      :model-summary="subagentModelSummary(definition)"
+      @toggle="toggleSubagent(definition, $event)"
+      @edit="editSubagent(definition.id)"
+      @duplicate="duplicateSubagent(index)"
+      @remove="removeSubagent(index)"
+    >
+      <AgentTeamSubagentEditor
+        v-model:name="definition.name"
+        v-model:description="definition.description"
+        v-model:system-prompt="definition.systemPrompt"
+        v-model:agent-mode="definition.agentMode"
+        v-model:draw="definition.draw"
+        :model-config="subagentModelConfig"
+        :subagent="definition"
         :disabled="formDisabled"
-        @click="saveSettings"
-      >
-        <AppIcon name="save" :size="15" />
-        {{ saving ? t('saving') : t('saveAgentTeam') }}
-      </button>
-    </footer>
-  </div>
+        :model-options="modelOptions"
+        :thinking-options="thinkingOptionsFor(definition)"
+        :temperature-options="temperatureOptionsFor(definition)"
+        @set-model-mode="setModelMode(definition, $event)"
+        @set-model-id="setModelId(definition, $event)"
+        @set-thinking-level="setThinkingLevel(definition, $event)"
+        @set-temperature="setTemperature(definition, $event)"
+        @done="finishEditing"
+      />
+    </AgentTeamSubagentCard>
+  </AgentTeamSubagentSection>
+
+  <AgentTeamSaveBar
+    :dirty="dirty"
+    :saving="saving"
+    :disabled="formDisabled"
+    @save="saveSettings"
+    @discard="discardChanges"
+  />
 </div>
 
 <LoadSubagentFromSkillDialog

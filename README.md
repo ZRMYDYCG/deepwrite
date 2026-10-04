@@ -120,6 +120,12 @@ pnpm build     # 构建生产版本
 pnpm verify    # 运行格式、类型、边界、测试与构建校验
 ```
 
+### macOS Codex 的桌面启动限制
+
+开发、预览、桌面冒烟、视觉探针和本机安装包运行验证会先检测 Codex 的 macOS Seatbelt 沙盒。处于该沙盒时，入口以 `DEEPWRITE_ELECTRON_SANDBOX` 提前退出并给出处理提示，避免 Electron 在访问窗口服务或 LaunchServices 时中止并弹出系统崩溃报告。
+
+需要运行桌面窗口时，从系统终端执行 `pnpm dev`、`pnpm --filter @deepwrite/desktop preview` 或相应验收命令；Codex 中则为具体启动命令申请沙盒外执行。常规单元测试、构建、Electron 安装文件检查和跨平台静态安装包检查仍可在沙盒内运行。`--no-sandbox` 只控制 Chromium 的内部沙盒，无法解除 Codex 的系统限制。
+
 ## 构建测试安装包
 
 测试安装包必须在对应平台构建，并从仓库根目录运行：

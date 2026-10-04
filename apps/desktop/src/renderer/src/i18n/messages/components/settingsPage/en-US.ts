@@ -1,6 +1,6 @@
 export default {
   writing: "Writing",
-  workspaceFolder: "Workspace folder",
+  storage: "Storage",
   workspaceSettings: "Workspace",
   skillLibrarySettings: "Skill library",
   materialLibrarySettings: "Material library",

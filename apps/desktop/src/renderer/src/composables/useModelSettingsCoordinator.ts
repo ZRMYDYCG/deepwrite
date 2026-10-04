@@ -1,4 +1,4 @@
-import { formatError } from "../i18n/errors";
+import { formatError, getErrorDetail } from "../i18n/errors";
 import { createScopedTranslator } from "../i18n";
 import type {
   DeepWriteApi,
@@ -13,8 +13,11 @@ import { useSiteOfficialModelSettings } from "./useSiteOfficialModelSettings";
 
 const t = createScopedTranslator("workspace.modelSettingsCoordinator");
 
+// A provider's failure reason needs longer than the default toast to read.
+const MODEL_TEST_ERROR_TOAST_MS = 8_000;
+
 export interface ModelSettingsNotifications {
-  error(message: string): void;
+  error(message: string, options?: { duration?: number }): void;
   info(message: string): void;
   success(message: string): void;
   warning(message: string): void;
@@ -332,11 +335,15 @@ export function useModelSettingsCoordinator(
       }
       uiMessage.success(result.message);
     } catch (error: unknown) {
-      settingsStore.modelError = errorMessage(
-        error,
-        t("modelConnectionTestFailed")
-      );
-      uiMessage.error(settingsStore.modelError);
+      const headline = t("modelConnectionTestFailed");
+      const reason = getErrorDetail(error);
+      settingsStore.modelError =
+        reason && reason !== headline
+          ? t("modelConnectionTestFailedWithReason", { reason })
+          : headline;
+      uiMessage.error(settingsStore.modelError, {
+        duration: MODEL_TEST_ERROR_TOAST_MS
+      });
     } finally {
       settingsStore.testingModelId = null;
     }

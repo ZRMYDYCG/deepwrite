@@ -7,7 +7,7 @@ import composerLogicSource from "../composables/useConversationComposer.ts?raw";
 import modelConfigSource from "./ConversationModelConfigSelect.vue?raw";
 import messageListSource from "./ConversationMessageList.vue?raw";
 import processingTimelineSource from "./ConversationProcessingTimeline.vue?raw";
-import subagentSource from "./SubagentRunList.vue?raw";
+import subagentSource from "./SubagentRunCard.vue?raw";
 import clockSource from "./ConversationRunClock.vue?raw";
 import detailsSource from "./ConversationDetails.vue?raw";
 import scrollSource from "../composables/useConversationScrollFollow.ts?raw";

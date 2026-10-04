@@ -4,9 +4,45 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import { spawn } from "node:child_process";
+import { assertElectronLaunchAllowed } from "../../../tools/electron-launch-environment.mjs";
+
+assertElectronLaunchAllowed();
+
 const root = fileURLToPath(new URL("../../..", import.meta.url));
 const output =
   process.argv[2] ?? join(tmpdir(), "deepwrite-revision-analysis-probe");
+async function scrollToBottom(win) {
+  for (let i = 0; i < 10; i++) {
+    win.webContents.sendInputEvent({
+      type: "mouseWheel",
+      x: 20,
+      y: 400,
+      deltaX: 0,
+      deltaY: -1000,
+      canScroll: true
+    });
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  const metrics = await win.webContents.executeJavaScript(
+    "inspectRevisionScrollProbe()"
+  );
+  for (const name of ["hostScroll", "shellScroll", "appScroll"]) {
+    if (metrics[name] !== 0)
+      throw new Error(`Analysis moved ${name} by ${metrics[name]}px`);
+  }
+  if (metrics.top < 0 || metrics.bottom > metrics.viewportHeight + 1)
+    throw new Error("Analysis viewport must stay inside the window");
+  if (
+    Math.abs(metrics.scrollHeight - metrics.clientHeight - metrics.scrollTop) >
+    1
+  )
+    throw new Error(
+      "Mouse wheel must reach the bottom after analysis completes"
+    );
+  if (metrics.saveTop < 0 || metrics.saveBottom > metrics.viewportHeight + 1)
+    throw new Error("Save controls must be visible at the bottom");
+  return metrics;
+}
 if (process.argv.includes("--electron")) {
   const { app, BrowserWindow } = await import("electron");
   app.setPath(
@@ -32,6 +68,16 @@ if (process.argv.includes("--electron")) {
       const interactions = await win.webContents.executeJavaScript(
         "runRevisionAnalysisProbe()"
       );
+      const scrollSamples = [];
+      for (const collapsed of [false, true]) {
+        for (const length of [1, 60, 3]) {
+          const before = await win.webContents.executeJavaScript(
+            `runRevisionScrollProbe(${collapsed}, ${length})`
+          );
+          const after = await scrollToBottom(win);
+          scrollSamples.push({ before, after });
+        }
+      }
       const samples = [];
       for (const [scheme, size, width, height, modal, state = "page"] of [
         ["light", 14, 1200, 950, false],
@@ -50,6 +96,8 @@ if (process.argv.includes("--electron")) {
             `showRevisionAnalysisProbe('${scheme}',${size},${modal},'${state}')`
           )
         );
+        if (state === "results")
+          samples.at(-1).bottom = await scrollToBottom(win);
         await writeFile(
           join(output, `${scheme}-${size}-${modal ? "preset" : state}.png`),
           (await win.capturePage()).toPNG()
@@ -57,9 +105,9 @@ if (process.argv.includes("--electron")) {
       }
       await writeFile(
         join(output, "result.json"),
-        JSON.stringify({ interactions, samples }, null, 2)
+        JSON.stringify({ interactions, scrollSamples, samples }, null, 2)
       );
-      console.log(JSON.stringify({ interactions, samples }));
+      console.log(JSON.stringify({ interactions, scrollSamples, samples }));
     } catch (error) {
       console.error(error);
       process.exitCode = 1;

@@ -20,7 +20,8 @@ export function isAgentEvent(event: SystemEventEnvelope): event is Extract<
       | "subagent.planned"
       | "subagent.started"
       | "subagent.activity"
-      | "subagent.completed";
+      | "subagent.completed"
+      | "subagent.draw_updated";
   }
 > {
   return (
@@ -40,7 +41,8 @@ export function isAgentEvent(event: SystemEventEnvelope): event is Extract<
     event.type === "subagent.planned" ||
     event.type === "subagent.started" ||
     event.type === "subagent.activity" ||
-    event.type === "subagent.completed"
+    event.type === "subagent.completed" ||
+    event.type === "subagent.draw_updated"
   );
 }
 export function isSubagentEvent(
@@ -50,5 +52,20 @@ export function isSubagentEvent(
     event.type === "subagent.started" ||
     event.type === "subagent.activity" ||
     event.type === "subagent.completed"
+  );
+}
+
+/** Parent or child text that is held until the next frame. */
+export function isStreamedTextDelta(event: SystemEventEnvelope): boolean {
+  if (
+    event.type === "agent.message_delta" ||
+    event.type === "agent.thinking_delta"
+  ) {
+    return true;
+  }
+  return (
+    event.type === "subagent.activity" &&
+    (event.payload.activity.type === "thinking_delta" ||
+      event.payload.activity.type === "message_delta")
   );
 }

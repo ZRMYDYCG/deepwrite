@@ -60,30 +60,39 @@ async function storageUiInRenderer(input: {
   }
 
   if (!selector(".settings-page")) {
+    if (!selector("#account-menu")) {
+      const profile = await until(
+        () => selector<HTMLButtonElement>(".account-identity-button"),
+        "account menu entry"
+      );
+      profile.click();
+    }
     const button = await until(
-      () => selector<HTMLButtonElement>('button[aria-label="打开设置"]'),
+      () =>
+        selector<HTMLButtonElement>(
+          '#account-menu button[role="menuitem"]:first-child'
+        ),
       "settings entry"
     );
     button.click();
   }
   if (input.variant === "light") {
-    await clickText(".settings-nav", "工作目录");
-    const directory = await until(
-      () => selector(".workspace-settings-panel .directory-card code"),
-      "original workspace directory page"
-    );
+    await clickText(".settings-nav", "常规");
     ensure(
-      directory.textContent?.trim() ===
-        (await api.workspaceDirectory.list()).path,
-      "original workspace directory does not share its value"
+      !selector(".storage-card"),
+      "storage still appears in general settings"
     );
-    const chooser = selector<HTMLButtonElement>(
-      ".workspace-settings-panel .dialog-primary-button"
-    );
-    ensure(
-      chooser && !chooser.disabled,
-      "original workspace chooser is missing or disabled"
-    );
+    const search = selector<HTMLInputElement>(".settings-search input")!;
+    search.value = "存储";
+    search.dispatchEvent(new Event("input", { bubbles: true }));
+    await until(() => {
+      const categories = document.querySelectorAll(".settings-category");
+      return (
+        categories.length === 1 && categories[0]?.textContent?.trim() === "存储"
+      );
+    }, "storage search points to storage settings");
+    search.value = "";
+    search.dispatchEvent(new Event("input", { bubbles: true }));
   }
   await clickText(".settings-nav", "外观");
   await until(() => {
@@ -112,7 +121,7 @@ async function storageUiInRenderer(input: {
       "custom accent did not apply"
     );
 
-  await clickText(".settings-nav", "常规");
+  await clickText(".settings-nav", "存储");
   await until(
     () =>
       document.querySelectorAll(".storage-card").length === 2 &&
@@ -120,6 +129,12 @@ async function storageUiInRenderer(input: {
         "aria-busy"
       ) === "false",
     "two loaded storage cards"
+  );
+  ensure(
+    [...document.querySelectorAll(".storage-card h3")]
+      .map((node) => node.textContent?.trim())
+      .join(",") === "工作目录,用户数据目录",
+    "workspace folder must appear above user data"
   );
   let snapshot = await api.storageSettings!.get();
   if (input.variant === "light") {
@@ -148,15 +163,12 @@ async function storageUiInRenderer(input: {
       ),
       "workspace reset changed an existing book"
     );
-    await clickText(".settings-nav", "工作目录");
-    await until(
-      () =>
-        selector(
-          ".workspace-settings-panel .directory-card code"
-        )?.textContent?.trim() === snapshot.workspace.path,
-      "original workspace page updated after reset"
-    );
     await clickText(".settings-nav", "常规");
+    ensure(
+      !selector(".storage-card"),
+      "storage appears in general after reset"
+    );
+    await clickText(".settings-nav", "存储");
     await until(
       () =>
         selector('[aria-labelledby="storage-settings-title"]')?.getAttribute(

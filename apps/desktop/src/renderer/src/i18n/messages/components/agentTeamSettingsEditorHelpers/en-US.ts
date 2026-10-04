@@ -21,5 +21,11 @@ export default {
   subagentIDsMustBeUniqueWithinAPrimaryAgent:
     "Subagent IDs must be unique within a primary agent",
   subagentNamesMustBeUniqueWithinAPrimaryAgent:
-    "Subagent names must be unique within a primary agent"
+    "Subagent names must be unique within a primary agent",
+  temperatureValue: "Temperature {arg0}",
+  usePrimaryAgentModel: "Use primary agent model",
+  separateConfigurationNoModelSelected:
+    "Separate configuration (no model selected)",
+  valueOffTemperatureValue: "{arg0} · Off · Temperature {arg1}",
+  evaluatorOfValue: "the evaluator of {arg0}"
 };

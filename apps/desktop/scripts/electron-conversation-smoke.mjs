@@ -5,6 +5,10 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { assertElectronLaunchAllowed } from "../../../tools/electron-launch-environment.mjs";
+
+assertElectronLaunchAllowed();
+
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const root = resolve(scriptDir, "../../..");
 const dist = join(root, "node_modules/electron/dist");

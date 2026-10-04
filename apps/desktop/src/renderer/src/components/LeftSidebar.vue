@@ -1,6 +1,7 @@
 <script setup lang="ts">
+import { bookIdentityRunning } from "../stores/bookIdentityActivity";
 import { createScopedTranslator } from "../i18n";
-import { onBeforeUnmount, ref } from "vue";
+import { computed, nextTick, onBeforeUnmount, provide, ref, watch } from "vue";
 import type {
   BookResourceDialogMode,
   CatalogResourceNodeActionPayload,
@@ -17,13 +18,17 @@ import AppIcon from "./AppIcon.vue";
 import SidebarResourceList from "./SidebarResourceList.vue";
 import SidebarProfileMenu from "./SidebarProfileMenu.vue";
 import { createTransientScrollbarController } from "../utils/transientScrollbar";
+import { scrollSelectedIntoView } from "../utils/scrollSelectedIntoView";
+import { SIDEBAR_SELECTION_ACTIVE } from "../composables/sidebarSelectionContext";
 
+const identityT = createScopedTranslator("extras.bookIdentity");
 const t = createScopedTranslator("components.leftSidebar");
 
 const props = defineProps<{
   sections: ResourceTreeSection[];
   selectedId: string;
   longBookAnalysisRunning?: boolean;
+  longBookDecompositionRunning?: boolean;
   shortBookAnalysisRunning?: boolean;
   revisionAnalysisRunning?: boolean;
   libraryEntryClipboardDomain?: "skill" | "material" | undefined;
@@ -79,6 +84,25 @@ const emit = defineEmits<{
 }>();
 
 const sidebarScrollbar = createTransientScrollbarController();
+const sidebarScroll = ref<HTMLElement | null>(null);
+const selectionActive = computed(
+  () => props.activePrimaryFeature === undefined
+);
+provide(SIDEBAR_SELECTION_ACTIVE, selectionActive);
+watch(
+  [() => props.selectedId, selectionActive],
+  async ([selectedId, active], [, wasActive]) => {
+    if (!selectedId || !active) return;
+    await nextTick();
+    if (props.selectedId !== selectedId || !selectionActive.value) return;
+    scrollSelectedIntoView(
+      sidebarScroll.value,
+      sidebarScroll.value?.querySelector<HTMLElement>(".tree-row.is-selected"),
+      { block: wasActive ? "nearest" : "center" }
+    );
+  },
+  { flush: "post" }
+);
 function handleSidebarScroll(event: Event): void {
   const element = event.currentTarget;
   if (element instanceof HTMLElement) sidebarScrollbar.reveal(element);
@@ -119,9 +143,11 @@ function activateMoreFeature(
   id:
     | "chat-assistant"
     | "long-book-analysis"
+    | "long-book-decomposition"
     | "revision-analysis"
     | "short-book-analysis"
     | "style-comparison"
+    | "book-identity"
     | "skill-marketplace"
     | "cloud-backup"
     | "device-sync"
@@ -136,6 +162,10 @@ function activateMoreFeature(
     emit("openDialog", "revision-analysis");
     return;
   }
+  if (id === "book-identity") {
+    emit("openDialog", "book-identity");
+    return;
+  }
   if (id === "style-comparison") {
     emit("openDialog", "style-comparison");
     return;
@@ -146,6 +176,10 @@ function activateMoreFeature(
   }
   if (id === "long-book-analysis") {
     emit("openDialog", "long-book-analysis");
+    return;
+  }
+  if (id === "long-book-decomposition") {
+    emit("openDialog", "long-book-decomposition");
     return;
   }
   if (id === "skill-marketplace") {
@@ -218,6 +252,7 @@ function activateNav(id: "create-book" | PrimaryFeatureId): void {
     </nav>
 
     <div
+      ref="sidebarScroll"
       class="sidebar-scroll transient-scrollbar"
       @scroll.passive="handleSidebarScroll"
     >
@@ -287,15 +322,20 @@ function activateNav(id: "create-book" | PrimaryFeatureId): void {
                 (feature.id === 'short-book-analysis' &&
                   props.shortBookAnalysisRunning) ||
                 (feature.id === 'long-book-analysis' &&
-                  props.longBookAnalysisRunning)
+                  props.longBookAnalysisRunning) ||
+                (feature.id === 'book-identity' && bookIdentityRunning) ||
+                (feature.id === 'long-book-decomposition' &&
+                  props.longBookDecompositionRunning)
               "
               class="nav-background-status"
               :title="
-                feature.id === 'revision-analysis'
-                  ? t('revisionAnalysisIsRunningInTheBackground')
-                  : feature.id === 'short-book-analysis'
-                    ? t('shortStoryAnalysisIsRunningInTheBackground')
-                    : t('novelAnalysisIsRunningInTheBackground')
+                feature.id === 'book-identity'
+                  ? identityT('backgroundRunning')
+                  : feature.id === 'revision-analysis'
+                    ? t('revisionAnalysisIsRunningInTheBackground')
+                    : feature.id === 'short-book-analysis'
+                      ? t('shortStoryAnalysisIsRunningInTheBackground')
+                      : t('novelAnalysisIsRunningInTheBackground')
               "
             >
               <i aria-hidden="true" />{{ t("inBackground") }}

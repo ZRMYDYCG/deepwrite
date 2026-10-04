@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 // @ts-expect-error Loaded as source text by the Vitest-only virtual module.
 import rendererStyles from "virtual:deepwrite-renderer-styles";
-import subagentSource from "./SubagentRunList.vue?raw";
+import subagentSource from "./SubagentRunDetail.vue?raw";
 
 describe("SubagentRunList parent-delegated task", () => {
   it("shows the full parent-delegated task inside the expanded card", () => {

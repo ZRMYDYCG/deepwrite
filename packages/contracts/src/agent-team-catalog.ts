@@ -61,6 +61,23 @@ export const EnabledAgentTeamIdsSchema = z
   .strict();
 export type EnabledAgentTeamIds = z.infer<typeof EnabledAgentTeamIdsSchema>;
 
+/**
+ * The only place that decides how a team is switched on or off: each writing
+ * type has at most one enabled team. Main persists with it and the Renderer
+ * previews with it, so both sides cannot drift apart.
+ */
+export function withAgentTeamEnabled(
+  enabledTeamIds: EnabledAgentTeamIds,
+  team: Pick<AgentTeamProfile, "id" | "workspaceType">,
+  enabled: boolean
+): EnabledAgentTeamIds {
+  const next = { ...enabledTeamIds };
+  if (enabled) next[team.workspaceType] = team.id;
+  else if (next[team.workspaceType] === team.id)
+    delete next[team.workspaceType];
+  return next;
+}
+
 export const AgentTeamCatalogSnapshotSchema = z
   .object({
     enabledTeamIds: EnabledAgentTeamIdsSchema,

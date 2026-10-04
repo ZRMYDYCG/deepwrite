@@ -196,10 +196,10 @@ export async function loadPagedIndexedFile(
     ctx.documentReadCache.delete(cacheKey);
     ctx.documentReadCache.set(cacheKey, paging);
   }
-  descriptor.reference.updatedAt = paging.disk.updatedAt;
-  descriptor.disk = paging.disk;
   return {
-    ...(descriptor as LoadedIndexedFile),
+    ...descriptor,
+    reference: { ...descriptor.reference, updatedAt: paging.disk.updatedAt },
+    disk: paging.disk,
     paging
   };
 }

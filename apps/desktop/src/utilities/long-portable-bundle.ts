@@ -205,6 +205,10 @@ function indexedFiles(
 ): IndexedPortableFile[] {
   return [
     { reference: index.bookLine, kind: "markdown" },
+    ...(index.writeReceipts ?? []).map((file) => ({
+      reference: file,
+      kind: "markdown" as const
+    })),
     ...index.worldbuilding.flatMap((category) =>
       (category.format === "text"
         ? [category.file]

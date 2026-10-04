@@ -158,6 +158,17 @@ export async function migrateLegacyStructuredContinuityFiles(input: {
 }): Promise<boolean> {
   const rawIndex = unknownRecord(input.rawIndex);
   if (!rawIndex || !Array.isArray(rawIndex.characterFiles)) return false;
+  const ledger = unknownRecord(rawIndex.ledger);
+  if (
+    !Array.isArray(ledger?.commits) ||
+    !ledger.commits.some((commit) => {
+      const entry = unknownRecord(commit);
+      // Old entries omit mode; the contract defaults them to structured.
+      return entry && (entry.mode === undefined || entry.mode === "structured");
+    })
+  ) {
+    return false;
+  }
   const legacyCharacterFiles = rawIndex.characterFiles.map((value) =>
     unknownRecord(value)
   );

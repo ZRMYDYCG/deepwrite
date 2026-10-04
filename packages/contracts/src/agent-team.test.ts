@@ -27,6 +27,7 @@ const definition: ShortAgentSubagentDefinition = {
   description: "检查人物状态、时间线和伏笔是否前后一致。",
   systemPrompt: "只检查连续性问题，并把结论摘要交还主智能体。",
   enabled: true,
+  agentMode: "standard",
   modelMode: "inherit"
 };
 
@@ -187,6 +188,31 @@ describe("agent-team contracts", () => {
     expect(
       AgentTeamSettingsInputSchema.safeParse(customOffWithTemperature).success
     ).toBe(true);
+  });
+
+  it("defaults missing agentMode to standard and accepts the pure modes", () => {
+    const { agentMode: _omitted, ...withoutMode } = definition;
+    const legacy = completeSettings();
+    legacy.teams[0]!.subagents = [withoutMode as ShortAgentSubagentDefinition];
+    expect(
+      AgentTeamSettingsInputSchema.parse(legacy).teams[0]?.subagents[0]
+        ?.agentMode
+    ).toBe("standard");
+
+    for (const agentMode of ["pure-read", "pure-bare"] as const) {
+      const pure = completeSettings();
+      pure.teams[0]!.subagents = [{ ...definition, agentMode }];
+      expect(
+        AgentTeamSettingsInputSchema.parse(pure).teams[0]?.subagents[0]
+          ?.agentMode
+      ).toBe(agentMode);
+    }
+
+    const unknown = completeSettings();
+    unknown.teams[0]!.subagents = [
+      { ...definition, agentMode: "sandbox" as never }
+    ];
+    expect(AgentTeamSettingsInputSchema.safeParse(unknown).success).toBe(false);
   });
 
   it("rejects duplicate ids and names inside one parent team", () => {

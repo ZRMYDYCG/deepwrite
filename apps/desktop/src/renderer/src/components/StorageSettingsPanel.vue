@@ -34,24 +34,24 @@ const directories = computed(() => {
   const workspacePath = props.workspaceDirectoryPath ?? workspace?.path;
   return [
     {
-      kind: "user-data" as const,
-      title: t("userDataFolder"),
-      description: t("storesHistoryModelsAndKeysAgentSettingsGeneralAnd"),
-      note: t("changingTheLocationMigratesExistingDataAndRestartsThe"),
-      path: settings.value?.userData.path,
-      isDefault: settings.value?.userData.isDefault
-    },
-    {
       kind: "workspace" as const,
       title: t("workspaceFolder"),
       description: t("setsTheDefaultLocationForNewAndImportedWorks"),
-      note: t("sharedWithWorkspaceFolderSettingsChangingThisLocationDoes"),
+      note: t("changingWorkspaceLocationDoesNotMoveExistingProjects"),
       path: workspacePath,
       isDefault: workspace
         ? workspacePath === workspace.path
           ? workspace.isDefault
           : workspacePath === workspace.defaultPath
         : undefined
+    },
+    {
+      kind: "user-data" as const,
+      title: t("userDataFolder"),
+      description: t("storesHistoryModelsAndKeysAgentSettingsGeneralAnd"),
+      note: t("changingTheLocationMigratesExistingDataAndRestartsThe"),
+      path: settings.value?.userData.path,
+      isDefault: settings.value?.userData.isDefault
     }
   ];
 });

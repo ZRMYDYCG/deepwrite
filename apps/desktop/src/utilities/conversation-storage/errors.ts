@@ -7,3 +7,6 @@ export class ConversationStorageError extends Error {
     this.name = "ConversationStorageError";
   }
 }
+
+/** The current page cannot fit this message's required projection fields. */
+export class MessageProjectionBudgetError extends Error {}

@@ -1,4 +1,4 @@
-import { computed, ref, watch } from "vue";
+import { computed, ref, watch, type Ref } from "vue";
 import type { ResourceTreeNode } from "../types/workspace";
 
 function containsSelectedDescendant(
@@ -13,9 +13,13 @@ function containsSelectedDescendant(
 
 export function useTreeNodeDisclosure(
   node: () => ResourceTreeNode,
-  selectedId: () => string
+  selectedId: () => string,
+  options: {
+    initialOpen?: boolean;
+    selectionActive?: Readonly<Ref<boolean>>;
+  } = {}
 ) {
-  const open = ref(false);
+  const open = ref(options.initialOpen ?? false);
   const containsSelection = computed(() => {
     const current = node();
     const selection = selectedId();
@@ -28,9 +32,13 @@ export function useTreeNodeDisclosure(
   });
 
   watch(
-    [selectedId, containsSelection],
-    ([, contains]) => {
-      if (contains) open.value = true;
+    [
+      selectedId,
+      containsSelection,
+      () => options.selectionActive?.value ?? true
+    ],
+    ([, contains, active]) => {
+      if (contains && active) open.value = true;
     },
     { immediate: true }
   );

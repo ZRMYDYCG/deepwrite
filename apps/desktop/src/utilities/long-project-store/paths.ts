@@ -95,6 +95,11 @@ export function indexedFileSlots(
   index: LongWorkspaceIndexSnapshot
 ): IndexedFileSlot[] {
   return [
+    ...(index.writeReceipts ?? []).map((file) => ({
+      reference: file,
+      expectedPath: `long/analysis/receipts/${file.id}.md`,
+      kind: "markdown" as const
+    })),
     {
       reference: index.bookLine,
       expectedPath: BOOK_LINE_PATH,

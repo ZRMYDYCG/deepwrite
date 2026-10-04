@@ -5,6 +5,7 @@ import type { TextViewMode } from "@deepwrite/contracts";
 import { onBeforeUnmount, ref, watch } from "vue";
 import EditorSearchHighlight from "./EditorSearchHighlight.vue";
 import MarkdownContent from "./MarkdownContent.vue";
+import { editorCompositionValue } from "../composables/useEditorComposition";
 
 const t = createScopedTranslator("components.longManuscriptEditor");
 
@@ -15,6 +16,7 @@ defineProps<{
   titleReadOnly: boolean;
   format: string;
   content: string;
+  composing: boolean;
   viewMode: TextViewMode;
   readOnly: boolean;
   busy: boolean;
@@ -29,6 +31,8 @@ const emit = defineEmits<{
   titleKeydown: [event: KeyboardEvent];
   beforeinput: [event: InputEvent];
   input: [event: Event];
+  compositionstart: [event: CompositionEvent];
+  compositionend: [event: CompositionEvent];
   keydown: [event: KeyboardEvent];
   contextmenu: [event: MouseEvent];
   previewContextmenu: [event: MouseEvent];
@@ -91,7 +95,7 @@ function updateTitle(event: Event): void {
     >
       <textarea
         ref="editorElement"
-        :value="content"
+        :value="editorCompositionValue(content, editorElement, composing)"
         class="long-document-editor"
         :readonly="readOnly || busy"
         :aria-label="
@@ -103,6 +107,8 @@ function updateTitle(event: Event): void {
         spellcheck="false"
         @beforeinput="emit('beforeinput', $event)"
         @input="emit('input', $event)"
+        @compositionstart="emit('compositionstart', $event)"
+        @compositionend="emit('compositionend', $event)"
         @keydown="emit('keydown', $event)"
         @contextmenu="emit('contextmenu', $event)"
         @scroll="emit('editorScroll', $event)"

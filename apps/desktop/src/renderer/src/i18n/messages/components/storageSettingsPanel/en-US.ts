@@ -7,8 +7,8 @@ export default {
   workspaceFolder: "Workspace folder",
   setsTheDefaultLocationForNewAndImportedWorks:
     "Sets the default location for new and imported works, material libraries, and skill libraries.",
-  sharedWithWorkspaceFolderSettingsChangingThisLocationDoes:
-    "Shared with Workspace folder settings. Changing this location does not move existing projects.",
+  changingWorkspaceLocationDoesNotMoveExistingProjects:
+    "Changing this location does not move or affect existing books, material libraries, or skill libraries.",
   storageSettings: "Storage settings",
   reading: "Reading…",
   refreshLocations: "Refresh locations",

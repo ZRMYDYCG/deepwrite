@@ -43,6 +43,9 @@ export interface WorkspaceFeatureHostCoordinatorOptions {
   settingsStore: ReturnType<typeof useSettingsStore>;
   catalogSnapshot: Readonly<Ref<CatalogSnapshot | null>>;
   features: {
+    longBookDecomposition?: ReturnType<
+      typeof import("./useLazyLongBookDecomposition").useLazyLongBookDecomposition
+    >;
     revisionAnalysis: {
       controller: ReturnType<
         typeof import("./useLazyRevisionAnalysis").useLazyRevisionAnalysis

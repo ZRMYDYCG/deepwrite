@@ -119,7 +119,7 @@ export class LongProjectCatalog {
   async open(bookId: string): Promise<OpenLongProject> {
     const id = LongBookIdSchema.parse(bookId);
     return await this.readAfterWrites(async () => {
-      const registry = await this.readRegistry();
+      const registry = await this.readRegistryForRead();
       const registration = requireRegisteredLongProject(registry, id);
       const opened = await this.projects.openBook(
         registration.projectDirectory
@@ -128,6 +128,19 @@ export class LongProjectCatalog {
         throw new Error("长篇项目标识与注册信息不一致。");
       }
       return opened;
+    });
+  }
+
+  /** Resolve registration without loading the book or entering the write queue. */
+  async resolveProjectDirectory(bookId: string): Promise<string> {
+    const id = LongBookIdSchema.parse(bookId);
+    return await this.readAfterWrites(async () => {
+      const registration = requireRegisteredLongProject(
+        await this.readRegistryForRead(),
+        id
+      );
+      await assertAvailableProjectDirectory(registration.projectDirectory);
+      return registration.projectDirectory;
     });
   }
 
@@ -183,7 +196,8 @@ export class LongProjectCatalog {
   }
 
   async list(): Promise<LongListBooksResult> {
-    return await this.readAfterWrites(async () => {
+    // Listing may migrate summaries or finish pending deletions.
+    return await this.mutate(async () => {
       let registry = await this.readRegistry();
       let registryNeedsMigration = registry.schemaVersion === 1;
       const books: LongBookSummary[] = [];
@@ -488,6 +502,19 @@ export class LongProjectCatalog {
     });
   }
 
+  private async readRegistryForRead(): Promise<LongProjectRegistry> {
+    const primary = await readOptionalText(this.registryPath);
+    if (primary !== undefined) {
+      try {
+        const parsed = parseReadableRegistry(JSON.parse(primary));
+        if (!parsed.changed) return parsed.registry;
+      } catch {
+        // Repair below, re-reading under the lock before writing any copies.
+      }
+    }
+    return await this.mutate(() => this.readRegistry());
+  }
+
   private async readRegistry(): Promise<LongProjectRegistry> {
     const primary = await readOptionalText(this.registryPath);
     if (primary !== undefined) {
@@ -566,7 +593,8 @@ export class LongProjectCatalog {
   private async readAfterWrites<Result>(
     operation: () => Promise<Result>
   ): Promise<Result> {
-    return await this.mutate(operation);
+    await this.writeChain;
+    return await operation();
   }
 }
 

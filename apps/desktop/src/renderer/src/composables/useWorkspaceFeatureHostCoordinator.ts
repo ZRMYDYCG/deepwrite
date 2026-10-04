@@ -119,15 +119,18 @@ export function useWorkspaceFeatureHostCoordinator(
     if (!(await canApplyNavigation(generation))) return;
     if (
       mode === "long-book-analysis" ||
+      mode === "long-book-decomposition" ||
       mode === "revision-analysis" ||
       mode === "short-book-analysis"
     ) {
       try {
-        await (mode === "revision-analysis"
-          ? options.features.revisionAnalysis.ensureLoaded()
-          : mode === "short-book-analysis"
-            ? options.features.shortBookAnalysis.ensureLoaded()
-            : options.features.longBookAnalysis.ensureLoaded());
+        await (mode === "long-book-decomposition"
+          ? options.features.longBookDecomposition?.ensureLoaded()
+          : mode === "revision-analysis"
+            ? options.features.revisionAnalysis.ensureLoaded()
+            : mode === "short-book-analysis"
+              ? options.features.shortBookAnalysis.ensureLoaded()
+              : options.features.longBookAnalysis.ensureLoaded());
       } catch (error: unknown) {
         if (navigationIsCurrent(generation)) {
           options.notifications.error(
@@ -151,10 +154,12 @@ export function useWorkspaceFeatureHostCoordinator(
     }
     if (
       (mode === "long-book-analysis" ||
+        mode === "long-book-decomposition" ||
         mode === "revision-analysis" ||
         mode === "short-book-analysis" ||
-        mode === "style-comparison") &&
-      !settingsStore.modelSettings &&
+        mode === "style-comparison" ||
+        mode === "book-identity") &&
+      (!settingsStore.modelSettings || mode === "book-identity") &&
       options.api()
     ) {
       issueBackground(options.loaders.loadModelSettings);

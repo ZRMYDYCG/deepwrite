@@ -1,15 +1,22 @@
+import imageModelSettings from "./imageModelSettings/zh-CN";
 import metadataEditMessages from "./metadataEditMessages/zh-CN";
 import catalogLabels from "./catalogLabels/zh-CN";
 import agentActivityFloatPanel from "./agentActivityFloatPanel/zh-CN";
 import agentConversation from "./agentConversation/zh-CN";
 import agentEditProposalCard from "./agentEditProposalCard/zh-CN";
 import agentEditProposalDiff from "./agentEditProposalDiff/zh-CN";
+import agentTeamCatalogDialogs from "./agentTeamCatalogDialogs/zh-CN";
 import agentTeamCatalogFeature from "./agentTeamCatalogFeature/zh-CN";
+import agentTeamCatalogList from "./agentTeamCatalogList/zh-CN";
 import agentTeamModeSelect from "./agentTeamModeSelect/zh-CN";
 import agentTeamParallelSwitch from "./agentTeamParallelSwitch/zh-CN";
+import agentTeamSaveBar from "./agentTeamSaveBar/zh-CN";
 import agentTeamSettingsEditorHelpers from "./agentTeamSettingsEditorHelpers/zh-CN";
 import agentTeamSettingsMeta from "./agentTeamSettingsMeta/zh-CN";
 import agentTeamSettingsPanel from "./agentTeamSettingsPanel/zh-CN";
+import agentTeamSubagentCard from "./agentTeamSubagentCard/zh-CN";
+import agentTeamSubagentEditor from "./agentTeamSubagentEditor/zh-CN";
+import agentTeamSubagentSection from "./agentTeamSubagentSection/zh-CN";
 import agentUserInputCard from "./agentUserInputCard/zh-CN";
 import appearanceFontDeleteDialog from "./appearanceFontDeleteDialog/zh-CN";
 import appearanceFontSettings from "./appearanceFontSettings/zh-CN";
@@ -141,8 +148,17 @@ import siteOfficialModelsPanel from "./siteOfficialModelsPanel/zh-CN";
 import siteOfficialQuotaMergeDialog from "./siteOfficialQuotaMergeDialog/zh-CN";
 import skillMarketplacePage from "./skillMarketplacePage/zh-CN";
 import skillMetadataEditor from "./skillMetadataEditor/zh-CN";
+import skillTreeSelect from "./skillTreeSelect/zh-CN";
 import startupAlertDialog from "./startupAlertDialog/zh-CN";
 import storageSettingsPanel from "./storageSettingsPanel/zh-CN";
+import subagentDrawGroup from "./subagentDrawGroup/zh-CN";
+import subagentDrawPicker from "./subagentDrawPicker/zh-CN";
+import subagentAuthoringDraftFields from "./subagentAuthoringDraftFields/zh-CN";
+import subagentAuthoringGenerateControls from "./subagentAuthoringGenerateControls/zh-CN";
+import subagentAuthoringOutputModeField from "./subagentAuthoringOutputModeField/zh-CN";
+import subagentDrawField from "./subagentDrawField/zh-CN";
+import subagentModeField from "./subagentModeField/zh-CN";
+import subagentModelField from "./subagentModelField/zh-CN";
 import subagentRunList from "./subagentRunList/zh-CN";
 import subagentRunPresentation from "./subagentRunPresentation/zh-CN";
 import toastHost from "./toastHost/zh-CN";
@@ -168,18 +184,25 @@ import writingContextPanel from "./writingContextPanel/zh-CN";
 import writingWorkspaceModule from "./writingWorkspaceModule/zh-CN";
 
 export default {
+  imageModelSettings,
   metadataEditMessages,
   catalogLabels,
   agentActivityFloatPanel,
   agentConversation,
   agentEditProposalCard,
   agentEditProposalDiff,
+  agentTeamCatalogDialogs,
   agentTeamCatalogFeature,
+  agentTeamCatalogList,
   agentTeamModeSelect,
   agentTeamParallelSwitch,
+  agentTeamSaveBar,
   agentTeamSettingsEditorHelpers,
   agentTeamSettingsMeta,
   agentTeamSettingsPanel,
+  agentTeamSubagentCard,
+  agentTeamSubagentEditor,
+  agentTeamSubagentSection,
   agentUserInputCard,
   appearanceFontDeleteDialog,
   appearanceFontSettings,
@@ -311,8 +334,17 @@ export default {
   siteOfficialQuotaMergeDialog,
   skillMarketplacePage,
   skillMetadataEditor,
+  skillTreeSelect,
   startupAlertDialog,
   storageSettingsPanel,
+  subagentAuthoringDraftFields,
+  subagentAuthoringGenerateControls,
+  subagentAuthoringOutputModeField,
+  subagentDrawField,
+  subagentDrawGroup,
+  subagentDrawPicker,
+  subagentModeField,
+  subagentModelField,
   subagentRunList,
   subagentRunPresentation,
   toastHost,

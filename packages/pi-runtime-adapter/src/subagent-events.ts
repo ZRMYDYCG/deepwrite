@@ -23,13 +23,25 @@ export function toSubagentRuntimeEvents(
       }
     ];
   }
+  if (progress.type === "draw_updated") {
+    const { type: _type, ...payload } = progress;
+    return [
+      {
+        type: "subagent.draw_updated",
+        runId: input.runId,
+        sessionId: input.sessionId,
+        payload
+      }
+    ];
+  }
   const progressRuntime = progress.runtime ?? runtime;
   const base = {
     parentToolCallId: progress.parentToolCallId,
     subagentRunId: progress.subagentRunId,
     subagentId: progress.subagentId,
     name: progress.name,
-    runtime: progressRuntime
+    runtime: progressRuntime,
+    ...(progress.draw ? { draw: progress.draw } : {})
   };
   if (progress.type === "started") {
     return [
@@ -130,6 +142,7 @@ export function toSubagentRuntimeEvents(
     .filter(
       (event) =>
         event.type === "library.editor_mutation" ||
+        event.type === "extras_agent.output_updated" ||
         event.type === "workspace.editor_mutation" ||
         event.type === "workspace.stage_selection" ||
         event.type === "long.mutation_proposal" ||

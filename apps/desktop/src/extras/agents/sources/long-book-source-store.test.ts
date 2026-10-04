@@ -62,9 +62,15 @@ describe("LongBookAnalysisSourceStore", () => {
       "重复导入的长篇.txt",
       "重复导入的长篇.txt"
     ]);
-    expect(await store.load("long_book_analysis_source_11111111")).toEqual(
-      source("long_book_analysis_source_11111111", "第一份正文")
-    );
+    expect(
+      await store.load("long_book_analysis_source_11111111")
+    ).toMatchObject(source("long_book_analysis_source_11111111", "第一份正文"));
+    expect(
+      await store.load("long_book_analysis_source_11111111")
+    ).toMatchObject({
+      revision: 1,
+      fingerprint: expect.stringMatching(/^[a-f\d]{64}$/u)
+    });
     expect(store.directory).toBe(
       join(workspace, LONG_BOOK_ANALYSIS_SOURCE_DIRECTORY)
     );

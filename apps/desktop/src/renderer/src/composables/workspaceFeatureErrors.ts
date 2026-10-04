@@ -5,6 +5,7 @@ export function watchFeatureErrors(
   active: () => boolean
 ) {
   const features = [
+    options.features.longBookDecomposition,
     options.features.subagentAuthoring,
     options.features.shortBookAnalysis,
     options.features.longBookAnalysis,

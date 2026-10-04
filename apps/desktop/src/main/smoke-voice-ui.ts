@@ -82,7 +82,10 @@ async function voiceUiStep(step: VoiceUiStep) {
     const before = (await api.voice.getUsage()).map(
       (record) => record.requestId
     );
-    if (!selector(".settings-page")) await click(".account-settings-button");
+    if (!selector(".settings-page")) {
+      if (!selector("#account-menu")) await click(".account-identity-button");
+      await click('#account-menu button[role="menuitem"]:first-child');
+    }
     await buttonText(".settings-nav", "语音模型");
     await until(() => {
       return [

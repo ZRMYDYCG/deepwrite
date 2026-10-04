@@ -18,8 +18,13 @@ void app
       show: false,
       webPreferences: { backgroundThrottling: false }
     });
+    const rendererErrors = [];
     win.webContents.on("console-message", (event) => {
-      if (event.level === "error") console.error(event.message);
+      if (event.level === "error") {
+        const message = event.message.slice(0, 1_000);
+        rendererErrors.push(message);
+        if (rendererErrors.length <= 5) console.error(message);
+      }
     });
     const execute = (script) =>
       Promise.race([
@@ -39,6 +44,13 @@ void app
     const twoFrames =
       "new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))";
     const results = { versions: process.versions, samples: [] };
+    const writeResult = async (result) => {
+      if (rendererErrors.length)
+        throw new Error(
+          `Renderer errors during probe: ${rendererErrors.slice(0, 5).join("; ")}`
+        );
+      await writeFile(output, `${JSON.stringify(result, null, 2)}\n`);
+    };
     try {
       if (process.argv.includes("--context-only")) {
         await win.loadURL(url);
@@ -63,10 +75,7 @@ void app
             (await win.capturePage()).toPNG()
           );
         }
-        await writeFile(
-          output,
-          `${JSON.stringify({ interactions, ...results }, null, 2)}\n`
-        );
+        await writeResult({ interactions, ...results });
         console.log(
           `Context picker probe passed: ${results.samples.length} layouts`
         );
@@ -78,7 +87,7 @@ void app
           "new Promise((resolve, reject) => { const deadline = Date.now() + 15000; const timer = setInterval(() => { if (window.runComposerProbe) { clearInterval(timer); resolve(); } else if (Date.now() > deadline) { clearInterval(timer); reject(new Error('Composer fixture load timeout')); } }, 10); })"
         );
         const result = await execute("runComposerProbe()");
-        await writeFile(output, `${JSON.stringify(result, null, 2)}\n`);
+        await writeResult(result);
         await writeFile(
           output.replace(/\.json$/, ".png"),
           (await win.capturePage()).toPNG()
@@ -94,7 +103,7 @@ void app
         );
         const result = await execute("runManagementProbe()");
         console.log(JSON.stringify(result));
-        await writeFile(output, `${JSON.stringify(result, null, 2)}\n`);
+        await writeResult(result);
         await writeFile(
           output.replace(/\.json$/, ".png"),
           (await win.capturePage()).toPNG()
@@ -127,10 +136,30 @@ void app
             turns === 1000 && enabled
               ? await execute("verifyVueInteractions()")
               : undefined;
+          const find = await new Promise((resolve, reject) => {
+            const finish = (_event, result) => {
+              if (!result.finalUpdate) return;
+              clearTimeout(timeout);
+              win.webContents.removeListener("found-in-page", finish);
+              win.webContents.stopFindInPage("clearSelection");
+              resolve({ matches: result.matches });
+            };
+            const timeout = setTimeout(() => {
+              win.webContents.removeListener("found-in-page", finish);
+              reject(new Error("Native conversation search timed out"));
+            }, 15_000);
+            win.webContents.on("found-in-page", finish);
+            win.webContents.findInPage(`唯一定位标记_${turns - 1}_END`);
+          });
+          if (find.matches !== 1)
+            throw new Error(
+              `Native conversation search regression: ${find.matches}`
+            );
           results.samples.push({
             ...setup,
             ...metrics,
             interactions,
+            find,
             selection: hash(selection),
             nativeSelection
           });
@@ -172,7 +201,7 @@ void app
           output.replace(/\.json$/, ".png"),
           (await win.capturePage()).toPNG()
         );
-      await writeFile(output, `${JSON.stringify(results, null, 2)}\n`);
+      await writeResult(results);
     } finally {
       win.destroy();
       app.quit();

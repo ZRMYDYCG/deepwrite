@@ -10,6 +10,16 @@ import {
   ScriptWorkspaceAgentIdSchema,
   type ScriptWorkspaceAgentId
 } from "./script-workspace";
+import {
+  SHORT_AGENT_SUBAGENT_MODEL_ID_MAX_LENGTH,
+  ShortAgentSubagentModelModeSchema,
+  SubagentAgentModeSchema,
+  SubagentDrawSettingsSchema,
+  validateSubagentCustomModel,
+  type ShortAgentSubagentModelMode
+} from "./subagent-settings";
+
+export * from "./subagent-settings";
 
 export const SHORT_AGENT_SUBAGENT_MAX_COUNT = 60;
 export const SCRIPT_AGENT_SUBAGENT_MAX_COUNT = 60;
@@ -18,7 +28,6 @@ export const SHORT_AGENT_SUBAGENT_ID_MAX_LENGTH = 120;
 export const SHORT_AGENT_SUBAGENT_NAME_MAX_LENGTH = 80;
 export const SHORT_AGENT_SUBAGENT_DESCRIPTION_MAX_LENGTH = 1_000;
 export const SHORT_AGENT_SUBAGENT_SYSTEM_PROMPT_MAX_LENGTH = 20_000;
-export const SHORT_AGENT_SUBAGENT_MODEL_ID_MAX_LENGTH = 120;
 /** Upper bound of children a parallel team runs at the same time. */
 export const SUBAGENT_PARALLEL_MAX_CONCURRENCY = 5;
 /**
@@ -34,11 +43,6 @@ export const SUBAGENT_TASK_BATCH_MAX_COUNT = 60;
  * call run concurrently. Older settings and packages omit it.
  */
 export const AgentTeamParallelSubagentsSchema = z.boolean().default(false);
-
-export const ShortAgentSubagentModelModeSchema = z.enum(["inherit", "custom"]);
-export type ShortAgentSubagentModelMode = z.infer<
-  typeof ShortAgentSubagentModelModeSchema
->;
 
 export const ShortAgentSubagentDefinitionSchema = z
   .object({
@@ -63,6 +67,8 @@ export const ShortAgentSubagentDefinitionSchema = z
       .min(1)
       .max(SHORT_AGENT_SUBAGENT_SYSTEM_PROMPT_MAX_LENGTH),
     enabled: z.boolean(),
+    /** Older settings and packages omit it and run as `standard`. */
+    agentMode: SubagentAgentModeSchema.default("standard"),
     modelMode: ShortAgentSubagentModelModeSchema.default("inherit"),
     modelId: z
       .string()
@@ -71,34 +77,11 @@ export const ShortAgentSubagentDefinitionSchema = z
       .max(SHORT_AGENT_SUBAGENT_MODEL_ID_MAX_LENGTH)
       .optional(),
     thinkingLevel: ThinkingLevelSchema.optional(),
-    temperature: TemperatureSchema.optional()
+    temperature: TemperatureSchema.optional(),
+    /** Older settings and packages omit it: draw mode off. */
+    draw: SubagentDrawSettingsSchema.optional()
   })
-  .superRefine((value, context) => {
-    if (value.modelMode !== "custom") return;
-    if (!value.modelId) {
-      context.addIssue({
-        code: "custom",
-        path: ["modelId"],
-        message: "单独配置模型时必须选择模型。"
-      });
-    }
-    if (value.thinkingLevel === undefined) {
-      context.addIssue({
-        code: "custom",
-        path: ["thinkingLevel"],
-        message: "单独配置模型时必须选择思考等级。"
-      });
-    } else if (
-      value.thinkingLevel === "off" &&
-      value.temperature === undefined
-    ) {
-      context.addIssue({
-        code: "custom",
-        path: ["temperature"],
-        message: "思考等级关闭时必须选择温度。"
-      });
-    }
-  });
+  .superRefine((value, context) => validateSubagentCustomModel(value, context));
 export type ShortAgentSubagentDefinition = z.infer<
   typeof ShortAgentSubagentDefinitionSchema
 >;

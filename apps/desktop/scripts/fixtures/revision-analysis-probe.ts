@@ -1,6 +1,7 @@
 import "./analysis-probe-i18n";
 import { createApp, h, nextTick, ref } from "vue";
 import { RevisionAnalysisPage } from "../../src/renderer/src/components/lazyAppComponents";
+import WorkspaceFeatureFrame from "../../src/renderer/src/components/WorkspaceFeatureFrame.vue";
 import { useRevisionAnalysis } from "../../src/renderer/src/extras/revision-analysis/useRevisionAnalysis";
 import { thinkingLabel } from "../../src/renderer/src/components/modelSettingsDraft";
 import {
@@ -93,16 +94,29 @@ const api = {
 const c = useRevisionAnalysis({ api: () => api });
 c.setConfiguredModels(models);
 const visible = ref(true);
+const leftCollapsed = ref(false);
 const catalog = ref({ skills: [library] } as unknown as CatalogSnapshot);
 createApp({
   render: () =>
-    visible.value
-      ? h(RevisionAnalysisPage, {
-          controller: c,
-          models,
-          catalogSnapshot: catalog.value
-        })
-      : h("div", "其他页面，修改分析在后台继续")
+    h("div", { class: "desktop-shell is-left-collapsed is-right-collapsed" }, [
+      h(
+        WorkspaceFeatureFrame,
+        {
+          class: "long-book-analysis-main-view",
+          leftCollapsed: leftCollapsed.value,
+          expandButtonClass: "long-book-analysis-expand-sidebar",
+          label: "修改分析"
+        },
+        () =>
+          visible.value
+            ? h(RevisionAnalysisPage, {
+                controller: c,
+                models,
+                catalogSnapshot: catalog.value
+              })
+            : h("div", "其他页面，修改分析在后台继续")
+      )
+    ])
 }).mount("#app");
 const frame = async () => {
   await nextTick();
@@ -326,6 +340,47 @@ async function run() {
     removedDestinationCleared: true
   };
 }
+async function scrollProbe(collapsed: boolean, length: number) {
+  leftCollapsed.value = collapsed;
+  const previousResult = c.result.value;
+  check(previousResult, "滚动验证应有可复用的结果夹具");
+  if (length === 1) {
+    c.clear();
+    await frame();
+  }
+  await c.start();
+  await frame();
+  check(request?.task.agentId === "revision-analysis", "分析请求应存在");
+  event("extras_agent.output_updated", {
+    agentId: "revision-analysis",
+    jobId: request.task.input.jobId,
+    output: {
+      kind: "revision-analysis-result",
+      result: { ...previousResult, report: "修改报告段落。\n\n".repeat(length) }
+    }
+  });
+  event("agent.message_completed");
+  await frame();
+  check(c.status.value === "completed", "前台分析应已完成");
+  return { collapsed, length, ...inspectScroll() };
+}
+function inspectScroll() {
+  const page = document.querySelector<HTMLElement>(".revision-analysis-page")!;
+  const save = button("保存到技能库").getBoundingClientRect();
+  return {
+    clientHeight: page.clientHeight,
+    scrollHeight: page.scrollHeight,
+    scrollTop: page.scrollTop,
+    top: page.getBoundingClientRect().top,
+    bottom: page.getBoundingClientRect().bottom,
+    viewportHeight: innerHeight,
+    saveTop: save.top,
+    saveBottom: save.bottom,
+    hostScroll: page.parentElement!.scrollTop,
+    shellScroll: page.parentElement!.parentElement!.scrollTop,
+    appScroll: document.querySelector("#app")!.scrollTop
+  };
+}
 async function show(
   scheme: "light" | "dark",
   size: number,
@@ -392,5 +447,7 @@ async function show(
 }
 Object.assign(window, {
   runRevisionAnalysisProbe: run,
+  runRevisionScrollProbe: scrollProbe,
+  inspectRevisionScrollProbe: inspectScroll,
   showRevisionAnalysisProbe: show
 });

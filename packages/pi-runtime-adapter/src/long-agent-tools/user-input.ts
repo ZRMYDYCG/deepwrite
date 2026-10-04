@@ -1,5 +1,6 @@
 import type { AgentToolResult } from "@earendil-works/pi-agent-core";
 import type { AgentUserInputQuestion } from "@deepwrite/contracts";
+import { askOutsideSubagentWriteLock } from "../subagent-write-lock";
 import { textResult } from "./shared";
 import {
   LONG_STAGE_LABELS,
@@ -58,13 +59,18 @@ export async function confirmCrossStageWrite(
       ]
     }
   ];
-  const response = await ctx.input.requestUserInput(
-    {
-      toolCallId: input.toolCallId,
-      source: "cross_stage_write",
-      questions
-    },
-    input.signal
+  const requestUserInput = ctx.input.requestUserInput;
+  const response = await askOutsideSubagentWriteLock(
+    JSON.stringify(questions),
+    () =>
+      requestUserInput(
+        {
+          toolCallId: input.toolCallId,
+          source: "cross_stage_write",
+          questions
+        },
+        input.signal
+      )
   );
   return response.answers[0]?.selectedOptionIds?.includes(CONTINUE_OPTION_ID)
     ? "continue"

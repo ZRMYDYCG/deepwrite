@@ -31,6 +31,7 @@ const emit = defineEmits<{ refreshCatalog: [] }>();
 const presetManagerOpen = ref(false);
 const presetSaving = ref(false);
 const resultSaving = ref(false);
+const analysisPage = ref<InstanceType<typeof AnalysisPageShell> | null>(null);
 const resultAnchor = ref<HTMLElement | null>(null);
 const resetVersion = ref(0);
 const activeResultId = ref("");
@@ -41,7 +42,7 @@ function clearWorkspace(): void {
 async function showResult(id?: string): Promise<void> {
   if (id) activeResultId.value = id;
   await nextTick();
-  resultAnchor.value?.scrollIntoView({ behavior: "smooth", block: "start" });
+  analysisPage.value?.scrollToResult(resultAnchor.value);
 }
 
 watch(
@@ -126,6 +127,7 @@ onMounted(() => {
 </script>
 <template>
   <AnalysisPageShell
+    ref="analysisPage"
     :title="t('novelAnalysis')"
     :description="t('novelAnalysisDescription')"
     class="long-book-analysis-page"
@@ -146,6 +148,7 @@ onMounted(() => {
           :status="controller.status.value"
           :disabled="
             controller.sourcesLoading.value ||
+            controller.sourceDeleting.value ||
             controller.presetsLoading.value ||
             presetSaving ||
             resultSaving

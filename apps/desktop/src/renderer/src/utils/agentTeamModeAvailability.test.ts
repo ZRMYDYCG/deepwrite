@@ -15,6 +15,7 @@ const member = {
   description: "查找资料",
   systemPrompt: "只整理与任务有关的资料。",
   enabled: true,
+  agentMode: "standard" as const,
   modelMode: "inherit" as const
 };
 

@@ -49,6 +49,16 @@ export function moveAnalysisChapter(
   return normalize(next);
 }
 
+export function deleteAnalysisChapter(
+  chapters: readonly LongBookAnalysisChapter[],
+  chapterId: string
+): LongBookAnalysisChapter[] {
+  if (!chapters.some((chapter) => chapter.id === chapterId))
+    throw new Error(t("deleteChapterMissing"));
+  if (chapters.length <= 1) throw new Error(t("keepOneChapter"));
+  return normalize(chapters.filter((chapter) => chapter.id !== chapterId));
+}
+
 export function splitAnalysisChapter(
   chapters: readonly LongBookAnalysisChapter[],
   chapterId: string,

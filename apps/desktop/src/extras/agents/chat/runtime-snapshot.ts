@@ -103,32 +103,41 @@ export async function buildChatRuntimeSnapshot(
   });
 }
 
+/** Shared book lookup used by chat and the three identity design tasks. */
+export async function buildProjectBookSnapshot(
+  sources: ChatRuntimeSources,
+  project: ChatAssistantProjectRef
+): Promise<ChatAssistantProjectRuntimeSnapshot["projectBook"]> {
+  if (project.projectType === "long") {
+    const books = LongListBooksResultSchema.parse(
+      await requireCorePayload(sources, "long.list", LongListBooksResultSchema)
+    ).books;
+    const book = books.find((candidate) => candidate.id === project.projectId);
+    if (!book)
+      throw new Error("所选长篇项目不存在或暂时不可用，请刷新后重试。");
+    return book;
+  }
+  const snapshot = CatalogSnapshotSchema.parse(
+    await requireCorePayload(sources, "catalog.snapshot", CatalogSnapshotSchema)
+  );
+  const book = snapshot.books.find(
+    (candidate) =>
+      candidate.id === project.projectId &&
+      candidate.bookType === project.projectType
+  );
+  if (!book) throw new Error("所选创作项目不存在或暂时不可用，请刷新后重试。");
+  return book;
+}
+
 /** The snapshot plus the authoritative structure of the chat's project. */
 export async function buildChatProjectRuntimeSnapshot(
   sources: ChatRuntimeSources,
   project: ChatAssistantProjectRef
 ): Promise<ChatAssistantProjectRuntimeSnapshot> {
-  const runtime = await buildChatRuntimeSnapshot(sources);
-  if (project.projectType === "long") {
-    const projectBook = runtime.longBooks.find(
-      (book) => book.id === project.projectId
-    );
-    if (!projectBook)
-      throw new Error("所选长篇项目不存在或暂时不可用，请刷新后重试。");
-    return ChatAssistantProjectRuntimeSnapshotSchema.parse({
-      ...runtime,
-      projectBook
-    });
-  }
-  const snapshot = CatalogSnapshotSchema.parse(
-    await requireCorePayload(sources, "catalog.snapshot", CatalogSnapshotSchema)
-  );
-  const projectBook = snapshot.books.find(
-    (book) =>
-      book.id === project.projectId && book.bookType === project.projectType
-  );
-  if (!projectBook)
-    throw new Error("所选创作项目不存在或暂时不可用，请刷新后重试。");
+  const [runtime, projectBook] = await Promise.all([
+    buildChatRuntimeSnapshot(sources),
+    buildProjectBookSnapshot(sources, project)
+  ]);
   return ChatAssistantProjectRuntimeSnapshotSchema.parse({
     ...runtime,
     projectBook

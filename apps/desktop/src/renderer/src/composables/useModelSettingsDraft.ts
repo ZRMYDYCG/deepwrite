@@ -51,6 +51,7 @@ export function useModelSettingsDraft(
   const settingsStore = useSettingsStore();
   const draftModels = ref<DraftModel[]>([]);
   const draftDefaultModelId = ref("");
+  const pendingDefaultModelId = ref<string | null>(null);
   const modelEditor = ref<DraftModel | null>(null);
   const advancedConfigModel = ref<DraftModel | null>(null);
   const modelConfigRows = computed<ModelConfigRow[]>(() => {
@@ -124,6 +125,7 @@ export function useModelSettingsDraft(
   watch(
     () => [props.modelSettings, props.modelSaving] as const,
     ([settings, saving]) => {
+      if (!saving) pendingDefaultModelId.value = null;
       if (props.active && !saving && !(props.modelError && modelEditor.value)) {
         resetModelDraft(settings);
       }
@@ -294,12 +296,14 @@ export function useModelSettingsDraft(
       return;
     }
     draftDefaultModelId.value = modelId;
+    pendingDefaultModelId.value = modelId;
     submitModelSettings();
   }
 
   return {
     draftModels,
     draftDefaultModelId,
+    pendingDefaultModelId,
     modelEditor,
     advancedConfigModel,
     modelConfigRows,

@@ -1,6 +1,9 @@
 import { LibraryManagementRuntimeContextSchema } from "../library-management";
 import { z } from "zod";
-import { ShortAgentSubagentDefinitionsSchema } from "../agent-team";
+import {
+  ShortAgentSubagentDefinitionsSchema,
+  subagentCustomModelIds
+} from "../agent-team";
 import { EnvelopeBaseSchema } from "../envelope";
 import { LibraryAgentProfileSchema } from "../library-agent";
 import {
@@ -292,13 +295,12 @@ export const AgentPromptCommandPayloadSchema =
       });
     }
     if (value.subagentDefinitions && value.subagentRuntimeConfigs) {
-      for (const definition of value.subagentDefinitions) {
-        if (definition.modelMode !== "custom" || !definition.modelId) continue;
-        if (!value.subagentRuntimeConfigs[definition.modelId]) {
+      for (const modelId of subagentCustomModelIds(value.subagentDefinitions)) {
+        if (!value.subagentRuntimeConfigs[modelId]) {
           context.addIssue({
             code: "custom",
-            path: ["subagentRuntimeConfigs", definition.modelId],
-            message: `Missing runtime config for subagent model: ${definition.modelId}`
+            path: ["subagentRuntimeConfigs", modelId],
+            message: `Missing runtime config for subagent model: ${modelId}`
           });
         }
       }

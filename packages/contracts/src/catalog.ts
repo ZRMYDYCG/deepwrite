@@ -1146,6 +1146,15 @@ export const CatalogProjectManifestBaseSchema = z
   .object({
     schemaVersion: z.literal(1),
     revision: z.number().int().nonnegative(),
+    writeReceipts: z
+      .array(
+        z.object({
+          id: CatalogIdSchema,
+          path: z.string().regex(/^receipts\/[a-z0-9_-]+\.md$/iu)
+        })
+      )
+      .max(100_000)
+      .optional(),
     kind: CatalogProjectKindSchema,
     id: CatalogIdSchema,
     title: CatalogTitleSchema,
@@ -2456,7 +2465,12 @@ export const ImportLibraryEntriesInputSchema = z.object({
   domain: CatalogLibraryProjectDomainSchema,
   libraryId: CatalogIdSchema,
   entries: z
-    .array(ExternalLibraryCandidateSchema.pick({ title: true, content: true }))
+    .array(
+      ExternalLibraryCandidateSchema.pick({
+        title: true,
+        content: true
+      }).extend({ stageId: z.string().min(1).max(120).optional() })
+    )
     .min(1)
     .max(CATALOG_PROJECT_MAX_CONTENT_ITEMS),
   baseProjectRevision: z.number().int().nonnegative()

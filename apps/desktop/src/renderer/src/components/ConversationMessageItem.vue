@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { createScopedTranslator, locale } from "../i18n";
-import { onBeforeUnmount, ref } from "vue";
+import { computed, onBeforeUnmount, ref } from "vue";
 import { provideConversationDisclosureScope } from "../composables/conversationDisclosureState";
 import type { LongWorkspaceIndexSnapshot } from "@deepwrite/contracts";
 import type { LongWorkspaceProposalItem } from "../composables/useLongWorkspaceProposals";
@@ -64,6 +64,12 @@ const emit = defineEmits<{
 }>();
 
 provideConversationDisclosureScope(() => props.message.id);
+// Keep projections local to this row: action feedback or another row's stream
+// must not repeatedly rebuild response placement and sorted approval cards.
+const response = computed(() => visibleResponse(props.message));
+const approvalItems = computed(() =>
+  approvalItemsForMessage(props.message, props.longProposalItems)
+);
 const copied = ref(false);
 let copiedTimer: number | undefined;
 
@@ -170,7 +176,7 @@ onBeforeUnmount(() => {
           {{ message.content }}
         </div>
         <div
-          v-else-if="visibleResponse(message)"
+          v-else-if="response"
           class="message-copy"
           :class="{ 'is-streaming': message.status === 'streaming' }"
           :data-assistant-response-message-id="
@@ -178,7 +184,7 @@ onBeforeUnmount(() => {
           "
         >
           <StreamedContent
-            :content="visibleResponse(message)"
+            :content="response"
             format="markdown"
             :streaming="message.status === 'streaming'"
           />
@@ -190,18 +196,12 @@ onBeforeUnmount(() => {
           v-if="
             message.role === 'assistant' &&
             message.status !== 'streaming' &&
-            approvalItemsForMessage(message, longProposalItems).length
+            approvalItems.length
           "
           class="approval-card-stack"
           :aria-label="t('approvalCardsForThisTurn')"
         >
-          <template
-            v-for="approval in approvalItemsForMessage(
-              message,
-              longProposalItems
-            )"
-            :key="approval.id"
-          >
+          <template v-for="approval in approvalItems" :key="approval.id">
             <AgentEditProposalCard
               v-if="approval.type === 'edit-proposal'"
               :proposal="approval.proposal"

@@ -331,7 +331,15 @@ describe("Agent Utility prompt forwarding", () => {
       }
     });
     expect(captured.startInputs[0]?.agentProfile).toBeUndefined();
-    expect(emittedEvents).toEqual([]);
+    expect(emittedEvents).toHaveLength(1);
+    expect(SystemEventEnvelopeSchema.parse(emittedEvents[0])).toMatchObject({
+      type: "agent.run_drained",
+      payload: {
+        sessionId: "session-script-forwarding",
+        promptRequestId: command.id,
+        runId: expect.any(String)
+      }
+    });
   });
 
   it("forwards the isolated longAgentProfile and navigation context", async () => {
@@ -509,7 +517,11 @@ describe("Agent Utility prompt forwarding", () => {
     await expect(
       captured.commandHandler!(command, (event) => emitted.push(event))
     ).resolves.toMatchObject({ status: "accepted" });
-    await vi.waitFor(() => expect(emitted).toHaveLength(1));
+    await vi.waitFor(() => expect(emitted).toHaveLength(2));
+    expect(emitted[1]).toMatchObject({
+      type: "agent.run_drained",
+      payload: { promptRequestId: command.id }
+    });
 
     expect(SystemEventEnvelopeSchema.parse(emitted[0]).type).toBe(
       "agent.usage_observed"
@@ -567,7 +579,11 @@ describe("Agent Utility prompt forwarding", () => {
     await expect(
       captured.commandHandler!(command, (event) => emitted.push(event))
     ).resolves.toMatchObject({ status: "accepted" });
-    await vi.waitFor(() => expect(emitted).toHaveLength(1));
+    await vi.waitFor(() => expect(emitted).toHaveLength(2));
+    expect(emitted[1]).toMatchObject({
+      type: "agent.run_drained",
+      payload: { promptRequestId: command.id }
+    });
 
     expect(SystemEventEnvelopeSchema.parse(emitted[0])).toMatchObject({
       type: "agent.user_input_requested",
@@ -774,7 +790,7 @@ describe("Agent Utility prompt forwarding", () => {
     await expect(
       captured.commandHandler!(command, (event) => emitted.push(event))
     ).resolves.toMatchObject({ status: "accepted" });
-    await vi.waitFor(() => expect(emitted).toHaveLength(4));
+    await vi.waitFor(() => expect(emitted).toHaveLength(5));
 
     expect(
       emitted.map((event) => SystemEventEnvelopeSchema.parse(event).type)
@@ -782,7 +798,8 @@ describe("Agent Utility prompt forwarding", () => {
       "long.mutation_proposal",
       "long.worldbuilding_file_proposal",
       "long.chapter_write_proposal",
-      "long.ledger_commit_proposal"
+      "long.ledger_commit_proposal",
+      "agent.run_drained"
     ]);
     expect(emitted[0]).toMatchObject({
       type: "long.mutation_proposal",

@@ -53,6 +53,53 @@ beforeEach(() => setActivePinia(createPinia()));
 afterEach(() => scopes.splice(0).forEach((scope) => scope.stop()));
 
 describe("model configuration persistence", () => {
+  it("tracks only the requested default while saving and reconciles after success", async () => {
+    const { props, draft, saveModels } = setup();
+    props.modelSettings = {
+      models: [model("existing"), model("alternate")],
+      defaultModelId: "existing"
+    };
+    await nextTick();
+    draft.setDefaultModel("alternate");
+    props.modelSaving = true;
+    await nextTick();
+    expect(draft.pendingDefaultModelId.value).toBe("alternate");
+    expect(draft.draftDefaultModelId.value).toBe("alternate");
+    expect(saveModels.mock.calls[0]![0].defaultModelId).toBe("alternate");
+    draft.setDefaultModel("existing");
+    expect(saveModels).toHaveBeenCalledOnce();
+
+    props.modelSettings = {
+      ...props.modelSettings,
+      defaultModelId: "alternate"
+    };
+    props.modelSaving = false;
+    await nextTick();
+    expect(draft.pendingDefaultModelId.value).toBeNull();
+    expect(draft.draftDefaultModelId.value).toBe("alternate");
+    draft.setDefaultModel("alternate");
+    expect(saveModels).toHaveBeenCalledOnce();
+  });
+
+  it("restores the saved default after failure and allows retry", async () => {
+    const { props, draft, saveModels } = setup();
+    props.modelSettings = {
+      models: [model("existing"), model("alternate")],
+      defaultModelId: "existing"
+    };
+    await nextTick();
+    draft.setDefaultModel("alternate");
+    props.modelSaving = true;
+    await nextTick();
+    props.modelError = "保存失败";
+    props.modelSaving = false;
+    await nextTick();
+    expect(draft.pendingDefaultModelId.value).toBeNull();
+    expect(draft.draftDefaultModelId.value).toBe("existing");
+    draft.setDefaultModel("alternate");
+    expect(saveModels).toHaveBeenCalledTimes(2);
+  });
+
   it("saves new models immediately without changing the existing default", () => {
     const { draft, saveModels } = setup();
     draft.saveModelEditor({ model: model("added") });

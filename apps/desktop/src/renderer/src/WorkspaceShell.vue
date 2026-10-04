@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createDecompositionWorkspaceBridge } from "./composables/decompositionWorkspaceBridge";
 import { formatError } from "./i18n/errors";
 import { createScopedTranslator } from "./i18n";
 import { useWorkspaceWindowMenus } from "./composables/useWorkspaceWindowMenus";
@@ -106,7 +107,6 @@ import {
   resolveAgentActivityDescriptor,
   resolveAgentActivityNavigationNode
 } from "./utils/agentActivityDescriptors";
-import type { ApprovalNavigationTarget } from "./utils/approvalNavigation";
 import { loadGeneralPreferences } from "./utils/generalPreferences";
 import { longNavigationNodeId } from "./utils/longWorkspaceResourceTree";
 import { useCreativeBookCreation } from "./composables/useCreativeBookCreation";
@@ -181,6 +181,8 @@ const acceptingAgentEditDocumentIds = ref<Set<string>>(new Set());
 const acceptingAgentEditWorkspaceIds = ref<Set<string>>(new Set());
 const {
   longBookAnalysisFeature,
+  longBookDecompositionFeature,
+  longBookDecompositionRunning,
   shortBookAnalysisFeature,
   revisionAnalysisFeature,
   revisionAnalysisRunning,
@@ -283,7 +285,8 @@ const {
   drain: drainEditorSaves,
   manualSavingDocumentIds,
   schedule: scheduleEditorAutoSave,
-  scheduleDirty: scheduleDirtyEditorDraftsForAutoSave
+  scheduleDirty: scheduleDirtyEditorDraftsForAutoSave,
+  setComposing: setEditorComposing
 } = useEditorAutoSaveCoordinator({
   enabled: editorAutoSaveEnabled,
   drafts: editorDrafts,
@@ -516,6 +519,7 @@ const featureHost = useWorkspaceFeatureHostCoordinator({
   catalogSnapshot,
   features: {
     longBookAnalysis: longBookAnalysisFeature,
+    longBookDecomposition: longBookDecompositionFeature,
     shortBookAnalysis: shortBookAnalysisFeature,
     revisionAnalysis: revisionAnalysisFeature,
     subagentAuthoring: subagentAuthoringFeature
@@ -752,12 +756,15 @@ const {
   liveDocument,
   liveWorkspaceDocuments,
   locateEditorSelectionReference,
+  openIdentityBook,
   promptDocumentForResourceId,
   removeEditorSelectionReference,
   resourceIdForDocumentId,
   resourceNode,
   selectDraftFile,
   selectExpertSection,
+  selectEditorEntrySearchResult,
+  selectLongEntrySearchResult,
   selectResource,
   shortCatalogContextDocuments,
   showEditorDeleteSection
@@ -2108,29 +2115,16 @@ const approvalNavigation = useLazyApprovalNavigationCoordinator({
   notifications: uiMessage
 });
 
-function navigateToApprovalTarget(
-  target: ApprovalNavigationTarget
-): Promise<boolean> {
-  return approvalNavigation.navigateToTarget(target);
-}
-
-async function selectEditorEntrySearchResult(
-  documentId: string
-): Promise<void> {
-  const target = liveWorkspaceDocuments.value.find(
-    (document) => document.id === documentId
-  );
-  if (!target) {
-    uiMessage.warning(t("theTargetEntryNoLongerExists"));
-    return;
-  }
-  const navigated = await navigateToApprovalTarget({
-    kind: "document",
-    workspaceId: target.workspaceId ?? target.libraryId ?? target.id,
-    documentId: target.id
-  });
-  if (!navigated) uiMessage.warning(t("theTargetEntryCannotBeOpenedRightNow"));
-}
+const navigateToApprovalTarget = approvalNavigation.navigateToTarget;
+const decompositionWorkspace = createDecompositionWorkspaceBridge({
+  loadCatalog: loadCatalogSnapshot,
+  loadBooks: () => loadLongBookList({ force: true }),
+  refreshBook: refreshActiveLongWorkspace,
+  activeBookId: activeLongBookId,
+  navigate: navigateToApprovalTarget,
+  find: findResourceNodeWhere,
+  select: selectResource
+});
 
 async function prepareEditorEntrySearch(): Promise<void> {
   await ensureCatalogDocumentsLoaded(
@@ -2139,18 +2133,6 @@ async function prepareEditorEntrySearch(): Promise<void> {
       activeDocument.value
     )
   );
-}
-
-async function selectLongEntrySearchResult(fileId: string): Promise<void> {
-  const bookId = activeLongBookId.value;
-  if (!bookId) return;
-  const navigated = await navigateToApprovalTarget({
-    kind: "long",
-    bookId,
-    candidates: [{ kind: "file", fileId }]
-  });
-  if (!navigated)
-    uiMessage.warning(t("theTargetNovelEntryCannotBeOpenedRightNow"));
 }
 
 const disposeLazyApprovalNavigationCoordinator = approvalNavigation.dispose;
@@ -2285,6 +2267,8 @@ const navigateToWorkspaceStage = useWorkspaceStageNavigator({
 function startWorkspaceSystemEvents(): () => void {
   const removeRoutes = registerWorkspaceSystemEventRoutes(systemEventCenter, {
     longBookAnalysis: longBookAnalysisFeature,
+    longBookDecomposition: longBookDecompositionFeature,
+    refreshDecompositionTarget: decompositionWorkspace.handle,
     shortBookAnalysis: shortBookAnalysisFeature,
     revisionAnalysis: revisionAnalysisFeature,
     subagentAuthoring: subagentAuthoringFeature,
@@ -2426,6 +2410,7 @@ const workspaceLifecycle = useWorkspaceLifecycleCoordinator({
         flush: conversationPersistenceEnabled
       }),
     () => disposeAnalysisFeatures(),
+    decompositionWorkspace.dispose,
     () => subagentAuthoringFeature.dispose()
   ],
   onError(error, operation) {
@@ -2507,6 +2492,7 @@ onBeforeUnmount(() => {
       :sections="resourceTreeSections"
       :selected-id="selectedResourceId"
       :long-book-analysis-running="longBookAnalysisRunning"
+      :long-book-decomposition-running="longBookDecompositionRunning"
       :revision-analysis-running="revisionAnalysisRunning"
       :short-book-analysis-running="shortBookAnalysisRunning"
       :library-entry-clipboard-domain="libraryEntryClipboardDomain"
@@ -2562,6 +2548,11 @@ onBeforeUnmount(() => {
       @test-model="testModel"
       @open-official-models="featureHost.openOfficialModelsSettings"
       @refresh-catalog="loadCatalogSnapshot"
+      @open-identity-book="openIdentityBook"
+      @open-image-settings="featureHost.openSettings('image-models')"
+      @create-identity-book="featureHost.showConversation"
+      @open-decomposition-ref="decompositionWorkspace.openRef"
+      @open-decomposition-target="decompositionWorkspace.openTarget"
       @marketplace-session-change="featureHost.applyMarketplaceSession"
     />
 
@@ -2617,7 +2608,9 @@ onBeforeUnmount(() => {
       @select-character="selectLongCharacterTab"
       @select-plot-point="selectLongPlotPointTab"
       @select-chapter-card="selectLongChapterCardTab"
-      @select-entry-search-result="selectLongEntrySearchResult"
+      @select-entry-search-result="
+        selectLongEntrySearchResult($event, navigateToApprovalTarget)
+      "
       @rename-character="renameLongCharacter"
       @rename-structure-title="renameLongStructureTitle"
       @create-character="openLongCharacterCreate"
@@ -2662,13 +2655,16 @@ onBeforeUnmount(() => {
       @collapse="rightCollapsed = true"
       @save="applyDocument"
       @live-change="handleLiveDocumentChange"
+      @composition-change="setEditorComposing"
       @format-all-bodies="handleFormatAllBodies"
       @insert-selection="insertEditorSelectionReference"
       @select-section="selectEditorSection"
       @create-section="createEditorSection"
       @delete-section="deleteEditorSection"
       @select-draft-file="selectDraftFile"
-      @select-entry-search-result="selectEditorEntrySearchResult"
+      @select-entry-search-result="
+        selectEditorEntrySearchResult($event, navigateToApprovalTarget)
+      "
       @prepare-entry-search="prepareEditorEntrySearch"
       @resize-start="startPaneResize('right', $event)"
       @resize-keydown="handleResizeKeydown('right', $event)"

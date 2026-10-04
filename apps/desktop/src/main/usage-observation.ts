@@ -10,6 +10,7 @@ import {
   createModelUsageRevisionId,
   type ModelUsageStore
 } from "./model-usage-store";
+import { recordDecompositionUsage } from "./decomposition-usage";
 
 export interface UsageRunContext {
   module: ModelUsageModule;
@@ -20,11 +21,17 @@ export interface UsageRunContext {
 export function recordUsageObservation(
   event: Extract<SystemEventEnvelope, { type: "agent.usage_observed" }>,
   modelUsageStore: ModelUsageStore | undefined,
-  activeRuns: ReadonlyMap<string, { usageContext?: UsageRunContext }>,
+  activeRuns: ReadonlyMap<
+    string,
+    { usageContext?: UsageRunContext; decompositionJobId?: string }
+  >,
   pendingUsageContexts: ReadonlyMap<string, UsageRunContext>
 ): void {
-  if (!modelUsageStore || event.payload.runtime.mode === "local-faux") return;
+  if (event.payload.runtime.mode === "local-faux") return;
   const activeRun = activeRuns.get(event.payload.runId);
+  if (activeRun?.decompositionJobId)
+    recordDecompositionUsage(activeRun.decompositionJobId, event.payload.usage);
+  if (!modelUsageStore) return;
   const usageContext =
     activeRun?.usageContext ??
     pendingUsageContexts.get(event.context.correlationId);

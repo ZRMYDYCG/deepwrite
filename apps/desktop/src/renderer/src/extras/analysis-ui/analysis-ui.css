@@ -5,10 +5,24 @@
   box-sizing: border-box;
   height: 100%;
   min-width: 0;
+  min-height: 0;
   overflow: auto;
   padding: 28px clamp(18px, 4%, 56px) 64px;
   color: var(--text-primary);
   background: var(--surface-main);
+}
+.long-book-analysis-main-view > .long-book-analysis-expand-sidebar {
+  position: absolute;
+  z-index: 5;
+  top: 12px;
+  left: 12px;
+  border: 1px solid var(--theme-line-soft);
+  background: var(--surface-raised);
+}
+.long-book-analysis-main-view
+  > .long-book-analysis-expand-sidebar
+  + .analysis-workbench {
+  padding-top: 52px;
 }
 .analysis-workbench .analysis-page-header,
 .analysis-workbench .analysis-card-heading {

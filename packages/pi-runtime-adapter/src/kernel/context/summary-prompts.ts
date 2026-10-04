@@ -39,6 +39,10 @@ const FORMAT = `严格使用以下格式（中文，各节可写“无”）：
 - 每节保持简洁，保留精确的 id、标题、数字和用户原话。`;
 
 const TASK_FOCUS: Record<ContextTaskKind, string> = {
+  "book-decomposition":
+    "当前是整书拆解工作包编排。保留单元 id、完成/失败/待重派状态、已派任务、名册 id 与等级、分组与依赖决定。不要复述阅读卡、原文、档案或设定；需要时按引用重新读取。",
+  "book-decomposition-unit":
+    "当前是整书拆解的一个子任务。保留本任务各单元 id 与是否已保存成功、已核对的事实及章号、尚未提交的单元和下一步。任务附带的材料会原样保留，不要复述。",
   "short-plot":
     "当前任务是剧情设计（剧情、开篇、细化、视角、大纲）。重点保留：讨论过的备选方向与取舍理由；已定的核心冲突、转折、伏笔与回收意图（尚未写入剧情文件的要标 [仅对话]）；用户否决的桥段；仍等待用户拍板的问题。",
   "short-character":
@@ -100,3 +104,30 @@ export const TURN_PREFIX_PROMPT = `上面 <conversation> 中是当前这一轮�
 - 理解后半段所需的信息
 
 不要复述作品正文。前半段读取过的正文已不在上下文中，如需修改请重新读取。保持简洁。`;
+
+/** Asks the run's own model, mid-run, to fold its turn into a checkpoint. */
+export function inPlaceSummaryPrompt(
+  task: ContextTaskKind,
+  instructions?: string
+): string {
+  return [
+    "【系统：上下文整理】暂停当前工作，不要调用任何工具，只输出检查点。上下文即将被替换：本轮的任务消息会原样保留，之后的工作由这份检查点代替。",
+    TASK_FOCUS[task],
+    instructions ? `需要特别保留：${instructions}` : "",
+    `格式：
+
+## 已完成
+- 已保存成功的单元 id 与关键结论
+
+## 未完成
+- 尚未提交或保存失败的单元，以及原因
+
+## 已核对的要点
+- 继续工作需要的事实（保留章号）
+
+## 下一步
+1. 按顺序要做的事`
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}

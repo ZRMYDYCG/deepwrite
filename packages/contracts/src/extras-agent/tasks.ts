@@ -1,4 +1,22 @@
+import {
+  BookTitleDesignTaskInputSchema,
+  BookSynopsisDesignTaskInputSchema,
+  BookCoverDesignTaskInputSchema,
+  BookTitleDesignResolvedInputSchema,
+  BookSynopsisDesignResolvedInputSchema,
+  BookCoverDesignResolvedInputSchema
+} from "../book-identity/tasks";
+import {
+  BookTitleDesignProfileSchema,
+  BookSynopsisDesignProfileSchema,
+  BookCoverDesignProfileSchema
+} from "../book-identity/profiles";
 import { z } from "zod";
+import {
+  DecompositionTaskInputSchema,
+  DecompositionResolvedInputSchema
+} from "../long-book-decomposition/job";
+import { LongBookDecompositionProfileSchema } from "../long-book-decomposition/profile";
 import { LongBookAnalysisRuntimeContextSchema } from "../long-book-analysis";
 import { LongBookAnalysisPresetSchema } from "../long-book-analysis-presets";
 import {
@@ -56,6 +74,9 @@ function taskVariant<A extends ExtrasAgentId, I extends z.ZodType>(
 
 /** What the Renderer asks for: an agent, a saved profile and the task input. */
 export const ExtrasAgentTaskSchema = z.discriminatedUnion("agentId", [
+  taskVariant("book-title-design", BookTitleDesignTaskInputSchema),
+  taskVariant("book-synopsis-design", BookSynopsisDesignTaskInputSchema),
+  taskVariant("book-cover-design", BookCoverDesignTaskInputSchema),
   taskVariant(
     "revision-analysis",
     EXTRAS_AGENT_INPUT_SCHEMAS["revision-analysis"]
@@ -72,6 +93,7 @@ export const ExtrasAgentTaskSchema = z.discriminatedUnion("agentId", [
     "style-comparison",
     EXTRAS_AGENT_INPUT_SCHEMAS["style-comparison"]
   ),
+  taskVariant("long-book-decomposition", DecompositionTaskInputSchema),
   taskVariant("chat-normal", ChatNormalTaskInputSchema),
   // A project chat names its project's profile; Main falls back to the
   // built-in prompt when the project has none yet.
@@ -107,6 +129,21 @@ function resolvedVariant<
 /** What Main hands the Agent Utility after resolving the saved profile. */
 export const ExtrasAgentResolvedTaskSchema = z.discriminatedUnion("agentId", [
   resolvedVariant(
+    "book-title-design",
+    BookTitleDesignProfileSchema,
+    BookTitleDesignResolvedInputSchema
+  ),
+  resolvedVariant(
+    "book-synopsis-design",
+    BookSynopsisDesignProfileSchema,
+    BookSynopsisDesignResolvedInputSchema
+  ),
+  resolvedVariant(
+    "book-cover-design",
+    BookCoverDesignProfileSchema,
+    BookCoverDesignResolvedInputSchema
+  ),
+  resolvedVariant(
     "revision-analysis",
     RevisionAnalysisProfileSchema,
     EXTRAS_AGENT_INPUT_SCHEMAS["revision-analysis"]
@@ -125,6 +162,11 @@ export const ExtrasAgentResolvedTaskSchema = z.discriminatedUnion("agentId", [
     "style-comparison",
     StyleComparisonProfileSchema,
     EXTRAS_AGENT_INPUT_SCHEMAS["style-comparison"]
+  ),
+  resolvedVariant(
+    "long-book-decomposition",
+    LongBookDecompositionProfileSchema,
+    DecompositionResolvedInputSchema
   ),
   resolvedVariant(
     "chat-normal",

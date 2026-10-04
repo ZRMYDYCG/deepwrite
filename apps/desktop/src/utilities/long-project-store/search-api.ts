@@ -4,7 +4,7 @@ import {
   boundedPositiveInteger,
   secureDirectory
 } from "./io";
-import { loadProject } from "./load-project";
+import { loadProjectForRead } from "./read-project";
 import { loadPublicPagedIndexedFile } from "./public-file-read";
 import { parseProjectSearchResume, scanIndexedFileForSearch } from "./search";
 import type { LongProjectStoreContext } from "./store-context";
@@ -28,7 +28,7 @@ export async function search(
 ): Promise<SearchLongProjectResult> {
   const canonical = await secureDirectory(projectDirectory, "长篇项目目录");
   return await ctx.runExclusive(canonical, async () => {
-    const loaded = await loadProject(ctx, canonical);
+    const loaded = await loadProjectForRead(ctx, canonical);
     const query = input.query.trim().normalize("NFC");
     if (!query || query.length > 256) {
       throw new Error("长篇搜索词必须包含 1 到 256 个字符。");

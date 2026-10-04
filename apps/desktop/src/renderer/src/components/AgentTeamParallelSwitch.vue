@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { SUBAGENT_PARALLEL_MAX_CONCURRENCY } from "@deepwrite/contracts/renderer";
 import { createScopedTranslator } from "../i18n";
+import AgentTeamSwitch from "./AgentTeamSwitch.vue";
 
 const t = createScopedTranslator("components.agentTeamParallelSwitch");
 
@@ -9,87 +10,62 @@ defineProps<{ disabled: boolean }>();
 </script>
 
 <template>
-  <label class="parallel-switch" :class="{ 'is-disabled': disabled }">
-    <span class="parallel-switch-text">
-      <strong>{{ t("title") }}</strong>
-      <span>{{
-        t("description", { arg0: SUBAGENT_PARALLEL_MAX_CONCURRENCY })
-      }}</span>
-    </span>
-    <input
-      v-model="enabled"
-      type="checkbox"
-      role="switch"
-      :aria-checked="enabled"
-      :disabled="disabled"
-    />
-  </label>
+  <section class="team-settings" :aria-label="t('teamSettings')">
+    <h3>{{ t("teamSettings") }}</h3>
+    <label class="parallel-row" :class="{ 'is-disabled': disabled }">
+      <span class="parallel-text">
+        <strong>{{ t("title") }}</strong>
+        <span>{{
+          t("description", { arg0: SUBAGENT_PARALLEL_MAX_CONCURRENCY })
+        }}</span>
+        <span>{{ t("detail") }}</span>
+      </span>
+      <AgentTeamSwitch v-model="enabled" :disabled="disabled" />
+    </label>
+  </section>
 </template>
 
 <style scoped>
-.parallel-switch {
+.team-settings {
+  padding: 14px 16px;
+  border: 1px solid var(--theme-line-soft);
+  border-radius: 12px;
+  background: var(--surface-raised);
+}
+.team-settings h3 {
+  margin: 0 0 10px;
+  color: var(--text-tertiary);
+  font-size: 0.785714rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+}
+.parallel-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  margin-top: 16px;
-  padding: 12px 14px;
-  border: 1px solid var(--theme-line-soft);
-  border-radius: 10px;
-  background: var(--surface-raised);
+  gap: 20px;
   cursor: pointer;
 }
-.parallel-switch.is-disabled {
+.parallel-row.is-disabled {
   cursor: default;
   opacity: 0.65;
 }
-.parallel-switch-text {
+.parallel-text {
   display: grid;
-  gap: 4px;
+  gap: 3px;
   min-width: 0;
 }
-.parallel-switch-text strong {
+.parallel-text strong {
   color: var(--text-primary);
-  font-size: 0.892857rem;
+  font-size: 0.928571rem;
   font-weight: 650;
 }
-.parallel-switch-text span {
+.parallel-text span {
+  color: var(--text-secondary);
+  font-size: 0.821429rem;
+  line-height: 1.55;
+}
+.parallel-text span + span {
   color: var(--text-tertiary);
-  font-size: 0.785714rem;
-  line-height: 1.5;
-}
-.parallel-switch input {
-  position: relative;
-  flex: 0 0 auto;
-  width: 38px;
-  height: 22px;
-  margin: 0;
-  appearance: none;
-  border-radius: 12px;
-  background: var(--surface-selected);
-  cursor: inherit;
-  transition: background-color 150ms ease;
-}
-.parallel-switch input::after {
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: var(--surface-main);
-  box-shadow: 0 1px 3px rgb(0 0 0 / 0.22);
-  content: "";
-  transition: transform 150ms ease;
-}
-.parallel-switch input:checked {
-  background: var(--accent);
-}
-.parallel-switch input:checked::after {
-  transform: translateX(16px);
-}
-.parallel-switch input:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent);
-  outline-offset: 2px;
 }
 </style>

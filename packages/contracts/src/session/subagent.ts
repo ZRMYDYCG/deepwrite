@@ -7,7 +7,11 @@ import {
   validateTurnAttempt
 } from "./agent-events";
 import { AgentRuntimeRefSchema } from "./agent-event-identity";
-import { SUBAGENT_TASK_BATCH_MAX_COUNT } from "../agent-team";
+import {
+  SUBAGENT_DRAW_MAX_COUNT,
+  SUBAGENT_DRAW_MIN_COUNT,
+  SUBAGENT_TASK_BATCH_MAX_COUNT
+} from "../agent-team";
 
 export const SUBAGENT_TASK_KEY_MAX_LENGTH = 40;
 export const SubagentTaskKeySchema = z
@@ -33,6 +37,27 @@ export const SubagentBatchTaskSchema = z.object({
 });
 export type SubagentBatchTask = z.infer<typeof SubagentBatchTaskSchema>;
 
+const SubagentDrawCountSchema = z
+  .number()
+  .int()
+  .min(SUBAGENT_DRAW_MIN_COUNT)
+  .max(SUBAGENT_DRAW_MAX_COUNT);
+
+/** Marks a child run that belongs to a draw-mode task. */
+export const SubagentDrawRefSchema = z.discriminatedUnion("role", [
+  z.object({
+    role: z.literal("candidate"),
+    index: z
+      .number()
+      .int()
+      .min(0)
+      .max(SUBAGENT_DRAW_MAX_COUNT - 1),
+    count: SubagentDrawCountSchema
+  }),
+  z.object({ role: z.literal("evaluator"), count: SubagentDrawCountSchema })
+]);
+export type SubagentDrawRef = z.infer<typeof SubagentDrawRefSchema>;
+
 export const SubagentEventBaseSchema = z.object({
   sessionId: z.string().min(1),
   runId: z.string().min(1),
@@ -40,7 +65,8 @@ export const SubagentEventBaseSchema = z.object({
   subagentRunId: z.string().min(1),
   subagentId: z.string().min(1).max(120),
   name: z.string().trim().min(1).max(80),
-  runtime: AgentRuntimeRefSchema
+  runtime: AgentRuntimeRefSchema,
+  draw: SubagentDrawRefSchema.optional()
 });
 export type SubagentEventBase = z.infer<typeof SubagentEventBaseSchema>;
 
@@ -80,7 +106,9 @@ export const SubagentPlannedTaskSchema = SubagentBatchTaskSchema.extend({
   subagentId: z.string().min(1).max(120),
   name: z.string().trim().min(1).max(80),
   task: z.string().trim().min(1).max(20_000),
-  runtime: AgentRuntimeRefSchema
+  runtime: AgentRuntimeRefSchema,
+  /** Present when the member runs the task in draw mode. */
+  drawCount: SubagentDrawCountSchema.optional()
 });
 export type SubagentPlannedTask = z.infer<typeof SubagentPlannedTaskSchema>;
 
@@ -122,4 +150,66 @@ export const SubagentCompletedPayloadSchema = SubagentEventBaseSchema.extend({
 });
 export type SubagentCompletedPayload = z.infer<
   typeof SubagentCompletedPayloadSchema
+>;
+
+export const SubagentDrawPhaseSchema = z.enum([
+  "selecting",
+  "evaluating",
+  "selected",
+  "rejected",
+  "failed"
+]);
+export type SubagentDrawPhase = z.infer<typeof SubagentDrawPhaseSchema>;
+
+export const SubagentDrawSelectedBySchema = z.enum([
+  "user",
+  "evaluator",
+  "only-success"
+]);
+export type SubagentDrawSelectedBy = z.infer<
+  typeof SubagentDrawSelectedBySchema
+>;
+
+/**
+ * State of one draw-mode task as a whole; its candidates and evaluator report
+ * through the ordinary child events with `draw` set.
+ */
+export const SubagentDrawUpdatedPayloadSchema = z
+  .object({
+    sessionId: z.string().min(1),
+    runId: z.string().min(1),
+    parentToolCallId: z.string().min(1),
+    subagentId: z.string().min(1).max(120),
+    name: z.string().trim().min(1).max(80),
+    batchTask: SubagentBatchTaskSchema.optional(),
+    count: SubagentDrawCountSchema,
+    phase: SubagentDrawPhaseSchema,
+    selectedBy: SubagentDrawSelectedBySchema.optional(),
+    selectedIndex: z
+      .number()
+      .int()
+      .min(0)
+      .max(SUBAGENT_DRAW_MAX_COUNT - 1)
+      .optional(),
+    selectedSubagentRunId: z.string().min(1).optional(),
+    /** Evaluator's reason, or why selection fell back to the user. */
+    reason: z.string().max(2_000).optional(),
+    /** The user's note to the parent agent. */
+    note: z.string().max(4_000).optional()
+  })
+  .superRefine((value, context) => {
+    const selected = value.phase === "selected";
+    if (
+      selected !==
+      (value.selectedBy !== undefined && value.selectedIndex !== undefined)
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["selectedBy"],
+        message: "Only a selected draw names its selection."
+      });
+    }
+  });
+export type SubagentDrawUpdatedPayload = z.infer<
+  typeof SubagentDrawUpdatedPayloadSchema
 >;

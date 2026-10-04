@@ -1,5 +1,6 @@
 import { prepareSmokeWorkspace } from "./smoke-workspace.mjs";
 import { spawn } from "node:child_process";
+import { assertElectronLaunchAllowed } from "../../../tools/electron-launch-environment.mjs";
 
 export function validateSmokeSummary(summary, reopened) {
   if (
@@ -29,6 +30,7 @@ export async function runPackagedSmoke(
   profile,
   targetPlatform
 ) {
+  assertElectronLaunchAllowed();
   await prepareSmokeWorkspace(profile);
   let output = "";
   const result = await new Promise((resolveResult) => {

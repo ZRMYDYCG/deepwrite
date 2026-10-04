@@ -1,15 +1,21 @@
 import { createScopedTranslator } from "../i18n";
 import {
   BUILT_IN_REASONING_LEVELS,
+  activeSubagentDraw,
   type BuiltInReasoningLevel,
   type ModelConfig,
   type ShortAgentSubagentDefinition,
-  type ThinkingLevel,
-  type WorkspaceAgentTeamSettingsInput
+  type ThinkingLevel
 } from "@deepwrite/contracts";
+import { cloneSubagentDraw, savedSubagentDraw } from "./agentTeamDrawDraft";
 import { BUILT_IN_THINKING_LABELS } from "./agentTeamSettingsMeta";
 
 const t = createScopedTranslator("components.agentTeamSettingsEditorHelpers");
+
+interface DraftTeamLike {
+  parentAgentId: string;
+  subagents: readonly ShortAgentSubagentDefinition[];
+}
 
 export function agentTeamThinkingLabel(level: ThinkingLevel): string {
   if (level === "off") return t("off");
@@ -65,8 +71,10 @@ export function createCopiedSubagent(
   nextId: string,
   maxNameLength: number
 ): ShortAgentSubagentDefinition {
+  const draw = cloneSubagentDraw(source.draw);
   return {
     ...source,
+    ...(draw ? { draw } : {}),
     id: nextId,
     name: nextCopiedSubagentName(
       source.name,
@@ -76,8 +84,50 @@ export function createCopiedSubagent(
   };
 }
 
+/** Shared by members and the evaluators of their auto draws. */
+function customModelProblem(
+  settings: Pick<
+    ShortAgentSubagentDefinition,
+    "modelMode" | "modelId" | "thinkingLevel" | "temperature"
+  >,
+  models: readonly ModelConfig[],
+  owner: string
+): string | null {
+  if (settings.modelMode !== "custom") return null;
+  if (!settings.modelId?.trim()) {
+    return t("selectAModelForASeparateConfiguration");
+  }
+  const model = models.find((candidate) => candidate.id === settings.modelId);
+  if (!model) {
+    return t("theModelSelectedForSubagentValueNoLongerExists", {
+      arg0: owner
+    });
+  }
+  if (settings.thinkingLevel === undefined) {
+    return t("selectAReasoningLevelForASeparateConfiguration");
+  }
+  if (
+    settings.thinkingLevel !== "off" &&
+    !model.thinkingLevelOptions.includes(settings.thinkingLevel)
+  ) {
+    return t("theReasoningLevelForSubagentValueIsNotAvailable", {
+      arg0: owner
+    });
+  }
+  if (settings.thinkingLevel !== "off") return null;
+  if (settings.temperature === undefined) {
+    return t("selectATemperatureWhenReasoningIsOff");
+  }
+  if (!model.temperatureOptions.includes(settings.temperature)) {
+    return t("theTemperatureForSubagentValueIsNotAvailableIn", {
+      arg0: owner
+    });
+  }
+  return null;
+}
+
 export function validateAgentTeamDraft(
-  teams: WorkspaceAgentTeamSettingsInput["teams"],
+  teams: readonly Pick<DraftTeamLike, "subagents">[],
   models: readonly ModelConfig[]
 ): string | null {
   for (const team of teams) {
@@ -89,38 +139,17 @@ export function validateAgentTeamDraft(
         return t("subagentCapabilitiesAreRequired");
       if (!subagent.systemPrompt.trim())
         return t("subagentSystemPromptIsRequired");
-      if (subagent.modelMode === "custom") {
-        if (!subagent.modelId?.trim())
-          return t("selectAModelForASeparateConfiguration");
-        const model = models.find(
-          (candidate) => candidate.id === subagent.modelId
+      const owner = subagent.name.trim() || t("untitled");
+      const modelProblem = customModelProblem(subagent, models, owner);
+      if (modelProblem) return modelProblem;
+      const draw = activeSubagentDraw(subagent);
+      if (draw?.selection === "auto") {
+        const evaluatorProblem = customModelProblem(
+          draw.evaluator,
+          models,
+          t("evaluatorOfValue", { arg0: owner })
         );
-        if (!model) {
-          return t("theModelSelectedForSubagentValueNoLongerExists", {
-            arg0: subagent.name.trim() || t("untitled")
-          });
-        }
-        if (subagent.thinkingLevel === undefined) {
-          return t("selectAReasoningLevelForASeparateConfiguration");
-        }
-        if (
-          subagent.thinkingLevel !== "off" &&
-          !model.thinkingLevelOptions.includes(subagent.thinkingLevel)
-        ) {
-          return t("theReasoningLevelForSubagentValueIsNotAvailable", {
-            arg0: subagent.name.trim() || t("untitled")
-          });
-        }
-        if (subagent.thinkingLevel === "off") {
-          if (subagent.temperature === undefined) {
-            return t("selectATemperatureWhenReasoningIsOff");
-          }
-          if (!model.temperatureOptions.includes(subagent.temperature)) {
-            return t("theTemperatureForSubagentValueIsNotAvailableIn", {
-              arg0: subagent.name.trim() || t("untitled")
-            });
-          }
-        }
+        if (evaluatorProblem) return evaluatorProblem;
       }
       const id = subagent.id.toLocaleLowerCase();
       const name = subagent.name.trim().toLocaleLowerCase();
@@ -132,4 +161,38 @@ export function validateAgentTeamDraft(
     }
   }
   return null;
+}
+
+/**
+ * Stable signature of the editable team draft. Only fields that are persisted
+ * take part, so toggling a model mode back and forth does not mark it dirty.
+ */
+export function agentTeamDraftSignature(
+  parallelSubagents: boolean,
+  teams: readonly DraftTeamLike[]
+): string {
+  return JSON.stringify([
+    parallelSubagents,
+    teams.map((team) => [
+      team.parentAgentId,
+      team.subagents.map((subagent) => {
+        const custom = subagent.modelMode === "custom";
+        return [
+          subagent.id,
+          subagent.name,
+          subagent.description,
+          subagent.systemPrompt,
+          subagent.enabled,
+          subagent.agentMode ?? "standard",
+          custom ? "custom" : "inherit",
+          custom ? (subagent.modelId ?? null) : null,
+          custom ? (subagent.thinkingLevel ?? null) : null,
+          custom && subagent.thinkingLevel === "off"
+            ? (subagent.temperature ?? null)
+            : null,
+          savedSubagentDraw(subagent.draw) ?? null
+        ];
+      })
+    ])
+  ]);
 }

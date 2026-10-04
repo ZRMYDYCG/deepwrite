@@ -20,6 +20,7 @@ import { readDetail } from "./read-detail";
 import { metadataProjection } from "./metadata-records";
 import { sessionSummary } from "./session-summary";
 import { listArchivedConversations } from "./archive-queries";
+import { MessageProjectionBudgetError } from "./errors";
 
 export class ConversationQueries {
   constructor(
@@ -190,17 +191,32 @@ export class ConversationQueries {
             )
     ) as MessageRow[];
     const messages: ConversationHistoryMessagesResult["messages"] = [];
-    let bytes = 128;
+    const envelopeBytes =
+      Buffer.byteLength(
+        JSON.stringify({ ...version, messages: [], nextPosition: null })
+      ) - 4;
+    let bytes = 0;
     for (const row of rows.slice(0, limit)) {
-      const message = this.records.project(row, maxBytes - bytes);
+      const commaBytes = messages.length ? 1 : 0;
+      const cursorBytes = Math.max(4, String(row.position).length);
+      const remaining =
+        maxBytes - envelopeBytes - bytes - commaBytes - cursorBytes;
+      let message: ConversationHistoryMessagesResult["messages"][number];
+      try {
+        message = this.records.project(row, remaining);
+      } catch (error: unknown) {
+        if (error instanceof MessageProjectionBudgetError && messages.length)
+          break;
+        throw error;
+      }
       const size = Buffer.byteLength(JSON.stringify(message));
-      if (size + bytes > maxBytes && messages.length) break;
-      if (size + bytes > maxBytes)
+      if (size > remaining && messages.length) break;
+      if (size > remaining)
         throw new Error(
           "Conversation message metadata exceeds the page budget; read its full detail in chunks."
         );
       messages.push(message);
-      bytes += size;
+      bytes += size + commaBytes;
     }
     const nextPosition =
       rows.length > messages.length

@@ -63,7 +63,10 @@ export async function i18nSmokeInRenderer(
     await pause();
   }
   async function openGeneral() {
-    if (!select(".settings-page")) await click(".account-settings-button");
+    if (!select(".settings-page")) {
+      if (!select("#account-menu")) await click(".account-identity-button");
+      await click('#account-menu button[role="menuitem"]:first-child');
+    }
     await settingsCategory(
       document.documentElement.lang === "en-US" ? "General" : "常规"
     );

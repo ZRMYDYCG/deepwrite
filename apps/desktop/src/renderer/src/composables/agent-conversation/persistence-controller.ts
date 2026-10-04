@@ -158,10 +158,17 @@ export async function restorePersistenceSnapshot(
     ctx.storedConversations.value.length > 0 ||
     ctx.isBusy.value
   ) {
+    const existingIds = new Set([
+      ctx.sessionId.value,
+      ...ctx.storedConversations.value.map((record) => record.sessionId)
+    ]);
     ctx.storedConversations.value = preserveLoadedConversations(
       ctx.capturePersistenceSnapshot(),
       parsed
     );
+    for (const record of ctx.storedConversations.value)
+      if (!existingIds.has(record.sessionId))
+        ctx.persistenceJournal.initializeSessionBaseline(record.sessionId);
     return false;
   }
   ctx.applyingPersistenceSnapshot = true;
@@ -195,6 +202,9 @@ export async function restorePersistenceSnapshot(
     ctx.currentUpdatedAt.value = restoredTimestamp;
     ctx.persistenceMutationRevision = 0;
     ctx.persistenceJournal.reset();
+    for (const record of ctx.storedConversations.value)
+      ctx.persistenceJournal.registerLocalSession(record.sessionId);
+    ctx.persistenceJournal.registerLocalSession(ctx.sessionId.value);
     ctx.persistenceBatchChanged = false;
   } finally {
     ctx.applyingPersistenceSnapshot = false;

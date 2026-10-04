@@ -1,11 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { acquireConversationOperation } from "./conversation-operation-guard";
+import {
+  acquireConversationOperation,
+  releaseConversationRun,
+  releaseConversationRuns
+} from "./conversation-operation-guard";
 import type { ActiveRun } from "./command-types";
 
 describe("Main conversation operation ownership", () => {
   it("blocks deletion while prompt acceptance is still pending and releases after failure", () => {
     const runs = new Map<string, ActiveRun>();
     const prompt = acquireConversationOperation(runs, "session", "prompt")!;
+    expect(
+      acquireConversationOperation(runs, "session", "prompt")
+    ).toBeUndefined();
     expect(
       acquireConversationOperation(runs, "session", "management")
     ).toBeUndefined();
@@ -33,9 +40,30 @@ describe("Main conversation operation ownership", () => {
       ["run", { sessionId: "session" } as ActiveRun]
     ]);
     expect(
+      acquireConversationOperation(runs, "session", "prompt")
+    ).toBeUndefined();
+    expect(
       acquireConversationOperation(runs, "session", "management")
     ).toBeUndefined();
     runs.clear();
+    expect(
+      acquireConversationOperation(runs, "session", "management")
+    ).toBeTypeOf("function");
+  });
+  it("releases only the owning prompt and clears pending ownership on worker death", () => {
+    const runs = new Map<string, ActiveRun>();
+    acquireConversationOperation(runs, "session", "prompt", "first");
+    releaseConversationRun(runs, "session", "wrong");
+    expect(
+      acquireConversationOperation(runs, "session", "prompt")
+    ).toBeUndefined();
+    releaseConversationRun(runs, "session", "first");
+    acquireConversationOperation(runs, "session", "prompt", "second");
+    releaseConversationRun(runs, "session", "first");
+    expect(
+      acquireConversationOperation(runs, "session", "management")
+    ).toBeUndefined();
+    releaseConversationRuns(runs);
     expect(
       acquireConversationOperation(runs, "session", "management")
     ).toBeTypeOf("function");

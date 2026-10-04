@@ -7,6 +7,9 @@ const t = createScopedTranslator("components.startupAlertDialog");
 const props = defineProps<{
   open: boolean;
   messages: readonly string[];
+  title?: string;
+  emptyText?: string;
+  loading?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -21,14 +24,15 @@ watch(
     if (open) {
       void nextTick(() => confirmButton.value?.focus());
     }
-  }
+  },
+  { immediate: true }
 );
 </script>
 
 <template>
   <Teleport to="body">
     <div
-      v-if="open && messages.length > 0"
+      v-if="open && (messages.length > 0 || emptyText)"
       class="dialog-backdrop startup-alert-backdrop"
       role="presentation"
       @keydown.esc.stop="emit('close')"
@@ -44,7 +48,7 @@ watch(
           <div>
             <span class="dialog-eyebrow">DeepWrite</span>
             <h2 id="startup-alert-title">
-              {{ t("reminder") }}
+              {{ title ?? t("reminder") }}
             </h2>
           </div>
           <button
@@ -57,8 +61,16 @@ watch(
           </button>
         </header>
 
-        <div id="startup-alert-content" class="startup-alert-content">
-          <div class="startup-alert-lead">
+        <div
+          id="startup-alert-content"
+          class="startup-alert-content"
+          :aria-busy="loading"
+          aria-live="polite"
+        >
+          <p v-if="messages.length === 0" class="startup-alert-empty">
+            {{ emptyText }}
+          </p>
+          <div v-else class="startup-alert-lead">
             <span>{{ t("announcement") }}</span>
             <p>{{ messages[0] }}</p>
           </div>
@@ -98,6 +110,7 @@ watch(
 <style scoped>
 .startup-alert-backdrop {
   z-index: 500;
+  padding: 24px;
 }
 
 .startup-alert-dialog {
@@ -162,6 +175,12 @@ watch(
   );
 }
 
+.startup-alert-empty {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+
 .startup-alert-lead::after {
   position: absolute;
   z-index: -1;
@@ -195,6 +214,7 @@ watch(
   font-weight: 590;
   line-height: 1.65;
   overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }
 
 .startup-alert-list {
@@ -244,6 +264,7 @@ watch(
   font-size: 0.96rem;
   line-height: 1.7;
   overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }
 
 .startup-alert-dialog > footer {
@@ -251,6 +272,10 @@ watch(
 }
 
 @media (max-width: 620px) {
+  .startup-alert-backdrop {
+    padding: 14px;
+  }
+
   .startup-alert-dialog {
     width: calc(100vw - 28px);
     max-height: calc(100vh - 28px);

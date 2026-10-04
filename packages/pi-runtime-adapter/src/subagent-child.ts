@@ -1,21 +1,32 @@
 import { randomBytes } from "node:crypto";
+import { createModels, fauxProvider } from "@earendil-works/pi-ai";
 import {
   Agent,
   type AgentMessage,
   type AgentToolResult,
   type StreamFn
 } from "@earendil-works/pi-agent-core";
-import type { AgentRuntimeRef } from "@deepwrite/contracts";
+import type { AgentRuntimeRef, SubagentDrawRef } from "@deepwrite/contracts";
 import { runSubagentLifecycle } from "./subagent-lifecycle";
 import { waitForSubagentPreparation } from "./subagent-preparation";
 import { snapshotSubagentHistory } from "./subagent-history";
 import {
+  applySubagentAgentMode,
+  subagentAgentMode,
+  subagentContextPolicyForMode,
+  subagentModeNote,
+  subagentModeSystemRequirements
+} from "./subagent-mode";
+import {
   buildSubagentSystemPrompt,
   textResult,
-  runtimeFromConfig,
-  runtimeFromModel,
   SUBAGENT_SUMMARY_MAX_LENGTH
 } from "./subagent-helpers";
+import {
+  resolveSubagentModel,
+  subagentModelRuntime,
+  withoutProviderRetries
+} from "./subagent-model";
 import type { SubagentHandoff } from "./subagent-scheduler";
 import type {
   BuildSpawnSubagentToolInput,
@@ -39,6 +50,10 @@ export interface SubagentTaskContext {
   request: SubagentTaskRequest;
   /** Present when the call submitted more than one task. */
   batchTask?: SubagentBatchTaskRef;
+  /** Present on the candidates and the evaluator of a draw-mode task. */
+  draw?: SubagentDrawRef;
+  /** Preassigned so a draw can name the candidate that was selected. */
+  subagentRunId?: string;
   signal?: AbortSignal;
   writeLock: SubagentWriteLock;
   onUpdate?: (partialResult: AgentToolResult<SubagentToolDetails>) => void;
@@ -48,14 +63,13 @@ export function childRuntime(
   input: BuildSpawnSubagentToolInput,
   request: SubagentTaskRequest
 ): AgentRuntimeRef {
-  const modelId =
-    request.definition.modelMode === "custom"
-      ? request.definition.modelId?.trim()
-      : undefined;
-  const config = modelId ? input.subagentRuntimeConfigs?.[modelId] : undefined;
-  return config
-    ? runtimeFromConfig(config)
-    : (input.parentRuntime ?? runtimeFromModel(input.model));
+  return subagentModelRuntime(input, request.definition);
+}
+
+export function createSubagentRunId(
+  input: BuildSpawnSubagentToolInput
+): string {
+  return input.createRunId?.() ?? `subrun_${randomBytes(4).toString("hex")}`;
 }
 
 function progressBase(
@@ -64,16 +78,16 @@ function progressBase(
 ): SubagentProgressBase {
   return {
     parentToolCallId: context.parentToolCallId,
-    subagentRunId:
-      input.createRunId?.() ?? `subrun_${randomBytes(4).toString("hex")}`,
+    subagentRunId: context.subagentRunId ?? createSubagentRunId(input),
     subagentId: context.request.definition.id,
     name: context.request.definition.name,
     runtime: childRuntime(input, context.request),
-    ...(context.batchTask ? { batchTask: context.batchTask } : {})
+    ...(context.batchTask ? { batchTask: context.batchTask } : {}),
+    ...(context.draw ? { draw: context.draw } : {})
   };
 }
 
-function emitter(context: SubagentTaskContext) {
+export function emitter(context: Pick<SubagentTaskContext, "onUpdate">) {
   return (progress: SubagentToolProgress, text: string): void => {
     context.onUpdate?.(
       textResult(text, { kind: "subagent-progress", progress })
@@ -122,11 +136,16 @@ export async function runSubagentTask(
   const { request, signal } = context;
   const definition = request.definition;
   const libraryManager = definition.toolSource === "library-management";
+  const mode = subagentAgentMode(definition);
   const childMessages =
     definition.contextMode === "parent-snapshot"
       ? snapshotSubagentHistory(input.getParentMessages?.() ?? [])
       : [];
-  if (!libraryManager && input.materialContext?.trim()) {
+  if (
+    !libraryManager &&
+    mode !== "pure-bare" &&
+    input.materialContext?.trim()
+  ) {
     childMessages.push({
       role: "user",
       content: `【本轮可按需读取的素材上下文】\n${input.materialContext.trim()}`,
@@ -142,67 +161,84 @@ export async function runSubagentTask(
   );
 
   const compactionListeners = new Set<() => void>();
-  let childContextPolicy = input.contextPolicy;
+  let childContextPolicy = subagentContextPolicyForMode(
+    input.contextPolicy,
+    mode
+  );
   let child: Agent;
+  let childTask = request.task;
   try {
-    let childModel = input.model;
-    let childStreamFn = input.streamFn;
-    let childThinkingLevel = input.thinkingLevel;
-    if (definition.modelMode === "custom") {
-      const modelId = definition.modelId?.trim();
-      if (!modelId) {
-        throw new Error(`子智能体「${definition.name}」未配置模型。`);
-      }
-      const runtimeConfig = input.subagentRuntimeConfigs?.[modelId];
-      if (!runtimeConfig) {
-        throw new Error(
-          `子智能体「${definition.name}」配置的模型不可用，请重新保存智能体团队或刷新模型配置。`
-        );
-      }
-      if (!input.buildCustomModelRuntime) {
-        throw new Error("当前运行时不支持子智能体单独配置模型。");
-      }
-      const customRuntime = input.buildCustomModelRuntime(runtimeConfig, {
-        ...(definition.thinkingLevel !== undefined
-          ? { thinkingLevel: definition.thinkingLevel }
-          : {}),
-        ...(definition.temperature !== undefined
-          ? { temperature: definition.temperature }
-          : {})
-      });
-      childModel = customRuntime.model;
-      childStreamFn = customRuntime.streamFn;
-      childThinkingLevel = customRuntime.thinkingLevel;
-    }
-    const prepared = libraryManager
-      ? await waitForSubagentPreparation(
-          input.prepareChild?.(definition, request.libraryId, signal),
-          signal
-        )
-      : undefined;
+    const resolvedModel = resolveSubagentModel(
+      input,
+      definition,
+      `子智能体「${definition.name}」`
+    );
+    const childModel = resolvedModel.model;
+    let childStreamFn = resolvedModel.streamFn;
+    const childThinkingLevel = resolvedModel.thinkingLevel;
+    const prepared =
+      libraryManager || input.workspaceAccess === "none"
+        ? await waitForSubagentPreparation(
+            input.prepareChild?.(
+              definition,
+              request.libraryId,
+              signal,
+              request
+            ),
+            signal
+          )
+        : undefined;
     signal?.throwIfAborted();
     if (libraryManager && !prepared)
       throw new Error("资料库管理运行上下文不可用。");
+    if (input.workspaceAccess === "none" && !prepared)
+      throw new Error("扩展子任务运行上下文不可用。");
     if (prepared?.contextPolicy) childContextPolicy = prepared.contextPolicy;
-    const builtTools = (
-      prepared?.tools ??
-      input.buildChildTools((listener) => compactionListeners.add(listener))
-    ).filter(
-      (tool) =>
-        tool.name !== "spawn_subagent" &&
-        (libraryManager ||
-          (tool.name !== "load_skill" && tool.name !== "ask_user_question"))
-    );
-    // Library managers own their tools; only the work's write tools of a
-    // parallel child share the lock.
-    const sharesWorkspace = input.parallel === true && !libraryManager;
+    if (prepared?.task) childTask = prepared.task;
+    if (prepared?.fauxResponses && input.parentRuntime?.mode === "local-faux") {
+      const models = createModels();
+      const faux = fauxProvider({
+        api: input.model.api,
+        provider: input.model.provider,
+        models: [
+          { id: input.model.id, name: input.model.name, reasoning: true }
+        ],
+        tokensPerSecond: 0
+      });
+      models.setProvider(faux.provider);
+      faux.setResponses(prepared.fauxResponses);
+      childStreamFn = models.streamSimple.bind(models) as StreamFn;
+    }
+    // A bare child never builds the work's tools at all.
+    const builtTools =
+      mode === "pure-bare"
+        ? []
+        : (
+            prepared?.tools ??
+            input.buildChildTools((listener) =>
+              compactionListeners.add(listener)
+            )
+          ).filter(
+            (tool) =>
+              tool.name !== "spawn_subagent" &&
+              (libraryManager ||
+                (tool.name !== "load_skill" &&
+                  tool.name !== "ask_user_question"))
+          );
+    // Library managers and extras children own their tools; only the work's
+    // write tools of a parallel standard child share the lock.
+    const sharesWorkspace =
+      input.parallel === true &&
+      !libraryManager &&
+      mode === "standard" &&
+      input.workspaceAccess !== "none";
     const childTools = sharesWorkspace
       ? applySubagentWriteLock(
-          builtTools,
+          applySubagentAgentMode(builtTools, mode),
           context.writeLock,
           `「${definition.name}」（${request.key}）`
         )
-      : builtTools;
+      : applySubagentAgentMode(builtTools, mode);
     if (libraryManager) {
       for (const [index, tool] of childTools.entries()) {
         childTools[index] = {
@@ -220,25 +256,16 @@ export async function runSubagentTask(
     const childDefinition = prepared
       ? { ...definition, systemPrompt: prepared.systemPrompt }
       : definition;
-    const childStreamWithoutProviderRetries: StreamFn = (
-      requestModel,
-      streamContext,
-      options
-    ) =>
-      childStreamFn(requestModel, streamContext, {
-        ...options,
-        // The visible turn coordinator owns the complete retry budget. Keep
-        // provider SDK retries disabled for inherited and custom child models
-        // as well, otherwise one child attempt can fan out into 2+ requests.
-        maxRetries: 0
-      });
     child = new Agent({
       initialState: {
         systemPrompt: buildSubagentSystemPrompt(
           childDefinition,
           childTools,
-          prepared ? undefined : input.systemPromptRequirements,
-          sharesWorkspace ? subagentParallelNote() : undefined
+          prepared ? undefined : subagentModeSystemRequirements(input, mode),
+          // A pure child states its mode; a parallel standard child states
+          // that others may be changing the work at the same time.
+          subagentModeNote(mode) ??
+            (sharesWorkspace ? subagentParallelNote() : undefined)
         ),
         model: childModel,
         thinkingLevel: childThinkingLevel,
@@ -247,7 +274,7 @@ export async function runSubagentTask(
         // same parent-run mutation/revision overlay.
         tools: childTools
       },
-      streamFn: childStreamWithoutProviderRetries,
+      streamFn: withoutProviderRetries(childStreamFn),
       sessionId: `${input.parentSessionId}:${base.subagentRunId}`,
       toolExecution: "sequential",
       ...input.toolExecutionHooks
@@ -281,7 +308,7 @@ export async function runSubagentTask(
       ...(childContextPolicy ? { contextPolicy: childContextPolicy } : {})
     },
     base,
-    request.task,
+    childTask,
     base.runtime!,
     emitProgress,
     signal,

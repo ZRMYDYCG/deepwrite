@@ -14,6 +14,7 @@ interface EditorSaveViewportOptions {
   documentKey: Readonly<Ref<string>>;
   isEditView(): boolean;
   isSaving(): boolean;
+  isComposing?(): boolean;
   isTransientlyReadOnly?(): boolean;
   rememberScroll(documentKey: string, scrollTop: number): void;
 }
@@ -31,6 +32,7 @@ export function useEditorSaveViewport(options: EditorSaveViewportOptions) {
     const input = options.editorInput.value;
     if (
       !input ||
+      options.isComposing?.() ||
       !options.isEditView() ||
       options.documentKey.value !== renderedDocumentKey
     ) {
@@ -50,6 +52,7 @@ export function useEditorSaveViewport(options: EditorSaveViewportOptions) {
     if (!snapshot) return;
     if (
       !options.isEditView() ||
+      options.isComposing?.() ||
       options.documentKey.value !== snapshot.documentKey
     ) {
       return;

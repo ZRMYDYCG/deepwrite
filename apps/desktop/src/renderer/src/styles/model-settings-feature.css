@@ -138,6 +138,21 @@
   color: var(--text-secondary);
   background: var(--surface-muted);
 }
+.model-card-actions .model-default-action {
+  display: inline-grid;
+  align-items: center;
+}
+.model-default-action > span {
+  grid-area: 1 / 1;
+}
+.model-default-label-sizer {
+  visibility: hidden;
+}
+/* Lock concurrent writes without fading every row for a default-only save. */
+.is-setting-default .model-card-actions button:disabled,
+.is-setting-default .model-list-add:disabled {
+  opacity: 1;
+}
 @container (max-width: 48rem) {
   .model-provider-content .model-config-card {
     grid-template-columns: minmax(0, 1fr);

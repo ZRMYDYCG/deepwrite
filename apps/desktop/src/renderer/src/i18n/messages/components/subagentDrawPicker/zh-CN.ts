@@ -1,0 +1,19 @@
+export default {
+  chooseOneForThePrimaryAgent: "选一份交给主智能体",
+  valueCandidates: "{arg0} 份候选",
+  valueMoreWaiting: "还有 {arg0} 组待选",
+  valueCharacters: "{arg0} 字",
+  compare: "并排对比",
+  compareSideBySide: "并排对比候选",
+  taskAssignedByPrimaryAgent: "主智能体下发的任务",
+  candidates: "候选结果",
+  candidateValue: "候选 {arg0}",
+  noteForThePrimaryAgent: "给主智能体的附言",
+  noteForThePrimaryAgentOptional: "附言（可选），随结果交给主智能体",
+  adoptNone: "都不采用",
+  adoptCandidateValue: "采用候选 {arg0}",
+  adoptThisOne: "采用此份",
+  leftPane: "左侧候选",
+  rightPane: "右侧候选",
+  close: "关闭"
+};

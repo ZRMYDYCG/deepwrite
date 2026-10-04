@@ -14,5 +14,8 @@ export default {
   batchSummary: "{arg0} 个子任务",
   batchActive: "{arg0} 个运行中",
   batchQueued: "{arg0} 个排队",
-  batchFinished: "{arg0} 个已结束"
+  batchFinished: "{arg0} 个已结束",
+  candidateValue: "候选 {arg0}",
+  adopted: "已采用",
+  drawCountValue: "抽卡×{arg0}"
 };

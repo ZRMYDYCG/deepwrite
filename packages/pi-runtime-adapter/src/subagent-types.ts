@@ -9,14 +9,18 @@ import type {
   StreamFn,
   ThinkingLevel as PiThinkingLevel
 } from "@earendil-works/pi-agent-core";
-import type { Api, Model } from "@earendil-works/pi-ai";
+import type { Api, Model, FauxResponseStep } from "@earendil-works/pi-ai";
 import type {
   AgentRuntimeRef,
   AgentUsage,
   AgentUsageObservationStatus,
   AgentProviderRuntimeConfig,
-  ShortAgentSubagentDefinition
+  ShortAgentSubagentDefinition,
+  SubagentAgentMode,
+  SubagentDrawRef,
+  SubagentDrawUpdatedPayload
 } from "@deepwrite/contracts";
+import type { AgentUserInputRequester } from "./runtime-types";
 import type {
   AgentTurnAttempt,
   AgentTurnRetrySchedule,
@@ -25,9 +29,11 @@ import type {
 
 export type RuntimeSubagentDefinition = Omit<
   ShortAgentSubagentDefinition,
-  "id"
+  "id" | "agentMode"
 > & {
   id: string;
+  /** Absent means `standard`; library managers are always `standard`. */
+  agentMode?: SubagentAgentMode;
   contextMode?: "isolated" | "parent-snapshot";
   toolSource?: "writing" | "library-management";
 };
@@ -92,6 +98,7 @@ export interface SubagentPlannedTaskRef extends SubagentBatchTaskRef {
   name: string;
   task: string;
   runtime: AgentRuntimeRef;
+  drawCount?: number;
 }
 
 export interface SubagentProgressBase {
@@ -106,6 +113,8 @@ export interface SubagentProgressBase {
    * fallback for backward compatibility.
    */
   runtime?: AgentRuntimeRef;
+  /** Set on the candidates and the evaluator of a draw-mode task. */
+  draw?: SubagentDrawRef;
 }
 
 export type SubagentToolProgress =
@@ -142,6 +151,10 @@ export type SubagentToolProgress =
       usage: AgentUsage;
       runtime: AgentRuntimeRef;
     })
+  | ({ type: "draw_updated" } & Omit<
+      SubagentDrawUpdatedPayload,
+      "sessionId" | "runId"
+    >)
   | (SubagentProgressBase & {
       type: "child_tool_details";
       toolCallId: string;
@@ -179,6 +192,8 @@ export interface BuildSpawnSubagentToolInput {
   getParentMessages?: () => readonly AgentMessage[];
   /** Runtime-owned requirements appended after the editable child role prompt. */
   systemPromptRequirements?: string;
+  /** Read-only variant for `pure-read` children, without any write rules. */
+  pureReadSystemPromptRequirements?: string;
   /** Material directory for ordinary team members, never library managers. */
   materialContext?: string;
   /**
@@ -207,11 +222,19 @@ export interface BuildSpawnSubagentToolInput {
   prepareChild?: (
     definition: RuntimeSubagentDefinition,
     libraryId: string | undefined,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    request?: SubagentTaskRequest
   ) => Promise<{
     tools: AgentTool[];
     systemPrompt: string;
+    /**
+     * Replaces the parent's task text as the child's request, e.g. with
+     * system-assembled evidence ahead of it. Progress events keep the
+     * parent's text.
+     */
+    task?: string;
     contextPolicy?: ContextPolicy;
+    fauxResponses?: FauxResponseStep[];
   }>;
   toolExecutionHooks?: AgentToolExecutionHooks;
   retryPolicy?: AgentTurnRetryPolicyOptions;
@@ -228,4 +251,8 @@ export interface BuildSpawnSubagentToolInput {
    * writes to the work are serialized by a shared lock.
    */
   parallel?: boolean;
+  /** Extras tasks use dedicated, authorized submissions and never touch the work's write tools. */
+  workspaceAccess?: "workspace" | "none";
+  /** Asks the user to pick a draw candidate; queued per parent run. */
+  requestUserInput?: AgentUserInputRequester;
 }

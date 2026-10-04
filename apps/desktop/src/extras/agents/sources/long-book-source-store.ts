@@ -8,6 +8,17 @@ import {
   writeFile
 } from "node:fs/promises";
 import { join } from "node:path";
+import { createHash } from "node:crypto";
+import { secureDirectory } from "../../../utilities/long-project-store/io";
+import { recoverProjectTransaction } from "../../../utilities/project-transaction";
+import { deleteLongBookSourceSnapshot } from "./long-book-source-deletion";
+import {
+  confirmLongBookSource,
+  loadLongBookSourceRevision,
+  readLongBookSourceConfirmation,
+  saveLongBookSourceVersion,
+  versionedLongBookSource
+} from "./long-book-source-versions";
 import {
   LONG_BOOK_ANALYSIS_MAX_DIRECTORY_BYTES,
   LONG_BOOK_ANALYSIS_MAX_SOURCE_CHAPTERS,
@@ -17,6 +28,8 @@ import {
   LongBookAnalysisSourceSchema,
   type LongBookAnalysisSavedSourceCatalog,
   type LongBookAnalysisSavedSourceSummary,
+  type SaveLongBookSourceInput,
+  type ConfirmLongBookSourceInput,
   type LongBookAnalysisSource
 } from "@deepwrite/contracts";
 
@@ -84,7 +97,7 @@ function createSummary(
 export class LongBookAnalysisSourceStore {
   readonly directory: string;
 
-  constructor(workspaceDirectory: string) {
+  constructor(readonly workspaceDirectory: string) {
     this.directory = join(
       workspaceDirectory,
       LONG_BOOK_ANALYSIS_SOURCE_DIRECTORY
@@ -118,7 +131,10 @@ export class LongBookAnalysisSourceStore {
   async save(
     rawSource: LongBookAnalysisSource
   ): Promise<LongBookAnalysisSavedSourceSummary> {
-    const source = LongBookAnalysisSourceSchema.parse(rawSource);
+    const source = versionedLongBookSource(
+      LongBookAnalysisSourceSchema.parse(rawSource),
+      1
+    );
     LongBookAnalysisSavedSourceIdSchema.parse(source.id);
     await this.ensureDirectory();
 
@@ -131,7 +147,13 @@ export class LongBookAnalysisSourceStore {
     await mkdir(temporary, { mode: 0o700 });
     try {
       const metadata: DiskMetadata = { version: 1, summary };
+      await mkdir(join(temporary, "revisions"));
       await Promise.all([
+        writeFile(
+          join(temporary, "revisions", "1.json"),
+          JSON.stringify(source),
+          { encoding: "utf8", mode: 0o600 }
+        ),
         writeFile(
           join(temporary, METADATA_FILE),
           `${JSON.stringify(metadata, null, 2)}\n`,
@@ -188,9 +210,12 @@ export class LongBookAnalysisSourceStore {
     return LongBookAnalysisSavedSourceCatalogSchema.parse({ sources });
   }
 
-  async load(rawSourceId: string): Promise<LongBookAnalysisSource> {
+  async load(
+    rawSourceId: string,
+    revision?: number
+  ): Promise<LongBookAnalysisSource> {
     const sourceId = LongBookAnalysisSavedSourceIdSchema.parse(rawSourceId);
-    const entryDirectory = this.entryDirectory(sourceId);
+    let entryDirectory = this.entryDirectory(sourceId);
     let entryStats;
     try {
       entryStats = await lstat(entryDirectory);
@@ -203,6 +228,10 @@ export class LongBookAnalysisSourceStore {
     if (entryStats.isSymbolicLink() || !entryStats.isDirectory()) {
       throw new Error("所选长篇拆书来源目录不安全，无法读取。");
     }
+    entryDirectory = await secureDirectory(entryDirectory, "长篇拆书来源");
+    await recoverProjectTransaction(entryDirectory, MAX_SOURCE_SNAPSHOT_BYTES);
+    if (revision !== undefined)
+      return loadLongBookSourceRevision(entryDirectory, sourceId, revision);
     const source = LongBookAnalysisSourceSchema.parse(
       JSON.parse(
         await readRegularFile(
@@ -215,5 +244,65 @@ export class LongBookAnalysisSourceStore {
       throw new Error("长篇拆书来源快照与目录标识不一致。");
     }
     return source;
+  }
+
+  async saveChapters(input: SaveLongBookSourceInput) {
+    const source = await this.load(input.sourceId);
+    if ((source.revision ?? 0) !== input.baseRevision)
+      throw new Error("来源已在其他位置校对，请重新加载。");
+    const root = await secureDirectory(
+      this.entryDirectory(source.id),
+      "长篇拆书来源"
+    );
+    const raw = await readRegularFile(
+      join(root, SOURCE_FILE),
+      MAX_SOURCE_SNAPSHOT_BYTES
+    );
+    const next = versionedLongBookSource(
+      { ...source, chapters: input.chapters },
+      (source.revision ?? 0) + 1
+    );
+    await saveLongBookSourceVersion(
+      root,
+      next,
+      createHash("sha256").update(raw).digest("hex")
+    );
+    return next;
+  }
+
+  async confirm(input: ConfirmLongBookSourceInput) {
+    let source = await this.load(input.sourceId);
+    if (!source.revision)
+      source = await this.saveChapters({
+        sourceId: source.id,
+        baseRevision: 0,
+        chapters: source.chapters
+      });
+    if (
+      source.revision !== input.sourceRevision ||
+      source.fingerprint !== input.fingerprint
+    )
+      throw new Error("来源版本不一致，请重新保存并确认。");
+    return confirmLongBookSource(
+      await secureDirectory(this.entryDirectory(source.id), "长篇拆书来源"),
+      source,
+      input.range
+    );
+  }
+
+  async readConfirmation(sourceId: string, id: string) {
+    if (!/^[a-z0-9_-]+$/iu.test(id)) throw new Error("来源确认标识无效。");
+    return readLongBookSourceConfirmation(
+      await secureDirectory(this.entryDirectory(sourceId), "长篇拆书来源"),
+      id
+    );
+  }
+
+  remove(sourceId: string): Promise<string> {
+    return deleteLongBookSourceSnapshot(
+      this.workspaceDirectory,
+      this.directory,
+      sourceId
+    );
   }
 }

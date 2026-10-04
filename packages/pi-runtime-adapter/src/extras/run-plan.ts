@@ -1,3 +1,6 @@
+import { bookTitleDesignAgent } from "./agents/book-identity/title-design";
+import { bookSynopsisDesignAgent } from "./agents/book-identity/synopsis-design";
+import { bookCoverDesignAgent } from "./agents/book-identity/cover-design";
 import {
   assertExtrasAgentBudget,
   type ExtrasAgentResolvedTask,
@@ -6,12 +9,15 @@ import {
 import type { ContextPolicy } from "../kernel/context";
 import type { AgentRunPlan, AgentRunTarget } from "../kernel/run-plan";
 import type { LongCommandExecutor } from "../long-agent-tools";
+import { buildSpawnSubagentTool } from "../subagent-runtime";
+import type { AgentRunBuildContext } from "../kernel/run-plan";
 import { rawUserMessageContent } from "../prompts-user-message";
 import type { AgentRuntimeEvent } from "../runtime-types";
 import { chatNormalAgent } from "./agents/chat-normal";
 import { chatProjectAgent } from "./agents/chat-project";
 import { chatRoleplayAgent } from "./agents/chat-roleplay";
 import { longBookAnalysisAgent } from "./agents/long-book-analysis";
+import { longBookDecompositionAgent } from "./agents/long-book-decomposition/definition";
 import { revisionAnalysisAgent } from "./agents/revision-analysis";
 import { shortBookAnalysisAgent } from "./agents/short-book-analysis";
 import { styleComparisonAgent } from "./agents/style-comparison";
@@ -28,6 +34,10 @@ export interface ExtrasAgentRunInput {
   spec: ExtrasAgentRunSpec;
   signal?: AbortSignal;
   longCommandExecutor?: LongCommandExecutor;
+  bookIdentitySubmit?: ExtrasAgentRunServices["bookIdentitySubmit"];
+  decompositionQuery?: ExtrasAgentRunServices["decompositionQuery"];
+  decompositionSubmit?: ExtrasAgentRunServices["decompositionSubmit"];
+  decompositionPlanTopic?: ExtrasAgentRunServices["decompositionPlanTopic"];
 }
 
 /** The extras agent registry: every agent id maps to exactly one definition. */
@@ -35,12 +45,20 @@ export function resolveExtrasAgent(
   task: ExtrasAgentResolvedTask
 ): BoundExtrasAgent {
   switch (task.agentId) {
+    case "book-title-design":
+      return bindExtrasAgent(bookTitleDesignAgent, task);
+    case "book-synopsis-design":
+      return bindExtrasAgent(bookSynopsisDesignAgent, task);
+    case "book-cover-design":
+      return bindExtrasAgent(bookCoverDesignAgent, task);
     case "revision-analysis":
       return bindExtrasAgent(revisionAnalysisAgent, task);
     case "short-book-analysis":
       return bindExtrasAgent(shortBookAnalysisAgent, task);
     case "long-book-analysis":
       return bindExtrasAgent(longBookAnalysisAgent, task);
+    case "long-book-decomposition":
+      return bindExtrasAgent(longBookDecompositionAgent, task);
     case "style-comparison":
       return bindExtrasAgent(styleComparisonAgent, task);
     case "chat-normal":
@@ -108,6 +126,18 @@ export function planExtrasRun(input: ExtrasAgentRunInput): AgentRunPlan {
   const identity = { runId, sessionId: spec.sessionId };
   const services: ExtrasAgentRunServices = {
     ...identity,
+    ...(input.bookIdentitySubmit
+      ? { bookIdentitySubmit: input.bookIdentitySubmit }
+      : {}),
+    ...(input.decompositionQuery
+      ? { decompositionQuery: input.decompositionQuery }
+      : {}),
+    ...(input.decompositionSubmit
+      ? { decompositionSubmit: input.decompositionSubmit }
+      : {}),
+    ...(input.decompositionPlanTopic
+      ? { decompositionPlanTopic: input.decompositionPlanTopic }
+      : {}),
     ...(input.longCommandExecutor
       ? { longCommandExecutor: input.longCommandExecutor }
       : {})
@@ -124,15 +154,65 @@ export function planExtrasRun(input: ExtrasAgentRunInput): AgentRunPlan {
     portableToolSchemaProfile: "default" as const,
     assertModelBudget: (model: Parameters<typeof assertExtrasAgentBudget>[1]) =>
       assertExtrasAgentBudget(spec.task, model),
-    build: () => ({
-      systemPrompt: agent.systemPrompt,
-      tools: agent.tools(services)
-    })
+    build: (context: AgentRunBuildContext) => {
+      const runServices = {
+        ...services,
+        localFaux: context.runtime.mode === "local-faux"
+      };
+      const tools = agent.tools(runServices);
+      const orchestration =
+        agent.interaction === "task"
+          ? agent.orchestration?.(runServices)
+          : undefined;
+      if (orchestration) {
+        const spawn = buildSpawnSubagentTool({
+          parentSessionId: spec.sessionId,
+          parentSignal: context.parentSignal,
+          parentRuntime: context.runtime,
+          model: context.model,
+          thinkingLevel: context.thinkingLevel,
+          streamFn: context.spawnStreamFn,
+          getParentMessages: context.getParentMessages,
+          definitions: orchestration.definitions,
+          prepareChild: orchestration.prepareChild,
+          buildChildTools: () => [],
+          parallel: true,
+          workspaceAccess: "none",
+          ...(agent.interaction === "task" &&
+          agent.contextTask &&
+          spec.contextCompactionSettings
+            ? {
+                contextPolicy: {
+                  settings: spec.contextCompactionSettings,
+                  task: agent.contextTask,
+                  toolCompactors: agent.toolCompactors ?? {}
+                }
+              }
+            : {})
+        });
+        if (spawn) tools.push(spawn);
+      }
+      return { systemPrompt: agent.systemPrompt, tools };
+    }
   };
   if (agent.interaction === "task") {
     return {
       ...shared,
-      target,
+      target: {
+        ...target,
+        ...(spec.compactionRuntimeConfig
+          ? { compactionRuntimeConfig: spec.compactionRuntimeConfig }
+          : {})
+      },
+      ...(agent.contextTask && spec.contextCompactionSettings
+        ? {
+            contextPolicy: {
+              settings: spec.contextCompactionSettings,
+              task: agent.contextTask,
+              toolCompactors: agent.toolCompactors ?? {}
+            }
+          }
+        : {}),
       fauxResponses: () => agent.faux(runId),
       userMessageContent: () => agent.userMessage,
       ...(agent.finalOutput

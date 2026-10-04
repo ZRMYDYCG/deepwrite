@@ -243,6 +243,7 @@ export function useLongEditorFindReplace(options: {
   }
 
   function handleEditorKeydown(event: KeyboardEvent): void {
+    if (event.isComposing) return;
     const modifier = event.metaKey || event.ctrlKey;
     const key = event.key.toLowerCase();
     if (modifier && key === "z") {

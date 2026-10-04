@@ -1,5 +1,9 @@
+import bookIdentity from "./book-identity/en-US";
 import deviceSyncService from "../../../../../localization/device-sync/en-US";
+import longBookDecomposition from "./long-book-decomposition/en-US";
 export default {
+  bookIdentity,
+  longBookDecomposition,
   deviceSyncService,
   agentRuntime: {
     stopFailed: "Could not stop. Please try again.",
@@ -10,6 +14,7 @@ export default {
   },
   analysisUi: {
     modelSettings: "Model settings",
+    modelField: "Model",
     closeModelSettings: "Close model settings",
     clearWorkbench: "Clear this analysis workspace",
     clearRunningTitle: "Stop the analysis and clear the workspace?",
@@ -414,6 +419,11 @@ export default {
       "The chapter folder was imported and backed up to the working directory.",
     sourceImportFailed: "Could not import the source.",
     novelLoaded: "Loaded the novel from the working directory.",
+    deleteNovel: "Delete novel “{title}”",
+    deleteNovelConfirmation:
+      "Delete the imported novel “{title}” and its corrections? The original files and saved analysis results will be kept.",
+    novelDeleted: "Deleted the imported novel.",
+    novelDeleteFailed: "Failed to delete the imported novel.",
     novelLoadFailed: "Could not load the imported novel.",
     importTxt: "Import TXT",
     managePresets: "Manage presets",
@@ -426,6 +436,9 @@ export default {
     characterCount: "{count} character | {count} characters",
     moveChapterUp: "Move chapter up",
     moveChapterDown: "Move chapter down",
+    deleteChapter: "Delete chapter",
+    deleteChapterMissing: "The chapter to delete was not found.",
+    keepOneChapter: "Keep at least one chapter.",
     unassignedVolume: "No volume",
     mergeIntoPrevious: "Merge into previous chapter",
     mergeNextChapter: "Merge next chapter",
@@ -621,7 +634,7 @@ export default {
     novelAnalysisUnavailable:
       "Novel analysis is not supported in this environment.",
     sourceLockedWhileRunning:
-      "The analysis is running. You cannot change the imported source.",
+      "An analysis or source operation is in progress. Please try again when it finishes.",
     importSourceRequired: "Import a TXT file or chapter folder first.",
     presetRequired: "Choose an analysis preset.",
     presetChapterRange: "{preset} · Chapters {start}–{end}",

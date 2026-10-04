@@ -136,6 +136,7 @@ describe("DeepWrite Pi runtime adapter: provider-model-routing", () => {
           description: "核对事件顺序与叙事落点。",
           systemPrompt: "只检查时间线并把结论交还主智能体。",
           enabled: true,
+          agentMode: "standard",
           modelMode: "inherit"
         }
       ],

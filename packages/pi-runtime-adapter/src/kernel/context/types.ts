@@ -41,6 +41,8 @@ export type ContextTaskKind =
   | "subagent-authoring"
   | "chat"
   | "roleplay"
+  | "book-decomposition"
+  | "book-decomposition-unit"
   | "general";
 
 /**
@@ -55,6 +57,14 @@ export interface ContextPolicy {
   checkpoint?: ConversationCheckpoint;
   /** User-requested compaction before this reply. */
   manual?: ContextCompactionRequest;
+  /** Evidence-reading children use only turn and overflow recovery. */
+  thresholdCompaction?: boolean;
+  /**
+   * Summarize a split turn by continuing the run's own request, so the
+   * provider can serve the shared prefix from its cache. Falls back to the
+   * serialized summary when that request fails or calls a tool.
+   */
+  inPlaceSummary?: boolean;
   /**
    * Verbatim source content re-attached after a summary, e.g. the bodies of
    * skills loaded earlier. Returns undefined when nothing applies.

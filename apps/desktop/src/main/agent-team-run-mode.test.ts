@@ -11,6 +11,7 @@ const inheritedMember: ShortAgentSubagentDefinition = {
   description: "查找资料",
   systemPrompt: "只整理与任务有关的资料。",
   enabled: true,
+  agentMode: "standard",
   modelMode: "inherit"
 };
 

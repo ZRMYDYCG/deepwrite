@@ -40,6 +40,27 @@ export async function migrateLegacyChapterCardContent(input: {
   if (!rawIndex || !plot || !Array.isArray(plot.chapterCards)) return false;
   const chapters = Array.isArray(rawIndex.chapters) ? rawIndex.chapters : null;
   if (!chapters) return false;
+  const chaptersByCardId = new Map(
+    chapters.map((entry) => {
+      const chapter = unknownRecord(entry);
+      return [chapter?.chapterCardId, chapter] as const;
+    })
+  );
+  const needsMigration = (card: Record<string, unknown>): boolean =>
+    "outline" in card ||
+    "worldConstraints" in card ||
+    "characterIds" in card ||
+    !unknownRecord(chaptersByCardId.get(card.id)?.card);
+  // Current cards are already file-backed. Checking their bodies here turns
+  // every unrelated document read into a scan of every chapter in the book.
+  if (
+    !plot.chapterCards.some((value) => {
+      const card = unknownRecord(value);
+      return card && typeof card.id === "string" && needsMigration(card);
+    })
+  ) {
+    return false;
+  }
 
   const characterNames = new Map<string, string>();
   if (Array.isArray(rawIndex.characters)) {
@@ -75,13 +96,13 @@ export async function migrateLegacyChapterCardContent(input: {
       nextChapterCards.push(rawCard);
       continue;
     }
+    if (!needsMigration(card)) {
+      nextChapterCards.push(rawCard);
+      continue;
+    }
     const hasLegacyFields =
       "outline" in card || "worldConstraints" in card || "characterIds" in card;
-    const fileEntry = chapters.find((entry) => {
-      const candidate = unknownRecord(entry);
-      return candidate?.chapterCardId === card.id;
-    });
-    const fileEntryRecord = unknownRecord(fileEntry);
+    const fileEntryRecord = chaptersByCardId.get(card.id);
     const cardFileRecord = unknownRecord(fileEntryRecord?.card);
     const hasCardFile = cardFileRecord !== null;
     const cardFile = hasCardFile

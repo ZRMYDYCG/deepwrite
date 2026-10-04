@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { useConversationContentGroups } from "../composables/useConversationContentGroups";
+import { useConversationLongProposals } from "../composables/useConversationLongProposals";
 import { useConversationWindowPins } from "../composables/conversation-window/useConversationWindowPins";
 import { useConversationMessageEditing } from "../composables/useConversationMessageEditing";
 import { provideConversationDisclosureState } from "../composables/conversationDisclosureState";
@@ -70,6 +71,9 @@ const emit = defineEmits<{
 }>();
 
 provideConversationDisclosureState(() => props.conversationSessionId ?? "");
+const { proposalsForRun } = useConversationLongProposals(
+  () => props.longProposalItems
+);
 const { editingMessageId, messageIsEditable, requestEdit, cancelEdit } =
   useConversationMessageEditing({
     messages: () => props.messages,
@@ -148,7 +152,7 @@ const { handleConversationContextMenu } = useConversationSelectionInsertion({
           :editing="editingMessageId === message.id"
           :submit-edited-message="submitEditedMessage"
           :allow-live-edit-review="allowLiveEditReview"
-          :long-proposal-items="longProposalItems"
+          :long-proposal-items="proposalsForRun(message.runId)"
           :long-workspace-index="longWorkspaceIndex"
           @review-edit="emit('reviewEdit', $event)"
           @locate-edit-proposal="emit('locateEditProposal', $event)"

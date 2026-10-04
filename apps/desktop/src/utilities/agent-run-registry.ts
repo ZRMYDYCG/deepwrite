@@ -15,6 +15,7 @@ export interface StreamedRun {
   runId: string;
   sessionId: string;
   runtime: AgentRuntimeRef;
+  promptRequestId: string;
 }
 
 export interface RunAdmissionError {
@@ -145,6 +146,24 @@ export class AgentRunRegistry {
         if (this.sessionRuns.get(run.sessionId) === run.runId) {
           this.sessionRuns.delete(run.sessionId);
         }
+        emitEvent(
+          createEnvelope(
+            "agent.run_drained",
+            {
+              sessionId: run.sessionId,
+              runId: run.runId,
+              promptRequestId: run.promptRequestId
+            },
+            {
+              id: createId("evt"),
+              context: {
+                correlationId,
+                sessionId: run.sessionId,
+                runId: run.runId
+              }
+            }
+          )
+        );
       }
     })();
 

@@ -6,6 +6,10 @@ import type {
 } from "@deepwrite/contracts";
 import type { ContextBudget } from "./budget";
 import { findCutPoint } from "./cut-point";
+import {
+  summarizeInPlace,
+  type InPlaceSummaryTarget
+} from "./summarize-in-place";
 import { pruneMessages, toolCallsById } from "./prune";
 import type { ConversationContextState } from "./state";
 import {
@@ -49,6 +53,8 @@ export interface CompactionRequest {
   force: boolean;
   allowSplitTurn: boolean;
   summaryModel: SummaryModel;
+  /** Present when the policy summarizes a split turn in place. */
+  inPlace?: InPlaceSummaryTarget;
   signal: AbortSignal;
   /** Called once, right before the first summary request. */
   onSummaryStart(): void;
@@ -224,11 +230,27 @@ export async function compactMessages(
   if (cut.isSplitTurn) {
     const runStart = messages[cut.turnStartIndex]!;
     const prefix = messages.slice(cut.turnStartIndex + 1, cut.firstKeptIndex);
-    const prefixSummary = await summarizeTurnPrefix(
-      request.summaryModel,
-      [runStart, ...prefix],
-      summaryRequest
-    );
+    // Without earlier history the turn so far is exactly what the run sent,
+    // so an in-place summary can reuse the provider's cached prefix.
+    const inPlace =
+      request.inPlace && !history.length
+        ? await summarizeInPlace(
+            request.summaryModel,
+            request.inPlace,
+            messages.slice(0, cut.firstKeptIndex),
+            summaryRequest
+          ).catch((error: unknown) => {
+            if (request.signal.aborted) throw error;
+            return undefined;
+          })
+        : undefined;
+    const prefixSummary =
+      inPlace ??
+      (await summarizeTurnPrefix(
+        request.summaryModel,
+        [runStart, ...prefix],
+        summaryRequest
+      ));
     summary = `${summary || "（此前没有更早的对话。）"}\n\n---\n\n**当前这一轮的前半段：**\n\n${prefixSummary}`;
     kept.push(runStart);
   }

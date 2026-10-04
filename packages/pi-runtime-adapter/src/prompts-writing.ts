@@ -20,7 +20,7 @@ function renderCharacterCreationRule(
     : "当前人物结构是文本样式：创建人物时不要用 create，把所有人物写进同一份 character_overview（id=character_design），用 edit 写入；delete（kind=character_overview）只会清空人物总稿，不会删除人物结构。";
 }
 
-function renderCreativePlotStructure(
+export function renderCreativePlotStructure(
   workspace:
     | NonNullable<WorkspaceRuntimeContext["shortWorkspace"]>
     | NonNullable<WorkspaceRuntimeContext["scriptWorkspace"]>

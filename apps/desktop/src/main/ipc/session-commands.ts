@@ -1,4 +1,5 @@
 import { acquireConversationOperation } from "./conversation-operation-guard";
+import { createId } from "@deepwrite/shared";
 import { resolveAgentTeamRuntime } from "../agent-team-run-mode";
 import { prepareLibraryManagementRunContext } from "../library-management-run-context";
 import { prepareMaterialRunContext } from "../material-run-context";
@@ -136,20 +137,23 @@ export async function handleSessionCommands(
   }
 
   if (command.type === "session.prompt") {
+    const ownerId = createId("prompt");
     const release = acquireConversationOperation(
       ctx.activeRuns,
       command.payload.sessionId,
-      "prompt"
+      "prompt",
+      ownerId
     );
     if (!release)
       return {
         status: "rejected",
         requestId: command.id,
         error: {
-          code: "conversation_history.busy",
-          message: "此对话正在管理历史，请稍后重试。"
+          code: "agent.session_busy",
+          message: "此对话仍在运行或管理历史，请稍后重试。"
         }
       };
+    let keepOwnership = false;
     try {
       const runtimeConfig = await ctx
         .requireModelConfigStore()
@@ -272,9 +276,11 @@ export async function handleSessionCommands(
               : {}),
             ...(libraryAgentProfile ? { libraryAgentProfile } : {})
           },
-          { id: command.id, context: command.context }
+          { id: ownerId, context: command.context }
         )
       );
+      // Once sent, a transport failure cannot prove that Agent did not start.
+      keepOwnership = true;
       const result = await ctx.supervisor.requestCommand(
         "agent",
         internalCommand,
@@ -332,7 +338,8 @@ export async function handleSessionCommands(
         return { status: "accepted", requestId: command.id, payload: accepted };
       }
       ctx.pendingUsageContexts.delete(command.context.correlationId);
-      return result;
+      keepOwnership = false;
+      return { ...result, requestId: command.id };
     } catch (error: unknown) {
       ctx.pendingUsageContexts.delete(command.context.correlationId);
       return {
@@ -346,7 +353,7 @@ export async function handleSessionCommands(
         }
       };
     } finally {
-      release();
+      if (!keepOwnership) release();
     }
   }
   return undefined;

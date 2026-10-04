@@ -1,24 +1,43 @@
 ---
 name: windows-macos-test-package
-description: 按 DeepWrite 桌面端约定构建 Windows 与 macOS 测试安装包：使用 electron-builder 与 pnpm pack:test:*，经 tools/run-test-package.mjs 编排，Mac 测试包做 ad-hoc 签名且不做 Apple 公证。用于用户提出“打包”“打测试包”“打 Win 包”“打 Mac 包”，或涉及测试安装包、electron-builder、pack:test、ad-hoc 签名、Gatekeeper、DMG 验证时；默认生成不会发布的测试包，正式包或发布包仅在用户明确要求并确认签名条件后处理。
+description: 构建并验证 DeepWrite Windows、macOS 测试安装包，排查打包错误、修复后继续。用于打包、测试包、Win/Mac 包及相关流程修改；版本递增和发布另用 package-patch-release。
 ---
 
-# Windows 与 macOS 测试安装包
+# DeepWrite 测试安装包
 
-用户提出打包、打测试包、打 Win 包、打 Mac 包，或修改测试安装包流程时，按下列规则执行。递增版本、清理旧包、发 GitHub Release 或更新 `update.json` 时，同时遵循 `package-patch-release`。
+默认只生成本地测试包。正式签名、公证或上传发布须有用户明确要求及所需凭据；递增版本或发布时同时读 [package-patch-release](../package-patch-release/SKILL.md)。
 
-- 当前桌面端是 Electron 工程，统一使用 `electron-builder` 和 `apps/desktop/electron-builder.yml` 打包；不得使用旧 Write Claw / DeepSeekWrite 项目的 Python、PyInstaller 或旧 DMG 脚本。
-- 用户只说“打包”“打测试包”“打 Win 包”或“打 Mac 包”时，默认生成不会发布的测试包。Windows 测试包可以不做代码签名；Mac 测试包必须对完整 `.app` 做 ad-hoc 签名，但不做 Apple 公证。只有用户明确要求“正式包”“发布包”并提供或确认签名条件后，才配置 Developer ID 签名、公证或上传发布。
-- 打包前必须从仓库根目录运行对应的 `pnpm pack:test:*` 命令。命令会先执行 `pnpm verify`，不得跳过类型检查、边界检查、测试和构建，也不得直接复用无法确认是否最新的 `apps/desktop/out`。
-- `pnpm pack:test:*` 必须通过 `tools/run-test-package.mjs` 统一编排，不得把脚本退回为直接串联 electron-builder。编排器会显式锁定打包用 Electron 版本，并在成功或失败退出前通过 `tools/ensure-electron-runtime.mjs` 恢复、验证当前主机的开发 Electron；打包完成后 `pnpm dev` 必须仍可启动。
-- 指令与命令映射：未指定平台的“打包”或“打全部测试包”使用 `pnpm pack:test`；Windows x64 使用 `pnpm pack:test:win`；Mac Apple Silicon / arm64 使用 `pnpm pack:test:mac:arm64`；Mac Intel / x64 使用 `pnpm pack:test:mac:x64`；同时生成两种 Mac 架构使用 `pnpm pack:test:mac`。
-- Windows 测试包优先在 Windows x64 环境构建；Mac 包必须在 macOS 构建。在 Apple Silicon Mac 上构建或运行 Intel 包时，需要具备可用的 x86_64 / Rosetta 环境。
-- 测试包输出目录固定为 `apps/desktop/release/`，文件名必须保留 `DeepWrite-<version>-<os>-<arch>-test.<ext>` 格式，不得临时改名覆盖其他架构或版本。
-- `apps/desktop/scripts/electron-builder-before-build.cjs` 会阻止 electron-builder 把 pnpm 依赖树重复装进 ASAR，因为当前运行时依赖已由 electron-vite 编译到 `out`。如果以后引入未打包的运行时依赖或原生 Node 模块，必须同步调整该钩子和 `files` 配置，并增加对应的安装包内运行验证。
-- Mac 测试包使用 `apps/desktop/electron-builder.yml` 中的 `identity: "-"` 让 electron-builder 对 Electron Framework、Helpers 和顶层 App Bundle 完成 ad-hoc 签名，并设置 `hardenedRuntime: false`、`notarize: false`。不得改回 `identity: null`：完全跳过签名会让 x64 App 未签名、arm64 App 只保留不完整的 linker ad-hoc 签名，经微信、浏览器等渠道下载并触发 Gatekeeper 后，可能被误报为“应用已损坏”。
-- 旧 Write Claw / DeepSeekWrite 打包流程中可借鉴的只有“组装完整 `.app` 后执行 `codesign --force --deep --sign -`，再执行 `codesign --verify --deep --strict`”这一签名原则；当前 Electron 工程应优先使用 electron-builder 原生的 `identity: "-"`，不得重新引入旧 PyInstaller 或 DMG 脚本。
-- `apps/desktop/scripts/verify-test-package.mjs` 必须同时验证 DMG 校验和、`codesign --verify --deep --strict` 成功，并确认顶层 App Bundle 的签名详情包含 `Signature=adhoc`。只运行 `apps/desktop/release/mac*/DeepWrite.app` 的冒烟流程不能证明微信下载后的安装体验，因为未隔离的构建目录不会触发 Gatekeeper。
-- ad-hoc 签名只修复 App Bundle 的代码完整性，不会建立 Apple 信任链，也不能替代 Developer ID 签名和公证。通过微信、浏览器等渠道接收后，文件可能被重新添加 `com.apple.quarantine`；测试者仍可能需要右键打开、在“隐私与安全性”中选择仍要打开，或在确认包可信后手动移除隔离属性。不得声称 ad-hoc 测试包可以在所有 Mac 上无提示直接打开。
-- 交付 Mac 测试包前检查本地生成的 DMG 是否意外继承了旧文件的 `com.apple.quarantine`，若存在则从发布产物移除；但必须明确，传输工具可能在接收端重新添加该属性。
-- 成功标准：对应安装包存在且非空；同时检查生成的未打包应用目录，并尽可能运行安装包内的 DeepWrite 冒烟流程，确认主进程、Renderer、Preload 以及 core / agent / tool 三个 Utility 均可启动。若受当前操作系统限制无法运行目标平台产物，必须明确报告“只完成构建，未完成目标平台运行验证”。
-- 打包失败时报告失败的平台、架构、具体步骤和关键终端输出；不得在缺少签名凭据、目标平台环境或验证结果时声称正式发布包可用。
+## 打包入口
+
+从仓库根目录执行，按用户指定平台选择；未指定使用全部：
+
+| 目标                 | 命令                       |
+| -------------------- | -------------------------- |
+| 全部（含 Linux x64） | `pnpm pack:test`           |
+| Windows x64          | `pnpm pack:test:win`       |
+| macOS arm64          | `pnpm pack:test:mac:arm64` |
+| macOS x64            | `pnpm pack:test:mac:x64`   |
+| 两种 macOS 架构      | `pnpm pack:test:mac`       |
+| Linux x64            | `pnpm pack:test:linux`     |
+
+- 保留 `tools/run-test-package.mjs` 编排：完整执行 `pnpm verify`、锁定打包 Electron 版本，并在成功或失败退出前恢复、验证主机开发运行时。不得直接调用 electron-builder 绕过检查或复用不明来源的 `out`。
+- 使用 `apps/desktop/electron-builder.yml`，输出到 `apps/desktop/release/`，保留配置生成的版本、平台和架构文件名。Mac 包在 macOS 构建；Apple Silicon 上运行 x64 包需可用的 Rosetta。Windows 优先在 Windows x64 构建，跨平台构建如实标注运行验证限制。
+- Mac 完整 `.app` 使用 `identity: "-"`、`hardenedRuntime: false`、`notarize: false`；不得改成 `identity: null`。Windows 测试包允许不签名。
+- 运行时依赖由 electron-vite 编译到 `out`，保留 `electron-builder-before-build.cjs` 防止重复安装依赖。修复涉及未打包依赖或原生模块时，同步检查钩子、`files` 和安装包内运行。
+
+## 遇错修复并继续
+
+打包请求包含解决阻塞打包的问题。遇到错误不要只报告后结束：定位失败步骤和根因 → 最小修复 → 运行相关检查 → 重跑对应 `pnpm pack:test:*`，直到请求产物完成并通过验证。
+
+- 类型、格式、边界、测试、构建、签名或冒烟失败，允许修复直接相关的代码、测试、配置及脚本。保留已有修改，只格式化涉及文件，不借机重构、降低断言或跳过检查。
+- 下载或网络错误先检查连接、缓存和工具状态，再有限重试；持续失败时换可用的合规路径。每次重试须有修复或新的诊断依据，不反复执行同一失败命令。
+- 重试沿用本轮版本，不再次递增；只清理明确的失败生成物。重建多架构包后重新检查完整产物与更新清单，不能让单架构重跑丢失其他架构引用。
+- 桌面启动沿用 `assertElectronLaunchAllowed()`。遇到 `DEEPWRITE_ELECTRON_SANDBOX` 为具体打包或验收命令申请沙盒外执行；不在沙盒内重复启动，也不伪造环境或跳过冒烟来取得成功。
+- 只有确实缺少授权、凭据、目标环境，或继续会覆盖用户数据、扩大任务范围时才请求所需信息；继续完成不受阻塞的工作，说明剩余步骤。未通过验证的产物不得发布或报为成功。
+
+## 验收与交付
+
+- 用 `apps/desktop/scripts/verify-test-package.mjs` 检查安装包非空、版本及包内运行时完整；目标主机可运行时完成安装包内冒烟，覆盖 Main、Renderer、Preload 和 core / agent / tool Utility。
+- Mac 同时通过 DMG 校验、`codesign --verify --deep --strict`、顶层 `Signature=adhoc`；挂载 DMG 后验证包内应用。交付前仅清除本轮 DMG 意外残留的 `com.apple.quarantine`。
+- 开发 Electron 恢复验证必须通过，确保后续 `pnpm dev` 仍可启动。受系统限制无法运行目标产物时写明“只完成构建，未完成目标平台运行验证”。
+- 简洁报告版本、产物路径、验证结果及必要修复。Mac ad-hoc 签名不等于 Developer ID 或公证；下载可能重新添加隔离属性，不承诺无提示打开。

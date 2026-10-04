@@ -1,3 +1,6 @@
+import { resolveBookIdentityTask } from "./book-identity-resolution";
+import type { ImageModelCapability } from "@deepwrite/contracts";
+import type { BookIdentityRunRegistration } from "../book-identity/run-registration";
 import {
   CHAT_PROJECT_DEFAULT_PROFILE_ID,
   ExtrasAgentResolvedTaskSchema,
@@ -15,6 +18,12 @@ export interface ExtrasTaskResolution {
   task: ExtrasAgentResolvedTask;
   /** Long-form book the run may read through Main's Core query bridge. */
   resourceId?: string;
+  bookIdentity?: BookIdentityRunRegistration;
+  decompositionJobId?: string;
+  decompositionOutputVersion?: number;
+  decompositionAttemptId?: string;
+  decompositionUnitIds?: string[];
+  decompositionPhase?: string;
 }
 
 /**
@@ -24,9 +33,19 @@ export interface ExtrasTaskResolution {
 export async function resolveExtrasTask(
   configStore: ExtrasAgentConfigStore,
   chatSources: ChatRuntimeSources,
-  task: ExtrasAgentTask
+  task: ExtrasAgentTask,
+  imageCapability?: ImageModelCapability
 ): Promise<ExtrasTaskResolution> {
   switch (task.agentId) {
+    case "book-title-design":
+    case "book-synopsis-design":
+    case "book-cover-design":
+      return resolveBookIdentityTask(
+        configStore,
+        chatSources,
+        task,
+        imageCapability
+      );
     case "chat-normal":
       return {
         task: ExtrasAgentResolvedTaskSchema.parse({

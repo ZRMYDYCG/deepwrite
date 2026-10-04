@@ -1,3 +1,8 @@
+import {
+  controlWithUsage,
+  handleDecompositionCommands
+} from "./long-book-decomposition/commands";
+import { resolveDecompositionTask } from "./long-book-decomposition/task-resolution";
 import type { BrowserWindow, Dialog } from "electron";
 import type { CommandEnvelope, CommandResult } from "@deepwrite/contracts";
 import { ExtrasAgentConfigStore } from "./config-store";
@@ -9,6 +14,7 @@ export interface ExtrasAgentCommandContext extends Omit<
   ExtrasAgentRunDependencies,
   "configStore"
 > {
+  evaluationMode?: boolean;
   dialog: Pick<Dialog, "showOpenDialog">;
   getMainWindow(): BrowserWindow;
   getWorkspaceDirectory(): Promise<string | null>;
@@ -60,11 +66,30 @@ export function createExtrasAgentService(userDataPath: string) {
     ): Promise<CommandResult | undefined> {
       if (command.type === "extrasAgent.run") {
         return runExtrasAgent(
-          { ...context, configStore: () => configStore },
+          {
+            ...context,
+            configStore: () => configStore,
+            resolveDecomposition: (task) =>
+              resolveDecompositionTask(context, command, task),
+            cancelDecomposition: async (resolution, code) => {
+              if (!resolution.decompositionJobId) return;
+              await controlWithUsage(context, command, {
+                jobId: resolution.decompositionJobId,
+                action:
+                  code === "agent.capacity_reached" ||
+                  code === "agent.extras_capacity_reached"
+                    ? "stop"
+                    : "finish-package",
+                attemptId: resolution.decompositionAttemptId,
+                error: "工作包启动失败，请检查模型设置后重试。"
+              });
+            }
+          },
           command
         );
       }
       return (
+        (await handleDecompositionCommands(context, configStore, command)) ??
         (await handleConfigCommand(configStore, command)) ??
         (await handleShortBookSourceCommands(context, command)) ??
         handleLongBookSourceCommands(context, command)

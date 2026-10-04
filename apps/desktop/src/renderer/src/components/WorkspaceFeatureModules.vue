@@ -23,10 +23,12 @@ import type {
 } from "@deepwrite/contracts";
 import AppIcon from "./AppIcon.vue";
 import {
+  BookIdentityPage,
   AgentTeamSettingsPanel,
   CloudBackupPage,
   DeviceSyncPage,
   LongBookAnalysisPage,
+  LongBookDecompositionPage,
   ShortBookAnalysisPage,
   RevisionAnalysisPage,
   StyleComparisonPage,
@@ -44,6 +46,8 @@ import {
 } from "./workspaceFeatureModuleAuthoring";
 
 const t = createScopedTranslator("components.workspaceFeatureModules");
+const identityT = createScopedTranslator("extras.bookIdentity");
+const decompositionT = createScopedTranslator("extras.longBookDecomposition");
 
 defineProps<{
   module: WorkspaceFeatureModule;
@@ -51,6 +55,17 @@ defineProps<{
 }>();
 
 const emit = defineEmits<{
+  openIdentityBook: [
+    book: import("@deepwrite/contracts").ChatAssistantProjectRef
+  ];
+  openImageSettings: [];
+  createIdentityBook: [];
+  openDecompositionRef: [
+    ref: import("@deepwrite/contracts").DecompositionContentRef
+  ];
+  openDecompositionTarget: [
+    target: import("@deepwrite/contracts").DecompositionTarget
+  ];
   expandLeft: [];
   back: [];
   updatePermissionMode: [mode: GeneralPermissionMode];
@@ -302,6 +317,24 @@ const emit = defineEmits<{
   </WorkspaceFeatureFrame>
 
   <WorkspaceFeatureFrame
+    v-else-if="module.kind === 'book-identity'"
+    class="long-book-analysis-main-view"
+    :left-collapsed="leftCollapsed"
+    expand-button-class="long-book-analysis-expand-sidebar"
+    :label="identityT('title')"
+    @expand-left="emit('expandLeft')"
+  >
+    <BookIdentityPage
+      :models="module.models"
+      :preferred-model-id="module.preferredModelId"
+      @open-book="emit('openIdentityBook', $event)"
+      @open-settings="emit('openImageSettings')"
+      @create="emit('createIdentityBook')"
+      @refresh-catalog="emit('refreshCatalog')"
+    />
+  </WorkspaceFeatureFrame>
+
+  <WorkspaceFeatureFrame
     v-else-if="module.kind === 'style-comparison'"
     class="style-comparison-main-view"
     :left-collapsed="leftCollapsed"
@@ -312,6 +345,25 @@ const emit = defineEmits<{
     <StyleComparisonPage
       :models="module.models"
       :preferred-model-id="module.preferredModelId"
+    />
+  </WorkspaceFeatureFrame>
+
+  <WorkspaceFeatureFrame
+    v-else-if="module.kind === 'long-book-decomposition'"
+    class="long-book-analysis-main-view"
+    :left-collapsed="leftCollapsed"
+    expand-button-class="long-book-analysis-expand-sidebar"
+    :label="decompositionT('title')"
+    @expand-left="emit('expandLeft')"
+  >
+    <LongBookDecompositionPage
+      v-if="module.controller"
+      :controller="module.controller"
+      :models="module.models"
+      :catalog-snapshot="module.catalogSnapshot"
+      @refresh-catalog="emit('refreshCatalog')"
+      @open="emit('openDecompositionRef', $event)"
+      @open-target="emit('openDecompositionTarget', $event)"
     />
   </WorkspaceFeatureFrame>
 

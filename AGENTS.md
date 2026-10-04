@@ -48,6 +48,13 @@ DeepWrite 是 pnpm workspace，`apps/desktop/` 是唯一桌面客户端。根目
   - **新增步骤：**依次补 contracts 的 ID、档案与输入 schema、结果类型和用量模块映射，`profile-catalogs.ts` 的内置档案（需要 Main 权威数据时再补 `task-resolver.ts`），`extras/agents/` 的定义与 Faux 响应，`resolveExtrasAgent` 注册，最后接页面。
 - **进程与打包：**打包入口包括 Main `src/main/index.ts`、`core-entry` / `agent-entry` / `tool-entry`、Preload 和 Renderer。改动进程入口、Utility 或安装包 `files` 时，同步检查 `apps/desktop/electron.vite.config.ts`、supervisor 启动路径、冒烟脚本和 `pnpm lint:boundary`；改变运行时依赖的打包方式时还要检查 before-build 钩子与安装包内运行。
 
+## macOS Codex 下的桌面启动与验收
+
+- macOS 的 Codex Seatbelt 沙盒拒绝 Electron 对 WindowServer 和 LaunchServices 的访问，进程可能在业务代码执行前以 `SIGABRT` 崩溃。隐藏窗口、`detached: true`、复制二进制到临时目录和 Electron 的 `--no-sandbox` 参数都不能解除这个外层限制。
+- 开发、预览、桌面冒烟和视觉探针入口必须在创建临时工作区、启动服务或拉起 Electron 之前调用 `tools/electron-launch-environment.mjs` 的 `assertElectronLaunchAllowed()`。新增桌面启动脚本时沿用这个检测；纯校验工具只在真正需要原生运行时检查，不影响跨平台静态检查。
+- 收到 `DEEPWRITE_ELECTRON_SANDBOX` 后，不在沙盒内重复启动或尝试用环境变量隐藏沙盒状态。桌面验收需为具体命令申请沙盒外执行，或由用户在系统终端启动；保留通常的项目沙盒设置。
+- 不直接从沙盒运行 `pnpm exec electron`、`electron-vite dev/preview` 或 Electron 二进制绕过启动检测。静态检查、单元测试和构建可以继续在沙盒内完成，不能把受拦截的桌面验收报告为通过。
+
 ## 代码质量与验证
 
 - `.editorconfig`、`prettier.config.mjs`、`eslint.config.js` 是格式与静态检查的统一来源。只格式化任务涉及的文件，不因功能修改带入无关的大面积格式变化。按改动运行相关检查；根目录可用 `pnpm format:check`、`pnpm typecheck`、`pnpm lint`、`pnpm test`、`pnpm build` 和完整的 `pnpm verify`。
@@ -82,3 +89,16 @@ DeepWrite 是 pnpm workspace，`apps/desktop/` 是唯一桌面客户端。根目
 - 与“设置 → 外观”实时联动：主题模式、强调色、背景色、前景色、UI 字号和可读性设置变化后应即时生效。`Teleport` 弹层同样使用根节点主题变量；检查浅色、深色和自定义强调色下的对比度，以及紧凑窗口和允许的字号范围，避免固定高度导致裁切。
 - 业务表单中的列表选择框复用 Renderer 的 `PopupSelect`，保持尺寸、焦点、禁用态和交互一致，不混用原生 `<select>`；弹窗中的菜单须高于弹窗且不被裁切。
 - 保存、创建、确认等主操作使用现有中性深色实心按钮；红色危险按钮只用于删除持久数据或不可恢复的覆盖；只清空临时内容的操作（如重新开始一次分析）使用普通主按钮。
+
+## 常见 Bug 注意
+
+按“现象 → 根源 → 守则”记录已经出过、容易重犯的问题；新增条目沿用这个格式，并附上可复用的实现位置。
+
+- **操作一次，整页闪烁：**
+  - **现象：**智能体团队切换启用时，列表与编辑器里所有开关、按钮同时降到 50% 透明再恢复；同类型还会短暂出现两个“已启用”。
+  - **根源：**把一次几十毫秒的请求提升成页面级 pending 标志（`agentTeamSaving`），再让每个控件都把它绑到 `disabled`，往返期间整页变灰又恢复。开关又靠原生 checkbox 自己翻转，显示值与数据脱节，失败时也不回滚。
+  - **页面级状态：**`saving` / `loading` 只留给确需阻断的显式操作（保存、创建、安装、删除），且只影响触发它的按钮；不得借它改动无关控件的 `disabled`、透明度，也不得用 `v-if="loading"` 整块替换已有内容。
+  - **即时操作：**开关、勾选这类可逆操作先乐观更新，再用 Main 返回的快照收敛，失败时提示并从权威数据恢复，不拉起页面级 `saving`；并发请求用序号丢弃过期回复。参考 `useAgentTeamCatalogCoordinator.setAgentTeamEnabled`。
+  - **受控控件：**显示值只来自数据（`:checked="modelValue"`），变更事件只上报请求，随后把 DOM 对齐回数据。不要用 `preventDefault` 抢回状态，Vue 在微任务里的更新会被浏览器的取消激活覆盖。参考 `AgentTeamSwitch.vue`。
+  - **共用规则：**像“每种类型只启用一个团队”这类业务规则，放 contracts 的纯函数（`withAgentTeamEnabled`），Main 落盘与 Renderer 预览共用，避免两侧漂移。
+  - **验证：**闪烁不能靠肉眼、类型检查或源码断言确认。在 Browser 窗格用临时 harness（真实组件、真实 store 与 coordinator、带延迟的假 api），用 `setInterval` 或 `requestAnimationFrame` 逐帧采样关键控件的 `checked`、`opacity`、`disabled` 与布局高度；点击后应只有一次状态变化，没有中间态。harness 放在 scratchpad，用完删除。

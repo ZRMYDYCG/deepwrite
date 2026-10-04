@@ -1,0 +1,204 @@
+/* Progress and registry tables for an open decomposition task. */
+.long-book-decomposition-page
+  :is(.decomposition-progress, .decomposition-registry) {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.long-book-decomposition-page
+  :is(.decomposition-progress, .decomposition-registry)
+  > .analysis-run-bar {
+  margin-top: 0;
+}
+.decomposition-progress-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  color: var(--text-secondary);
+  font-size: 0.857143rem;
+}
+.decomposition-usage {
+  font-variant-numeric: tabular-nums;
+}
+.decomposition-progress-meta strong {
+  margin-left: auto;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+.decomposition-bar {
+  height: 8px;
+  margin-top: -6px;
+  overflow: hidden;
+  border: 1px solid var(--theme-line-soft);
+  border-radius: 999px;
+  background: var(--surface-muted);
+}
+.decomposition-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 240ms ease;
+}
+
+.decomposition-table-scroll {
+  max-height: 560px;
+  overflow: auto;
+  border: 1px solid var(--theme-line-soft);
+  border-radius: 10px;
+  background: var(--surface-main);
+}
+.decomposition-table-scroll table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.857143rem;
+  text-align: left;
+}
+.decomposition-table-scroll th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--theme-line-soft);
+  background: var(--surface-muted);
+  color: var(--text-tertiary);
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.decomposition-table-scroll td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--theme-line-soft);
+  vertical-align: middle;
+}
+.decomposition-table-scroll tbody tr:last-child td {
+  border-bottom: 0;
+}
+.decomposition-table-scroll tbody tr:hover {
+  background: var(--surface-hover);
+}
+.decomposition-table-scroll .is-unit {
+  overflow-wrap: anywhere;
+}
+.decomposition-table-scroll .is-attempts {
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.decomposition-table-scroll .is-actions {
+  text-align: right;
+}
+.decomposition-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.decomposition-row-actions button {
+  min-height: 28px;
+  padding: 3px 9px;
+  background: transparent;
+  font-size: 0.785714rem;
+}
+.decomposition-pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--text-secondary);
+  font-size: 0.857143rem;
+  font-variant-numeric: tabular-nums;
+}
+.decomposition-activity {
+  color: var(--text-secondary);
+  font-size: 0.857143rem;
+}
+.decomposition-activity summary {
+  width: fit-content;
+  cursor: pointer;
+}
+.decomposition-activity ul {
+  max-height: 220px;
+  margin: 8px 0 0;
+  padding: 8px 12px 8px 30px;
+  overflow: auto;
+  border: 1px solid var(--theme-line-soft);
+  border-radius: 10px;
+  background: var(--surface-muted);
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+.decomposition-segmented {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--theme-line-soft);
+  border-radius: 10px;
+  background: var(--surface-muted);
+}
+.long-book-decomposition-page .decomposition-segmented button {
+  min-height: 28px;
+  padding: 3px 12px;
+  border-color: transparent;
+  background: transparent;
+  font-size: 0.857143rem;
+}
+.long-book-decomposition-page
+  .decomposition-segmented
+  button[aria-pressed="true"] {
+  border-color: var(--theme-line-soft);
+  background: var(--surface-raised);
+  font-weight: 550;
+}
+.decomposition-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.decomposition-toolbar input,
+.decomposition-registry-table input:not([type="checkbox"]) {
+  box-sizing: border-box;
+  min-width: 0;
+  border: 1px solid var(--theme-line);
+  border-radius: 8px;
+  background: var(--surface-main);
+  color: var(--text-primary);
+  font-size: 0.785714rem;
+}
+.decomposition-toolbar input {
+  flex: 1 1 200px;
+  max-width: 280px;
+  height: 34px;
+  padding: 0 10px;
+}
+.decomposition-registry-table input:not([type="checkbox"]) {
+  width: 100%;
+  min-width: 100px;
+  height: 30px;
+  padding: 0 8px;
+  border-color: var(--theme-line-soft);
+  background: var(--surface-raised);
+}
+.decomposition-registry-table td {
+  padding: 6px 12px;
+}
+.decomposition-registry-table .is-check {
+  width: 64px;
+  text-align: center;
+}
+.decomposition-registry-table .is-select {
+  width: 170px;
+}
+.decomposition-registry-table input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+}
+.decomposition-registry-table .is-ignored td:not(.is-check) {
+  opacity: 0.55;
+}
+.decomposition-registry-table .popup-select {
+  min-width: 140px;
+}

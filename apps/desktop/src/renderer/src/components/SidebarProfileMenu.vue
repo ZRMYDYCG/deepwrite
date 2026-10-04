@@ -19,12 +19,17 @@ const t = createScopedTranslator("components.sidebarProfileMenu");
 const VersionUpdateDialog = defineAsyncComponent(
   () => import("./VersionUpdateDialog.vue")
 );
+const AnnouncementDialog = defineAsyncComponent(
+  () => import("./AnnouncementDialog.vue")
+);
 const props = defineProps<{ marketplaceDisplayName?: string | undefined }>();
 const emit = defineEmits<{ openSettings: [] }>();
 
 const accountMenuRoot = ref<HTMLElement | null>(null);
 const accountMenuOpen = ref(false);
-const profileDialog = ref<"contact" | "update" | "support" | null>(null);
+const profileDialog = ref<
+  "announcement" | "contact" | "update" | "support" | null
+>(null);
 const displayedUserName = computed(
   () => props.marketplaceDisplayName?.trim() || t("author")
 );
@@ -70,6 +75,11 @@ function openContactDialog(): void {
 function openSupportDialog(): void {
   accountMenuOpen.value = false;
   profileDialog.value = "support";
+}
+
+function openAnnouncementDialog(): void {
+  accountMenuOpen.value = false;
+  profileDialog.value = "announcement";
 }
 
 async function openUpdateDialog(): Promise<void> {
@@ -129,7 +139,8 @@ async function installUpdate(): Promise<void> {
 
 function closeProfileDialog(): void {
   if (profileDialog.value === "update" && updateInstalling.value) return;
-  const restoreFocus = profileDialog.value === "support";
+  const restoreFocus =
+    profileDialog.value === "support" || profileDialog.value === "announcement";
   profileDialog.value = null;
   if (restoreFocus) {
     void nextTick(() => {
@@ -216,6 +227,10 @@ onBeforeUnmount(() => {
             <AppIcon name="settings" :size="16" />
             <span>{{ t("settings") }}</span>
           </button>
+          <button type="button" role="menuitem" @click="openAnnouncementDialog">
+            <AppIcon name="bell" :size="16" />
+            <span>{{ t("announcements") }}</span>
+          </button>
           <button type="button" role="menuitem" @click="openUpdateDialog">
             <AppIcon name="download" :size="16" />
             <span>{{ t("updates") }}</span>
@@ -236,18 +251,12 @@ onBeforeUnmount(() => {
           </button>
         </div>
       </div>
-
-      <button
-        class="icon-button account-settings-button"
-        type="button"
-        :aria-label="t('openSettings')"
-        :title="t('settings')"
-        @click="openSettings"
-      >
-        <AppIcon name="settings" :size="16" />
-      </button>
     </div>
   </footer>
+  <AnnouncementDialog
+    v-if="profileDialog === 'announcement'"
+    @close="closeProfileDialog"
+  />
   <AuthorSupportDialog
     v-if="profileDialog === 'support'"
     @close="closeProfileDialog"

@@ -1,8 +1,71 @@
 import { nextTick, type Ref } from "vue";
 import type { ChatMessage } from "../../src/renderer/src/types/conversation";
-import { createDefaultAppearanceSettings } from "@deepwrite/contracts/renderer";
+import {
+  createDefaultAppearanceSettings,
+  createEnvelope,
+  type TextContextMenuEvent,
+  type TextContextMenuCommand
+} from "@deepwrite/contracts/renderer";
 import { applyAppearanceThemeToDocument } from "../../src/renderer/src/composables/appearanceThemeRuntime";
+import { installNativeTextContextMenu } from "../../src/renderer/src/composables/nativeTextContextMenu";
 const frame = () => new Promise(requestAnimationFrame);
+
+async function insertSelectedReference(
+  response: HTMLElement
+): Promise<boolean> {
+  let dispatch: ((event: TextContextMenuEvent) => void) | undefined;
+  const replies: TextContextMenuCommand[] = [];
+  const dispose = installNativeTextContextMenu({
+    subscribe(listener) {
+      dispatch = listener;
+      return () => {
+        dispatch = undefined;
+      };
+    },
+    reply(command) {
+      replies.push(command);
+    }
+  });
+  try {
+    response.dispatchEvent(
+      new MouseEvent("contextmenu", {
+        bubbles: true,
+        cancelable: true,
+        clientX: 200,
+        clientY: 200
+      })
+    );
+    await nextTick();
+    const id = "probe-insert-reference";
+    dispatch?.(
+      createEnvelope("textContextMenu.event", { phase: "prepare" }, { id })
+    );
+    dispatch?.(
+      createEnvelope(
+        "textContextMenu.event",
+        {
+          phase: "action",
+          action: "insertReference"
+        },
+        { id }
+      )
+    );
+    await nextTick();
+    return (
+      replies.some(
+        ({ payload }) =>
+          payload.phase === "prepared" && payload.context.canInsertReference
+      ) &&
+      replies.some(
+        ({ payload }) =>
+          payload.phase === "actionReady" && payload.allowed && payload.handled
+      ) &&
+      !!document.querySelector(".composer-editor-reference")
+    );
+  } finally {
+    dispose();
+  }
+}
 
 export async function verifyVueInteractions(
   messages: Ref<ChatMessage[]>,
@@ -114,20 +177,7 @@ export async function verifyVueInteractions(
   const selectionExempt = !response
     .closest<HTMLElement>(".conversation-message-group")!
     .classList.contains("is-deferred");
-  response.dispatchEvent(
-    new MouseEvent("contextmenu", {
-      bubbles: true,
-      cancelable: true,
-      clientX: 200,
-      clientY: 200
-    })
-  );
-  await nextTick();
-  document.querySelector<HTMLElement>(".editor-selection-menu button")?.click();
-  await nextTick();
-  const referenceInserted = !!document.querySelector(
-    ".composer-editor-reference"
-  );
+  const referenceInserted = await insertSelectedReference(response);
   const themeChecks = [];
   const settings = createDefaultAppearanceSettings();
   for (const scheme of ["light", "dark"] as const) {

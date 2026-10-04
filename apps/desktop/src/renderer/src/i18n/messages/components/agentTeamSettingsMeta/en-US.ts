@@ -10,5 +10,8 @@ export default {
   medium: "Medium",
   high: "High",
   extraHigh: "Extra high",
-  maximum: "Maximum"
+  maximum: "Maximum",
+  agentModeStandard: "Standard",
+  agentModePureRead: "Pure · read-only",
+  agentModePureBare: "Pure · no tools"
 };

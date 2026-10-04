@@ -25,6 +25,9 @@ export const ShortBookAnalysisPage = lazyFeature((features) =>
 export const LongBookAnalysisPage = lazyFeature((features) =>
   features.loadLongBookAnalysisPage()
 );
+export const LongBookDecompositionPage = lazyFeature((features) =>
+  features.loadLongBookDecompositionPage()
+);
 export const LongWorkspaceModule = lazyFeature(
   (features) => features.loadLongWorkspaceModule(),
   LongWorkspaceLoading
@@ -152,4 +155,8 @@ export const RevisionAnalysisPage = lazyFeature((features) =>
 
 export const WindowMenuBar = lazyFeature((features) =>
   features.loadWindowMenuBar()
+);
+
+export const BookIdentityPage = lazyFeature((features) =>
+  features.loadBookIdentityPage()
 );

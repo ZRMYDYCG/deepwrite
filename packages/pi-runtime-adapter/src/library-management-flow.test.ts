@@ -71,6 +71,7 @@ function input(
             description: "处理写作任务",
             systemPrompt: "完成写作任务",
             enabled: true,
+            agentMode: "standard",
             modelMode: "inherit"
           }
         ]

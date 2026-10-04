@@ -2,13 +2,17 @@ import { createScopedTranslator } from "../i18n";
 import type { IconName } from "../types/workspace";
 
 const t = createScopedTranslator("components.sidebarMoreFeatures");
+const identityT = createScopedTranslator("extras.bookIdentity");
+const decompositionT = createScopedTranslator("extras.longBookDecomposition");
 export const moreFeatures: Array<{
   id:
     | "chat-assistant"
     | "long-book-analysis"
+    | "long-book-decomposition"
     | "revision-analysis"
     | "short-book-analysis"
     | "style-comparison"
+    | "book-identity"
     | "skill-marketplace"
     | "cloud-backup"
     | "device-sync"
@@ -48,6 +52,16 @@ export const moreFeatures: Array<{
     icon: "book"
   },
   {
+    id: "long-book-decomposition",
+    get label() {
+      return decompositionT("title");
+    },
+    get description() {
+      return decompositionT("description");
+    },
+    icon: "book"
+  },
+  {
     id: "revision-analysis",
     get label() {
       return t("revisionAnalysis");
@@ -66,6 +80,16 @@ export const moreFeatures: Array<{
       return t("compareTheStyleAndSimilarityOfTwoTexts");
     },
     icon: "file"
+  },
+  {
+    id: "book-identity",
+    get label() {
+      return identityT("title");
+    },
+    get description() {
+      return identityT("description");
+    },
+    icon: "image"
   },
   {
     id: "skill-marketplace",

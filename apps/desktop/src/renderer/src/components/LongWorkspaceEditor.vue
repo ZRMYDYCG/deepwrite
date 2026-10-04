@@ -62,6 +62,7 @@ import {
   type LongDocumentState,
   type LongVolumeOutlineDraft
 } from "../composables/useLongEditorDocumentSession";
+import { useEditorComposition } from "../composables/useEditorComposition";
 import { useLongEditorFindReplace } from "../composables/useLongEditorFindReplace";
 import { useLongEditorEntrySearch } from "../composables/useLongEditorEntrySearch";
 import { useLongEditorHistory } from "../composables/useLongEditorHistory";
@@ -174,6 +175,7 @@ const volumeOutlineDrafts = ref<Record<string, LongVolumeOutlineDraft>>({});
 const plotPointSummaryDrafts = ref<Record<string, LongVolumeOutlineDraft>>({});
 const pendingWorldbuildingDeleteId = ref<string | null>(null);
 const editorInput = ref<HTMLTextAreaElement | null>(null);
+const editorComposition = useEditorComposition();
 const documentPreview = ref<HTMLElement | null>(null);
 const editorToolsElement = ref<HTMLElement>();
 const { resetToDefault, setViewMode, viewMode } = useTextViewMode({
@@ -1049,6 +1051,7 @@ const {
   currentIsWorldbuildingList,
   viewMode,
   editorInput,
+  isComposing: editorComposition.isComposing,
   activeWorldbuildingItemId,
   activeBookLineVolumeId,
   activeBookLineContentTab,
@@ -1144,6 +1147,8 @@ const {
   resetEditorHistory,
   handleEditorBeforeInput,
   handleEditorInput,
+  handleEditorCompositionStart,
+  handleEditorCompositionEnd,
   recordProgrammaticChange,
   updateVisibleCharacterCount,
   undo,
@@ -1160,6 +1165,7 @@ const {
   canUseTextTools,
   viewMode,
   editorInput,
+  composition: editorComposition,
   characterCount,
   stateKey,
   updateVisibleContent: (content) => historyHost.updateVisibleContent(content),
@@ -1472,6 +1478,7 @@ onMounted(() => {
   void restoreCurrentEditorScroll();
 });
 onBeforeUnmount(() => {
+  editorComposition.reset();
   rememberCurrentEditorScroll();
   window.removeEventListener("pointerdown", handleWindowPointerDown, true);
 });
@@ -2089,7 +2096,12 @@ onBeforeUnmount(() => {
                 >
                   <textarea
                     ref="editorInput"
-                    :value="currentVisibleContent"
+                    :value="
+                      editorComposition.valueForRender(
+                        currentVisibleContent,
+                        editorInput
+                      )
+                    "
                     class="long-document-editor long-story-plot-editor"
                     :readonly="currentReadOnly || isDocumentContentBusy"
                     :aria-label="
@@ -2100,6 +2112,8 @@ onBeforeUnmount(() => {
                     spellcheck="false"
                     @beforeinput="handleEditorBeforeInput"
                     @input="handleEditorInput"
+                    @compositionstart="handleEditorCompositionStart"
+                    @compositionend="handleEditorCompositionEnd"
                     @keydown="handleEditorKeydown"
                     @contextmenu="handleEditorContextMenu"
                     @scroll="handleEditorScroll"
@@ -2163,6 +2177,7 @@ onBeforeUnmount(() => {
           :title-read-only="currentStructureTitleReadOnly"
           :format="currentDocumentFormat"
           :content="currentVisibleContent"
+          :composing="editorComposition.isComposing.value"
           :view-mode="viewMode"
           :read-only="currentReadOnly"
           :busy="isDocumentContentBusy"
@@ -2173,6 +2188,8 @@ onBeforeUnmount(() => {
           @title-keydown="handleStructureTitleKeydown"
           @beforeinput="handleEditorBeforeInput"
           @input="handleEditorInput"
+          @compositionstart="handleEditorCompositionStart"
+          @compositionend="handleEditorCompositionEnd"
           @keydown="handleEditorKeydown"
           @contextmenu="handleEditorContextMenu"
           @preview-contextmenu="handlePreviewContextMenu"
@@ -2277,7 +2294,12 @@ onBeforeUnmount(() => {
             >
               <textarea
                 ref="editorInput"
-                :value="currentVisibleContent"
+                :value="
+                  editorComposition.valueForRender(
+                    currentVisibleContent,
+                    editorInput
+                  )
+                "
                 class="long-document-editor"
                 :readonly="currentReadOnly || isDocumentContentBusy"
                 :aria-label="
@@ -2297,6 +2319,8 @@ onBeforeUnmount(() => {
                 spellcheck="false"
                 @beforeinput="handleEditorBeforeInput"
                 @input="handleEditorInput"
+                @compositionstart="handleEditorCompositionStart"
+                @compositionend="handleEditorCompositionEnd"
                 @keydown="handleEditorKeydown"
                 @contextmenu="handleEditorContextMenu"
                 @scroll="handleEditorScroll"

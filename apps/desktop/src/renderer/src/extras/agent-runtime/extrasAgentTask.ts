@@ -22,6 +22,18 @@ export interface ExtrasAgentTaskCallbacks {
   onToolRequested?(toolName: string): void;
   onToolCompleted?(toolName: string, isError: boolean): void;
   onOutput?(output: ExtrasAgentOutput): void;
+  onSubagentEvent?(
+    event: Extract<
+      SystemEventEnvelope,
+      {
+        type:
+          | "subagent.planned"
+          | "subagent.started"
+          | "subagent.activity"
+          | "subagent.completed";
+      }
+    >
+  ): void;
 }
 
 export type ExtrasAgentTaskOutcome =
@@ -139,6 +151,12 @@ export function startExtrasAgentTask(
       return;
     }
     switch (event.type) {
+      case "subagent.planned":
+      case "subagent.started":
+      case "subagent.activity":
+      case "subagent.completed":
+        callbacks.onSubagentEvent?.(event);
+        break;
       case "agent.turn_started":
         callbacks.onTurnStarted?.(event.payload.attempt);
         break;

@@ -23,8 +23,12 @@ import proposalCardSource from "./AgentEditProposalCard.vue?raw";
 import discardButtonSource from "./ApprovalDiscardButton.vue?raw";
 import writingWorkspaceSource from "./WritingWorkspaceModule.vue?raw";
 import longWorkspaceSource from "./LongWorkspaceModule.vue?raw";
-import subagentSource from "./SubagentRunList.vue?raw";
+import subagentListSource from "./SubagentRunList.vue?raw";
+import subagentCardSource from "./SubagentRunCard.vue?raw";
+import subagentDetailSource from "./SubagentRunDetail.vue?raw";
 import subagentPresentationSource from "./subagentRunPresentation.ts?raw";
+
+const subagentSource = `${subagentListSource}\n${subagentCardSource}\n${subagentDetailSource}`;
 
 describe("AgentConversation edit proposal placement", () => {
   it("places the creative agent mode selector immediately before approval", () => {
@@ -215,7 +219,7 @@ describe("AgentConversation edit proposal placement", () => {
       '<div class="message-body">'
     );
     const responseStart = messageItemSource.indexOf(
-      'v-else-if="visibleResponse(message)"',
+      'v-else-if="response"',
       messageBodyStart
     );
     const proposalsStart = messageItemSource.indexOf(
@@ -381,12 +385,16 @@ describe("AgentConversation edit proposal placement", () => {
     expect(processingTimelineSource).toContain("<SubagentRunList");
     expect(subagentSource).toContain('class="subagent-run-list"');
     expect(subagentSource).toContain('class="subagent-run-card"');
-    expect(subagentSource).toContain('v-for="run in runs"');
+    expect(subagentListSource).toContain('v-for="entry in entries"');
+    expect(subagentListSource).toContain("<SubagentDrawGroup");
     expect(subagentSource).not.toContain(
       '<details\n      v-for="run in runs"\n      open'
     );
     expect(subagentSource).toContain("subagentExecution");
-    expect(subagentSource).toContain("subagentProcessingDisplayItems(run)");
+    expect(subagentCardSource).toContain('<SubagentRunDetail :run="run" />');
+    expect(subagentDetailSource).toContain(
+      "subagentProcessingDisplayItems(props.run, previous)"
+    );
     expect(subagentSource).toContain("<ConversationWorkGroup");
     expect(workGroupSource).toContain("workGroupActivityLabel(item)");
     expect(workGroupSource).toContain(

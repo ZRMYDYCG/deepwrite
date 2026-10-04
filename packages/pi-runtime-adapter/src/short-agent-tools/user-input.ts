@@ -3,6 +3,7 @@ import type {
   AgentUserInputQuestion,
   ShortWorkspaceStageId
 } from "@deepwrite/contracts";
+import { askOutsideSubagentWriteLock } from "../subagent-write-lock";
 import {
   textResult,
   type BuildWritingWorkspaceToolsInput,
@@ -73,13 +74,18 @@ export async function confirmCrossStageMutation(
       ]
     }
   ];
-  const response = await input.requestUserInput(
-    {
-      toolCallId: request.toolCallId,
-      source: "cross_stage_write",
-      questions
-    },
-    request.signal
+  const requestUserInput = input.requestUserInput;
+  const response = await askOutsideSubagentWriteLock(
+    JSON.stringify(questions),
+    () =>
+      requestUserInput(
+        {
+          toolCallId: request.toolCallId,
+          source: "cross_stage_write",
+          questions
+        },
+        request.signal
+      )
   );
   return response.answers[0]?.selectedOptionIds?.includes(CONTINUE_OPTION_ID)
     ? "continue"

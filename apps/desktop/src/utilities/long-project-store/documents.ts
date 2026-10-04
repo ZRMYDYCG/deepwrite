@@ -19,6 +19,7 @@ import {
   serializeJson
 } from "./io";
 import { loadProject } from "./load-project";
+import { loadProjectForRead } from "./read-project";
 import { updateChapterBodyStatus } from "./paths";
 import { loadPublicPagedIndexedFile } from "./public-file-read";
 import { encodeUtf8Strict } from "./utf8";
@@ -44,8 +45,8 @@ export async function openBook(
 ): Promise<OpenedLongBook> {
   const canonical = await secureDirectory(projectDirectory, "长篇项目目录");
   return await ctx.runExclusive(canonical, async () => {
-    const loaded = await loadProject(ctx, canonical);
-    return { book: loaded.book, summary: loaded.summary };
+    const loaded = await loadProjectForRead(ctx, canonical);
+    return structuredClone({ book: loaded.book, summary: loaded.summary });
   });
 }
 
@@ -58,7 +59,7 @@ export async function inspectBookManifest(
 }> {
   const canonical = await secureDirectory(projectDirectory, "长篇项目目录");
   return await ctx.runExclusive(canonical, async () => {
-    const { manifest } = await loadProject(ctx, canonical);
+    const { manifest } = await loadProjectForRead(ctx, canonical);
     return {
       bookId: manifest.id,
       updatedAt: manifest.updatedAt
@@ -147,7 +148,10 @@ export async function readDocument(
 ): Promise<ReadLongDocumentResult> {
   const canonical = await secureDirectory(projectDirectory, "长篇项目目录");
   return await ctx.runExclusive(canonical, async () => {
-    const loaded = await loadProject(ctx, canonical);
+    const loaded = await loadProjectForRead(ctx, canonical);
+    if (input.bookId !== undefined && input.bookId !== loaded.manifest.id) {
+      throw new Error("长篇项目标识与注册信息不一致。");
+    }
     const fileId = LongFileIdSchema.parse(input.fileId);
     const file = await loadPublicPagedIndexedFile(ctx, loaded, fileId);
     const offset = nonnegativeInteger(input.offset ?? 0, "分页起点");
@@ -162,6 +166,9 @@ export async function readDocument(
     }
     return {
       fileId,
+      // Keep public metadata tied to the index snapshot, as catalog.open did.
+      // Physical mtime is only the internal text-cache invalidation key.
+      file: { ...loaded.files.get(fileId)!.reference },
       path: file.reference.path,
       content: page.content,
       offset,

@@ -24,10 +24,10 @@ describe("SettingsPage", () => {
     expect(source).toContain('ref(props.initialCategory ?? "general")');
   });
 
-  it("adds storage to general settings while both workspace-directory entrances share the coordinator", () => {
+  it("keeps storage in workspace-directory settings and shares the existing coordinator", () => {
     expect(source).toContain("<StorageSettingsPanel");
-    expect(source).toContain("<WorkspaceDirectoryFeature");
-    expect(source).toContain("workspaceFolder");
+    expect(source).not.toContain("WorkspaceDirectoryFeature");
+    expect(source).toContain('return t("storage");');
     expect(source).toContain(
       ':workspace-directory-path="workspaceDirectoryPath"'
     );

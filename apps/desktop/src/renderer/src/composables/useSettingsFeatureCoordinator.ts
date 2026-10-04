@@ -2,17 +2,13 @@ import { formatError } from "../i18n/errors";
 import { createScopedTranslator } from "../i18n";
 import type {
   DeepWriteApi,
-  AgentTeamProfileCreateInput,
-  AgentTeamProfileRenameInput,
-  AgentTeamProfileSaveInput,
-  AgentTeamProfileSetEnabledInput,
-  AgentTeamProfileTargetInput,
   LibraryAgentDomain,
   LibraryAgentSettingsInput,
   LongAgentSettingsInput,
   WorkspaceAgentSettingsInput
 } from "@deepwrite/contracts";
 import { useSettingsStore } from "../stores/settingsStore";
+import { useAgentTeamCatalogCoordinator } from "./useAgentTeamCatalogCoordinator";
 import {
   useModelSettingsCoordinator,
   type ModelSettingsNotifications
@@ -40,6 +36,7 @@ export function useSettingsFeatureCoordinator(
 ) {
   const { settingsStore, notifications: uiMessage } = context;
   const modelSettingsCoordinator = useModelSettingsCoordinator(context);
+  const agentTeamCatalogCoordinator = useAgentTeamCatalogCoordinator(context);
   async function loadShortAndScriptAgentSettings(): Promise<void> {
     const api = context.api();
     if (!api) return;
@@ -151,152 +148,6 @@ export function useSettingsFeatureCoordinator(
     }
   }
 
-  async function loadAgentTeamSettings(): Promise<void> {
-    const api = context.api();
-    if (!api) return;
-    try {
-      await settingsStore.ensureAgentTeamsLoaded(() => api.agentTeams.list());
-    } catch (error: unknown) {
-      uiMessage.error(
-        errorMessage(
-          error,
-          t("settingsFeatureCoordinator.failedToLoadAgentTeamSettings")
-        )
-      );
-    }
-  }
-
-  async function mutateAgentTeamCatalog(
-    operation: () => ReturnType<DeepWriteApi["agentTeams"]["list"]>,
-    successMessage: string,
-    fallbackMessage: string
-  ): Promise<void> {
-    const api = context.api();
-    if (!api || settingsStore.agentTeamSaving) return;
-    settingsStore.agentTeamSaving = true;
-    try {
-      settingsStore.markLoaded("agentTeams", await operation());
-      uiMessage.success(successMessage);
-    } catch (error: unknown) {
-      uiMessage.error(errorMessage(error, fallbackMessage));
-    } finally {
-      settingsStore.agentTeamSaving = false;
-    }
-  }
-
-  async function createAgentTeam(
-    input: AgentTeamProfileCreateInput
-  ): Promise<void> {
-    const api = context.api();
-    if (!api) return;
-    await mutateAgentTeamCatalog(
-      () => api.agentTeams.create(input),
-      t("settingsFeatureCoordinator.agentTeamCreated"),
-      t("settingsFeatureCoordinator.failedToCreateAgentTeam")
-    );
-  }
-
-  async function renameAgentTeam(
-    input: AgentTeamProfileRenameInput
-  ): Promise<void> {
-    const api = context.api();
-    if (!api) return;
-    await mutateAgentTeamCatalog(
-      () => api.agentTeams.rename(input),
-      t("settingsFeatureCoordinator.agentTeamRenamed"),
-      t("settingsFeatureCoordinator.failedToRenameAgentTeam")
-    );
-  }
-
-  async function deleteAgentTeam(
-    input: AgentTeamProfileTargetInput
-  ): Promise<void> {
-    const api = context.api();
-    if (!api) return;
-    await mutateAgentTeamCatalog(
-      () => api.agentTeams.delete(input),
-      t("settingsFeatureCoordinator.agentTeamDeleted"),
-      t("settingsFeatureCoordinator.failedToDeleteAgentTeam")
-    );
-  }
-
-  async function setAgentTeamEnabled(
-    input: AgentTeamProfileSetEnabledInput
-  ): Promise<void> {
-    const api = context.api();
-    if (!api) return;
-    await mutateAgentTeamCatalog(
-      () => api.agentTeams.setEnabled(input),
-      input.enabled
-        ? t("settingsFeatureCoordinator.teamEnabledItWillBeUsedForTheNext")
-        : t("settingsFeatureCoordinator.teamDisabledItWillNoLongerBeUsedFor"),
-      t("settingsFeatureCoordinator.failedToUpdateTeamStatus")
-    );
-  }
-
-  async function saveAgentTeamSettings(
-    input: AgentTeamProfileSaveInput
-  ): Promise<void> {
-    const api = context.api();
-    if (!api) return;
-    await mutateAgentTeamCatalog(
-      () => api.agentTeams.save(input),
-      t("settingsFeatureCoordinator.agentTeamSaved"),
-      t("settingsFeatureCoordinator.failedToSaveAgentTeamSettings")
-    );
-  }
-
-  async function downloadAgentTeam(
-    input: AgentTeamProfileTargetInput
-  ): Promise<void> {
-    const api = context.api();
-    if (!api || settingsStore.agentTeamSaving) return;
-    settingsStore.agentTeamSaving = true;
-    try {
-      const result = await api.agentTeams.download(input);
-      if (result.status === "saved") {
-        uiMessage.success(
-          t("settingsFeatureCoordinator.agentTeamArchiveDownloaded")
-        );
-      }
-    } catch (error: unknown) {
-      uiMessage.error(
-        errorMessage(
-          error,
-          t("settingsFeatureCoordinator.failedToDownloadAgentTeam")
-        )
-      );
-    } finally {
-      settingsStore.agentTeamSaving = false;
-    }
-  }
-
-  async function installAgentTeam(): Promise<void> {
-    const api = context.api();
-    if (!api || settingsStore.agentTeamSaving) return;
-    settingsStore.agentTeamSaving = true;
-    try {
-      const result = await api.agentTeams.install();
-      if (result.status === "installed") {
-        settingsStore.markLoaded("agentTeams", result.catalog);
-        uiMessage.success(
-          t("settingsFeatureCoordinator.agentTeamInstalled", {
-            teamName: result.teamName
-          })
-        );
-      }
-    } catch (error: unknown) {
-      uiMessage.error(
-        errorMessage(
-          error,
-          t("settingsFeatureCoordinator.failedToInstallAgentTeam")
-        )
-      );
-    } finally {
-      settingsStore.agentTeamSaving = false;
-    }
-  }
-
   async function loadLibraryAgentSettings(): Promise<void> {
     const api = context.api();
     if (!api) return;
@@ -371,20 +222,13 @@ export function useSettingsFeatureCoordinator(
 
   return {
     ...modelSettingsCoordinator,
+    ...agentTeamCatalogCoordinator,
     loadShortAndScriptAgentSettings,
     loadLongAgentSettings,
     ensureLongAgentSettingsLoaded,
     loadWorkspaceAgentSettings,
     saveWorkspaceAgentSettings,
     saveLongAgentSettings,
-    loadAgentTeamSettings,
-    createAgentTeam,
-    renameAgentTeam,
-    deleteAgentTeam,
-    setAgentTeamEnabled,
-    saveAgentTeamSettings,
-    downloadAgentTeam,
-    installAgentTeam,
     loadLibraryAgentSettings,
     saveLibraryAgentSettings,
     resetLibraryAgentSettings

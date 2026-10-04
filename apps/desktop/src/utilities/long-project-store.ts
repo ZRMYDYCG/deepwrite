@@ -1,4 +1,5 @@
 import { resolveLongProjectConflicts } from "./long-project-store/resolve-conflicts";
+import { transactManagedLongProject } from "./long-project-store/managed-transaction";
 import type { LongWorkspaceOperationBatch } from "@deepwrite/contracts";
 import { commitChapter } from "./long-project-store/commit-chapter";
 import { deleteLedgerCommit } from "./long-project-store/delete-ledger-commit";
@@ -59,6 +60,13 @@ export class LongProjectStore {
 
   async createBook(parentDirectory: string, input: CreateLongBookInput) {
     return await createBook(this.context, parentDirectory, input);
+  }
+
+  async transactManaged<T>(
+    projectDirectory: string,
+    mutate: Parameters<typeof transactManagedLongProject<T>>[2]
+  ): Promise<T> {
+    return transactManagedLongProject(this.context, projectDirectory, mutate);
   }
 
   async duplicateBook(

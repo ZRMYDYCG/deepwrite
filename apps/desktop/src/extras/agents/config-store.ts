@@ -160,11 +160,17 @@ export class ExtrasAgentConfigStore {
   ): StoredProfile[] {
     const existingIds = new Set(profiles.map((profile) => profile.id));
     return [
-      ...this.catalog(agentId)
-        .defaults.filter((profile) => !existingIds.has(profile.id))
-        .map((profile) => structuredClone(profile)),
-      ...profiles.map((profile) => structuredClone(profile))
-    ];
+      ...this.catalog(agentId).defaults.filter(
+        (profile) => !existingIds.has(profile.id)
+      ),
+      ...profiles
+    ].map((profile) => {
+      const stored = structuredClone(profile) as StoredProfile & {
+        builtin?: boolean;
+      };
+      delete stored.builtin;
+      return stored;
+    });
   }
 
   private currentPromptRevisions(
@@ -213,7 +219,23 @@ export class ExtrasAgentConfigStore {
   ): StoredProfile[] | undefined {
     const parsed = ExtrasAgentSettingsInputSchema.safeParse({
       agentId,
-      profiles
+      // Older files may contain response-only flags. Identity is derived by
+      // publicSettings from the authoritative built-in catalog on every read.
+      profiles: Array.isArray(profiles)
+        ? profiles.map((profile: unknown) => {
+            if (
+              !profile ||
+              typeof profile !== "object" ||
+              Array.isArray(profile)
+            )
+              return profile;
+            const { builtin: _builtin, ...stored } = profile as Record<
+              string,
+              unknown
+            >;
+            return stored;
+          })
+        : profiles
     });
     if (!parsed.success) return undefined;
     const upgradedProfiles = parsed.data.profiles.map((profile) => {

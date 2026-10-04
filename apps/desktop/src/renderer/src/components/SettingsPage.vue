@@ -26,7 +26,6 @@ import {
   type WorkspaceAgentSettingsInput
 } from "@deepwrite/contracts";
 import AppIcon from "./AppIcon.vue";
-import WorkspaceDirectoryFeature from "./WorkspaceDirectoryFeature.vue";
 import AppearanceSettingsPanel from "./AppearanceSettingsPanel.vue";
 import FreeModelsPanel from "./FreeModelsPanel.vue";
 import BodyTextSettingsPanel from "./BodyTextSettingsPanel.vue";
@@ -39,12 +38,14 @@ import ModelUsagePanel from "./ModelUsagePanel.vue";
 import OfficialModelsPanel from "./OfficialModelsPanel.vue";
 import ShortAgentSettingsPanel from "./ShortAgentSettingsPanel.vue";
 import SiteOfficialModelsPanel from "./SiteOfficialModelsPanel.vue";
+import ImageModelSettingsPanel from "./ImageModelSettingsPanel.vue";
 import VoiceSettingsPanel from "./VoiceSettingsPanel.vue";
 
 const ArchivedConversationsPanel = defineAsyncComponent(
   () => import("./ArchivedConversationsPanel.vue")
 );
 
+const imageT = createScopedTranslator("components.imageModelSettings");
 const t = createScopedTranslator("components.settingsPage");
 
 interface SettingsCategory {
@@ -60,7 +61,8 @@ interface SettingsCategory {
     | "brain"
     | "settings"
     | "wand"
-    | "archive";
+    | "archive"
+    | "image";
 }
 
 interface SettingsSection {
@@ -168,17 +170,17 @@ const sections: SettingsSection[] = [
         get label() {
           return t("general");
         },
-        icon: "settings",
-        get keywords() {
-          return t("storageUserDataHistoryDefaultLocationWorkspaceFolder");
-        }
+        icon: "settings"
       },
       {
         id: "directory",
         get label() {
-          return t("workspaceFolder");
+          return t("storage");
         },
-        icon: "directory"
+        icon: "directory",
+        get keywords() {
+          return t("storageUserDataHistoryDefaultLocationWorkspaceFolder");
+        }
       },
       {
         id: "body-text",
@@ -250,6 +252,13 @@ const sections: SettingsSection[] = [
           return t("voiceSettings");
         },
         icon: "brain"
+      },
+      {
+        id: "image-models",
+        get label() {
+          return imageT("title");
+        },
+        icon: "image"
       }
     ]
   },
@@ -385,13 +394,13 @@ async function selectCategory(id: string): Promise<void> {
       <div class="settings-content-inner">
         <h1 class="settings-title">{{ activeLabel }}</h1>
 
-        <WorkspaceDirectoryFeature
+        <StorageSettingsPanel
           v-if="activeCategory === 'directory'"
-          embedded
-          :path="workspaceDirectoryPath"
-          :loading="workspaceDirectoryLoading"
+          :workspace-directory-path="workspaceDirectoryPath"
+          :workspace-directory-loading="workspaceDirectoryLoading"
           :runtime-available="runtimeAvailable"
-          @choose="emit('chooseWorkspaceDirectory')"
+          @choose-workspace-directory="emit('chooseWorkspaceDirectory')"
+          @reset-workspace-directory="emit('resetWorkspaceDirectory')"
         />
 
         <ShortAgentSettingsPanel
@@ -522,13 +531,6 @@ async function selectCategory(id: string): Promise<void> {
               emit('updateWorkspacePaneLayout', $event)
             "
           />
-          <StorageSettingsPanel
-            :workspace-directory-path="workspaceDirectoryPath"
-            :workspace-directory-loading="workspaceDirectoryLoading"
-            :runtime-available="runtimeAvailable"
-            @choose-workspace-directory="emit('chooseWorkspaceDirectory')"
-            @reset-workspace-directory="emit('resetWorkspaceDirectory')"
-          />
         </template>
 
         <BodyTextSettingsPanel
@@ -558,6 +560,11 @@ async function selectCategory(id: string): Promise<void> {
 
         <ArchivedConversationsPanel
           v-else-if="activeCategory === 'archived-conversations'"
+        />
+
+        <ImageModelSettingsPanel
+          v-else-if="activeCategory === 'image-models'"
+          :runtime-available="runtimeAvailable"
         />
 
         <VoiceSettingsPanel

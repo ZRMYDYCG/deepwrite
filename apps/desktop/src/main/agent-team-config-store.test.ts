@@ -85,6 +85,7 @@ describe("AgentTeamConfigStore", () => {
       description: "短篇",
       systemPrompt: "短篇",
       enabled: true,
+      agentMode: "standard",
       modelMode: "inherit"
     });
     const script = structuredClone(DEFAULT_SCRIPT_AGENT_TEAM_SETTINGS);
@@ -313,6 +314,7 @@ describe("AgentTeamConfigStore", () => {
       description: "检查剧情",
       systemPrompt: "审阅剧情",
       enabled: true,
+      agentMode: "standard",
       modelMode: "inherit"
     });
     await store.save({ teamId: second.id, settings });
@@ -393,6 +395,7 @@ describe("AgentTeamConfigStore", () => {
       description: "验证完整安装",
       systemPrompt: "检查团队压缩包。",
       enabled: true,
+      agentMode: "standard",
       modelMode: "inherit"
     });
     await store.save({ teamId: source.id, settings });

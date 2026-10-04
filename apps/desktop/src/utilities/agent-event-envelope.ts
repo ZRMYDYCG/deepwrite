@@ -178,6 +178,18 @@ export function toEventEnvelope(
     );
   }
 
+  if (event.type === "subagent.draw_updated") {
+    return createEnvelope(
+      "subagent.draw_updated",
+      {
+        sessionId: event.sessionId,
+        runId: event.runId,
+        ...event.payload
+      },
+      { id: createId("evt"), context }
+    );
+  }
+
   if (event.type === "agent.tool_requested") {
     return createEnvelope(
       "tool.call_requested",
@@ -241,6 +253,7 @@ export function toEventEnvelope(
         toolCallId: event.payload.toolCallId,
         source: event.payload.source,
         questions: event.payload.questions,
+        ...(event.payload.draw ? { draw: event.payload.draw } : {}),
         runtime: event.payload.runtime
       },
       { id: createId("evt"), context }

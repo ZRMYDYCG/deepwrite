@@ -1,9 +1,9 @@
 import {
-  LongBookSchema,
   LONG_WORKSPACE_INDEX_PATH,
   LongProjectManifestSchema,
   LongWorkspaceIndexSnapshotSchema,
-  createLongBookSummary
+  createLongBookSummary,
+  type LongBook
 } from "@deepwrite/contracts";
 import { recoverProjectTransaction } from "../project-transaction";
 import { validatePortableAndCanonicalPaths } from "./integrity";
@@ -43,6 +43,13 @@ export async function loadProject(
     rawProjectDirectory,
     "长篇项目目录"
   );
+  // Mutable operations always receive a fresh snapshot, including after a
+  // failed write. Never let their in-memory edits poison the read cache.
+  const cached = ctx.projectReadCache.get(projectDirectory);
+  if (cached) {
+    ctx.projectReadCache.delete(projectDirectory);
+    ctx.projectReadCacheCost -= cached.cost;
+  }
   await recoverProjectTransaction(projectDirectory, MAX_LEDGER_RECORD_BYTES);
   projectDirectory = await secureDirectory(projectDirectory, "长篇项目目录");
 
@@ -191,9 +198,10 @@ export async function loadProject(
 
   // Opening validates the compact manifest and workspace index. Potentially
   // large Markdown bodies and ledger records are read only on demand.
-  const hydratedIndex = index;
-  const book = LongBookSchema.parse({
-    schemaVersion: hydratedIndex.schemaVersion,
+  // Both components were validated above, including the shared id/timestamp
+  // invariants. Parsing LongBook again would revalidate the entire index.
+  const book: LongBook = {
+    schemaVersion: index.schemaVersion,
     id: manifest.id,
     title: manifest.title,
     bookType: "long",
@@ -204,14 +212,14 @@ export async function loadProject(
     linkedResourceStageScopes: manifest.linkedResourceStageScopes,
     createdAt: manifest.createdAt,
     updatedAt: manifest.updatedAt,
-    workspaceIndex: hydratedIndex
-  });
+    workspaceIndex: index
+  };
   const summary = createLongBookSummary(book);
   return {
     projectDirectory,
     manifest,
     manifestDisk,
-    index: hydratedIndex,
+    index,
     indexDisk,
     files,
     book,

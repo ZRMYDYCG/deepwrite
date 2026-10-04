@@ -2,14 +2,21 @@ import {
   mkdtemp,
   mkdir,
   readFile,
+  readdir,
   realpath,
   rm,
+  symlink,
   writeFile
 } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { StorageSettingsService } from "./storage-settings-service";
+import { createEnvelope } from "@deepwrite/contracts";
+import { handleStorageSettingsCommands } from "./ipc/storage-settings-commands";
+import {
+  StorageSettingsService,
+  USER_DATA_FOLDER_NAME
+} from "./storage-settings-service";
 import { StorageLocationStore } from "./storage-location-store";
 import { WorkspaceDirectoryStore } from "./workspace-directory-store";
 
@@ -102,6 +109,7 @@ describe("storage settings service", () => {
     expect(options.confirmMigration).toHaveBeenCalledWith(
       source,
       target,
+      false,
       false
     );
     expect(options.locations.currentPath).toBe(source);
@@ -121,34 +129,137 @@ describe("storage settings service", () => {
     options.confirmMigration.mockResolvedValueOnce(false);
     expect(await service.chooseUserData()).toEqual({ restarting: false });
     options.flushRenderer.mockRejectedValueOnce(new Error("save failed"));
-    await expect(service.chooseUserData()).rejects.toThrow("save failed");
+    await expect(service.chooseUserData()).rejects.toMatchObject({
+      code: "storage_settings.save_failed",
+      message: expect.stringContaining("save failed")
+    });
     expect(options.locations.pending).toBeUndefined();
     expect(options.restart).not.toHaveBeenCalled();
   });
 
-  it("rejects occupied targets, nested paths, and running agents before restarting", async () => {
+  it("moves into a new subfolder when the chosen folder already has files", async () => {
     const { service, source, target, options } = await fixture();
     await writeFile(join(target, "keep.txt"), "existing data");
-    await expect(service.chooseUserData()).rejects.toThrow("空文件夹");
+    const subfolder = join(target, USER_DATA_FOLDER_NAME);
+    expect(await service.chooseUserData()).toEqual({ restarting: true });
+    expect(options.confirmMigration).toHaveBeenCalledWith(
+      source,
+      subfolder,
+      false,
+      true
+    );
+    expect(options.locations.pending).toMatchObject({
+      targetPath: subfolder,
+      allowExistingTarget: false
+    });
+    // The offline migration creates the folder; existing files stay untouched.
+    expect(await readdir(target)).toEqual(["keep.txt"]);
+  });
+
+  it("reuses an empty subfolder but never fills an occupied one", async () => {
+    const { service, target, options } = await fixture();
+    await writeFile(join(target, "keep.txt"), "existing data");
+    const subfolder = join(target, USER_DATA_FOLDER_NAME);
+    await mkdir(subfolder);
+    await writeFile(join(subfolder, "notes.md"), "other data");
+    await expect(service.chooseUserData()).rejects.toMatchObject({
+      code: "storage_settings.target_not_empty"
+    });
+    expect(options.confirmMigration).not.toHaveBeenCalled();
+    await rm(join(subfolder, "notes.md"));
+    expect(await service.chooseUserData()).toEqual({ restarting: true });
+    expect(options.locations.pending?.targetPath).toBe(subfolder);
+  });
+
+  it("rejects links, nested paths, and running agents with stable codes", async () => {
+    const { root, service, source, target, options } = await fixture();
+    const link = join(root, "link");
+    await symlink(target, link, "dir");
+    options.chooseDirectory.mockResolvedValueOnce(link);
+    await expect(service.chooseUserData()).rejects.toMatchObject({
+      code: "storage_settings.invalid_directory"
+    });
     const nested = join(source, "nested");
     await mkdir(nested);
     options.chooseDirectory.mockResolvedValueOnce(nested);
-    await expect(service.chooseUserData()).rejects.toThrow("互相包含");
+    await expect(service.chooseUserData()).rejects.toMatchObject({
+      code: "storage_settings.nested_location"
+    });
     options.busy.mockReturnValueOnce(true);
-    await expect(service.chooseUserData()).rejects.toThrow("等待");
+    await expect(service.chooseUserData()).rejects.toMatchObject({
+      code: "storage_settings.busy"
+    });
+    options.busy.mockReturnValueOnce(false).mockReturnValueOnce(true);
+    await expect(service.chooseUserData()).rejects.toMatchObject({
+      code: "storage_settings.busy"
+    });
+    expect(options.flushRenderer).not.toHaveBeenCalled();
+    expect(options.locations.pending).toBeUndefined();
     expect(options.restart).not.toHaveBeenCalled();
   });
 
   it("rejects the installation directory and its descendants before migration", async () => {
     const { service, installation, options } = await fixture();
     options.chooseDirectory.mockResolvedValueOnce(installation);
-    await expect(service.chooseUserData()).rejects.toThrow("安装目录");
+    await expect(service.chooseUserData()).rejects.toMatchObject({
+      code: "storage_settings.overlaps_installation"
+    });
+    await writeFile(join(installation, "DeepWrite.exe"), "binary");
+    options.chooseDirectory.mockResolvedValueOnce(installation);
+    await expect(service.chooseUserData()).rejects.toMatchObject({
+      code: "storage_settings.overlaps_installation"
+    });
     const nested = join(installation, "data");
     await mkdir(nested);
     options.chooseDirectory.mockResolvedValueOnce(nested);
-    await expect(service.chooseUserData()).rejects.toThrow("安装目录");
+    await expect(service.chooseUserData()).rejects.toMatchObject({
+      code: "storage_settings.overlaps_installation"
+    });
     expect(options.confirmMigration).not.toHaveBeenCalled();
     expect(options.locations.pending).toBeUndefined();
+  });
+
+  it("uses a separate subfolder when the chosen parent holds the installation", async () => {
+    const { root, service, options } = await fixture();
+    options.chooseDirectory.mockResolvedValueOnce(root);
+    expect(await service.chooseUserData()).toEqual({ restarting: true });
+    expect(options.locations.pending?.targetPath).toBe(
+      join(root, USER_DATA_FOLDER_NAME)
+    );
+  });
+
+  it("returns stable error codes over IPC with the local diagnostic", async () => {
+    const { service, installation, options } = await fixture();
+    options.chooseDirectory.mockResolvedValueOnce(installation);
+    const command = createEnvelope(
+      "storageSettings.chooseUserData",
+      {},
+      { id: "cmd_storage_test", correlationId: "cmd_storage_test" }
+    );
+    expect(await handleStorageSettingsCommands(command, service)).toMatchObject(
+      {
+        status: "rejected",
+        requestId: "cmd_storage_test",
+        error: {
+          code: "storage_settings.overlaps_installation",
+          message: expect.stringContaining("安装目录")
+        }
+      }
+    );
+    options.chooseDirectory.mockRejectedValueOnce(new Error("dialog failed"));
+    expect(await handleStorageSettingsCommands(command, service)).toMatchObject(
+      {
+        status: "rejected",
+        error: {
+          code: "storage_settings.operation_failed",
+          message: "dialog failed"
+        }
+      }
+    );
+    options.openPath.mockResolvedValueOnce("access denied");
+    await expect(service.openDirectory("user-data")).rejects.toMatchObject({
+      code: "storage_settings.open_failed"
+    });
   });
 
   it("clears the migration intent when restart dispatch fails", async () => {
@@ -167,7 +278,12 @@ describe("storage settings service", () => {
     options.locations.complete();
     await writeFile(join(source, "keep.txt"), "old default data");
     expect(await service.resetUserData()).toEqual({ restarting: true });
-    expect(options.confirmMigration).toHaveBeenCalledWith(target, source, true);
+    expect(options.confirmMigration).toHaveBeenCalledWith(
+      target,
+      source,
+      true,
+      false
+    );
     expect(options.locations.pending?.allowExistingTarget).toBe(true);
     expect(await readFile(join(source, "keep.txt"), "utf8")).toBe(
       "old default data"

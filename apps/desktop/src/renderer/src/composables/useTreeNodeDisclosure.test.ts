@@ -82,4 +82,60 @@ describe("useTreeNodeDisclosure", () => {
     expect(open.value).toBe(true);
     scope.stop();
   });
+
+  it("reveals a manually collapsed selection when returning from another feature", async () => {
+    const selectedId = ref("characters");
+    const selectionActive = ref(true);
+    const scope = effectScope();
+    const { open } = scope.run(() =>
+      useTreeNodeDisclosure(
+        () => ({
+          id: "book",
+          label: "作品",
+          children: [{ id: "characters", label: "人物" }]
+        }),
+        () => selectedId.value,
+        { selectionActive }
+      )
+    )!;
+
+    expect(open.value).toBe(true);
+    open.value = false;
+    selectionActive.value = false;
+    await nextTick();
+    expect(open.value).toBe(false);
+    selectionActive.value = true;
+    await nextTick();
+    expect(open.value).toBe(true);
+    scope.stop();
+  });
+
+  it("keeps resource sections initially expanded and reveals a newly selected descendant", async () => {
+    const selectedId = ref("");
+    const scope = effectScope();
+    const { open } = scope.run(() =>
+      useTreeNodeDisclosure(
+        () => ({
+          id: "creation",
+          label: "创作空间",
+          children: [
+            {
+              id: "book",
+              label: "作品",
+              children: [{ id: "characters", label: "人物" }]
+            }
+          ]
+        }),
+        () => selectedId.value,
+        { initialOpen: true }
+      )
+    )!;
+
+    expect(open.value).toBe(true);
+    open.value = false;
+    selectedId.value = "characters";
+    await nextTick();
+    expect(open.value).toBe(true);
+    scope.stop();
+  });
 });

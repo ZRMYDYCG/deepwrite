@@ -198,7 +198,7 @@ async function start(): Promise<void> {
         selectionCount >= 1 &&
         selectionCount <= 50
       "
-      :disabled="false"
+      :disabled="controller.sourceDeleting.value"
       :resume-label="t('continueIncompletePhase')"
       :process-title="t('novelAnalysisProcess')"
       @start="start"

@@ -56,6 +56,10 @@ export interface LongBookAnalysisController {
   source: Ref<LongBookAnalysisSource | null>;
   savedSources: Ref<LongBookAnalysisSavedSourceSummary[]>;
   sourcesLoading: Readonly<Ref<boolean>>;
+  sourceSaving: Readonly<Ref<boolean>>;
+  sourceDeleting: Readonly<Ref<boolean>>;
+  sourceDirty: Readonly<Ref<boolean>>;
+  saveSource(): Promise<void>;
   presets: Ref<LongBookAnalysisPreset[]>;
   presetsLoading: Readonly<Ref<boolean>>;
   selectedModelId: Ref<string>;
@@ -73,6 +77,7 @@ export interface LongBookAnalysisController {
   resetPresets(presetId?: string): Promise<void>;
   loadSavedSources(): Promise<void>;
   loadSavedSource(sourceId: string): Promise<boolean>;
+  deleteSavedSource(sourceId: string): Promise<void>;
   chooseSource(kind: LongBookAnalysisSourceKind): Promise<boolean>;
   replaceChapters(chapters: readonly LongBookAnalysisChapter[]): boolean;
   start(input: LongBookAnalysisStartInput): Promise<boolean>;
@@ -183,7 +188,8 @@ export function useLongBookAnalysis(options: {
   }
 
   async function start(input: LongBookAnalysisStartInput): Promise<boolean> {
-    if (batch.isBusy.value) return false;
+    if (batch.isBusy.value || sources.sourceDeleting.value) return false;
+    if (sources.sourceDirty.value) await sources.saveSource();
     const current = source.value;
     if (!current) throw new Error(t("importSourceRequired"));
     const chosen = input.presetIds.flatMap((id) => {

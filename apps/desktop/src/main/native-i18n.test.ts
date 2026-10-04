@@ -19,8 +19,11 @@ describe("native application language", () => {
       "Download Agent Team “用户名称”"
     );
     expect(
-      nativeMessages().migrationDetails("/source", "/target", true)
+      nativeMessages().migrationDetails("/source", "/target", true, false)
     ).toContain("sibling backup folder");
+    expect(
+      nativeMessages().migrationDetails("/source", "/target", false, true)
+    ).toContain("subfolder shown above will be created");
     setNativeLanguage("auto", "zh-Hant");
     expect(nativeText("copy")).toBe("复制");
   });

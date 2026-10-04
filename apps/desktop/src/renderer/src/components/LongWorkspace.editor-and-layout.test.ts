@@ -92,7 +92,7 @@ describe("long-form renderer vertical slice: editor-and-layout", () => {
       "async function loadSelectedDocument"
     );
     expect(editorSessionSource).toContain(
-      "await loadWorkspaceDocument(selectedFile, force)"
+      "await loadWorkspaceDocument(selectedFile, force, true)"
     );
     expect(editorSessionSource).toContain(
       "async function prefetchActiveSelectionFiles"

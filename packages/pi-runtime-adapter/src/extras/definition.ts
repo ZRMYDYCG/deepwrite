@@ -6,6 +6,16 @@ import type {
   ExtrasAgentResolvedTaskOf,
   ExtrasConversationAgentId
 } from "@deepwrite/contracts";
+import type {
+  DecompositionQuery,
+  DecompositionQueryResult,
+  DecompositionSubmitInput,
+  DecompositionReceipt,
+  DecompositionTopicPlanInput,
+  DecompositionUnit
+} from "@deepwrite/contracts";
+import type { BuildSpawnSubagentToolInput } from "../subagent-types";
+import type { ContextTaskKind, ToolCompactor } from "../kernel/context/types";
 import type { LongCommandExecutor } from "../long-agent-tools";
 
 export type ExtrasTaskAgentId = Exclude<
@@ -17,8 +27,27 @@ export type ExtrasTaskAgentId = Exclude<
 export interface ExtrasAgentRunServices {
   runId: string;
   sessionId: string;
+  localFaux?: boolean;
   /** Agent Utility -> Core query bridge, authorized by Main per run. */
   longCommandExecutor?: LongCommandExecutor;
+  decompositionQuery?(
+    jobId: string,
+    request: DecompositionQuery
+  ): Promise<DecompositionQueryResult>;
+  bookIdentitySubmit?(
+    input: import("@deepwrite/contracts").BookIdentitySubmitInput
+  ): Promise<import("@deepwrite/contracts").BookIdentityRoundReceipt>;
+  decompositionSubmit?(
+    input: DecompositionSubmitInput
+  ): Promise<DecompositionReceipt>;
+  decompositionPlanTopic?(
+    input: DecompositionTopicPlanInput
+  ): Promise<{ unitId: string; unit: DecompositionUnit }>;
+}
+
+export interface ExtrasTaskOrchestration {
+  definitions: BuildSpawnSubagentToolInput["definitions"];
+  prepareChild: NonNullable<BuildSpawnSubagentToolInput["prepareChild"]>;
 }
 
 /**
@@ -49,6 +78,12 @@ export interface ExtrasTaskAgentDefinition<
    * the boundary or output contract.
    */
   profilePrompt?: "system" | "data";
+  orchestration?(
+    task: ExtrasAgentResolvedTaskOf<A>,
+    services: ExtrasAgentRunServices
+  ): ExtrasTaskOrchestration;
+  contextTask?: ContextTaskKind;
+  toolCompactors?: Readonly<Record<string, ToolCompactor>>;
   userMessage(task: ExtrasAgentResolvedTaskOf<A>): string;
   /** Parses the result from the final message for agents without a result tool. */
   finalOutput?(content: string): ExtrasAgentOutput;
@@ -84,6 +119,9 @@ interface BoundExtrasAgentBase {
 export interface BoundExtrasTaskAgent extends BoundExtrasAgentBase {
   interaction: "task";
   jobId: string;
+  orchestration?(services: ExtrasAgentRunServices): ExtrasTaskOrchestration;
+  contextTask?: ContextTaskKind;
+  toolCompactors?: Readonly<Record<string, ToolCompactor>>;
   userMessage: string;
   finalOutput?(content: string): ExtrasAgentOutput;
   truncatedOutputMessage?: string;
@@ -131,6 +169,16 @@ export function bindExtrasAgent<A extends ExtrasTaskAgentId>(
     ),
     userMessage: definition.userMessage(task),
     tools: (services) => definition.tools(task, services),
+    ...(definition.orchestration
+      ? {
+          orchestration: (services: ExtrasAgentRunServices) =>
+            definition.orchestration!(task, services)
+        }
+      : {}),
+    ...(definition.contextTask ? { contextTask: definition.contextTask } : {}),
+    ...(definition.toolCompactors
+      ? { toolCompactors: definition.toolCompactors }
+      : {}),
     ...(definition.finalOutput
       ? { finalOutput: definition.finalOutput.bind(definition) }
       : {}),

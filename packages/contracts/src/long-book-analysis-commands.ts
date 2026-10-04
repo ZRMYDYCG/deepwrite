@@ -21,3 +21,9 @@ export const LongBookAnalysisLoadSourceCommandEnvelopeSchema =
     type: z.literal("longBookAnalysis.loadSource"),
     payload: z.object({ sourceId: LongBookAnalysisSavedSourceIdSchema })
   });
+
+export const LongBookAnalysisDeleteSourceCommandEnvelopeSchema =
+  EnvelopeBaseSchema.extend({
+    type: z.literal("longBookAnalysis.deleteSource"),
+    payload: z.object({ sourceId: LongBookAnalysisSavedSourceIdSchema })
+  });

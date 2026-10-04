@@ -8,6 +8,7 @@ import {
   type TextSelectionRange
 } from "../utils/boundedTextHistory";
 import type { LongDocumentState } from "./useLongEditorDocumentSession";
+import type { EditorComposition } from "./useEditorComposition";
 
 export function useLongEditorHistory(options: {
   documentStates: Ref<Record<string, LongDocumentState>>;
@@ -20,6 +21,7 @@ export function useLongEditorHistory(options: {
   canUseTextTools: ComputedRef<boolean>;
   viewMode: Ref<TextViewMode>;
   editorInput: Ref<HTMLTextAreaElement | null>;
+  composition: EditorComposition;
   characterCount: Ref<number>;
   stateKey: (fileId: string, bookId?: string) => string;
   updateVisibleContent: (content: string) => void;
@@ -39,6 +41,8 @@ export function useLongEditorHistory(options: {
   notifyHistoryChanged: () => void;
   handleEditorBeforeInput: (event: InputEvent) => void;
   handleEditorInput: (event: Event) => void;
+  handleEditorCompositionStart: (event: CompositionEvent) => void;
+  handleEditorCompositionEnd: (event: CompositionEvent) => void;
   recordProgrammaticChange: (
     nextContent: string,
     selectionAfter: TextSelectionRange
@@ -78,6 +82,7 @@ export function useLongEditorHistory(options: {
   });
 
   function resetEditorHistory(): void {
+    options.composition.reset();
     pendingEditorInput = null;
     textHistory.clear();
     historyVersion.value += 1;
@@ -122,7 +127,11 @@ export function useLongEditorHistory(options: {
   }
 
   function handleEditorBeforeInput(event: InputEvent): void {
-    if (options.currentReadOnly.value) return;
+    if (
+      options.currentReadOnly.value ||
+      options.composition.isComposingInput(event)
+    )
+      return;
     if (event.inputType === "historyUndo") {
       event.preventDefault();
       pendingEditorInput = null;
@@ -148,7 +157,11 @@ export function useLongEditorHistory(options: {
   }
 
   function handleEditorInput(event: Event): void {
-    if (options.currentReadOnly.value || options.isDocumentContentBusy.value)
+    if (
+      options.currentReadOnly.value ||
+      options.isDocumentContentBusy.value ||
+      options.composition.isComposingInput(event)
+    )
       return;
     const input = event.currentTarget as HTMLTextAreaElement;
     const beforeContent = options.currentVisibleContent.value;
@@ -177,6 +190,22 @@ export function useLongEditorHistory(options: {
       afterContent,
       historyResult?.nonWhitespaceDelta
     );
+  }
+
+  function handleEditorCompositionStart(event: CompositionEvent): void {
+    if (options.currentReadOnly.value || options.isDocumentContentBusy.value)
+      return;
+    const input = event.currentTarget as HTMLTextAreaElement;
+    pendingEditorInput = {
+      selectionBefore: { start: input.selectionStart, end: input.selectionEnd },
+      inputType: "",
+      timestamp: event.timeStamp
+    };
+    options.composition.start();
+  }
+
+  function handleEditorCompositionEnd(event: CompositionEvent): void {
+    options.composition.finish(() => handleEditorInput(event));
   }
 
   function recordProgrammaticChange(
@@ -245,6 +274,8 @@ export function useLongEditorHistory(options: {
     notifyHistoryChanged,
     handleEditorBeforeInput,
     handleEditorInput,
+    handleEditorCompositionStart,
+    handleEditorCompositionEnd,
     recordProgrammaticChange,
     updateVisibleCharacterCount,
     restoreEditorHistory,

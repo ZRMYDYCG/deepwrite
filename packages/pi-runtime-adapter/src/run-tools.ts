@@ -25,7 +25,9 @@ import { buildSpawnSubagentTool } from "./subagent-runtime";
 import { workspaceContextPolicy } from "./workspace-context-policy";
 import { buildProviderRuntime, toPiThinkingLevel } from "./provider-runtime";
 import {
+  scriptReadOnlyRuntimeSystemRequirements,
   scriptRuntimeSystemRequirements,
+  shortReadOnlyRuntimeSystemRequirements,
   shortRuntimeSystemRequirements
 } from "./prompts";
 export interface BuildRunToolsOptions extends Pick<
@@ -179,6 +181,7 @@ export function buildRunTools(
       model,
       thinkingLevel: effectiveThinkingLevel,
       streamFn: spawnStreamFn,
+      requestUserInput,
       definitions: [
         ...(input.subagentDefinitions ?? []),
         ...management.definitions
@@ -215,18 +218,24 @@ export function buildRunTools(
           : buildWritingTools,
       ...(scriptWorkspace
         ? {
-            systemPromptRequirements: scriptRuntimeSystemRequirements(input)
+            systemPromptRequirements: scriptRuntimeSystemRequirements(input),
+            pureReadSystemPromptRequirements:
+              scriptReadOnlyRuntimeSystemRequirements(input)
           }
         : shortWorkspace
           ? {
-              systemPromptRequirements: shortRuntimeSystemRequirements(input)
+              systemPromptRequirements: shortRuntimeSystemRequirements(input),
+              pureReadSystemPromptRequirements:
+                shortReadOnlyRuntimeSystemRequirements(input)
             }
           : longWorkspace
             ? {
                 systemPromptRequirements:
                   input.writeApprovalMode === "auto-approve"
                     ? "这是长篇主智能体委派的单层子任务。只能使用继承的长篇查询/提案工具和当前 bookId；提案会进入实时自动保存队列，在客户端确认成功前不能宣称已落盘或已提交连续性账本。"
-                    : "这是长篇主智能体委派的单层子任务。只能使用继承的长篇查询/提案工具和当前 bookId；任何写入仍须形成可审阅提案，不能宣称已落盘或已提交连续性账本。"
+                    : "这是长篇主智能体委派的单层子任务。只能使用继承的长篇查询/提案工具和当前 bookId；任何写入仍须形成可审阅提案，不能宣称已落盘或已提交连续性账本。",
+                pureReadSystemPromptRequirements:
+                  "这是长篇主智能体委派的单层只读子任务。只能使用 read、list 读取当前 bookId 的作品，以及 query_linked_material_entries 读取素材；没有任何写入工具，不能修改作品，也不得声称已修改或已提交连续性账本。"
               }
             : {}),
       toolExecutionHooks: options.toolExecutionHooks,

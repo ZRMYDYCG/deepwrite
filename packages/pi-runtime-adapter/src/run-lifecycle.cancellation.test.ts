@@ -49,8 +49,43 @@ describe("parent cancellation reaches the actual child", () => {
         thinkingLevel: "off",
         streamFn: (_model, _context, options) => {
           childSignal = options?.signal;
+          const stream = createAssistantMessageEventStream();
+          childSignal?.addEventListener(
+            "abort",
+            () => {
+              stream.push({
+                type: "error",
+                reason: "aborted",
+                error: {
+                  role: "assistant",
+                  content: [],
+                  api: model.api,
+                  provider: model.provider,
+                  model: model.id,
+                  stopReason: "aborted",
+                  errorMessage: "Fixture transport aborted",
+                  timestamp: Date.now(),
+                  usage: {
+                    input: 0,
+                    output: 0,
+                    cacheRead: 0,
+                    cacheWrite: 0,
+                    totalTokens: 0,
+                    cost: {
+                      input: 0,
+                      output: 0,
+                      cacheRead: 0,
+                      cacheWrite: 0,
+                      total: 0
+                    }
+                  }
+                }
+              });
+            },
+            { once: true }
+          );
           started();
-          return createAssistantMessageEventStream();
+          return stream;
         },
         definitions: [
           {
@@ -86,7 +121,9 @@ describe("parent cancellation reaches the actual child", () => {
         });
       expect(childSignal?.aborted).toBe(true);
       await execution;
-      expect(progress.at(-1)).toMatchObject({
+      expect(
+        progress.find((event) => event.type === "completed")
+      ).toMatchObject({
         type: "completed",
         status: "aborted"
       });

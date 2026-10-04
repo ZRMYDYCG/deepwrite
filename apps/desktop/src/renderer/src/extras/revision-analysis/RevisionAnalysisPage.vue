@@ -28,6 +28,7 @@ const props = defineProps<{
 const emit = defineEmits<{ refreshCatalog: [] }>();
 const c = props.controller;
 const materialsOpen = ref(!c.isBusy.value && !c.result.value);
+const analysisPage = ref<InstanceType<typeof AnalysisPageShell> | null>(null);
 const resultAnchor = ref<HTMLElement | null>(null);
 function clearWorkspace(): void {
   c.resetWorkspace();
@@ -45,7 +46,7 @@ watch(c.isBusy, (busy) => {
 watch(c.status, async (status) => {
   if (status !== "completed" || !c.result.value) return;
   await nextTick();
-  resultAnchor.value?.scrollIntoView({ behavior: "smooth", block: "start" });
+  analysisPage.value?.scrollToResult(resultAnchor.value);
 });
 async function act(action: () => unknown | Promise<unknown>) {
   try {
@@ -87,6 +88,7 @@ onMounted(() => {
 
 <template>
   <AnalysisPageShell
+    ref="analysisPage"
     class="revision-analysis-page"
     :title="t('revisionAnalysis.revisionAnalysis')"
     :description="t('revisionAnalysis.revisionDescription')"

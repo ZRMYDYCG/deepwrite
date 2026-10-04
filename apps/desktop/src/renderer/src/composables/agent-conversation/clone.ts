@@ -56,6 +56,7 @@ export function cloneSubagentRun(run: AgentSubagentRun): AgentSubagentRun {
           }
         }
       : {}),
+    ...(run.draw ? { draw: { ...run.draw } } : {}),
     toolCalls: run.toolCalls.map((toolCall) => ({ ...toolCall })),
     processingSteps: run.processingSteps.map((step) => ({ ...step }))
   };
@@ -121,6 +122,21 @@ export function cloneMessage(message: ChatMessage): ChatMessage {
     ...(message.subagentRuns
       ? {
           subagentRuns: message.subagentRuns.map(cloneSubagentRun)
+        }
+      : {}),
+    ...(message.subagentDraws
+      ? {
+          subagentDraws: toRaw(message.subagentDraws).map((draw) => ({
+            ...toRaw(draw),
+            ...(draw.batchTask
+              ? {
+                  batchTask: {
+                    ...draw.batchTask,
+                    dependsOn: [...draw.batchTask.dependsOn]
+                  }
+                }
+              : {})
+          }))
         }
       : {}),
     ...(message.editProposals

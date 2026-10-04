@@ -9,6 +9,7 @@ import type {
 import AppIcon from "../../components/AppIcon.vue";
 import { uiMessage } from "../../ui-feedback";
 import {
+  deleteAnalysisChapter,
   mergeAnalysisChapter,
   moveAnalysisChapter,
   renameAnalysisChapter,
@@ -52,6 +53,21 @@ watch(
   }
 );
 
+watch(
+  () => props.source.chapters,
+  (chapters, previous) => {
+    if (!chapters.some((chapter) => chapter.id === selectedId.value)) {
+      const index = Math.max(
+        0,
+        previous.findIndex((chapter) => chapter.id === selectedId.value)
+      );
+      selectedId.value =
+        chapters[Math.min(index, chapters.length - 1)]?.id ?? "";
+    }
+    page.value = Math.min(page.value, pageCount.value);
+  }
+);
+
 function apply(operation: () => LongBookAnalysisChapter[]): void {
   try {
     emit("update", operation());
@@ -81,6 +97,11 @@ function move(chapterId: string, direction: -1 | 1): void {
   apply(() =>
     moveAnalysisChapter(props.source.chapters, chapterId, current + direction)
   );
+}
+
+function remove(chapterId: string): void {
+  if (props.disabled) return;
+  apply(() => deleteAnalysisChapter(props.source.chapters, chapterId));
 }
 
 function dropOn(targetId: string): void {
@@ -197,6 +218,20 @@ function merge(direction: "previous" | "next"): void {
             >
               ↓
             </button>
+            <button
+              class="chapter-delete-button"
+              type="button"
+              :disabled="disabled || source.chapters.length <= 1"
+              :aria-label="t('deleteChapter')"
+              :title="
+                source.chapters.length <= 1
+                  ? t('keepOneChapter')
+                  : t('deleteChapter')
+              "
+              @click="remove(chapter.id)"
+            >
+              <AppIcon name="trash" :size="16" />
+            </button>
           </li>
         </ol>
       </div>
@@ -291,7 +326,7 @@ function merge(direction: "previous" | "next"): void {
 }
 .chapter-list li {
   display: grid;
-  grid-template-columns: 46px minmax(120px, 1fr) auto 28px 28px;
+  grid-template-columns: 46px minmax(120px, 1fr) auto repeat(3, 28px);
   gap: 5px;
   align-items: center;
   margin: 2px 0;
@@ -300,6 +335,9 @@ function merge(direction: "previous" | "next"): void {
 }
 .chapter-list li.is-selected {
   background: var(--surface-selected);
+}
+.chapter-list .chapter-delete-button {
+  padding: 0;
 }
 .chapter-list input {
   min-width: 0;

@@ -149,4 +149,62 @@ describe("subagentRunPresentation", () => {
     expect(items[0]).toMatchObject({ running: false });
     expect(items[2]).toMatchObject({ type: "work-group", running: true });
   });
+  it("keeps unchanged display items as the same objects while a child streams", () => {
+    const read = (id: string) => ({
+      id,
+      name: "read_workspace_content",
+      args: {},
+      status: "completed" as const,
+      requestedAt: startedAt
+    });
+    const current = run({
+      toolCalls: [read("read_1")],
+      processingSteps: [
+        {
+          id: "think-a",
+          type: "thinking",
+          content: "先读",
+          createdAt: startedAt
+        },
+        {
+          id: "tool-a",
+          type: "tool",
+          toolCallId: "read_1",
+          createdAt: startedAt
+        },
+        {
+          id: "reply-a",
+          type: "response",
+          content: "结论",
+          createdAt: startedAt
+        },
+        {
+          id: "think-b",
+          type: "thinking",
+          content: "继续",
+          createdAt: startedAt
+        }
+      ]
+    });
+    const first = subagentProcessingDisplayItems(current);
+
+    const latest = current.processingSteps.at(-1);
+    if (latest?.type === "thinking") latest.content += "思考";
+    const streamed = subagentProcessingDisplayItems(current, first);
+    expect(streamed).toHaveLength(3);
+    streamed.forEach((item, index) => expect(item).toBe(first[index]));
+
+    current.toolCalls.push(read("read_2"));
+    current.processingSteps.push({
+      id: "tool-b",
+      type: "tool",
+      toolCallId: "read_2",
+      createdAt: startedAt
+    });
+    const grown = subagentProcessingDisplayItems(current, streamed);
+    expect(grown[0]).toBe(first[0]);
+    expect(grown[1]).toBe(first[1]);
+    expect(grown[2]).not.toBe(first[2]);
+    expect(grown[2]).toMatchObject({ type: "work-group", running: true });
+  });
 });

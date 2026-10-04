@@ -7,7 +7,8 @@ import {
   CommandEnvelopeSchema,
   DEFAULT_AGENT_TEAM_SETTINGS,
   DEFAULT_LONG_AGENT_TEAM_SETTINGS,
-  createEnvelope
+  createEnvelope,
+  withAgentTeamEnabled
 } from "./index";
 
 function shortProfile(id = "team_short", name = "短篇团队") {
@@ -121,5 +122,34 @@ describe("agent team catalog contracts", () => {
         }
       }).status
     ).toBe("installed");
+  });
+
+  it("enables at most one team per writing type without mutating its input", () => {
+    const enabled = { short: "team_a", script: "team_s" };
+    const switched = withAgentTeamEnabled(
+      enabled,
+      { id: "team_b", workspaceType: "short" },
+      true
+    );
+    expect(switched).toEqual({ short: "team_b", script: "team_s" });
+    expect(enabled).toEqual({ short: "team_a", script: "team_s" });
+  });
+
+  it("only disables a team that is the enabled one for its type", () => {
+    const enabled = { short: "team_a" };
+    expect(
+      withAgentTeamEnabled(
+        enabled,
+        { id: "team_a", workspaceType: "short" },
+        false
+      )
+    ).toEqual({});
+    expect(
+      withAgentTeamEnabled(
+        enabled,
+        { id: "team_b", workspaceType: "short" },
+        false
+      )
+    ).toEqual({ short: "team_a" });
   });
 });

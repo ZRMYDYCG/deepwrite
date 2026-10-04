@@ -1,6 +1,6 @@
 export default {
   writing: "创作",
-  workspaceFolder: "工作目录",
+  storage: "存储",
   workspaceSettings: "创作空间",
   skillLibrarySettings: "技能库",
   materialLibrarySettings: "素材库",

@@ -7,7 +7,7 @@ import updateDialogSource from "./VersionUpdateDialog.vue?raw";
 const source = `${sidebarSource}\n${profileSource}\n${updateDialogSource}\n${moreFeaturesSource}`;
 
 describe("LeftSidebar account controls", () => {
-  it("separates the account menu from the settings-page button", () => {
+  it("opens settings through the account menu", () => {
     expect(source).toContain('@click="toggleAccountMenu"');
     expect(source).toContain("openSettings");
     expect(source).toContain('@click="openSettings"');

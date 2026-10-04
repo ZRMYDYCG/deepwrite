@@ -56,18 +56,18 @@ async function saveDomain(domain: Domain): Promise<void> {
     :aria-label="t('builtInManagementSubagents')"
   >
     <header>
-      <h2>
+      <h3>
         {{ t("builtInManagementSubagents") }}
-      </h2>
+      </h3>
       <p>
         {{ t("sharedByStandardAndTeamModesCalledOnlyWhen") }}
       </p>
     </header>
-    <div class="manager-grid">
+    <div class="manager-list">
       <article v-for="domain in domains" :key="domain">
         <div class="manager-heading">
           <div class="manager-title">
-            <h3>{{ BUILTIN_SUBAGENT_NAMES[domain] }}</h3>
+            <h4>{{ BUILTIN_SUBAGENT_NAMES[domain] }}</h4>
             <span class="manager-status">
               <span
                 class="status-dot"
@@ -143,33 +143,39 @@ async function saveDomain(domain: Domain): Promise<void> {
 
 <style scoped>
 .builtin-managers {
-  margin-bottom: 24px;
   color: var(--text-primary);
 }
-h2,
-h3 {
+h3,
+h4 {
   margin: 0;
-  font-size: 1em;
+}
+h3 {
+  font-size: 1.07143rem;
+  font-weight: 650;
+}
+h4 {
+  font-size: 0.928571rem;
+  font-weight: 620;
 }
 p {
-  margin: 8px 0 0;
+  margin: 4px 0 0;
   color: var(--text-secondary);
-  font-size: 0.875em;
-  line-height: 1.6;
+  font-size: 0.892857rem;
+  line-height: 1.55;
 }
-.manager-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
-  align-items: start;
-  gap: 12px;
-  margin-top: 14px;
-}
-article {
-  min-width: 0;
-  padding: 18px;
+.manager-list {
+  margin-top: 12px;
+  overflow: hidden;
   border: 1px solid var(--theme-line);
   border-radius: 14px;
   background: var(--surface-raised);
+}
+article {
+  min-width: 0;
+  padding: 14px 18px;
+}
+article + article {
+  border-top: 1px solid var(--theme-line-soft);
 }
 .manager-heading,
 .editor-actions {
@@ -180,8 +186,9 @@ article {
   flex-wrap: wrap;
 }
 .manager-title {
-  display: grid;
-  gap: 8px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
   min-width: 0;
 }
 .manager-status {
@@ -201,8 +208,8 @@ article {
   background: var(--accent);
 }
 .manager-editor {
-  margin-top: 16px;
-  padding-top: 16px;
+  margin-top: 14px;
+  padding-top: 14px;
   border-top: 1px solid var(--theme-line-soft);
 }
 label {
@@ -247,7 +254,7 @@ input:focus-visible {
 }
 button {
   flex-shrink: 0;
-  padding: 8px 12px;
+  padding: 7px 12px;
   border: 1px solid var(--theme-line);
   border-radius: 9px;
   background: var(--surface-raised);
@@ -260,9 +267,9 @@ button {
   background: var(--surface-hover);
 }
 .primary-button {
-  border-color: var(--text-primary);
-  background: var(--text-primary);
-  color: var(--surface-main);
+  border-color: var(--neutral-solid);
+  background: var(--neutral-solid);
+  color: var(--accent-contrast, #fff);
 }
 :disabled {
   opacity: 0.55;

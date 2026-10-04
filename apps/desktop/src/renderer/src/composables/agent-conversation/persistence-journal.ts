@@ -1,5 +1,4 @@
 import type { ConversationHistoryOperation } from "@deepwrite/contracts";
-import type { ChatMessage } from "../../types/conversation";
 import type { AgentConversationContext } from "./context";
 import type { MessageMutation } from "./message-mutations";
 import {
@@ -22,6 +21,7 @@ type JournalContext = Pick<
   | "currentUpdatedAt"
   | "temperature"
   | "storedConversations"
+  | "storedEnvelope"
   | "persistenceMutationRevision"
 >;
 interface SessionChanges {
@@ -31,7 +31,6 @@ interface SessionChanges {
   fields: FieldMutation[];
   replacements: Map<string, number>;
   order: Map<string, number>;
-  messages: Map<string, ChatMessage>;
 }
 
 export function createPersistenceJournal(ctx: JournalContext) {
@@ -40,20 +39,24 @@ export function createPersistenceJournal(ctx: JournalContext) {
     number,
     { orders: Map<string, Map<string, number>>; sessionIds: Set<string> }
   >();
-  function ensure(sessionId: string): SessionChanges {
-    let state = sessions.get(sessionId);
-    if (!state) {
-      state = {
+  /** Only locally created identities and explicit legacy imports may be put in full. */
+  function registerLocalSession(sessionId: string): void {
+    if (!sessions.has(sessionId))
+      sessions.set(sessionId, {
         baseline: true,
         metadataRevision: 0,
         structureRevision: 0,
         fields: [],
         replacements: new Map(),
-        order: new Map(),
-        messages: new Map()
-      };
-      sessions.set(sessionId, state);
-    }
+        order: new Map()
+      });
+  }
+  function requireSession(sessionId: string): SessionChanges {
+    const state = sessions.get(sessionId);
+    if (!state)
+      throw new Error(
+        "Cannot save a conversation without an initialized journal baseline."
+      );
     return state;
   }
   function source(sessionId: string) {
@@ -72,7 +75,7 @@ export function createPersistenceJournal(ctx: JournalContext) {
     );
   }
   function record(mutation?: MessageMutation): void {
-    const state = ensure(ctx.sessionId.value);
+    const state = requireSession(ctx.sessionId.value);
     const revision = ctx.persistenceMutationRevision;
     state.metadataRevision = revision;
     if (mutation?.type === "structure") {
@@ -86,12 +89,11 @@ export function createPersistenceJournal(ctx: JournalContext) {
   function capture(
     excluded: ReadonlySet<string> = new Set()
   ): ConversationPersistenceChanges {
-    // The first capture is the compatibility baseline. After its acknowledgement,
-    // only sessions and paths changed since that checkpoint are visited.
-    for (const conversation of ctx.storedConversations.value) {
-      if (!sessions.has(conversation.sessionId)) ensure(conversation.sessionId);
-    }
-    ensure(ctx.sessionId.value);
+    // A loaded projection must never become a full replacement merely because
+    // its old journal entry was released. Loading must initialize its IDs first.
+    for (const conversation of ctx.storedConversations.value)
+      requireSession(conversation.sessionId);
+    requireSession(ctx.sessionId.value);
     const revision = ctx.persistenceMutationRevision;
     const result: ConversationPersistenceChanges = {
       revision,
@@ -119,15 +121,14 @@ export function createPersistenceJournal(ctx: JournalContext) {
         continue;
       const operations: ConversationHistoryOperation[] = [];
       const puts = new Set<string>();
+      let currentOrder = state.order;
       if (state.baseline || state.structureRevision !== undefined) {
         const order = new Map<string, number>();
-        state.messages = new Map();
         const persistedMessages = conversation.messages.filter(
           (message) => !message.activityOnly || Boolean(message.runId)
         );
         persistedMessages.forEach((message, position) => {
           order.set(message.id, position);
-          state.messages.set(message.id, message);
           if (
             state.baseline ||
             !state.order.has(message.id) ||
@@ -155,20 +156,18 @@ export function createPersistenceJournal(ctx: JournalContext) {
             messageIds: removed.slice(offset, offset + 4096)
           });
         capturedOrders.set(sessionId, order);
+        currentOrder = order;
       }
       const byMessage = new Map<string, FieldMutation[]>();
       for (const field of state.fields) {
         const messageId = field.message.id;
-        if (puts.has(messageId) || !state.messages.has(messageId)) continue;
+        if (puts.has(messageId) || !currentOrder.has(messageId)) continue;
         const fields = byMessage.get(messageId) ?? [];
         fields.push(field);
         byMessage.set(messageId, fields);
       }
       for (const [messageId, fields] of byMessage) {
-        const changes = captureFieldChanges(
-          fields,
-          state.messages.get(messageId)!
-        );
+        const changes = captureFieldChanges(fields, fields.at(-1)!.message);
         for (let offset = 0; offset < changes.length; offset += 4096)
           operations.push({
             type: "patchMessage",
@@ -220,13 +219,13 @@ export function createPersistenceJournal(ctx: JournalContext) {
     ])) {
       const conversation = source(sessionId);
       if (!conversation) continue;
-      const state = ensure(sessionId);
+      registerLocalSession(sessionId);
+      const state = requireSession(sessionId);
       state.baseline = false;
       state.metadataRevision = -1;
       state.structureRevision = undefined;
       conversation.messages.forEach((message, position) => {
         state.order.set(message.id, position);
-        state.messages.set(message.id, message);
       });
     }
     return true;
@@ -254,13 +253,13 @@ export function createPersistenceJournal(ctx: JournalContext) {
     )
       throw new Error("Cannot replace an unconfirmed conversation baseline.");
     forgetSession(sessionId);
-    const state = ensure(sessionId);
+    registerLocalSession(sessionId);
+    const state = requireSession(sessionId);
     state.baseline = false;
     state.metadataRevision = -1;
     state.structureRevision = undefined;
     conversation.messages.forEach((message, position) => {
       state.order.set(message.id, position);
-      state.messages.set(message.id, message);
     });
   }
   function reset(): void {
@@ -276,6 +275,11 @@ export function createPersistenceJournal(ctx: JournalContext) {
         state.fields.some((field) => field.revision > revision))
     );
   }
+  // The compatibility snapshot API also accepts complete legacy imports. Core
+  // hydration explicitly replaces these with acknowledged ID-only baselines.
+  for (const record of ctx.storedEnvelope?.conversations ?? [])
+    registerLocalSession(record.sessionId);
+  registerLocalSession(ctx.sessionId.value);
   return {
     record,
     capture,
@@ -284,6 +288,17 @@ export function createPersistenceJournal(ctx: JournalContext) {
     initializeSessionBaseline,
     forgetSession,
     hasChangesAfter,
+    registerLocalSession,
+    diagnostics() {
+      const fields = [...sessions.values()].flatMap((state) => state.fields);
+      return {
+        sessionCount: sessions.size,
+        retainedMessageCount: new Set(fields.map((field) => field.message))
+          .size,
+        pendingFieldCount: fields.length,
+        captureCount: captures.size
+      };
+    },
     reset
   };
 }

@@ -17,6 +17,7 @@ function definition(
     description: `${parent} 阶段助手`,
     systemPrompt: `处理 ${parent} 阶段任务。`,
     enabled: index % 2 === 0,
+    agentMode: "standard",
     modelMode: "custom",
     modelId: `model-${parent}`,
     thinkingLevel: index === 1 ? "off" : "high",

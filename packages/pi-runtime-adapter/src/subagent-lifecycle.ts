@@ -34,7 +34,12 @@ export async function runSubagentLifecycle(
   childRuntime: AgentRuntimeRef,
   emitProgress: (progress: SubagentToolProgress, text: string) => void,
   signal?: AbortSignal,
-  notifyCompacted: () => void = () => {}
+  notifyCompacted: () => void = () => {},
+  /**
+   * A run that delivers its result through a terminating tool has no final
+   * text reply; a returned string completes it with that summary instead.
+   */
+  finalSummary?: () => string | undefined
 ): Promise<SubagentTaskOutcome> {
   const subagentRunId = progressBase.subagentRunId;
   const definition = { name: progressBase.name };
@@ -168,6 +173,7 @@ export async function runSubagentLifecycle(
   let summary = "";
   let timedOut = false;
   let timeout: NodeJS.Timeout | undefined;
+  let running: Promise<PromptOutcome> | undefined;
   const timeoutMs = resolveSubagentTimeoutMs(input.timeoutMs);
   try {
     if (cancellationRequested) {
@@ -228,7 +234,7 @@ export async function runSubagentLifecycle(
         child.prepareNextTurnWithContext = contextGuard.prepareNextTurn;
         contextGuard.noteRunStart(taskMessage, undefined);
       }
-      const prompt: Promise<PromptOutcome> = (async () => {
+      running = (async () => {
         await contextGuard?.beforeRun(taskMessage);
         lifecycleController.signal.throwIfAborted();
         contextGuard?.assertFits(taskMessage);
@@ -298,7 +304,7 @@ export async function runSubagentLifecycle(
           kind: "failed",
           error
         }));
-      const outcome = await Promise.race([prompt, early]);
+      const outcome = await Promise.race([running, early]);
       if (outcome.kind === "failed") throw outcome.error;
       if (outcome.kind === "aborted") {
         status = "aborted";
@@ -335,8 +341,13 @@ export async function runSubagentLifecycle(
     signal?.removeEventListener("abort", abortChild);
   }
 
+  const deliveredSummary = finalSummary?.();
+  if (deliveredSummary && !timedOut && status !== "aborted") {
+    status = "completed";
+    errorMessage = undefined;
+  }
   if (status === "completed") {
-    summary = readAssistantText(terminalMessage!)
+    summary = (deliveredSummary ?? readAssistantText(terminalMessage!))
       .trim()
       .slice(0, SUBAGENT_SUMMARY_MAX_LENGTH);
     if (!summary) {
@@ -355,17 +366,24 @@ export async function runSubagentLifecycle(
   const usage = terminalMessage
     ? normalizeUsage(terminalMessage.usage)
     : undefined;
-  emitProgress(
-    {
-      ...progressBase,
-      type: "completed",
-      status,
-      summary,
-      ...(errorMessage ? { errorMessage: errorMessage.slice(0, 4_000) } : {}),
-      ...(usage ? { usage } : {})
-    },
-    status === "completed" ? `子智能体「${definition.name}」已完成。` : summary
-  );
-
-  return { status, summary };
+  try {
+    emitProgress(
+      {
+        ...progressBase,
+        type: "completed",
+        status,
+        summary,
+        ...(errorMessage ? { errorMessage: errorMessage.slice(0, 4_000) } : {}),
+        ...(usage ? { usage } : {})
+      },
+      status === "completed"
+        ? `子智能体「${definition.name}」已完成。`
+        : summary
+    );
+    return { status, summary };
+  } finally {
+    // Timeout/abort remains visible immediately. The parent tool still owns
+    // this child until its model, tools and retry listeners really finish.
+    await running;
+  }
 }

@@ -1,0 +1,211 @@
+/* Heading and actions always stay in view; only the body gives up height,
+   first by shrinking the preview, then by scrolling at large UI font sizes. */
+.draw-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: min(72vh, 680px);
+  padding: 16px 16px 14px;
+  overflow: hidden;
+  border: 1px solid var(--theme-line);
+  border-radius: 20px;
+  background: var(--surface-raised);
+  box-shadow:
+    0 18px 44px var(--shadow-color),
+    0 2px 8px
+      color-mix(
+        in srgb,
+        var(--theme-foreground, var(--text-primary)) 8%,
+        transparent
+      );
+  color: var(--text-primary);
+  font-size: 0.857143rem;
+  line-height: 1.45;
+}
+
+.draw-picker-heading,
+.draw-picker-actions,
+.draw-picker-body > * {
+  flex: none;
+}
+
+.draw-picker-body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.draw-picker-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 2px;
+}
+
+.draw-picker-titles {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.draw-picker-titles strong {
+  font-size: 1.071429rem;
+  font-weight: 680;
+  line-height: 1.35;
+}
+
+.draw-picker-titles span {
+  overflow: hidden;
+  color: var(--text-tertiary);
+  font-size: 0.785714rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.draw-picker-compare {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 5px;
+  min-height: 28px;
+  padding: 0 9px;
+  border: 1px solid var(--theme-line);
+  border-radius: 8px;
+  background: var(--surface-main);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.785714rem;
+  cursor: pointer;
+}
+
+.draw-picker-compare:hover:not(:disabled) {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.draw-picker-compare:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.draw-picker-notice,
+.draw-picker-task p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.785714rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.draw-picker-task summary {
+  color: var(--text-tertiary);
+  font-size: 0.785714rem;
+  cursor: pointer;
+}
+
+.draw-picker-task p {
+  max-height: 96px;
+  margin-top: 6px;
+  overflow: auto;
+}
+
+.draw-picker-tabs {
+  display: flex;
+  gap: 6px;
+  padding-bottom: 2px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.draw-picker-tab {
+  display: grid;
+  flex: none;
+  justify-items: start;
+  gap: 1px;
+  padding: 6px 10px;
+  border: 1px solid var(--theme-line-soft);
+  border-radius: 9px;
+  background: var(--surface-main);
+  color: var(--text-secondary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.draw-picker-tab strong {
+  font-size: 0.821429rem;
+  font-weight: 650;
+}
+
+.draw-picker-tab span {
+  color: var(--text-tertiary);
+  font-size: 0.714286rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.draw-picker-tab:hover {
+  background: var(--surface-hover);
+}
+
+.draw-picker-tab.is-active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--text-primary);
+}
+
+.draw-picker-tab:focus-visible,
+.draw-picker-compare:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  outline-offset: 2px;
+}
+
+.draw-picker-body > .draw-picker-preview {
+  flex: 1 1 auto;
+  min-height: 96px;
+  padding: 10px 12px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--theme-line-soft);
+  border-radius: 12px;
+  background: var(--surface-main);
+}
+
+.draw-picker-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+
+.draw-picker-note {
+  width: 100%;
+  min-height: 34px;
+  box-sizing: border-box;
+  padding: 6px 10px;
+  border: 1px solid var(--theme-line);
+  border-radius: 9px;
+  outline: 0;
+  background: var(--surface-main);
+  color: var(--text-primary);
+  font: inherit;
+}
+
+.draw-picker-note:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.draw-picker-note::placeholder {
+  color: var(--text-tertiary);
+}
+
+.draw-picker-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}

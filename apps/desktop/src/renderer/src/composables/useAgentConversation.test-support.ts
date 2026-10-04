@@ -252,6 +252,51 @@ function createDeferredApi(): {
       else reject(queued.error);
     });
   const api: DeepWriteApi = {
+    bookIdentity: {
+      get: vi.fn(async () => {
+        throw new Error("Book identity is not used by conversation tests.");
+      }),
+      inheritBook: vi.fn(async () => {
+        throw new Error("Book identity is not used by conversation tests.");
+      }),
+      addManualCandidate: vi.fn(async () => {
+        throw new Error("Book identity is not used by conversation tests.");
+      }),
+      updateCandidate: vi.fn(async () => {
+        throw new Error("Book identity is not used by conversation tests.");
+      }),
+      adopt: vi.fn(async () => {
+        throw new Error("Book identity is not used by conversation tests.");
+      }),
+      clearAdoption: vi.fn(async () => {
+        throw new Error("Book identity is not used by conversation tests.");
+      }),
+      deleteRound: vi.fn(async () => {
+        throw new Error("Book identity is not used by conversation tests.");
+      }),
+      pruneRounds: vi.fn(async () => {
+        throw new Error("Book identity is not used by conversation tests.");
+      }),
+      renderCover: vi.fn(async () => {
+        throw new Error("Book identity is not used by conversation tests.");
+      }),
+      cancelRender: vi.fn(async () => {}),
+      saveComposedCover: vi.fn(async () => {
+        throw new Error("Book identity is not used by conversation tests.");
+      }),
+      exportCover: vi.fn(async () => ({ cancelled: true }))
+    },
+    imageModels: {
+      getSettings: vi.fn(async () => ({ activeProfileId: null, profiles: [] })),
+      saveSettings: vi.fn(async () => {
+        throw new Error("Image models are not used by conversation tests.");
+      }),
+      getUsage: vi.fn(async () => []),
+      test: vi.fn(async () => {
+        throw new Error("Image models are not used by conversation tests.");
+      }),
+      cancel: vi.fn(async () => {})
+    },
     voice: {
       getSettings: vi.fn(async () => {
         throw new Error("not used");

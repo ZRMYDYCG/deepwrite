@@ -10,5 +10,8 @@ export default {
   medium: "标准",
   high: "深度",
   extraHigh: "极高",
-  maximum: "最高"
+  maximum: "最高",
+  agentModeStandard: "常规",
+  agentModePureRead: "纯净·只读",
+  agentModePureBare: "纯净·无工具"
 };

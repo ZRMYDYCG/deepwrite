@@ -18,12 +18,16 @@ export async function commitChapter(
   const canonical = await secureDirectory(projectDirectory, "长篇项目目录");
   return await ctx.runExclusive(canonical, async () => {
     const loaded = await loadProject(ctx, canonical);
+    const { managedCommitId, ...publicInput } =
+      rawInput.mode === "text_files_batch"
+        ? rawInput
+        : { ...rawInput, managedCommitId: undefined };
     const input = LongCommitChapterInputSchema.parse({
-      ...rawInput,
+      ...publicInput,
       bookId: loaded.manifest.id
     });
     if (input.mode === "text_files_batch") {
-      return await commitTextFilesBatch(ctx, loaded, input);
+      return await commitTextFilesBatch(ctx, loaded, input, managedCommitId);
     }
     const chapterEntry = loaded.index.chapters.find(
       ({ chapterCardId }) => chapterCardId === input.chapterCardId

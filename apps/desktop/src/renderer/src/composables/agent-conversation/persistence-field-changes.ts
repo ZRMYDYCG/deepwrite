@@ -29,10 +29,22 @@ export function recordFieldMutation(
 const contains = (parent: (string | number)[], child: (string | number)[]) =>
   parent.length <= child.length &&
   parent.every((part, index) => part === child[index]);
+function readPath(message: ChatMessage, path: (string | number)[]): unknown {
+  let value: unknown = message;
+  for (const part of path) {
+    if (!value || typeof value !== "object")
+      throw new Error(
+        "Cannot capture a field inside an unloaded conversation detail."
+      );
+    value = Reflect.get(value, part);
+  }
+  return value;
+}
 
 /** A replaced object already contains subsequent writes below it. Read that
  * object once at capture; emitting its descendant appends as well duplicates
- * text. Pure tail appends remain small and are never re-read from the message.
+ * text. Pure tail appends keep their captured chunks; only their target is read
+ * to reject a detail that was unloaded before capture.
  */
 export function captureFieldChanges(
   events: FieldMutation[],
@@ -61,17 +73,20 @@ export function captureFieldChanges(
       )
   );
   const result: ConversationHistoryChange[] = parents.map((event) => {
-    let value: unknown = message;
-    for (const part of event.path)
-      value =
-        value && typeof value === "object"
-          ? Reflect.get(value, part)
-          : undefined;
-    if (value === undefined) return { op: "remove", path: event.path };
+    const value = readPath(message, event.path);
+    if (value === undefined) {
+      if (!event.removed)
+        throw new Error(
+          "Cannot capture an unloaded conversation field as a removal."
+        );
+      return { op: "remove", path: event.path };
+    }
     return { op: "set", path: event.path, value: clonePersistenceValue(value) };
   });
   for (const append of appends.values()) {
     if (parents.some((parent) => contains(parent.path, append.path))) continue;
+    if (typeof readPath(message, append.path) !== "string")
+      throw new Error("Cannot append to an unloaded conversation field.");
     const text = append.chunks.join("");
     for (let offset = 0; offset < text.length; offset += 64 * 1024) {
       result.push({

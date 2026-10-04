@@ -113,6 +113,7 @@ describe("DeepWrite Pi runtime adapter: agent-context-and-tools", () => {
           description: "检查人物设定冲突。",
           systemPrompt: "只做人物一致性检查。",
           enabled: true,
+          agentMode: "standard",
           modelMode: "inherit"
         }
       ],
@@ -134,6 +135,7 @@ describe("DeepWrite Pi runtime adapter: agent-context-and-tools", () => {
           description: "检查人物设定冲突。",
           systemPrompt: "只做人物一致性检查。",
           enabled: true,
+          agentMode: "standard",
           modelMode: "inherit"
         }
       ],
@@ -154,6 +156,7 @@ describe("DeepWrite Pi runtime adapter: agent-context-and-tools", () => {
           description: "当前停用。",
           systemPrompt: "不要执行。",
           enabled: false,
+          agentMode: "standard",
           modelMode: "inherit"
         }
       ],

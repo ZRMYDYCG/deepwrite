@@ -148,6 +148,7 @@ async function showProcess(id: string): Promise<void> {
       <button
         v-if="batch.canRetry.value && !batch.isBusy.value"
         type="button"
+        :disabled="disabled"
         @click="batch.retryFailed()"
       >
         {{ count > 1 ? t("retryFailed") : resumeLabel }}
@@ -164,7 +165,7 @@ async function showProcess(id: string): Promise<void> {
         v-else
         class="analysis-primary-button"
         type="button"
-        :disabled="!canStart"
+        :disabled="disabled || !canStart"
         @click="emit('start')"
       >
         {{ startLabel }}

@@ -62,9 +62,18 @@ export function buildWorkspaceFeatureModule(
         models: settingsStore.modelSettings?.models ?? [],
         catalogSnapshot: options.catalogSnapshot.value
       };
-    case "style-comparison":
+    case "long-book-decomposition":
       return {
-        kind: "style-comparison",
+        kind: "long-book-decomposition",
+        controller:
+          options.features.longBookDecomposition?.controller.value ?? null,
+        models: modelSelectionSettings?.models ?? [],
+        catalogSnapshot: options.catalogSnapshot.value
+      };
+    case "style-comparison":
+    case "book-identity":
+      return {
+        kind: feature,
         models: modelSelectionSettings?.models ?? [],
         preferredModelId: modelSelectionSettings?.defaultModelId ?? null
       };

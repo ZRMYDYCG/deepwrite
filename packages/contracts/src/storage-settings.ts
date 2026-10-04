@@ -29,6 +29,22 @@ export const StorageChangeResultSchema = z
   .strict();
 export type StorageChangeResult = z.infer<typeof StorageChangeResultSchema>;
 
+/** Stable reasons Main reports for rejected storage changes; Renderer translates by code. */
+export const StorageSettingsErrorCodeSchema = z.enum([
+  "storage_settings.busy",
+  "storage_settings.invalid_directory",
+  "storage_settings.unresolvable_path",
+  "storage_settings.overlaps_installation",
+  "storage_settings.nested_location",
+  "storage_settings.target_not_empty",
+  "storage_settings.not_writable",
+  "storage_settings.save_failed",
+  "storage_settings.open_failed"
+]);
+export type StorageSettingsErrorCode = z.infer<
+  typeof StorageSettingsErrorCodeSchema
+>;
+
 export const StorageOpenDirectoryInputSchema = z
   .object({ kind: StorageDirectoryKindSchema })
   .strict();

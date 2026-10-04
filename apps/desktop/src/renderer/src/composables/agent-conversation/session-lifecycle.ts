@@ -45,6 +45,7 @@ type SessionLifecycleContext = Pick<
   | "isBusy"
   | "storedConversations"
   | "historyOperationPending"
+  | "persistenceJournal"
 >;
 export function cancelPendingGeneration(ctx: SessionLifecycleContext): boolean {
   if (ctx.pendingAttemptId.value === null || ctx.activeRunId.value !== null) {
@@ -110,7 +111,9 @@ export function newConversation(ctx: SessionLifecycleContext): void {
     ctx.storeCurrentConversation();
     ctx.resetTransientConversationState();
     const timestamp = ctx.nextConversationTimestamp();
-    ctx.sessionId.value = id("session");
+    const sessionId = id("session");
+    ctx.persistenceJournal.registerLocalSession(sessionId);
+    ctx.sessionId.value = sessionId;
     ctx.messages.value = [];
     ctx.draft.value = "";
     ctx.currentCreatedAt.value = timestamp;

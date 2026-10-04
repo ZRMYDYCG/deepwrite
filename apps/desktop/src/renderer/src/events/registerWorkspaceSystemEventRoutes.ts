@@ -16,6 +16,10 @@ export interface QueuedAgentEditRun {
 }
 
 export interface WorkspaceSystemEventRouteDependencies {
+  refreshDecompositionTarget?(
+    event: EventOf<"decomposition.target_updated">
+  ): Promise<void>;
+  longBookDecomposition?: { handleEvent(event: SystemEventEnvelope): void };
   revisionAnalysis: { handleEvent(event: SystemEventEnvelope): void };
   shortBookAnalysis: { handleEvent(event: SystemEventEnvelope): void };
   longBookAnalysis: {
@@ -59,8 +63,14 @@ export function registerWorkspaceSystemEventRoutes(
   dependencies: WorkspaceSystemEventRouteDependencies
 ): () => void {
   const disposers = [
+    center.subscribe("decomposition.target_updated", (event) => {
+      void dependencies
+        .refreshDecompositionTarget?.(event)
+        .catch((error) => dependencies.onAsyncError(error, event));
+    }),
     center.subscribeAll((event) => {
       dependencies.longBookAnalysis.handleEvent(event);
+      dependencies.longBookDecomposition?.handleEvent(event);
       dependencies.shortBookAnalysis.handleEvent(event);
       dependencies.revisionAnalysis.handleEvent(event);
     }),

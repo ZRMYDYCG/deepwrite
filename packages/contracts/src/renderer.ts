@@ -43,6 +43,22 @@ export type * from "./library-agent";
 export type * from "./long-agent-settings";
 export type * from "./long-agent-team";
 export type * from "./long-book-analysis";
+export type * from "./long-book-decomposition";
+export {
+  DEFAULT_DECOMPOSITION_PROFILE,
+  LongBookDecompositionProfileSchema
+} from "./long-book-decomposition/profile";
+export {
+  splitDecompositionChunks,
+  decompositionInputBudget
+} from "./long-book-decomposition/chunking";
+export { estimateDecomposition } from "./long-book-decomposition/estimate";
+export {
+  decompositionUsageLimit,
+  decompositionUsageTotal
+} from "./long-book-decomposition/usage";
+export { readyDecompositionUnitIds } from "./long-book-decomposition/job";
+export { decompositionAssetProse } from "./long-book-decomposition/records";
 export type * from "./short-book-analysis";
 export {
   ShortBookAnalysisPresetSchema,
@@ -146,6 +162,12 @@ export {
   SHORT_AGENT_SUBAGENT_NAME_MAX_LENGTH,
   SHORT_AGENT_SUBAGENT_SYSTEM_PROMPT_MAX_LENGTH,
   SUBAGENT_PARALLEL_MAX_CONCURRENCY,
+  DEFAULT_SUBAGENT_DRAW_EVALUATOR_PROMPT,
+  SUBAGENT_DRAW_DEFAULT_COUNT,
+  SUBAGENT_DRAW_EVALUATOR_PROMPT_MAX_LENGTH,
+  SUBAGENT_DRAW_MAX_COUNT,
+  SUBAGENT_DRAW_MIN_COUNT,
+  activeSubagentDraw,
   WorkspaceAgentTeamSettingsInputSchema
 } from "./agent-team";
 export {
@@ -155,7 +177,8 @@ export {
   AgentTeamProfileRenameInputSchema,
   AgentTeamProfileSaveInputSchema,
   AgentTeamProfileSetEnabledInputSchema,
-  AgentTeamProfileTargetInputSchema
+  AgentTeamProfileTargetInputSchema,
+  withAgentTeamEnabled
 } from "./agent-team-catalog";
 export {
   CATALOG_LIBRARY_ENTRY_MAX_CHARACTERS,
@@ -339,6 +362,10 @@ export {
 } from "./session/long-proposals";
 export { LongMutationProposalEventEnvelopeSchema } from "./session/envelopes";
 export {
+  SUBAGENT_DRAW_QUESTION_ID,
+  SUBAGENT_DRAW_REJECT_OPTION_ID
+} from "./session/user-input";
+export {
   PROMPT_ATTACHMENT_MAX_ITEMS,
   PROMPT_IMAGE_ATTACHMENTS_MAX_BYTES,
   PROMPT_IMAGE_ATTACHMENT_MAX_BYTES,
@@ -435,3 +462,9 @@ export {
   SESSION_CONVERSATION_HISTORY_MAX_MESSAGE_LENGTH,
   SESSION_CONVERSATION_HISTORY_MAX_CONTENT_LENGTH
 } from "./session/history-limits";
+
+export * from "./book-identity";
+export * from "./image-models";
+export * from "./https-base-url";
+export { ChatAssistantProjectRefSchema } from "./chat-assistant-base";
+export { ExtrasAgentTaskSchema } from "./extras-agent/tasks";

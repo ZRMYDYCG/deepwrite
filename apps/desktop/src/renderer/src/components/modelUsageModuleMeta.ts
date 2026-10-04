@@ -2,11 +2,29 @@ import { createScopedTranslator } from "../i18n";
 import type { ModelUsageModule } from "@deepwrite/contracts";
 
 const t = createScopedTranslator("components.modelUsageModuleMeta");
+const identityT = createScopedTranslator("extras.bookIdentity");
+const decompositionT = createScopedTranslator("extras.longBookDecomposition");
 
 export const MODULE_META: Record<
   ModelUsageModule,
   { label: string; detail: string }
 > = {
+  "book-identity": {
+    get label() {
+      return identityT("title");
+    },
+    get detail() {
+      return identityT("description");
+    }
+  },
+  "long-book-decomposition": {
+    get label() {
+      return decompositionT("title");
+    },
+    get detail() {
+      return decompositionT("description");
+    }
+  },
   "short-writing": {
     get label() {
       return t("shortStoryWriting");

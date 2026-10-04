@@ -4,6 +4,7 @@ import { AgentUsageSchema } from "./agent-usage";
 import { ModelManagedBySchema } from "./models";
 
 export const MODEL_USAGE_MODULES = [
+  "book-identity",
   "short-writing",
   "script-writing",
   "long-writing",
@@ -12,6 +13,7 @@ export const MODEL_USAGE_MODULES = [
   // Retired feature; kept so historical usage records still parse.
   "learning-imitation",
   "long-book-analysis",
+  "long-book-decomposition",
   "revision-analysis",
   "short-book-analysis",
   "style-comparison",

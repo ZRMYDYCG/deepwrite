@@ -5,6 +5,7 @@ import * as turnRetry from "./turn-retry";
 import * as subagentIdentity from "./subagent-identity";
 import * as subagentRetry from "./subagent-retry";
 import * as subagentEvents from "./subagent-events";
+import { handleSubagentDrawUpdated } from "./subagent-draw-events";
 import * as approvals from "./approvals";
 import * as streaming from "./streaming";
 import * as events from "./events";
@@ -114,6 +115,10 @@ export function bindConversationOperations(
     ctx
   );
   ctx.handleSubagentPlanned = subagentEvents.handleSubagentPlanned.bind(
+    undefined,
+    ctx
+  );
+  ctx.handleSubagentDrawUpdated = handleSubagentDrawUpdated.bind(
     undefined,
     ctx
   );

@@ -16,6 +16,9 @@ import { runConversationSmoke } from "./smoke-conversation";
 import { runVoiceSmoke } from "./smoke-voice";
 import { runVoiceUiSmoke } from "./smoke-voice-ui";
 import { runI18nSmoke } from "./smoke-i18n";
+import { runLongBookDecompositionSmoke } from "./smoke-long-book-decomposition";
+import { runDecompositionUiSmoke } from "./smoke-decomposition-ui";
+import { runBookIdentitySmoke } from "./smoke-book-identity";
 
 export async function runApplicationSmoke(
   health: SystemHealthPayload,
@@ -23,6 +26,31 @@ export async function runApplicationSmoke(
   window: BrowserWindow,
   setEventTap: (tap: ((event: SystemEventEnvelope) => void) | undefined) => void
 ): Promise<void> {
+  if (process.env.DEEPWRITE_SMOKE_SUITE === "book-identity") {
+    const bookIdentity = await runBookIdentitySmoke(window, supervisor);
+    console.log(
+      `DEEPWRITE_SMOKE_OK ${JSON.stringify({ health, bookIdentity })}`
+    );
+    return;
+  }
+  if (
+    ["decomposition", "decomposition-real-model"].includes(
+      process.env.DEEPWRITE_SMOKE_SUITE ?? ""
+    )
+  ) {
+    const decomposition = await runLongBookDecompositionSmoke(
+      window,
+      supervisor
+    );
+    const decompositionUi =
+      process.env.DEEPWRITE_SMOKE_SUITE === "decomposition"
+        ? await runDecompositionUiSmoke(window)
+        : undefined;
+    console.log(
+      `DEEPWRITE_SMOKE_OK ${JSON.stringify({ health, decomposition, decompositionUi })}`
+    );
+    return;
+  }
   if (process.env.DEEPWRITE_SMOKE_SUITE === "conversation") {
     const conversation = await runConversationSmoke(window);
     console.log(

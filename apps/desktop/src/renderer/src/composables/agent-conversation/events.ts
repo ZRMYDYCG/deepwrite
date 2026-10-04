@@ -5,7 +5,11 @@ import type { SystemEventEnvelope } from "@deepwrite/contracts";
 import { AgentEvaluationSnapshotSchema } from "@deepwrite/contracts/renderer";
 import { finalizeUnfinishedMessageTools } from "./attempt-state";
 import { rememberBounded } from "./shared";
-import { isAgentEvent, isSubagentEvent } from "./event-kinds";
+import {
+  isAgentEvent,
+  isStreamedTextDelta,
+  isSubagentEvent
+} from "./event-kinds";
 import { applyContextCompactionEvent } from "./context-compaction";
 import { uiMessage } from "../../ui-feedback";
 import { contextTokensFromUsage } from "../../utils/contextWindowUsage";
@@ -31,6 +35,7 @@ type EventsContext = Pick<
   | "flushPendingAgentTextDelta"
   | "handleSubagentEvent"
   | "handleSubagentPlanned"
+  | "handleSubagentDrawUpdated"
   | "userInput"
   | "clearIdleTimer"
   | "ensureAssistantMessage"
@@ -45,6 +50,7 @@ type EventsContext = Pick<
   | "markRunError"
 > &
   Parameters<typeof handleToolEvent>[0];
+
 export function handleEvent(
   ctx: EventsContext,
   event: SystemEventEnvelope
@@ -115,16 +121,17 @@ export function handleEvent(
       runId
     });
   }
-  if (
-    event.type !== "agent.message_delta" &&
-    event.type !== "agent.thinking_delta"
-  ) {
-    // Terminal, retry, tool, and subagent events are ordering boundaries.
-    // Settle every preceding text fragment before applying that event.
+  if (!isStreamedTextDelta(event)) {
+    // Terminal, retry, tool, and other subagent events are ordering
+    // boundaries. Settle every preceding text fragment before applying them.
     ctx.flushPendingAgentTextDelta();
   }
   if (event.type === "subagent.planned") {
     ctx.handleSubagentPlanned(event);
+    return;
+  }
+  if (event.type === "subagent.draw_updated") {
+    ctx.handleSubagentDrawUpdated(event);
     return;
   }
   if (subagentEvent) {

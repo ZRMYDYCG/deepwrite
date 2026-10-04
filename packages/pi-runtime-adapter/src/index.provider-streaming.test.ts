@@ -435,7 +435,9 @@ describe("DeepWrite Pi runtime adapter: provider-streaming", () => {
   it("emits one error terminal when the run stays idle", async () => {
     const runtime = new PiAgentRuntimeAdapter({
       idleTimeoutMs: 1,
-      tokensPerSecond: 0.01
+      // Still exceeds the idle threshold, but lets the Faux sleep drain after
+      // cancellation within this test's deadline.
+      tokensPerSecond: 1
     });
     const events: AgentRuntimeEvent[] = [];
 

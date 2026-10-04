@@ -5,6 +5,7 @@ import type {
 import type { Statements } from "./schema";
 import { JsonNodes, type ValueRef } from "./json-nodes";
 import { compactLabel, textPreview } from "./text-preview";
+import { MessageProjectionBudgetError } from "./errors";
 
 export type MessageRow = {
   message_id: string;
@@ -21,6 +22,7 @@ const DETAIL_FIELDS = new Set([
   "contextCompactions",
   "evaluationSnapshot"
 ]);
+const IDENTITY_FIELDS = new Set(["id", "role", "createdAt", "runId", "status"]);
 
 export class MessageRecords {
   constructor(
@@ -118,10 +120,25 @@ export class MessageRecords {
     const node = this.nodes.node(ref.node);
     if (node.kind !== "object")
       throw new Error("Conversation message is not an object.");
-    const value: ConversationHistoryRecord = {};
-    const details: ConversationHistoryMessage["details"] = [];
-    let remaining = Math.max(0, maxBytes - 1024);
+    // Identity must survive both small page budgets and root-detail fallback.
+    // Read it first so an earlier large field cannot consume its allowance.
+    const identity: ConversationHistoryRecord = {};
     for (const [key, child] of node.entries) {
+      if (!IDENTITY_FIELDS.has(key)) continue;
+      if (child.bytes > maxBytes)
+        throw new MessageProjectionBudgetError(
+          "Conversation message identity exceeds the page budget."
+        );
+      identity[key] = this.nodes.read(child);
+    }
+    const value: ConversationHistoryRecord = { ...identity };
+    const details: ConversationHistoryMessage["details"] = [];
+    let remaining = Math.max(
+      0,
+      maxBytes - 1024 - Buffer.byteLength(JSON.stringify(identity))
+    );
+    for (const [key, child] of node.entries) {
+      if (IDENTITY_FIELDS.has(key)) continue;
       if (DETAIL_FIELDS.has(key) || child.bytes > remaining) {
         const text =
           "value" in child
@@ -142,16 +159,31 @@ export class MessageRecords {
         remaining -= child.bytes + Buffer.byteLength(JSON.stringify(key)) + 1;
       }
     }
-    const result = {
+    const result: ConversationHistoryMessage = {
       messageId: row.message_id,
       position: row.position,
       value,
       details,
       byteLength: row.byte_length
     };
+    const content = this.nodes.get(ref, ["content"]);
+    const preview = content ? this.preview(content) : "";
+    if (details.some((detail) => detail.path[0] === "content"))
+      result.preview = preview;
     if (Buffer.byteLength(JSON.stringify(result)) > maxBytes) {
-      result.value = {};
+      result.value = identity;
+      result.preview = preview;
       result.details = [{ path: [], encoding: "json", byteLength: ref.bytes }];
+      if (Buffer.byteLength(JSON.stringify(result)) > maxBytes) {
+        result.preview = "";
+        const available = Math.max(
+          0,
+          maxBytes - Buffer.byteLength(JSON.stringify(result))
+        );
+        // Six bytes per UTF-16 unit also covers JSON escapes and lone surrogates.
+        const length = Math.floor(available / 6);
+        result.preview = length ? compactLabel(preview, length) : "";
+      }
     }
     return result;
   }

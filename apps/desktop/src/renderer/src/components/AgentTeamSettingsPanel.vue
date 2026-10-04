@@ -2,11 +2,8 @@
 import { createScopedTranslator } from "../i18n";
 import {
   WorkspaceAgentTeamSettingsInputSchema,
-  BUILT_IN_REASONING_LEVELS,
-  SHORT_AGENT_SUBAGENT_DESCRIPTION_MAX_LENGTH,
   SHORT_AGENT_SUBAGENT_MAX_COUNT,
   SHORT_AGENT_SUBAGENT_NAME_MAX_LENGTH,
-  SHORT_AGENT_SUBAGENT_SYSTEM_PROMPT_MAX_LENGTH,
   SCRIPT_AGENT_SUBAGENT_MAX_COUNT,
   SCRIPT_WORKSPACE_AGENT_IDS,
   SHORT_WORKSPACE_AGENT_IDS,
@@ -16,30 +13,31 @@ import {
   type LongAgentTeamSettings,
   type LongAgentTeamSettingsInput,
   type ShortAgentSubagentDefinition,
-  type ShortAgentSubagentModelMode,
   type WorkspaceAgentId,
   type SkillLibrary,
   type SubagentAuthoringDraft,
-  type SubagentAuthoringRuntimeContext,
-  type ThinkingLevel
+  type SubagentAuthoringRuntimeContext
 } from "@deepwrite/contracts";
 import { computed, ref, watch } from "vue";
 import { uiMessage } from "../ui-feedback";
-import AppIcon from "./AppIcon.vue";
 import AgentTeamParallelSwitch from "./AgentTeamParallelSwitch.vue";
+import AgentTeamSaveBar from "./AgentTeamSaveBar.vue";
+import AgentTeamSubagentCard from "./AgentTeamSubagentCard.vue";
+import AgentTeamSubagentEditor from "./AgentTeamSubagentEditor.vue";
+import AgentTeamSubagentSection from "./AgentTeamSubagentSection.vue";
 import LoadSubagentFromSkillDialog from "./LoadSubagentFromSkillDialog.vue";
 import LongAgentTeamSettingsPanel from "./LongAgentTeamSettingsPanel.vue";
-import PopupSelect, { type PopupSelectOption } from "./PopupSelect.vue";
 import {
   SCRIPT_PARENT_AGENTS,
   SHORT_PARENT_AGENT
 } from "./agentTeamSettingsMeta";
 import {
-  agentTeamModelDefaults,
-  agentTeamThinkingLabel,
+  agentTeamDraftSignature,
   createCopiedSubagent,
   validateAgentTeamDraft
 } from "./agentTeamSettingsEditorHelpers";
+import { clonedDrawField, savedDrawField } from "./agentTeamDrawDraft";
+import { useSubagentModelConfig } from "./useSubagentModelConfig";
 
 const t = createScopedTranslator("components.agentTeamSettingsPanel");
 
@@ -67,6 +65,7 @@ const emit = defineEmits<{
   retry: [];
   save: [settings: WorkspaceAgentTeamSettingsInput];
   saveLong: [settings: LongAgentTeamSettingsInput];
+  dirtyChange: [dirty: boolean];
   authoringGenerate: [
     payload: {
       context: SubagentAuthoringRuntimeContext;
@@ -102,7 +101,6 @@ const activeParentMeta = computed(
       (agent) => agent.id === activeParentAgentId.value
     ) ?? visibleParentAgents.value[0]!
 );
-const activeParentDisplayLabel = computed(() => activeParentMeta.value.label);
 
 const visibleParentAgents = computed(() =>
   activeWorkspaceType.value === "script"
@@ -132,66 +130,20 @@ const activeTeam = computed(() =>
   )
 );
 
-const modelOptions = computed<PopupSelectOption[]>(() =>
-  props.models.map((model) => ({ value: model.id, label: model.label }))
-);
-
-const modelById = computed(() => {
-  const map = new Map<string, ModelConfig>();
-  for (const model of props.models) {
-    map.set(model.id, model);
-  }
-  return map;
+const subagentModelConfig = useSubagentModelConfig({
+  models: () => props.models,
+  disabled: () => formDisabled.value
 });
-
-function thinkingOptionsFor(
-  subagent: ShortAgentSubagentDefinition
-): PopupSelectOption[] {
-  const model = subagent.modelId
-    ? modelById.value.get(subagent.modelId)
-    : undefined;
-  if (!model) {
-    return [
-      { value: "off", label: agentTeamThinkingLabel("off") },
-      ...BUILT_IN_REASONING_LEVELS.map((value) => ({
-        value,
-        label: agentTeamThinkingLabel(value)
-      }))
-    ];
-  }
-  return [
-    { value: "off", label: agentTeamThinkingLabel("off") },
-    ...model.thinkingLevelOptions.map((value) => ({
-      value,
-      label: agentTeamThinkingLabel(value)
-    }))
-  ];
-}
-
-function temperatureOptionsFor(
-  subagent: ShortAgentSubagentDefinition
-): PopupSelectOption[] {
-  const model = subagent.modelId
-    ? modelById.value.get(subagent.modelId)
-    : undefined;
-  return (model?.temperatureOptions ?? [0.1, 0.7, 1]).map((value) => ({
-    value,
-    label: t("temperatureValue", {
-      arg0: value
-    })
-  }));
-}
-
-function applyModelRunDefaults(
-  subagent: ShortAgentSubagentDefinition,
-  modelId: string | undefined
-): void {
-  const defaults = agentTeamModelDefaults(
-    modelId ? modelById.value.get(modelId) : undefined
-  );
-  subagent.thinkingLevel = defaults.thinkingLevel;
-  subagent.temperature = defaults.temperature;
-}
+const {
+  modelOptions,
+  thinkingOptionsFor,
+  temperatureOptionsFor,
+  setModelMode: setSubagentModelMode,
+  setModelId: setSubagentModelId,
+  setThinkingLevel: setSubagentThinkingLevel,
+  setTemperature: setSubagentTemperature,
+  subagentModelSummary
+} = subagentModelConfig;
 
 watch(
   () => props.workspaceType,
@@ -205,39 +157,79 @@ watch(
   }
 );
 
+const baselineSignature = ref("");
+let syncedWorkspaceType: string | null = null;
+const dirty = computed(
+  () =>
+    agentTeamDraftSignature(draftParallelSubagents.value, draftTeams.value) !==
+    baselineSignature.value
+);
+
+function cloneTeams(settings: WorkspaceAgentTeamSettings): EditableTeam[] {
+  return settings.teams.map((team) => ({
+    parentAgentId: team.parentAgentId,
+    subagents: team.subagents.map((subagent) => ({
+      ...subagent,
+      ...clonedDrawField(subagent.draw),
+      agentMode: subagent.agentMode ?? "standard",
+      modelMode: subagent.modelMode ?? "inherit",
+      ...(subagent.modelId ? { modelId: subagent.modelId } : {}),
+      ...(subagent.thinkingLevel !== undefined
+        ? { thinkingLevel: subagent.thinkingLevel }
+        : {}),
+      ...(subagent.temperature !== undefined
+        ? { temperature: subagent.temperature }
+        : {})
+    }))
+  }));
+}
+
+// Re-seed the draft only when the saved settings really differ from what the
+// draft was last seeded with, so unrelated catalog refreshes keep unsaved edits.
+function syncDraft(force = false): void {
+  const settings = activeSettings.value;
+  const parallel = settings?.parallelSubagents ?? false;
+  const teams = settings ? cloneTeams(settings) : [];
+  const signature = agentTeamDraftSignature(parallel, teams);
+  if (
+    !force &&
+    syncedWorkspaceType === activeWorkspaceType.value &&
+    signature === baselineSignature.value
+  ) {
+    return;
+  }
+  syncedWorkspaceType = activeWorkspaceType.value;
+  draftParallelSubagents.value = parallel;
+  draftTeams.value = teams;
+  baselineSignature.value = signature;
+  if (
+    settings &&
+    !settings.teams.some(
+      (team) => team.parentAgentId === activeParentAgentId.value
+    )
+  ) {
+    activeParentAgentId.value = visibleParentAgents.value[0]!.id;
+  }
+  editingSubagentId.value = null;
+}
+
 watch(
   () => [props.settings, activeWorkspaceType.value] as const,
-  () => {
-    const settings = activeSettings.value;
-    draftParallelSubagents.value = settings?.parallelSubagents ?? false;
-    draftTeams.value = settings
-      ? settings.teams.map((team) => ({
-          parentAgentId: team.parentAgentId,
-          subagents: team.subagents.map((subagent) => ({
-            ...subagent,
-            modelMode: subagent.modelMode ?? "inherit",
-            ...(subagent.modelId ? { modelId: subagent.modelId } : {}),
-            ...(subagent.thinkingLevel !== undefined
-              ? { thinkingLevel: subagent.thinkingLevel }
-              : {}),
-            ...(subagent.temperature !== undefined
-              ? { temperature: subagent.temperature }
-              : {})
-          }))
-        }))
-      : [];
-    if (
-      settings &&
-      !settings.teams.some(
-        (team) => team.parentAgentId === activeParentAgentId.value
-      )
-    ) {
-      activeParentAgentId.value = visibleParentAgents.value[0]!.id;
-    }
-    editingSubagentId.value = null;
-  },
+  () => syncDraft(),
   { immediate: true, deep: true }
 );
+
+watch(
+  () => [dirty.value, activeWorkspaceType.value] as const,
+  ([value, workspaceType]) => {
+    if (workspaceType !== "long") emit("dirtyChange", value);
+  },
+  { immediate: true }
+);
+
+function discardChanges(): void {
+  syncDraft(true);
+}
 
 function selectParentAgent(parentAgentId: WorkspaceAgentId): void {
   activeParentAgentId.value = parentAgentId;
@@ -272,6 +264,7 @@ function addSubagent(
     description: draft?.description?.trim() || "",
     systemPrompt: draft?.systemPrompt?.trim() || "",
     enabled: true,
+    agentMode: "standard",
     modelMode: "inherit"
   });
   editingSubagentId.value = id;
@@ -331,83 +324,6 @@ function confirmLoadFromSkill(draft: SubagentAuthoringDraft): void {
   uiMessage.success(t("addedToThePrimaryAgentDraftSaveTheAgent"));
 }
 
-function setSubagentModelMode(
-  subagent: ShortAgentSubagentDefinition,
-  mode: ShortAgentSubagentModelMode
-): void {
-  if (formDisabled.value) return;
-  subagent.modelMode = mode;
-  if (mode !== "custom") {
-    delete subagent.modelId;
-    delete subagent.thinkingLevel;
-    delete subagent.temperature;
-    return;
-  }
-  if (!subagent.modelId && props.models[0]) {
-    subagent.modelId = props.models[0].id;
-  }
-  if (subagent.thinkingLevel === undefined) {
-    applyModelRunDefaults(subagent, subagent.modelId);
-  }
-}
-
-function setSubagentModelId(
-  subagent: ShortAgentSubagentDefinition,
-  modelId: string
-): void {
-  if (formDisabled.value) return;
-  subagent.modelId = modelId;
-  applyModelRunDefaults(subagent, modelId);
-}
-
-function setSubagentThinkingLevel(
-  subagent: ShortAgentSubagentDefinition,
-  rawLevel: string
-): void {
-  if (formDisabled.value) return;
-  const level = rawLevel as ThinkingLevel;
-  subagent.thinkingLevel = level;
-  if (level === "off") {
-    const options = temperatureOptionsFor(subagent);
-    const current = subagent.temperature;
-    if (
-      current === undefined ||
-      !options.some((option) => Object.is(option.value, current))
-    ) {
-      subagent.temperature = Number(
-        options[1]?.value ?? options[0]?.value ?? 0.7
-      );
-    }
-  }
-}
-
-function setSubagentTemperature(
-  subagent: ShortAgentSubagentDefinition,
-  temperature: number
-): void {
-  if (formDisabled.value) return;
-  subagent.temperature = temperature;
-}
-
-function subagentModelSummary(subagent: ShortAgentSubagentDefinition): string {
-  if (subagent.modelMode !== "custom") return t("usePrimaryAgentModel");
-  if (!subagent.modelId) return t("separateConfigurationNoModelSelected");
-  const modelLabel =
-    modelById.value.get(subagent.modelId)?.label ?? subagent.modelId;
-  const thinking =
-    subagent.thinkingLevel !== undefined
-      ? agentTeamThinkingLabel(subagent.thinkingLevel)
-      : undefined;
-  if (!thinking) return modelLabel;
-  if (subagent.thinkingLevel === "off" && subagent.temperature !== undefined) {
-    return t("valueOffTemperatureValue", {
-      arg0: modelLabel,
-      arg1: subagent.temperature
-    });
-  }
-  return `${modelLabel} · ${thinking}`;
-}
-
 function editSubagent(id: string): void {
   editingSubagentId.value = id;
 }
@@ -430,10 +346,10 @@ function removeSubagent(index: number): void {
 
 function toggleSubagent(
   subagent: ShortAgentSubagentDefinition,
-  event: Event
+  enabled: boolean
 ): void {
   if (formDisabled.value) return;
-  subagent.enabled = (event.target as HTMLInputElement).checked;
+  subagent.enabled = enabled;
 }
 
 function saveSettings(): void {
@@ -455,6 +371,8 @@ function saveSettings(): void {
         description: subagent.description.trim(),
         systemPrompt: subagent.systemPrompt.trim(),
         enabled: subagent.enabled,
+        agentMode: subagent.agentMode ?? "standard",
+        ...savedDrawField(subagent.draw),
         modelMode: subagent.modelMode ?? "inherit",
         ...(subagent.modelMode === "custom" && subagent.modelId
           ? {
@@ -495,23 +413,26 @@ function saveSettings(): void {
 // Exposing its bindings also gives static analysis an explicit cross-file boundary.
 defineExpose({
   AgentTeamParallelSwitch,
+  AgentTeamSaveBar,
+  AgentTeamSubagentCard,
+  AgentTeamSubagentEditor,
+  AgentTeamSubagentSection,
   draftParallelSubagents,
-  SHORT_AGENT_SUBAGENT_DESCRIPTION_MAX_LENGTH,
-  SHORT_AGENT_SUBAGENT_NAME_MAX_LENGTH,
-  SHORT_AGENT_SUBAGENT_SYSTEM_PROMPT_MAX_LENGTH,
-  AppIcon,
   LoadSubagentFromSkillDialog,
   LongAgentTeamSettingsPanel,
-  PopupSelect,
-  activeParentDisplayLabel,
+  activeParentMeta,
   activeSubagentLimit,
   visibleParentAgents,
+  dirty,
   modelOptions,
+  subagentModelConfig,
   thinkingOptionsFor,
+  temperatureOptionsFor,
   selectParentAgent,
   openLoadFromSkill,
   closeLoadFromSkill,
   confirmLoadFromSkill,
+  addSubagent,
   setSubagentModelMode,
   setSubagentModelId,
   setSubagentThinkingLevel,
@@ -522,6 +443,7 @@ defineExpose({
   duplicateSubagent,
   removeSubagent,
   toggleSubagent,
+  discardChanges,
   saveSettings
 });
 </script>

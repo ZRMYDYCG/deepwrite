@@ -13,6 +13,10 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { assertElectronLaunchAllowed } from "../../../tools/electron-launch-environment.mjs";
+
+assertElectronLaunchAllowed();
+
 const scripts = dirname(fileURLToPath(import.meta.url));
 const repository = resolve(scripts, "../../..");
 const output = join(repository, "apps/desktop/out/main");

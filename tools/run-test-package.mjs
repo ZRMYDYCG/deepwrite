@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ensureElectronRuntime } from "./ensure-electron-runtime.mjs";
+import { assertElectronLaunchAllowed } from "./electron-launch-environment.mjs";
 
 const toolsDirectory = dirname(fileURLToPath(import.meta.url));
 const workspaceRoot = resolve(toolsDirectory, "..");
@@ -189,6 +190,12 @@ async function buildLinux(target, version) {
 
 async function main() {
   const target = parseTarget(process.argv.slice(2));
+  if (
+    target.buildMacArm64 ||
+    (target.buildMacX64 && process.env.DEEPWRITE_SKIP_MAC_X64_SMOKE !== "1")
+  ) {
+    assertElectronLaunchAllowed();
+  }
   const initialRuntime = await ensureElectronRuntime();
   const version = await electronVersion();
   console.log(

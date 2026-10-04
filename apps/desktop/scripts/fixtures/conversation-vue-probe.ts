@@ -1,3 +1,4 @@
+import "./analysis-probe-i18n";
 import { verifyVueInteractions } from "./conversation-vue-interactions";
 import { createApp, h, nextTick, ref, type App } from "vue";
 import { createPinia } from "pinia";

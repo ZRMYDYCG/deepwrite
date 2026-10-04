@@ -5,7 +5,10 @@ import {
   type CommandEnvelope,
   type CommandResult
 } from "@deepwrite/contracts";
-import type { StorageSettingsService } from "../storage-settings-service";
+import {
+  StorageSettingsError,
+  type StorageSettingsService
+} from "../storage-settings-service";
 
 export async function handleStorageSettingsCommands(
   command: CommandEnvelope,
@@ -45,7 +48,10 @@ export async function handleStorageSettingsCommands(
       status: "rejected",
       requestId: command.id,
       error: {
-        code: "storage_settings.operation_failed",
+        code:
+          error instanceof StorageSettingsError
+            ? error.code
+            : "storage_settings.operation_failed",
         message:
           error instanceof Error ? error.message : "存储设置操作失败，请重试。"
       }

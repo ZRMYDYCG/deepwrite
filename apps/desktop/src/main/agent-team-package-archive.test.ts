@@ -17,6 +17,7 @@ function team(): AgentTeamProfile {
     description: "检查成稿",
     systemPrompt: "完整检查成稿。",
     enabled: true,
+    agentMode: "standard",
     modelMode: "inherit"
   });
   return {

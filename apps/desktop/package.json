@@ -1,6 +1,6 @@
 {
   "name": "@deepwrite/desktop",
-  "version": "1.6.1",
+  "version": "1.6.3",
   "description": "DeepWrite local desktop writing client",
   "private": true,
   "type": "module",
@@ -10,7 +10,7 @@
     "dev": "node ../../tools/run-desktop-dev.mjs",
     "build": "electron-vite build && node ../../tools/check-renderer-build.mjs",
     "prepreview": "node ../../tools/ensure-electron-runtime.mjs",
-    "preview": "electron-vite preview",
+    "preview": "node ../../tools/run-desktop-preview.mjs",
     "presmoke": "node ../../tools/ensure-electron-runtime.mjs",
     "smoke": "node scripts/electron-smoke.mjs"
   },

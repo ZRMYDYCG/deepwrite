@@ -5,6 +5,10 @@ import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import { spawn } from "node:child_process";
 
+import { assertElectronLaunchAllowed } from "../../../tools/electron-launch-environment.mjs";
+
+assertElectronLaunchAllowed();
+
 const [, , kind, output, electronFlag, fixtureUrl] = process.argv;
 const fixtures = { style: "Style", long: "Long" };
 if (!fixtures[kind] || !output)

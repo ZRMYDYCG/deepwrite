@@ -737,6 +737,10 @@ function validateLongWorkspaceIndexSnapshot(
     path: ValidationPath;
   }> = [
     { file: snapshot.bookLine, path: ["bookLine"] },
+    ...(snapshot.writeReceipts ?? []).map((file, index) => ({
+      file,
+      path: ["writeReceipts", index] as ValidationPath
+    })),
     ...snapshot.worldbuilding.flatMap((category, index) =>
       category.format === "text"
         ? [

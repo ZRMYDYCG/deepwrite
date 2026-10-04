@@ -128,6 +128,7 @@ export interface RenameLongBookInput {
 }
 
 export interface ReadLongDocumentInput {
+  bookId?: string;
   fileId: string;
   offset?: number;
   limit?: number;
@@ -135,6 +136,7 @@ export interface ReadLongDocumentInput {
 
 export interface ReadLongDocumentResult {
   fileId: string;
+  file: LongWorkspaceFileReference;
   path: string;
   content: string;
   offset: number;
@@ -211,7 +213,9 @@ export type StoreCommitLongChapterInput =
         mode?: "structured";
       })
   | Omit<LongTextFilesCommitChapterInput, "bookId">
-  | Omit<LongTextFilesBatchCommitInput, "bookId">;
+  | (Omit<LongTextFilesBatchCommitInput, "bookId"> & {
+      managedCommitId?: string;
+    });
 export type StoreDeleteLongLedgerCommitInput = Omit<
   LongDeleteLedgerCommitInput,
   "bookId"
@@ -223,8 +227,8 @@ export interface SecureTextFile {
   updatedAt: string;
   identity: string;
   size: number;
-  mtimeMs: number;
-  ctimeMs: number;
+  mtimeNs: bigint;
+  ctimeNs: bigint;
 }
 
 export interface UnicodePageAnchor {

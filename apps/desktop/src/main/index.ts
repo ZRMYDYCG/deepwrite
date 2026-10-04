@@ -3,6 +3,8 @@ import { handleSessionCommands } from "./ipc/session-commands";
 import { handleBookTemplateCommands } from "./ipc/book-template-commands";
 import { handleCatalogProjectCommands } from "./ipc/catalog-project-commands";
 import type { ExtrasAgentService } from "../extras/agents";
+import { isDecompositionFauxSmokeModel } from "./smoke-decomposition-model";
+import { isBookIdentityFauxSmokeModel } from "./smoke-book-identity-model";
 import {
   createDesktopServices,
   refreshDesktopServices
@@ -24,7 +26,11 @@ import {
   handleConversationExportCommands,
   disposeConversationExports
 } from "./ipc/conversation-export-commands";
-import { acquireConversationOperation } from "./ipc/conversation-operation-guard";
+import {
+  acquireConversationOperation,
+  releaseConversationRuns
+} from "./ipc/conversation-operation-guard";
+import { releaseDrainedAgentRun } from "./ipc/agent-run-drain";
 import { createRendererStateFlushCoordinator } from "./renderer-state-flush";
 import { createGracefulShutdown } from "./graceful-shutdown";
 import { guardConversationWindowClose } from "./conversation-window-close";
@@ -133,6 +139,15 @@ import { AppearanceService } from "./appearance-service";
 import { AgentTeamConfigStore } from "./agent-team-config-store";
 import { GeneralSettingsStore } from "./general-settings-store";
 import { VoiceService } from "./voice/voice-service";
+import { ImageService } from "./image/image-service";
+import { handleImageCommands } from "./image/image-commands";
+import { CoverRenderService } from "../extras/book-identity/cover-render-service";
+import { handleBookIdentityCommands } from "../extras/book-identity/commands";
+import {
+  installCoverProtocolHandler,
+  registerCoverScheme
+} from "../extras/book-identity/cover-protocol";
+import { handleBookIdentitySubmission } from "../extras/book-identity/submit-bridge";
 import { handleVoiceCommands } from "./ipc/voice-commands";
 import {
   installVoicePermissions,
@@ -184,6 +199,7 @@ import {
 import { registerMarketplaceIpc } from "./ipc/marketplace-ipc";
 
 registerAppearanceFontScheme();
+registerCoverScheme();
 const hasSingleInstanceLock = acquireStorageInstanceLock(app);
 // A second instance must not write diagnostics into a profile being migrated.
 if (!hasSingleInstanceLock) app.exit(0);
@@ -219,6 +235,8 @@ let agentTeamConfigStore: AgentTeamConfigStore | undefined;
 let appearanceService: AppearanceService | undefined;
 let generalSettingsStore: GeneralSettingsStore | undefined;
 let voiceService: VoiceService | undefined;
+let imageService: ImageService | undefined;
+let coverRenderService: CoverRenderService | undefined;
 let extrasAgentService: ExtrasAgentService;
 let libraryAgentConfigStore: LibraryAgentConfigStore | undefined;
 let longAgentConfigStore: LongAgentConfigStore | undefined;
@@ -327,7 +345,8 @@ type AgentEventEnvelope = Extract<
       | "subagent.planned"
       | "subagent.started"
       | "subagent.activity"
-      | "subagent.completed";
+      | "subagent.completed"
+      | "subagent.draw_updated";
   }
 >;
 
@@ -357,7 +376,8 @@ function isAgentEvent(event: SystemEventEnvelope): event is AgentEventEnvelope {
     event.type === "subagent.planned" ||
     event.type === "subagent.started" ||
     event.type === "subagent.activity" ||
-    event.type === "subagent.completed"
+    event.type === "subagent.completed" ||
+    event.type === "subagent.draw_updated"
   );
 }
 
@@ -376,6 +396,7 @@ function handleUtilityEvent(
   event: SystemEventEnvelope,
   worker: UtilityWorkerName
 ): void {
+  if (event.type === "agent.run_drained" && worker !== "agent") return;
   if (isAgentEvent(event) && worker !== "agent") {
     return;
   }
@@ -383,6 +404,15 @@ function handleUtilityEvent(
   const validated = SystemEventEnvelopeSchema.parse(
     event
   ) as SystemEventEnvelope;
+  if (validated.type === "agent.run_drained") {
+    releaseDrainedAgentRun(
+      activeRuns,
+      pendingUsageContexts,
+      validated,
+      rememberTerminalRun
+    );
+    return;
+  }
   if (validated.type === "agent.usage_observed") {
     recordUsageObservation(
       validated,
@@ -407,14 +437,26 @@ function handleUtilityEvent(
       validated.type === "agent.error"
     ) {
       const activeRun = activeRuns.get(runId);
+      const previouslyTerminal = terminalRuns.has(runId);
       rememberTerminalRun(runId);
-      activeRuns.delete(runId);
+      // Revoke Core authority on UI termination, but keep ownership while
+      // model/tool execution drains in Agent Utility.
+      if (activeRun) activeRun.accepted = false;
+      else if (!previouslyTerminal && validated.payload.runtime)
+        activeRuns.set(runId, {
+          sessionId: validated.payload.sessionId,
+          correlationId: validated.context.correlationId,
+          runtime: validated.payload.runtime,
+          accepted: false
+        });
       pendingUsageContexts.delete(
         activeRun?.correlationId ?? validated.context.correlationId
       );
     } else if (
-      // A plan always follows its tool request, so it never opens a run.
+      // A plan or draw update always follows its tool request, so it never
+      // opens a run.
       validated.type !== "subagent.planned" &&
+      validated.type !== "subagent.draw_updated" &&
       !terminalRuns.has(runId) &&
       !activeRuns.has(runId)
     ) {
@@ -463,6 +505,7 @@ function handleUnexpectedExit(worker: UtilityWorkerName, reason: string): void {
       broadcastEvent(event);
     }
     activeRuns.clear();
+    releaseConversationRuns(activeRuns);
     pendingUsageContexts.clear();
   }
 
@@ -492,7 +535,7 @@ function handleWorkerRestarted(
   );
 }
 
-const supervisor = new UtilitySupervisor({
+const supervisor: UtilitySupervisor = new UtilitySupervisor({
   onUtilityEvent: handleUtilityEvent,
   onUnexpectedExit: handleUnexpectedExit,
   onWorkerRestarted: handleWorkerRestarted,
@@ -500,7 +543,11 @@ const supervisor = new UtilitySupervisor({
     core: AGENT_CORE_QUERY_COMMANDS
   },
   internalCommandAuthorize: (context) =>
-    authorizeMainInternalCommand(context, activeRuns)
+    authorizeMainInternalCommand(context, activeRuns),
+  internalCommandHandle: (context) =>
+    handleBookIdentitySubmission(context, activeRuns, (command) =>
+      supervisor.requestCommand("core", command, 60_000)
+    )
 });
 
 function createMainWindow(): BrowserWindow {
@@ -510,12 +557,13 @@ function createMainWindow(): BrowserWindow {
   });
   const windowWebContentsId = window.webContents.id;
   installVoicePermissions(window);
-  window.webContents.on("did-start-loading", () =>
-    voiceService?.cancelOwner(windowWebContentsId)
-  );
-  window.webContents.on("render-process-gone", () =>
-    voiceService?.cancelOwner(windowWebContentsId)
-  );
+  const cancelWindowMedia = () => {
+    voiceService?.cancelOwner(windowWebContentsId);
+    imageService?.cancelOwner(windowWebContentsId);
+    coverRenderService?.cancelOwner(windowWebContentsId);
+  };
+  window.webContents.on("did-start-loading", cancelWindowMedia);
+  window.webContents.on("render-process-gone", cancelWindowMedia);
   window.webContents.once("did-finish-load", () => {
     void announceReady(window).catch((error: unknown) => {
       desktopStartup.log.write("utilities.health.failed", { error });
@@ -538,7 +586,7 @@ function createMainWindow(): BrowserWindow {
     rendererStateFlush.reset(windowWebContentsId)
   );
   window.on("closed", () => {
-    voiceService?.cancelOwner(windowWebContentsId);
+    cancelWindowMedia();
     rendererStateFlush.reset(windowWebContentsId);
     void disposeConversationExports({
       supervisor,
@@ -910,6 +958,37 @@ function registerIpc(): void {
 
       const command = parsed.data;
       if (
+        command.type.startsWith("imageModels.") ||
+        command.type.startsWith("bookIdentity.")
+      ) {
+        if (event.senderFrame !== event.sender.mainFrame)
+          return {
+            status: "rejected",
+            requestId: command.id,
+            error: {
+              code: "image.untrusted_frame",
+              message: "图片与设计操作仅允许从应用主界面发起。"
+            }
+          };
+        if (imageService && command.type.startsWith("imageModels.")) {
+          const result = await handleImageCommands(
+            command,
+            imageService,
+            event.sender.id
+          );
+          if (result) return result;
+        }
+        if (coverRenderService && command.type.startsWith("bookIdentity.")) {
+          const result = await handleBookIdentityCommands(
+            command,
+            (coreCommand) => supervisor.requestCommand("core", coreCommand, 0),
+            coverRenderService,
+            event.sender.id
+          );
+          if (result) return result;
+        }
+      }
+      if (
         command.type.startsWith("storageSettings.") &&
         storageSettingsService
       ) {
@@ -1109,7 +1188,14 @@ function registerIpc(): void {
             queryUsage: (query) => requireModelUsageStore().query(query),
             appVersion: () => app.getVersion()
           },
-          resolveModel: (modelId) => requireModelConfigStore().resolve(modelId),
+          evaluationMode: process.env.DEEPWRITE_APP_MODE === "evaluation",
+          imageCapability: () =>
+            imageService?.capability() ?? Promise.resolve(undefined),
+          resolveModel: (modelId) =>
+            isDecompositionFauxSmokeModel(modelId) ||
+            isBookIdentityFauxSmokeModel(modelId)
+              ? Promise.resolve(undefined)
+              : requireModelConfigStore().resolve(modelId),
           resolveContextCompaction: (runModelId) =>
             resolveContextCompactionRun(
               async () => (await requireGeneralSettingsStore().list()).settings,
@@ -1118,8 +1204,13 @@ function registerIpc(): void {
             ),
           requestAgent: (command) =>
             supervisor.requestCommand("agent", command, 10_000),
-          acquireConversation: (sessionId) =>
-            acquireConversationOperation(activeRuns, sessionId, "prompt"),
+          acquireConversation: (sessionId, ownerId) =>
+            acquireConversationOperation(
+              activeRuns,
+              sessionId,
+              "prompt",
+              ownerId
+            ),
           activeRuns,
           terminalRuns,
           pendingUsageContexts
@@ -2265,6 +2356,8 @@ if (!hasSingleInstanceLock) {
       appearanceService,
       generalSettingsStore,
       voiceService,
+      imageService,
+      coverRenderService,
       updateService,
       appAlertStore,
       cloudBackupService,
@@ -2291,6 +2384,9 @@ if (!hasSingleInstanceLock) {
       });
     }
     installAppearanceFontProtocolHandler(appearanceService);
+    installCoverProtocolHandler((command) =>
+      supervisor.requestCommand("core", command, 0)
+    );
     await desktopStartup.step("workspace", async () => {
       const store = services.workspaceDirectoryStore;
       const rejected = await store.rejectedPath();

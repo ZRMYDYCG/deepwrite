@@ -33,8 +33,10 @@ export function createHistoryManagement(
 
   function newRecord(): AgentConversationPersistenceRecord {
     const timestamp = ctx.nextConversationTimestamp();
+    const sessionId = id("session");
+    ctx.persistenceJournal.registerLocalSession(sessionId);
     return {
-      sessionId: id("session"),
+      sessionId,
       messages: [],
       draft: "",
       approvalMode: ctx.approvalMode.value,

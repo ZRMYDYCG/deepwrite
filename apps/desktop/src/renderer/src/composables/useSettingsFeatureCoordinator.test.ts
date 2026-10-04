@@ -92,6 +92,21 @@ function createApi(overrides: Record<string, unknown> = {}): DeepWriteApi {
   } as unknown as DeepWriteApi;
 }
 
+function freeModel(): ModelConfigInput {
+  return {
+    id: "free-writing",
+    label: "Free Writing",
+    provider: "deepwrite-free",
+    modelId: "free-writing",
+    api: "openai-completions",
+    baseUrl: "https://example.test/v1",
+    reasoning: false,
+    defaultThinkingLevel: "off",
+    thinkingLevelOptions: ["off"],
+    temperatureOptions: [0.1, 0.7, 1]
+  };
+}
+
 function createHarness(api: DeepWriteApi) {
   const settingsStore = useSettingsStore();
   const notifications = createNotifications();
@@ -366,10 +381,61 @@ describe("settings feature coordinator", () => {
 
     expect(settingsStore.testingModelId).toBeNull();
     expect(settingsStore.lastModelTestCapacity).toBeNull();
-    expect(settingsStore.modelError).toBe("模型端点无法访问");
+    expect(settingsStore.modelError).toBe("模型连接测试失败：模型端点无法访问");
     expect(notifications.error).toHaveBeenCalledOnce();
-    expect(notifications.error).toHaveBeenCalledWith("模型端点无法访问");
+    expect(notifications.error).toHaveBeenCalledWith(
+      "模型连接测试失败：模型端点无法访问",
+      { duration: 8_000 }
+    );
     expect(notifications.success).not.toHaveBeenCalled();
+  });
+
+  it("shows the provider's reason from a rejected IPC payload, which is a plain object rather than an Error", async () => {
+    const test = vi.fn(async () => {
+      throw {
+        code: "utility.command_failed",
+        message:
+          "404 models/gemini-3.8-flash is not found\n  for API version v1beta",
+        details: { kind: "Error" }
+      };
+    });
+    const api = createApi({ models: { test } });
+    const { coordinator, notifications, settingsStore } = createHarness(api);
+
+    await coordinator.testModel(freeModel());
+
+    const expected =
+      "模型连接测试失败：404 models/gemini-3.8-flash is not found for API version v1beta";
+    expect(settingsStore.modelError).toBe(expected);
+    expect(notifications.error).toHaveBeenCalledOnce();
+    expect(notifications.error).toHaveBeenCalledWith(expected, {
+      duration: 8_000
+    });
+  });
+
+  it("does not repeat the headline when the runtime only reports the generic failure", async () => {
+    const test = vi.fn(async () => {
+      throw { code: "utility.command_failed", message: "模型连接测试失败。" };
+    });
+    const api = createApi({ models: { test } });
+    const { coordinator, settingsStore } = createHarness(api);
+
+    await coordinator.testModel(freeModel());
+
+    expect(settingsStore.modelError).toBe("模型连接测试失败。");
+  });
+
+  it("truncates very long provider reasons", async () => {
+    const test = vi.fn(async () => {
+      throw { code: "utility.command_failed", message: "x".repeat(2_000) };
+    });
+    const api = createApi({ models: { test } });
+    const { coordinator, settingsStore } = createHarness(api);
+
+    await coordinator.testModel(freeModel());
+
+    expect(settingsStore.modelError?.length).toBeLessThan(300);
+    expect(settingsStore.modelError?.endsWith("…")).toBe(true);
   });
 
   it("single-flights short/script agent settings across concurrent feature loads", async () => {

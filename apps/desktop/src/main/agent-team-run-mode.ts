@@ -1,9 +1,10 @@
-import type {
-  AgentProviderRuntimeConfig,
-  AgentTeamRunMode,
-  AgentTeamWorkspaceType,
-  ShortAgentSubagentDefinition,
-  WorkspaceAgentId
+import {
+  activeSubagentDraw,
+  type AgentProviderRuntimeConfig,
+  type AgentTeamRunMode,
+  type AgentTeamWorkspaceType,
+  type ShortAgentSubagentDefinition,
+  type WorkspaceAgentId
 } from "@deepwrite/contracts";
 import { assertModelRunSettings } from "./model-run-settings";
 
@@ -54,21 +55,47 @@ export async function resolveAgentTeamRuntime(
   }
 
   const subagentRuntimeConfigs: Record<string, AgentProviderRuntimeConfig> = {};
-  for (const definition of subagentDefinitions) {
-    if (definition.modelMode !== "custom" || !definition.modelId) continue;
+  const resolveCustomModel = async (
+    owner: string,
+    settings: {
+      modelId: string;
+      thinkingLevel: ShortAgentSubagentDefinition["thinkingLevel"];
+      temperature: ShortAgentSubagentDefinition["temperature"];
+    }
+  ): Promise<void> => {
     const resolved =
-      subagentRuntimeConfigs[definition.modelId] ??
-      (await dependencies.resolveModel(definition.modelId));
+      subagentRuntimeConfigs[settings.modelId] ??
+      (await dependencies.resolveModel(settings.modelId));
     if (!resolved) {
-      throw new Error(
-        `子智能体「${definition.name}」配置的模型不存在，请刷新模型配置后重试。`
-      );
+      throw new Error(`${owner}配置的模型不存在，请刷新模型配置后重试。`);
     }
     assertModelRunSettings(resolved, {
-      thinkingLevel: definition.thinkingLevel,
-      temperature: definition.temperature
+      thinkingLevel: settings.thinkingLevel,
+      temperature: settings.temperature
     });
-    subagentRuntimeConfigs[definition.modelId] = resolved;
+    subagentRuntimeConfigs[settings.modelId] = resolved;
+  };
+  for (const definition of subagentDefinitions) {
+    if (definition.modelMode === "custom" && definition.modelId) {
+      await resolveCustomModel(`子智能体「${definition.name}」`, {
+        modelId: definition.modelId,
+        thinkingLevel: definition.thinkingLevel,
+        temperature: definition.temperature
+      });
+    }
+    const draw = activeSubagentDraw(definition);
+    const evaluator = draw?.evaluator;
+    if (
+      draw?.selection === "auto" &&
+      evaluator?.modelMode === "custom" &&
+      evaluator.modelId
+    ) {
+      await resolveCustomModel(`子智能体「${definition.name}」的评估助手`, {
+        modelId: evaluator.modelId,
+        thinkingLevel: evaluator.thinkingLevel,
+        temperature: evaluator.temperature
+      });
+    }
   }
 
   const parallelSubagents =

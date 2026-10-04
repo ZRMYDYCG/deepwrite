@@ -25,6 +25,7 @@ import type {
   AgentConversationPersistenceSnapshot,
   AgentTurnCheckpoint,
   PendingAgentTextDelta,
+  PendingSubagentTextDelta,
   SubagentTurnCheckpoint,
   UseAgentConversationOptions
 } from "./types";
@@ -95,6 +96,8 @@ export interface AgentConversationState {
   persistenceEmitHold: number;
   persistenceEmitPending: boolean;
   pendingAgentTextDelta: PendingAgentTextDelta | undefined;
+  /** Keyed by parent run and child run. */
+  pendingSubagentTextDeltas: Map<string, PendingSubagentTextDelta>;
   streamPresentationFrame: number | undefined;
   streamPresentationFallbackTimer: number | undefined;
 }
@@ -201,6 +204,7 @@ export function createAgentConversationState(
     persistenceEmitHold: 0,
     persistenceEmitPending: false,
     pendingAgentTextDelta: undefined,
+    pendingSubagentTextDeltas: new Map(),
     streamPresentationFrame: undefined,
     streamPresentationFallbackTimer: undefined
   };

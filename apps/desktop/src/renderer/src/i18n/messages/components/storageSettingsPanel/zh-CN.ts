@@ -7,8 +7,8 @@ export default {
   workspaceFolder: "工作目录",
   setsTheDefaultLocationForNewAndImportedWorks:
     "决定新建和导入作品、素材库与技能库的默认位置。",
-  sharedWithWorkspaceFolderSettingsChangingThisLocationDoes:
-    "与“工作目录”页面共用设置；更改位置不会移动已有项目。",
+  changingWorkspaceLocationDoesNotMoveExistingProjects:
+    "更改位置不会移动或影响已有的书籍、素材库和技能库。",
   storageSettings: "存储设置",
   reading: "读取中…",
   refreshLocations: "刷新位置",

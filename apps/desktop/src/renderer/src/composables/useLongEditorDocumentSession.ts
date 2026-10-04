@@ -25,6 +25,7 @@ import {
   type LongWorkspaceSelectionFile
 } from "../types/longWorkspace";
 import type { LongEditorRecoveryRecord } from "./useLongEditorRecovery";
+import { createLongDocumentLoadQueue } from "./longDocumentLoadQueue";
 
 const t = createScopedTranslator("workspace.longEditorDocumentSession");
 
@@ -84,6 +85,7 @@ export function useLongEditorDocumentSession(options: {
   currentIsWorldbuildingList: ComputedRef<boolean>;
   viewMode: Ref<TextViewMode>;
   editorInput: Ref<HTMLTextAreaElement | null>;
+  isComposing?: Readonly<Ref<boolean>>;
   activeWorldbuildingItemId: Ref<string | null>;
   activeBookLineVolumeId: Ref<string | null>;
   activeBookLineContentTab: Ref<"outline" | "foreshadowing">;
@@ -137,12 +139,18 @@ export function useLongEditorDocumentSession(options: {
   const workspaceSavePending = ref(false);
   const requestClockByFile = new Map<string, number>();
   const inflightDocumentLoads = new Map<string, Promise<void>>();
+  const documentLoadQueue = createLongDocumentLoadQueue();
   let requestClock = 0;
   let activeSavePromise: Promise<boolean> | null = null;
   let pendingSaveViewport: EditorViewportSnapshot | null = null;
   let completedSaveViewport: EditorViewportSnapshot | null = null;
   let worldbuildingPrefetchRequest = 0;
   let selectionPrefetchRequest = 0;
+  let deferredSelectedReload: {
+    bookId: string;
+    fileId: LongFileId;
+    force: boolean;
+  } | null = null;
 
   function stateKey(fileId: string, bookId = props.bookId): string {
     return `${bookId}\u0000${fileId}`;
@@ -205,7 +213,12 @@ export function useLongEditorDocumentSession(options: {
 
   function captureCurrentEditorViewport(): EditorViewportSnapshot | null {
     const input = options.editorInput.value;
-    if (!input || options.viewMode.value !== "edit") return null;
+    if (
+      !input ||
+      options.viewMode.value !== "edit" ||
+      options.isComposing?.value
+    )
+      return null;
     return {
       documentKey: currentEditorViewportKey(),
       scrollTop: input.scrollTop,
@@ -223,6 +236,7 @@ export function useLongEditorDocumentSession(options: {
     await nextTick();
     if (
       options.viewMode.value !== "edit" ||
+      options.isComposing?.value ||
       currentEditorViewportKey() !== snapshot.documentKey
     ) {
       return;
@@ -332,9 +346,21 @@ export function useLongEditorDocumentSession(options: {
 
   async function loadWorkspaceDocument(
     selectedFile: LongWorkspaceSelectionFile,
-    force = false
+    force = false,
+    first = false
   ): Promise<void> {
     const bookId = props.bookId;
+    await documentLoadQueue.load(
+      () => readWorkspaceDocument(selectedFile, force, bookId),
+      first
+    );
+  }
+
+  async function readWorkspaceDocument(
+    selectedFile: LongWorkspaceSelectionFile,
+    force: boolean,
+    bookId: string
+  ): Promise<void> {
     if (selectedFile.inlineContent !== undefined) {
       const key = stateKey(selectedFile.file.id, bookId);
       const content = selectedFile.inlineContent;
@@ -367,6 +393,14 @@ export function useLongEditorDocumentSession(options: {
       (existing.file.updatedAt === selectedFile.file.updatedAt ||
         existing.content !== existing.savedContent)
     ) {
+      return;
+    }
+    if (
+      options.isComposing?.value &&
+      existing?.loaded &&
+      options.currentSelectionFile.value?.file.id === selectedFile.file.id
+    ) {
+      deferredSelectedReload = { bookId, fileId: selectedFile.file.id, force };
       return;
     }
     const inflight = inflightDocumentLoads.get(key);
@@ -481,7 +515,7 @@ export function useLongEditorDocumentSession(options: {
   async function loadSelectedDocument(force = false): Promise<void> {
     const selectedFile = options.currentSelectionFile.value;
     if (!selectedFile) return;
-    await loadWorkspaceDocument(selectedFile, force);
+    await loadWorkspaceDocument(selectedFile, force, true);
   }
 
   async function prefetchWorldbuildingSelectionFiles(): Promise<void> {
@@ -492,8 +526,8 @@ export function useLongEditorDocumentSession(options: {
     const bookId = props.bookId;
     const selectionKey = selection.key;
     const files = [...selection.files];
-    await Promise.all(
-      files.map(async (file) => {
+    await documentLoadQueue.prefetch(
+      files.map((file) => async () => {
         if (
           request !== worldbuildingPrefetchRequest ||
           props.bookId !== bookId ||
@@ -501,7 +535,7 @@ export function useLongEditorDocumentSession(options: {
         ) {
           return;
         }
-        await loadWorkspaceDocument(file);
+        await readWorkspaceDocument(file, false, bookId);
       })
     );
   }
@@ -517,8 +551,8 @@ export function useLongEditorDocumentSession(options: {
     const selectionKey = selection.key;
     const characterId = selection.characterId ?? null;
     const files = [...selection.files];
-    await Promise.all(
-      files.map(async (file) => {
+    await documentLoadQueue.prefetch(
+      files.map((file) => async () => {
         if (
           request !== selectionPrefetchRequest ||
           props.bookId !== bookId ||
@@ -528,7 +562,7 @@ export function useLongEditorDocumentSession(options: {
         ) {
           return;
         }
-        await loadWorkspaceDocument(file);
+        await readWorkspaceDocument(file, false, bookId);
       })
     );
   }
@@ -775,7 +809,13 @@ export function useLongEditorDocumentSession(options: {
 
   function scheduleAutoSave(): void {
     cancelAutoSave();
-    if (disposed || !props.autoSaveEnabled || props.locked) return;
+    if (
+      disposed ||
+      !props.autoSaveEnabled ||
+      props.locked ||
+      options.isComposing?.value
+    )
+      return;
     const bookId = props.bookId;
     const hasDirtyChanges =
       Object.entries(documentStates.value).some(
@@ -799,6 +839,7 @@ export function useLongEditorDocumentSession(options: {
           disposed ||
           !props.autoSaveEnabled ||
           props.locked ||
+          options.isComposing?.value ||
           props.bookId !== bookId
         ) {
           return;
@@ -837,7 +878,16 @@ export function useLongEditorDocumentSession(options: {
     { immediate: true }
   );
 
-  watch(() => [props.autoSaveEnabled, props.locked] as const, scheduleAutoSave);
+  watch(
+    () =>
+      [
+        props.autoSaveEnabled,
+        props.locked,
+        options.isComposing?.value
+      ] as const,
+    scheduleAutoSave,
+    { flush: "sync" }
+  );
 
   watch(
     () => props.bookId,
@@ -896,6 +946,7 @@ export function useLongEditorDocumentSession(options: {
         return;
       }
       worldbuildingPrefetchRequest += 1;
+      documentLoadQueue.cancelPrefetch();
     },
     { immediate: true }
   );
@@ -945,12 +996,35 @@ export function useLongEditorDocumentSession(options: {
 
   onBeforeUnmount(() => {
     disposed = true;
+    deferredSelectedReload = null;
+    documentLoadQueue.dispose();
     cancelAutoSave();
     worldbuildingPrefetchRequest += 1;
     selectionPrefetchRequest += 1;
     requestClockByFile.clear();
     inflightDocumentLoads.clear();
   });
+
+  watch(
+    () => options.isComposing?.value,
+    (composing) => {
+      if (composing || !deferredSelectedReload) return;
+      const deferred = deferredSelectedReload;
+      deferredSelectedReload = null;
+      // Let compositionend publish committed text before deciding whether a
+      // refreshed disk read is still safe for this document's dirty draft.
+      void nextTick(() => {
+        if (
+          disposed ||
+          props.bookId !== deferred.bookId ||
+          options.currentSelectionFile.value?.file.id !== deferred.fileId
+        )
+          return;
+        return loadSelectedDocument(deferred.force);
+      });
+    },
+    { flush: "sync" }
+  );
 
   return {
     heldSelectionFile,

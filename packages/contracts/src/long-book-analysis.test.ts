@@ -93,6 +93,41 @@ describe("long-book analysis contracts", () => {
     ).toThrow("预设名称和标识不能重复。");
   });
 
+  it("validates source deletion commands and rejects unsafe source ids", () => {
+    const sourceId = "long_book_analysis_source_1234abcd";
+    expect(
+      CommandEnvelopeSchema.parse(
+        createEnvelope(
+          "longBookAnalysis.deleteSource",
+          { sourceId },
+          { id: "cmd-delete-source" }
+        )
+      ).payload
+    ).toEqual({ sourceId });
+    expect(
+      CommandEnvelopeSchema.parse(
+        createEnvelope(
+          "longBookAnalysis.coreSource",
+          {
+            workspaceDirectory: "/tmp/deepwrite-test-workspace",
+            operation: "delete",
+            sourceId
+          },
+          { id: "cmd-delete-stored-source" }
+        )
+      ).payload
+    ).toMatchObject({ operation: "delete", sourceId });
+    expect(
+      CommandEnvelopeSchema.safeParse(
+        createEnvelope(
+          "longBookAnalysis.deleteSource",
+          { sourceId: "../../unsafe" },
+          { id: "cmd-delete-source" }
+        )
+      ).success
+    ).toBe(false);
+  });
+
   it.each(["long-book-analysis", "short-book-analysis"])(
     "ignores legacy default libraries while keeping %s profiles usable",
     (agentId) => {

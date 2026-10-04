@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { assertElectronLaunchAllowed } from "../../../tools/electron-launch-environment.mjs";
 import { verifyPackagedRuntime } from "./package-runtime-files.mjs";
 import {
   runPackagedSmoke,
@@ -26,6 +27,17 @@ if (!(
   );
   process.exit(1);
 }
+
+const hostCanRunTarget =
+  (targetPlatform === "mac" && process.platform === "darwin") ||
+  (targetPlatform === "linux" && process.platform === "linux") ||
+  (targetPlatform === "win" && process.platform === "win32");
+const skipMacX64Smoke =
+  process.env.DEEPWRITE_SKIP_MAC_X64_SMOKE === "1" &&
+  targetPlatform === "mac" &&
+  targetArch === "x64";
+
+if (hostCanRunTarget && !skipMacX64Smoke) assertElectronLaunchAllowed();
 
 const packageJson = JSON.parse(
   await readFile(join(appDir, "package.json"), "utf8")
@@ -121,15 +133,6 @@ const inventory = verifyPackagedRuntime(join(resources, "app.asar"));
 console.log(
   `PACKAGE_RUNTIME_FILES_OK entries=${inventory.entries} checkedModules=${inventory.checkedModules}`
 );
-
-const hostCanRunTarget =
-  (targetPlatform === "mac" && process.platform === "darwin") ||
-  (targetPlatform === "linux" && process.platform === "linux") ||
-  (targetPlatform === "win" && process.platform === "win32");
-const skipMacX64Smoke =
-  process.env.DEEPWRITE_SKIP_MAC_X64_SMOKE === "1" &&
-  targetPlatform === "mac" &&
-  targetArch === "x64";
 
 if (!hostCanRunTarget || skipMacX64Smoke) {
   console.log(

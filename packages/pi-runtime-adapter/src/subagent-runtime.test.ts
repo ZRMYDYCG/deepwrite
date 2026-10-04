@@ -620,7 +620,7 @@ describe("blocking subagent runtime", () => {
 
   it("propagates parent cancellation to the active child agent", async () => {
     const { tool } = makeHarness({
-      tokensPerSecond: 1,
+      tokensPerSecond: 100,
       createRunId: () => "subrun-abort",
       responses: [fauxAssistantMessage(fauxText("不会完整输出".repeat(1_000)))]
     });
@@ -636,7 +636,9 @@ describe("blocking subagent runtime", () => {
     queueMicrotask(() => controller.abort());
 
     const result = await running;
-    expect(progressFrom(updates).at(-1)).toMatchObject({
+    expect(
+      progressFrom(updates).find((event) => event.type === "completed")
+    ).toMatchObject({
       type: "completed",
       status: "aborted",
       subagentRunId: "subrun-abort"
@@ -692,7 +694,7 @@ describe("blocking subagent runtime", () => {
 
   it("enforces a wall-clock deadline even while the child keeps streaming", async () => {
     const { tool } = makeHarness({
-      tokensPerSecond: 1,
+      tokensPerSecond: 100,
       timeoutMs: 20,
       responses: [fauxAssistantMessage(fauxText("持续输出".repeat(1_000)))]
     });
@@ -706,7 +708,9 @@ describe("blocking subagent runtime", () => {
       (update) => updates.push(update as AgentToolResult<SubagentToolDetails>)
     );
 
-    expect(progressFrom(updates).at(-1)).toMatchObject({
+    expect(
+      progressFrom(updates).find((event) => event.type === "completed")
+    ).toMatchObject({
       type: "completed",
       status: "error",
       errorMessage: expect.stringContaining("硬截止时间")

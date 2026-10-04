@@ -1,3 +1,7 @@
+import {
+  writeManagedMaterialEntry,
+  type ManagedMaterialEntryInput
+} from "./folder-catalog-store/managed-entry";
 import { registerCatalogProject } from "./folder-catalog-store/project-registration";
 import {
   CATALOG_PROJECT_DOMAINS,
@@ -252,10 +256,12 @@ export interface CreateScriptBookAtDirectoryInput {
 export type FolderCatalogLibraryDomain = "material" | "skill";
 
 export type CreateFolderLibraryInput = CreateLibraryInput & {
+  id?: string;
   parentDirectory?: string | undefined;
 };
 
 export type CreateFolderLibraryGroupInput = CreateLibraryGroupInput & {
+  id?: string;
   parentDirectory?: string | undefined;
 };
 
@@ -438,6 +444,49 @@ export class FolderCatalogStore {
       DEFAULT_MAX_DRAFT_RECOVERY_BYTES,
       "draft recovery"
     );
+  }
+
+  async writeManagedEntry(input: ManagedMaterialEntryInput) {
+    return this.mutate(async () => {
+      const registry = await this.ensureRegistry();
+      const registration = findRegistration(
+        registry,
+        input.libraryId,
+        "material-library"
+      );
+      const root = await secureProjectRoot(registration.projectDirectory);
+      const receipt = await writeManagedMaterialEntry(root, input);
+      await this.bumpRegistry(registry, this.now());
+      return receipt;
+    });
+  }
+  async adoptManagedReceipt(
+    libraryId: string,
+    receipt: import("@deepwrite/contracts").DecompositionReceipt
+  ) {
+    return this.mutate(async () => {
+      const registry = await this.ensureRegistry();
+      const registration = findRegistration(
+        registry,
+        libraryId,
+        "material-library"
+      );
+      const result = await adoptManagedMaterialReceipt(
+        await secureProjectRoot(registration.projectDirectory),
+        receipt
+      );
+      await this.bumpRegistry(registry, this.now());
+      return result;
+    });
+  }
+
+  async managedProjectDirectory(projectId: string): Promise<string> {
+    return this.readAfterWrites(async () => {
+      const registry = await this.ensureRegistry();
+      return await secureProjectRoot(
+        findRegistrationByProjectId(registry, projectId).projectDirectory
+      );
+    });
   }
 
   async snapshot(): Promise<CatalogSnapshot> {
@@ -777,7 +826,7 @@ export class FolderCatalogStore {
       const resource: MaterialLibrary | SkillLibrary =
         input.domain === "material"
           ? {
-              id: createCatalogId("material"),
+              id: rawInput.id ?? createCatalogId("material"),
               title: input.name,
               materialType: input.libraryType ?? "short",
               materialKind: input.materialKind,
@@ -944,7 +993,7 @@ export class FolderCatalogStore {
       const resource: MaterialLibraryGroup | SkillLibraryGroup =
         input.domain === "material"
           ? {
-              id: createCatalogId("material-group"),
+              id: rawInput.id ?? createCatalogId("material-group"),
               title: input.name,
               members: { ...input.members },
               createdAt: now,
@@ -3206,7 +3255,8 @@ export class FolderCatalogStore {
         });
         if (manifest.kind === "deepwrite.material-library") {
           const stageId: MaterialStageId =
-            manifest.materialKind === "character"
+            (source.stageId as MaterialStageId) ??
+            (manifest.materialKind === "character"
               ? "character"
               : manifest.materialKind === "gimmick"
                 ? "gimmick"
@@ -3214,7 +3264,7 @@ export class FolderCatalogStore {
                   ? "pacing"
                   : manifest.materialKind === "draft"
                     ? "draft_excerpt"
-                    : "other";
+                    : "other");
           const entry = {
             id,
             stageId,
@@ -3227,7 +3277,8 @@ export class FolderCatalogStore {
           createdEntries.push({ ...entry, body: source.content });
         } else {
           const stageId: SkillStageId =
-            manifest.skillKind === "plot" ? "plot_design" : "draft";
+            (source.stageId as SkillStageId) ??
+            (manifest.skillKind === "plot" ? "plot_design" : "draft");
           const entry = {
             id,
             stageId,
@@ -7119,3 +7170,4 @@ function defaultDocumentTitle(documentId: string): string {
     DEFAULT_SHORT_DOCUMENTS.find(([id]) => id === documentId)?.[1] ?? documentId
   );
 }
+import { adoptManagedMaterialReceipt } from "./folder-catalog-store/managed-receipt";

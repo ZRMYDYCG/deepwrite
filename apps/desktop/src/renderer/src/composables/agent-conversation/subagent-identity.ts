@@ -128,11 +128,13 @@ export function ensureSubagentRun(
       toolCalls: [],
       processingSteps: [],
       startedAt: eventTimestamp,
-      ...(batchTask ? { batchTask } : {})
+      ...(batchTask ? { batchTask } : {}),
+      ...(payload.draw ? { draw: { ...payload.draw } } : {})
     };
     (message.subagentRuns ??= []).push(run);
     return run;
   }
+  if (payload.draw) run.draw = { ...payload.draw };
   run.subagentRunId = payload.subagentRunId;
   run.parentToolCallId = payload.parentToolCallId;
   run.subagentId = payload.subagentId;

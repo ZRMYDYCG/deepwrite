@@ -1,6 +1,13 @@
 <script setup lang="ts">
 import { createScopedTranslator } from "../i18n";
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from "vue";
+import {
+  computed,
+  inject,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  ref
+} from "vue";
 import type {
   BookResourceDialogMode,
   CatalogResourceNodeAction,
@@ -15,6 +22,7 @@ import type {
 import AppIcon from "./AppIcon.vue";
 import LongBookActionMenu from "./LongBookActionMenu.vue";
 import { useTreeNodeDisclosure } from "../composables/useTreeNodeDisclosure";
+import { SIDEBAR_SELECTION_ACTIVE } from "../composables/sidebarSelectionContext";
 
 const t = createScopedTranslator("components.treeNodeItem");
 
@@ -70,7 +78,8 @@ const emit = defineEmits<{
 
 const { open } = useTreeNodeDisclosure(
   () => props.node,
-  () => props.selectedId
+  () => props.selectedId,
+  { selectionActive: inject(SIDEBAR_SELECTION_ACTIVE, ref(true)) }
 );
 const ACTION_MENU_GAP = 3;
 const ACTION_MENU_EDGE_GAP = 8;

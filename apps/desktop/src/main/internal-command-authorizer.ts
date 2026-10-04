@@ -1,3 +1,5 @@
+import { chatAssistantProjectKey } from "@deepwrite/contracts";
+import type { BookIdentityRunRegistration } from "../extras/book-identity/run-registration";
 import type {
   CommandEnvelope,
   MaterialReadScope,
@@ -17,7 +19,11 @@ export const AGENT_CORE_LONG_QUERY_COMMANDS = [
 export const AGENT_CORE_QUERY_COMMANDS = [
   ...AGENT_CORE_LONG_QUERY_COMMANDS,
   "catalog.queryMaterials",
-  "catalog.queryLibraryManagement"
+  "catalog.queryLibraryManagement",
+  "longBookDecomposition.query",
+  "longBookDecomposition.submitUnit",
+  "longBookDecomposition.planTopic",
+  "bookIdentity.submitRound"
 ] as const;
 
 const LONG_QUERY_COMMAND_TYPES = new Set<string>(
@@ -31,8 +37,14 @@ export interface MainInternalCommandActiveRun {
   /** Main->Agent transport request that created the accepted run. */
   promptRequestId?: string;
   accepted: boolean;
+  bookIdentity?: BookIdentityRunRegistration;
   materialScope?: MaterialReadScope;
   libraryManagementScope?: LibraryManagementScope;
+  decompositionJobId?: string;
+  decompositionOutputVersion?: number;
+  decompositionAttemptId?: string;
+  decompositionUnitIds?: string[];
+  decompositionPhase?: string;
 }
 
 function denied(
@@ -58,6 +70,85 @@ export function authorizeMainInternalCommand(
       "main.invalid_bridge_route",
       "Only Agent-to-Core internal commands are authorized."
     );
+  }
+  if (message.command.type === "bookIdentity.submitRound") {
+    const command = message.command;
+    const run = command.context.runId
+      ? activeRuns.get(command.context.runId)
+      : undefined;
+    const identity = run?.bookIdentity;
+    if (
+      !run?.accepted ||
+      !identity ||
+      !run.promptRequestId ||
+      message.parentRequestId !== run.promptRequestId ||
+      command.context.sessionId !== run.sessionId ||
+      command.context.resourceId !== chatAssistantProjectKey(identity.book) ||
+      chatAssistantProjectKey(command.payload.book) !==
+        chatAssistantProjectKey(identity.book) ||
+      command.payload.roundId !== identity.roundId ||
+      command.payload.field !== identity.field ||
+      command.payload.candidates.length !== identity.candidateCount ||
+      identity.submitted ||
+      identity.submitting
+    )
+      return denied(
+        "main.book_identity_not_authorized",
+        "设计提交必须属于 Main 接受的作品、字段与轮次，且只能提交一次。"
+      );
+    return true;
+  }
+  if (
+    message.command.type === "longBookDecomposition.query" ||
+    message.command.type === "longBookDecomposition.submitUnit" ||
+    message.command.type === "longBookDecomposition.planTopic"
+  ) {
+    const command = message.command;
+    const run = command.context.runId
+      ? activeRuns.get(command.context.runId)
+      : undefined;
+    if (
+      !run?.accepted ||
+      !run.decompositionJobId ||
+      !run.promptRequestId ||
+      message.parentRequestId !== run.promptRequestId ||
+      command.context.sessionId !== run.sessionId ||
+      command.context.resourceId !== run.decompositionJobId ||
+      command.payload.jobId !== run.decompositionJobId
+    ) {
+      return denied(
+        "main.decomposition_not_authorized",
+        "拆解查询和提交必须属于 Main 接受的当前任务工作包。"
+      );
+    }
+    if (
+      command.type === "longBookDecomposition.submitUnit" &&
+      (command.payload.outputVersion !== run.decompositionOutputVersion ||
+        command.payload.attemptId !== run.decompositionAttemptId ||
+        !(
+          run.decompositionUnitIds?.includes(command.payload.unitId) ||
+          (["integrate", "review"].includes(run.decompositionPhase ?? "") &&
+            new RegExp(`^topic:${run.decompositionAttemptId}:[1-5]$`, "u").test(
+              command.payload.unitId
+            ))
+        ))
+    ) {
+      return denied(
+        "main.decomposition_submission_out_of_scope",
+        "拆解提交不能跨任务、输出版本、工作包或尝试。"
+      );
+    }
+    if (
+      command.type === "longBookDecomposition.planTopic" &&
+      (command.payload.outputVersion !== run.decompositionOutputVersion ||
+        command.payload.attemptId !== run.decompositionAttemptId ||
+        !["integrate", "review"].includes(run.decompositionPhase ?? ""))
+    )
+      return denied(
+        "main.decomposition_topic_out_of_scope",
+        "专题登记不能跨工作包或阶段。"
+      );
+    return true;
   }
   if (message.command.type === "catalog.queryLibraryManagement") {
     const command = message.command;

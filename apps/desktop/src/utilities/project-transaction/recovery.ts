@@ -1,8 +1,9 @@
-import { rename, unlink } from "node:fs/promises";
+import { lstat, realpath, rename, unlink } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import {
   INTERNAL_DIRECTORY,
   JOURNAL_FILE,
+  LOCK_FILE,
   DEFAULT_MAX_FILE_BYTES,
   type ProjectTransactionResult,
   type TransactionJournal,
@@ -18,6 +19,7 @@ import {
   ensureSafeParent,
   readRegularFileOptional,
   readRegularFileRequired,
+  isNodeError,
   positiveByteLimit
 } from "./io";
 import {
@@ -40,6 +42,33 @@ export async function recoverProjectTransaction(
 ): Promise<ProjectTransactionResult | undefined> {
   const projectRoot = await secureProjectRoot(rawProjectRoot);
   const byteLimit = positiveByteLimit(maxFileBytes);
+  const internal = join(projectRoot, INTERNAL_DIRECTORY);
+  const internalInfo = await lstat(internal).catch((error: unknown) => {
+    if (isNodeError(error, "ENOENT")) return undefined;
+    throw error;
+  });
+  if (!internalInfo) return undefined;
+  if (
+    internalInfo.isSymbolicLink() ||
+    !internalInfo.isDirectory() ||
+    (await realpath(internal)) !== internal
+  ) {
+    throw new Error("项目事务父目录包含符号链接或非目录节点。");
+  }
+  const pending = await Promise.all(
+    [JOURNAL_FILE, LOCK_FILE].map(async (name) => {
+      try {
+        await lstat(join(internal, name));
+        return true;
+      } catch (error: unknown) {
+        if (isNodeError(error, "ENOENT")) return false;
+        throw error;
+      }
+    })
+  );
+  // The lock check also catches a writer that has not published its journal
+  // yet. With neither present, there is no recovery work or durable write.
+  if (!pending.some(Boolean)) return undefined;
   return await withProjectTransactionLock(
     projectRoot,
     async () =>

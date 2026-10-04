@@ -1,12 +1,17 @@
 import { z } from "zod";
 import { AgentRuntimeRefSchema } from "./agent-event-identity";
+import {
+  SUBAGENT_DRAW_MAX_COUNT,
+  SUBAGENT_DRAW_MIN_COUNT
+} from "../subagent-settings";
 
 export const AGENT_USER_INPUT_MAX_QUESTIONS = 3;
 export const AGENT_USER_INPUT_MAX_OPTIONS = 5;
 
 export const AgentUserInputSourceSchema = z.enum([
   "ask_user_question",
-  "cross_stage_write"
+  "cross_stage_write",
+  "subagent_draw"
 ]);
 export type AgentUserInputSource = z.infer<typeof AgentUserInputSourceSchema>;
 
@@ -102,6 +107,52 @@ export const AgentUserInputAnswerSchema = z
   });
 export type AgentUserInputAnswer = z.infer<typeof AgentUserInputAnswerSchema>;
 
+/** Question id of a draw selection; its answer picks one candidate id. */
+export const SUBAGENT_DRAW_QUESTION_ID = "draw";
+/** Option id the user picks to adopt none of the candidates. */
+export const SUBAGENT_DRAW_REJECT_OPTION_ID = "reject";
+
+export const AgentUserInputDrawCandidateSchema = z
+  .object({
+    /** `c1`…`c10`, echoed in `selectedOptionIds`. */
+    id: z.string().regex(/^c(?:[1-9]|10)$/),
+    /** Zero-based draw position, also when earlier draws failed. */
+    index: z
+      .number()
+      .int()
+      .min(0)
+      .max(SUBAGENT_DRAW_MAX_COUNT - 1),
+    subagentRunId: z.string().min(1),
+    text: z.string().min(1).max(20_000)
+  })
+  .strict();
+export type AgentUserInputDrawCandidate = z.infer<
+  typeof AgentUserInputDrawCandidateSchema
+>;
+
+/** The successful candidates of a manual draw selection. */
+export const AgentUserInputDrawSchema = z
+  .object({
+    parentToolCallId: z.string().min(1),
+    subagentId: z.string().min(1).max(120),
+    name: z.string().trim().min(1).max(80),
+    taskKey: z.string().min(1).max(40).optional(),
+    task: z.string().min(1).max(20_000),
+    count: z
+      .number()
+      .int()
+      .min(SUBAGENT_DRAW_MIN_COUNT)
+      .max(SUBAGENT_DRAW_MAX_COUNT),
+    candidates: z
+      .array(AgentUserInputDrawCandidateSchema)
+      .min(2)
+      .max(SUBAGENT_DRAW_MAX_COUNT),
+    /** Why the evaluator handed the choice to the user. */
+    fallbackReason: z.string().min(1).max(2_000).optional()
+  })
+  .strict();
+export type AgentUserInputDraw = z.infer<typeof AgentUserInputDrawSchema>;
+
 export const AgentUserInputRequestedPayloadSchema = z
   .object({
     sessionId: z.string().min(1),
@@ -110,9 +161,20 @@ export const AgentUserInputRequestedPayloadSchema = z
     toolCallId: z.string().min(1),
     source: AgentUserInputSourceSchema,
     questions: AgentUserInputQuestionsSchema,
+    /** Present exactly when `source` is `subagent_draw`. */
+    draw: AgentUserInputDrawSchema.optional(),
     runtime: AgentRuntimeRefSchema
   })
-  .strict();
+  .strict()
+  .superRefine((value, context) => {
+    if ((value.source === "subagent_draw") !== (value.draw !== undefined)) {
+      context.addIssue({
+        code: "custom",
+        path: ["draw"],
+        message: "Draw candidates belong to subagent_draw requests only."
+      });
+    }
+  });
 export type AgentUserInputRequestedPayload = z.infer<
   typeof AgentUserInputRequestedPayloadSchema
 >;

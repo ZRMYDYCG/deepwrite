@@ -1,7 +1,7 @@
 import { assertRevisionAnalysisBudget } from "../revision-analysis-budget";
 import { assertShortAnalysisBudget } from "../short-book-analysis-budget";
 import { assertStyleComparisonBudget } from "../style-comparison";
-import type { ExtrasAgentResolvedTask } from "./tasks";
+import type { ExtrasAgentTask, ExtrasAgentResolvedTask } from "./tasks";
 
 interface ModelCapacity {
   contextWindow?: number | undefined;
@@ -13,10 +13,23 @@ interface ModelCapacity {
  * it for early feedback; Main and the Agent Utility re-check authoritatively.
  */
 export function assertExtrasAgentBudget(
-  task: ExtrasAgentResolvedTask,
+  task:
+    | ExtrasAgentResolvedTask
+    | Extract<
+        ExtrasAgentTask,
+        {
+          agentId:
+            "book-title-design" | "book-synopsis-design" | "book-cover-design";
+        }
+      >,
   model: ModelCapacity | undefined
 ): void {
   switch (task.agentId) {
+    case "book-title-design":
+    case "book-synopsis-design":
+    case "book-cover-design":
+      if (!model) throw new Error("请选择可用模型。");
+      return;
     case "revision-analysis":
       if (!model) throw new Error("请选择可用模型。");
       assertRevisionAnalysisBudget(task.input, task.profile, model);
@@ -24,6 +37,20 @@ export function assertExtrasAgentBudget(
     case "short-book-analysis":
       if (!model) throw new Error("请选择可用模型。");
       assertShortAnalysisBudget(task.input, task.profile, model);
+      return;
+    case "long-book-decomposition":
+      if (!model?.contextWindow || model.contextWindow < 16_000)
+        throw new Error("请选择窗口至少为 16,000 token 的模型。");
+      if (
+        task.input.inputBudget >
+        Math.floor(
+          (model.contextWindow -
+            Math.min(model.maxTokens ?? 4096, 8192) -
+            3000) *
+            0.6
+        )
+      )
+        throw new Error("模型容量与已保存的切分计划不一致。");
       return;
     case "long-book-analysis":
       // The Renderer pipeline sizes each batch to the model before sending it.

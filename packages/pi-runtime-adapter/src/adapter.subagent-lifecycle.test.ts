@@ -71,7 +71,7 @@ async function harness(hangParent = false) {
   vi.useFakeTimers();
   const childStream = createAssistantMessageEventStream();
   let parentCalls = 0;
-  const parentStream: StreamFn = () => {
+  const parentStream: StreamFn = (_model, _context, options) => {
     parentCalls += 1;
     const stream = createAssistantMessageEventStream();
     if (parentCalls === 1) {
@@ -88,12 +88,45 @@ async function harness(hangParent = false) {
         ])
       });
     } else if (!hangParent) finish(stream, "主任务完成");
+    else
+      options?.signal?.addEventListener(
+        "abort",
+        () => {
+          stream.push({
+            type: "error",
+            reason: "aborted",
+            error: {
+              ...message([]),
+              stopReason: "aborted",
+              errorMessage: "Fixture transport aborted"
+            }
+          });
+        },
+        { once: true }
+      );
     return stream;
   };
   vi.spyOn(provider, "buildWorkspaceProviderRuntimes").mockReturnValue({
     model,
     streamFn: parentStream,
-    spawnStreamFn: () => childStream
+    spawnStreamFn: (_model, _context, options) => {
+      options?.signal?.addEventListener(
+        "abort",
+        () => {
+          childStream.push({
+            type: "error",
+            reason: "aborted",
+            error: {
+              ...message([]),
+              stopReason: "aborted",
+              errorMessage: "Fixture child transport aborted"
+            }
+          });
+        },
+        { once: true }
+      );
+      return childStream;
+    }
   });
   const controller = new AbortController();
   const runtime = new PiAgentRuntimeAdapter({ retryPolicy: { delaysMs: [] } });
@@ -114,6 +147,7 @@ async function harness(hangParent = false) {
           description: "写作",
           systemPrompt: "完成写作",
           enabled: true,
+          agentMode: "standard",
           modelMode: "inherit"
         }
       ]

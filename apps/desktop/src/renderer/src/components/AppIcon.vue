@@ -42,6 +42,9 @@ withDefaults(defineProps<{ name: IconName; size?: number }>(), { size: 18 });
     <template v-else-if="name === 'download'">
       <path d="M12 3v12M7 10l5 5 5-5M5 20h14" />
     </template>
+    <template v-else-if="name === 'bell'">
+      <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" />
+    </template>
     <template v-else-if="name === 'edit'">
       <path d="M4 20h4l11-11a2.8 2.8 0 0 0-4-4L4 16zM13.5 6.5l4 4M4 16l4 4" />
     </template>

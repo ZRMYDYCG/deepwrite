@@ -29,6 +29,28 @@ describe("subagent authoring tools", () => {
     expect(prompt).toContain("场景检查员");
   });
 
+  it("keeps skill content intact and only reworks the output and handoff section", () => {
+    const prompt = renderSubagentAuthoringSystemPrompt(context);
+    expect(prompt).toContain("不要改动技能的主要内容");
+    expect(prompt).toContain("只允许规范格式");
+    expect(prompt).toContain("## 技能：技能标题");
+    expect(prompt).toContain("## 输出与交接");
+    expect(prompt).toContain("唯一需要你改写的部分");
+    expect(prompt).not.toContain("改写成适合子智能体执行");
+    expect(prompt).not.toContain("去掉对用户对话口吻");
+  });
+
+  it("ties the confirmed output mode to the output and handoff section", () => {
+    const write = renderSubagentAuthoringSystemPrompt({
+      ...context,
+      outputMode: "write"
+    });
+    expect(write).toContain("「输出与交接」一节必须明确要求：先读后写");
+    expect(write).not.toContain("不要调用写入 / 替换工具");
+    const handoff = renderSubagentAuthoringSystemPrompt(context);
+    expect(handoff).toContain("「输出与交接」一节必须明确要求：可读工具");
+  });
+
   it("exposes read and draft tools and emits a draft update", async () => {
     const tools = buildSubagentAuthoringTools(context);
     expect(tools.map((tool) => tool.name)).toEqual([

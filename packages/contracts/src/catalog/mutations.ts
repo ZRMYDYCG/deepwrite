@@ -646,7 +646,12 @@ export const ImportLibraryEntriesInputSchema = z.object({
   domain: CatalogLibraryProjectDomainSchema,
   libraryId: CatalogIdSchema,
   entries: z
-    .array(ExternalLibraryCandidateSchema.pick({ title: true, content: true }))
+    .array(
+      ExternalLibraryCandidateSchema.pick({
+        title: true,
+        content: true
+      }).extend({ stageId: z.string().min(1).max(120).optional() })
+    )
     .min(1)
     .max(CATALOG_PROJECT_MAX_CONTENT_ITEMS),
   baseProjectRevision: z.number().int().nonnegative()

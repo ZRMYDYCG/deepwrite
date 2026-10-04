@@ -1,5 +1,8 @@
 import { t } from "../i18n";
 import { computed, provide } from "vue";
+import type { ChatAssistantProjectRef } from "@deepwrite/contracts";
+import type { ResourceTreeNode } from "../types/workspace";
+import type { ApprovalNavigationTarget } from "../utils/approvalNavigation";
 import {
   useWorkspaceResourceCoordinator,
   type WorkspaceResourceCoordinatorOptions
@@ -38,5 +41,87 @@ export function useWorkspaceResourceNavigation(
       return navigation;
     }
   });
-  return resources;
+  async function openIdentityBook(
+    book: ChatAssistantProjectRef
+  ): Promise<void> {
+    const bookNode = resources.findResourceNodeWhere((node) =>
+      book.projectType === "long"
+        ? node.longBookId === book.projectId &&
+          node.catalogNodeType === "long-book"
+        : node.id === book.projectId && node.catalogNodeType === "book"
+    );
+    function openingNode(
+      node: ResourceTreeNode | undefined
+    ): ResourceTreeNode | undefined {
+      if (!node || node.unavailable || node.missing) return undefined;
+      if (
+        book.projectType === "long"
+          ? node.longWorkspaceSelection?.key === "root:worldbuilding"
+          : resources.documentForResourceId(node.id)
+      ) {
+        return node;
+      }
+      for (const child of node.children ?? []) {
+        const target = openingNode(child);
+        if (target) return target;
+      }
+      return undefined;
+    }
+    const node = openingNode(bookNode);
+    if (!node) {
+      options.notifications.warning(
+        t("components.workspaceShell.theTargetEntryNoLongerExists")
+      );
+      return;
+    }
+    await resources.selectResource(node);
+  }
+
+  async function selectEditorEntrySearchResult(
+    documentId: string,
+    navigate: (target: ApprovalNavigationTarget) => Promise<boolean>
+  ): Promise<void> {
+    const target = resources.liveWorkspaceDocuments.value.find(
+      (document) => document.id === documentId
+    );
+    if (!target) {
+      options.notifications.warning(
+        t("components.workspaceShell.theTargetEntryNoLongerExists")
+      );
+      return;
+    }
+    const navigated = await navigate({
+      kind: "document",
+      workspaceId: target.workspaceId ?? target.libraryId ?? target.id,
+      documentId: target.id
+    });
+    if (!navigated)
+      options.notifications.warning(
+        t("components.workspaceShell.theTargetEntryCannotBeOpenedRightNow")
+      );
+  }
+
+  async function selectLongEntrySearchResult(
+    fileId: string,
+    navigate: (target: ApprovalNavigationTarget) => Promise<boolean>
+  ): Promise<void> {
+    const bookId = options.longNavigation.activeBookId.value;
+    if (!bookId) return;
+    const navigated = await navigate({
+      kind: "long",
+      bookId,
+      candidates: [{ kind: "file", fileId }]
+    });
+    if (!navigated)
+      options.notifications.warning(
+        t("components.workspaceShell.theTargetNovelEntryCannotBeOpenedRightNow")
+      );
+  }
+
+  return {
+    ...resources,
+    openIdentityBook,
+    selectEditorEntrySearchResult,
+    selectLongEntrySearchResult
+  };
 }

@@ -1,4 +1,7 @@
+import { withDecompositionCommands } from "./long-book-decomposition/commands";
+import { withBookIdentityCommands } from "./book-identity/commands";
 import { LongLedgerAuditError } from "./long-ledger-v4-audit";
+import { withLongBookAnalysisSources } from "./long-book-analysis-sources";
 import { withShortBookAnalysisSources } from "./short-book-analysis-sources";
 import { handleLongCoreCommand } from "./long-core-commands";
 import { legacyDataRootsFromEnvironment } from "./legacy-data-roots";
@@ -548,11 +551,22 @@ bootUtility("core", {
   mode: "catalog-store",
   onShutdown: conversationRuntime.close,
   commandHandler: conversationRuntime.wrap(
-    withDeviceSyncCommands(
-      resolvedUserDataPath,
+    withBookIdentityCommands(
       requireCatalogStore,
       longWorkspaceService,
-      withShortBookAnalysisSources(handleCatalogCommand)
+      withDeviceSyncCommands(
+        resolvedUserDataPath,
+        requireCatalogStore,
+        longWorkspaceService,
+        withDecompositionCommands(
+          resolvedUserDataPath,
+          requireCatalogStore,
+          longWorkspaceService,
+          withLongBookAnalysisSources(
+            withShortBookAnalysisSources(handleCatalogCommand)
+          )
+        )
+      )
     )
   )
 });

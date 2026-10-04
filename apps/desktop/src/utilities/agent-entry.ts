@@ -1,3 +1,4 @@
+import { createBookIdentityService } from "./agent-book-identity-service";
 import {
   ModelCapacityResultSchema,
   ModelConnectionTestResultSchema,
@@ -17,12 +18,18 @@ import {
   createCoreCommandExecutor
 } from "./agent-run-input";
 import { AgentRunRegistry } from "./agent-run-registry";
+import { createDecompositionServices } from "./agent-decomposition-services";
 import { bootUtility } from "./runtime";
 
 /** A long project chat reads the book through the Core query bridge. */
 function readsLongProject({ task }: ExtrasAgentRunSpec): boolean {
   return (
-    task.agentId === "chat-project" && task.input.project.projectType === "long"
+    (task.agentId === "chat-project" &&
+      task.input.project.projectType === "long") ||
+    ((task.agentId === "book-title-design" ||
+      task.agentId === "book-synopsis-design" ||
+      task.agentId === "book-cover-design") &&
+      task.input.book.projectType === "long")
   );
 }
 
@@ -141,12 +148,36 @@ bootUtility("agent", {
       runtime: runtimeRef
     });
     runs.stream(
-      { runId, sessionId: command.payload.sessionId, runtime: runtimeRef },
+      {
+        runId,
+        sessionId: command.payload.sessionId,
+        runtime: runtimeRef,
+        promptRequestId: command.id
+      },
       command.type === "agent.extras_run"
         ? runtime.startExtras({
             runId,
             spec: command.payload,
             signal,
+            ...([
+              "book-title-design",
+              "book-synopsis-design",
+              "book-cover-design"
+            ].includes(command.payload.task.agentId) && context
+              ? createBookIdentityService(
+                  context,
+                  command.payload.sessionId,
+                  runId
+                )
+              : {}),
+            ...(command.payload.task.agentId === "long-book-decomposition" &&
+            context
+              ? createDecompositionServices(
+                  context,
+                  command.payload.sessionId,
+                  runId
+                )
+              : {}),
             ...(readsLongProject(command.payload) && context
               ? { longCommandExecutor: createCoreCommandExecutor(context) }
               : {})

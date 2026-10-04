@@ -384,16 +384,18 @@ export class LongWorkspaceService {
     input: LongReadDocumentInput
   ): Promise<LongReadDocumentResult> {
     const parsed = LongReadDocumentInputSchema.parse(input);
-    const opened = await this.openProject(parsed);
-    const read = await this.store.readDocument(opened.projectDirectory, {
+    const projectDirectory = await this.catalog.resolveProjectDirectory(
+      parsed.bookId
+    );
+    const read = await this.store.readDocument(projectDirectory, {
+      bookId: parsed.bookId,
       fileId: parsed.fileId,
       offset: parsed.offset,
       limit: parsed.maxCharacters
     });
-    const file = findWorkspaceFile(opened.book.workspaceIndex, read.fileId);
     return LongReadDocumentResultSchema.parse({
       bookId: parsed.bookId,
-      file,
+      file: read.file,
       content: read.content,
       offset: read.offset,
       totalCharacters: read.totalCharacters,

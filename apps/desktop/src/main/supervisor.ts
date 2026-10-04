@@ -79,6 +79,10 @@ export interface UtilitySupervisorOptions {
    * forwarding. A false/denied decision is always surfaced to Agent as
    * utility.internal_command_unauthorized.
    */
+  /** Main-owned durable submission handler, after allowlist and run authorization. */
+  internalCommandHandle?: (
+    context: UtilityInternalCommandAuthorizationContext
+  ) => Promise<CommandResult | undefined>;
   internalCommandAuthorize?: (
     context: UtilityInternalCommandAuthorizationContext
   ) => UtilityInternalCommandAuthorizationResult;
@@ -653,8 +657,24 @@ export class UtilitySupervisor {
       commandId: message.command.id
     });
 
-    void targetWorker
-      .requestCommand(message.command, message.timeoutMs, targetRequestId)
+    const forward = () =>
+      targetWorker.requestCommand(
+        message.command,
+        message.timeoutMs,
+        targetRequestId
+      );
+    const request = this.options.internalCommandHandle
+      ? Promise.resolve()
+          .then(() =>
+            this.options.internalCommandHandle!({
+              source,
+              target: message.target,
+              message
+            })
+          )
+          .then((handled) => handled ?? forward())
+      : forward();
+    void request
       .then((result) => {
         this.completeInternalCommand(message.requestId, result);
       })

@@ -1,5 +1,15 @@
 import {
+  BookTitleDesignProfileSchema,
+  BookSynopsisDesignProfileSchema,
+  BookCoverDesignProfileSchema
+} from "@deepwrite/contracts";
+import titlePrompt from "./prompts/book-identity/title.txt?raw";
+import fanqieShortTitlePrompt from "./prompts/book-identity/fanqie-short-title.txt?raw";
+import synopsisPrompt from "./prompts/book-identity/synopsis.txt?raw";
+import coverPrompt from "./prompts/book-identity/cover.txt?raw";
+import {
   DEFAULT_REVISION_METHOD,
+  DEFAULT_DECOMPOSITION_PROFILE,
   DEFAULT_STYLE_COMPARISON_METHOD,
   type ExtrasAgentId,
   type ExtrasAgentProfile
@@ -160,9 +170,59 @@ const styleComparison: ExtrasAgentProfileCatalog<"style-comparison"> = {
 export const EXTRAS_AGENT_PROFILE_CATALOGS: {
   [A in ExtrasAgentId]: ExtrasAgentProfileCatalog<A>;
 } = {
+  "book-title-design": {
+    agentId: "book-title-design",
+    defaults: [
+      BookTitleDesignProfileSchema.parse({
+        id: "default",
+        name: "通用",
+        description: "读取作品，设计多种角度的书名。",
+        systemPrompt: titlePrompt
+      }),
+      BookTitleDesignProfileSchema.parse({
+        id: "fanqie-short",
+        name: "番茄短篇书名",
+        description: "用四大骨架与拼图法，设计突出爽点、虐点和反差的短篇书名。",
+        systemPrompt: fanqieShortTitlePrompt,
+        candidateCount: 8,
+        titleLength: { min: 2, max: 25 },
+        subtitle: "never"
+      })
+    ],
+    missingProfileMessage: "书名设计档案已不存在，请刷新后重试。"
+  },
+  "book-synopsis-design": {
+    agentId: "book-synopsis-design",
+    defaults: [
+      BookSynopsisDesignProfileSchema.parse({
+        id: "default",
+        name: "通用",
+        description: "读取作品，设计有钩子与悬念的简介。",
+        systemPrompt: synopsisPrompt
+      })
+    ],
+    missingProfileMessage: "简介设计档案已不存在，请刷新后重试。"
+  },
+  "book-cover-design": {
+    agentId: "book-cover-design",
+    defaults: [
+      BookCoverDesignProfileSchema.parse({
+        id: "default",
+        name: "通用",
+        description: "读取作品，设计封面方案与图片提示词。",
+        systemPrompt: coverPrompt
+      })
+    ],
+    missingProfileMessage: "封面设计档案已不存在，请刷新后重试。"
+  },
   "revision-analysis": revisionAnalysis,
   "short-book-analysis": shortBookAnalysis,
   "long-book-analysis": longBookAnalysis,
+  "long-book-decomposition": {
+    agentId: "long-book-decomposition",
+    defaults: [DEFAULT_DECOMPOSITION_PROFILE],
+    missingProfileMessage: "拆解方案已不存在，请刷新后重试。"
+  },
   "style-comparison": styleComparison,
   "chat-normal": chatNormal,
   "chat-project": chatProject,

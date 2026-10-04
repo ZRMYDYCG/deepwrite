@@ -3,6 +3,7 @@ export type IconName =
   | "arrow-left"
   | "arrow-up"
   | "attach"
+  | "bell"
   | "bold"
   | "book"
   | "brain"
@@ -279,6 +280,8 @@ export interface EditorDraftState {
 export type DialogMode =
   | "directory"
   | "long-book-analysis"
+  | "long-book-decomposition"
   | "revision-analysis"
   | "short-book-analysis"
-  | "style-comparison";
+  | "style-comparison"
+  | "book-identity";

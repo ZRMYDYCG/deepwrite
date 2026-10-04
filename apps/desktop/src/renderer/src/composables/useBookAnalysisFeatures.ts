@@ -1,17 +1,22 @@
 import { useLazyRevisionAnalysis } from "./useLazyRevisionAnalysis";
+import { useLazyLongBookDecomposition } from "./useLazyLongBookDecomposition";
 import type { DeepWriteApi, ModelConfig } from "@deepwrite/contracts";
 import { useLazyLongBookAnalysisController } from "./useLazyFeatureControllers";
 import { useLazyShortBookAnalysisController } from "./useLazyShortBookAnalysis";
 export function useBookAnalysisFeatures(api: () => DeepWriteApi | undefined) {
   const longBookAnalysisFeature = useLazyLongBookAnalysisController({ api });
+  const longBookDecompositionFeature = useLazyLongBookDecomposition(api);
   const shortBookAnalysisFeature = useLazyShortBookAnalysisController({ api });
   const revisionAnalysisFeature = useLazyRevisionAnalysis({ api });
   const analysisFeatures = [
+    longBookDecompositionFeature,
     longBookAnalysisFeature,
     shortBookAnalysisFeature,
     revisionAnalysisFeature
   ];
   return {
+    longBookDecompositionFeature,
+    longBookDecompositionRunning: longBookDecompositionFeature.isBusy,
     revisionAnalysisFeature,
     revisionAnalysisRunning: revisionAnalysisFeature.isBusy,
     configureAnalysisModels(

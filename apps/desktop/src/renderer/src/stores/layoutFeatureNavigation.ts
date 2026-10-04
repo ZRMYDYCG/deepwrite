@@ -4,9 +4,11 @@ export type WorkspaceMainView =
   | "conversation"
   | "directory"
   | "long-book-analysis"
+  | "long-book-decomposition"
   | "revision-analysis"
   | "short-book-analysis"
   | "style-comparison"
+  | "book-identity"
   | "agent-team"
   | "marketplace"
   | "cloud-backup"
@@ -16,9 +18,11 @@ export type WorkspaceMainView =
 export type PrimaryFeature =
   | "directory"
   | "long-book-analysis"
+  | "long-book-decomposition"
   | "revision-analysis"
   | "short-book-analysis"
   | "style-comparison"
+  | "book-identity"
   | "chat-assistant"
   | "agent-teams"
   | "skill-marketplace"
@@ -39,9 +43,11 @@ export function primaryFeatureForView(
     case "zhuque-detection":
     case "directory":
     case "long-book-analysis":
+    case "long-book-decomposition":
     case "revision-analysis":
     case "short-book-analysis":
     case "style-comparison":
+    case "book-identity":
       return view;
     default:
       return undefined;

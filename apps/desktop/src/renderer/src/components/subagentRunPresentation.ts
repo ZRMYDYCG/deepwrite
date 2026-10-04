@@ -1,5 +1,7 @@
+import { toRaw } from "vue";
 import { createScopedTranslator, locale } from "../i18n";
 import type {
+  AgentSubagentProcessingStep,
   AgentSubagentRun,
   AgentToolTrace,
   ChatMessage
@@ -24,27 +26,39 @@ export type SubagentProcessingDisplayItem =
   | { id: string; type: "tool-group"; tools: AgentToolTrace[] }
   | WorkGroupDisplayItem;
 
+type SubagentToolStep = Extract<AgentSubagentProcessingStep, { type: "tool" }>;
+type SubagentToolItem = Extract<SubagentDisplayItem, { type: "tool" }>;
+
+const toolItemsByStep = new WeakMap<SubagentToolStep, SubagentToolItem>();
+
+/** One display object per tool step, kept while it shows the same call. */
+function toolItem(step: SubagentToolStep, tool: AgentToolTrace) {
+  const key = toRaw(step);
+  const cached = toolItemsByStep.get(key);
+  if (cached?.tool === tool) return cached;
+  const { id, createdAt } = step;
+  const item: SubagentToolItem = { id, type: "tool", tool, createdAt };
+  toolItemsByStep.set(key, item);
+  return item;
+}
+
+/**
+ * Display items of a child. Text steps are the run's own step objects and
+ * tool items are cached per step, so unchanged items keep their identity.
+ */
 export function subagentDisplayItems(
   run: AgentSubagentRun
 ): SubagentDisplayItem[] {
   if (run.processingSteps.length) {
+    const toolsById = new Map(run.toolCalls.map((tool) => [tool.id, tool]));
     const items: SubagentDisplayItem[] = [];
     for (const step of run.processingSteps) {
       if (step.type === "thinking" || step.type === "response") {
-        items.push({ ...step });
+        items.push(step);
         continue;
       }
-      const tool = run.toolCalls.find(
-        (candidate) => candidate.id === step.toolCallId
-      );
-      if (tool) {
-        items.push({
-          id: step.id,
-          type: "tool",
-          tool,
-          createdAt: step.createdAt
-        });
-      }
+      const tool = toolsById.get(step.toolCallId);
+      if (tool) items.push(toolItem(step, tool));
     }
     return items;
   }
@@ -77,7 +91,63 @@ export function subagentDisplayItems(
   return items;
 }
 
+function sameEntries(
+  left: readonly unknown[],
+  right: readonly unknown[]
+): boolean {
+  return (
+    left.length === right.length &&
+    left.every((entry, index) => entry === right[index])
+  );
+}
+
+type ReusableItem =
+  SubagentProcessingDisplayItem | WorkGroupDisplayItem["items"][number];
+
+function indexById(
+  items: readonly ReusableItem[],
+  index = new Map<string, ReusableItem>()
+): Map<string, ReusableItem> {
+  for (const item of items) {
+    index.set(item.id, item);
+    if (item.type === "work-group") indexById(item.items, index);
+  }
+  return index;
+}
+
+/** Hands back an earlier group whose members are unchanged. */
+function reuseGroup<Item extends ReusableItem>(
+  previous: Map<string, ReusableItem>,
+  item: Item
+): Item {
+  const prior = previous.get(item.id);
+  if (item.type === "tool-group" && prior?.type === "tool-group") {
+    return (sameEntries(prior.tools, item.tools) ? prior : item) as Item;
+  }
+  if (item.type !== "work-group" || prior?.type !== "work-group") return item;
+  const members = item.items.map((member) => reuseGroup(previous, member));
+  return (
+    prior.running === item.running && sameEntries(prior.items, members)
+      ? prior
+      : { ...item, items: members }
+  ) as Item;
+}
+
+/**
+ * Pass the previous result to keep unchanged groups as the same objects, so
+ * a streaming child re-renders only the part that changed.
+ */
 export function subagentProcessingDisplayItems(
+  run: AgentSubagentRun,
+  previous: readonly SubagentProcessingDisplayItem[] = []
+): SubagentProcessingDisplayItem[] {
+  const items = groupSubagentDisplayItems(run);
+  if (!previous.length) return items;
+  const index = indexById(previous);
+  return items.map((item) => reuseGroup(index, item));
+}
+
+function groupSubagentDisplayItems(
   run: AgentSubagentRun
 ): SubagentProcessingDisplayItem[] {
   const displayItems: Array<

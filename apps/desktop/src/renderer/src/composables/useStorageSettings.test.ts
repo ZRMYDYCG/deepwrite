@@ -1,6 +1,9 @@
 import type { DeepWriteApi } from "@deepwrite/contracts";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { setAppLanguage } from "../i18n";
 import { useStorageSettings } from "./useStorageSettings";
+
+afterEach(() => setAppLanguage("zh-CN", "zh-CN"));
 
 type StorageApi = NonNullable<DeepWriteApi["storageSettings"]>;
 
@@ -122,6 +125,40 @@ describe("useStorageSettings", () => {
       ["读取失败"],
       ["迁移失败"],
       ["目录不可访问"]
+    ]);
+  });
+
+  it("explains rejected IPC payloads by code and keeps unknown diagnostics", async () => {
+    const chooseUserData = vi
+      .fn<StorageApi["chooseUserData"]>()
+      .mockRejectedValueOnce({
+        code: "storage_settings.target_not_empty",
+        message: "所选位置中的 DeepWriteData 文件夹已有文件"
+      })
+      .mockRejectedValueOnce({
+        code: "storage_settings.overlaps_installation",
+        message: "diagnostic"
+      })
+      .mockRejectedValueOnce({
+        code: "storage_settings.operation_failed",
+        message: "EPERM: operation not permitted, rename"
+      });
+    const { storage, notifications } = harness({ chooseUserData });
+    await storage.load();
+    await storage.changeUserData();
+    setAppLanguage("en-US", "zh-CN");
+    await storage.changeUserData();
+    setAppLanguage("zh-CN", "zh-CN");
+    await storage.changeUserData();
+
+    expect(notifications.error.mock.calls).toEqual([
+      [
+        "所选位置中的 DeepWriteData 文件夹已有文件。为避免覆盖，请选择其他位置。"
+      ],
+      [
+        "The user data folder cannot be inside the application installation folder or contain it. Choose another folder."
+      ],
+      ["更改用户数据目录失败：EPERM: operation not permitted, rename"]
     ]);
   });
 

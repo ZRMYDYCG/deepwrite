@@ -1,6 +1,7 @@
 import { AgentEvaluationSnapshotSchema } from "@deepwrite/contracts/renderer";
 import type {
   AgentEditProposal,
+  AgentSubagentDraw,
   AgentSubagentRun,
   AgentToolTrace,
   ChatMessage
@@ -13,6 +14,7 @@ import {
   parseStoredToolTrace
 } from "./parse-runtime";
 import { parseStoredSubagentRun } from "./parse-subagent";
+import { parseStoredSubagentDraw } from "./parse-subagent-draw";
 import { parseStoredContextCompactions } from "./context-compaction";
 export function parseStoredMessage(value: unknown): ChatMessage | undefined {
   if (!isRecord(value)) return undefined;
@@ -177,6 +179,13 @@ export function parseStoredMessage(value: unknown): ChatMessage | undefined {
     message.subagentRuns = value.subagentRuns
       .map(parseStoredSubagentRun)
       .filter((run): run is AgentSubagentRun => run !== undefined);
+  }
+
+  if (Array.isArray(value.subagentDraws)) {
+    const draws = value.subagentDraws
+      .map(parseStoredSubagentDraw)
+      .filter((draw): draw is AgentSubagentDraw => draw !== undefined);
+    if (draws.length) message.subagentDraws = draws;
   }
 
   if (Array.isArray(value.editProposals)) {

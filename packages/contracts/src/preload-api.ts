@@ -166,6 +166,8 @@ import type { ConversationPersistenceApi } from "./renderer-state";
 
 export interface DeepWriteApi extends TextContextMenuPreloadApi {
   voice: import("./voice").VoiceApi;
+  bookIdentity: import("./book-identity").BookIdentityApi;
+  imageModels: import("./image-models").ImageModelsApi;
   windowFrame?: WindowFrameApi;
   system: {
     health(): Promise<SystemHealthPayload>;
@@ -363,6 +365,7 @@ export interface DeepWriteApi extends TextContextMenuPreloadApi {
     reset(domain?: LibraryAgentDomain): Promise<LibraryAgentSettings>;
   };
   extrasAgents: import("./extras-agent").ExtrasAgentApi;
+  longBookDecomposition: import("./long-book-decomposition/api").LongBookDecompositionApi;
   shortBookAnalysis: import("./short-book-analysis").ShortBookAnalysisApi;
   longBookAnalysis: {
     chooseSource(
@@ -371,6 +374,15 @@ export interface DeepWriteApi extends TextContextMenuPreloadApi {
     sources: {
       list(): Promise<LongBookAnalysisSavedSourceCatalog>;
       load(sourceId: string): Promise<LongBookAnalysisSource>;
+      delete(sourceId: string): Promise<string>;
+      save(
+        input: import("./long-book-decomposition").SaveLongBookSourceInput
+      ): Promise<LongBookAnalysisSource>;
+      confirm(
+        input: import("./long-book-decomposition").ConfirmLongBookSourceInput
+      ): Promise<
+        import("./long-book-decomposition").DecompositionSourceConfirmation
+      >;
     };
   };
   workspaceDirectory: {

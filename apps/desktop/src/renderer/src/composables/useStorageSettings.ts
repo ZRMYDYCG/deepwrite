@@ -1,9 +1,52 @@
-import { formatError } from "../i18n/errors";
+import {
+  formatError,
+  getErrorCode,
+  getErrorDetail,
+  getErrorPayload
+} from "../i18n/errors";
 import { createScopedTranslator } from "../i18n";
 import { ref } from "vue";
-import type { DeepWriteApi } from "@deepwrite/contracts";
+import type {
+  DeepWriteApi,
+  StorageSettingsErrorCode
+} from "@deepwrite/contracts";
 
 const t = createScopedTranslator("workspace.storageSettings");
+
+type StorageMessageKey = Parameters<typeof t>[0];
+
+const errorMessages: Record<StorageSettingsErrorCode, StorageMessageKey> = {
+  "storage_settings.busy": "storageBusy",
+  "storage_settings.invalid_directory": "invalidDirectory",
+  "storage_settings.unresolvable_path": "unresolvablePath",
+  "storage_settings.overlaps_installation": "overlapsInstallation",
+  "storage_settings.nested_location": "nestedLocation",
+  "storage_settings.target_not_empty": "targetNotEmpty",
+  "storage_settings.not_writable": "notWritable",
+  "storage_settings.save_failed": "saveFailed",
+  "storage_settings.open_failed": "openFailed"
+};
+
+function isStorageErrorCode(
+  code: string | undefined
+): code is StorageSettingsErrorCode {
+  return code !== undefined && Object.hasOwn(errorMessages, code);
+}
+
+/** Known reasons are translated by code; unknown Main failures keep their diagnostic. */
+function describeError(
+  error: unknown,
+  fallback: string,
+  withReason?: (reason: string) => string
+): string {
+  const code = getErrorCode(error);
+  if (isStorageErrorCode(code)) return t(errorMessages[code]);
+  if (withReason && getErrorPayload(error)) {
+    const reason = getErrorDetail(error);
+    if (reason) return withReason(reason);
+  }
+  return formatError(error, fallback);
+}
 
 type StorageApi = NonNullable<DeepWriteApi["storageSettings"]>;
 type StorageSettings = Awaited<ReturnType<StorageApi["get"]>>;
@@ -25,9 +68,13 @@ export function useStorageSettings(context: StorageSettingsContext) {
   let disposed = false;
   let loadGeneration = 0;
 
-  function showError(error: unknown, fallback: string): void {
+  function showError(
+    error: unknown,
+    fallback: string,
+    withReason?: (reason: string) => string
+  ): void {
     if (!disposed) {
-      context.notifications.error(formatError(error, fallback));
+      context.notifications.error(describeError(error, fallback, withReason));
     }
   }
 
@@ -71,7 +118,12 @@ export function useStorageSettings(context: StorageSettingsContext) {
         );
       }
     } catch (error) {
-      showError(error, t("failedToChangeTheUserDataDirectoryPleaseTry"));
+      showError(
+        error,
+        t("failedToChangeTheUserDataDirectoryPleaseTry"),
+        (reason) =>
+          t("failedToChangeTheUserDataDirectoryWithReason", { reason })
+      );
     } finally {
       migrating.value = false;
     }

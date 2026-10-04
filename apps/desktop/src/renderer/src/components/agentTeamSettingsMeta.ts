@@ -1,6 +1,7 @@
 import { createScopedTranslator } from "../i18n";
 import type {
   BuiltInReasoningLevel,
+  SubagentAgentMode,
   WorkspaceAgentId
 } from "@deepwrite/contracts";
 
@@ -52,5 +53,17 @@ export const BUILT_IN_THINKING_LABELS: Record<BuiltInReasoningLevel, string> = {
   },
   get max() {
     return t("maximum");
+  }
+};
+
+export const SUBAGENT_AGENT_MODE_LABELS: Record<SubagentAgentMode, string> = {
+  get standard() {
+    return t("agentModeStandard");
+  },
+  get "pure-read"() {
+    return t("agentModePureRead");
+  },
+  get "pure-bare"() {
+    return t("agentModePureBare");
   }
 };

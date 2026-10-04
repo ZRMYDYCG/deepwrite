@@ -14,5 +14,8 @@ export default {
   batchSummary: "{arg0} subtasks",
   batchActive: "{arg0} running",
   batchQueued: "{arg0} queued",
-  batchFinished: "{arg0} finished"
+  batchFinished: "{arg0} finished",
+  candidateValue: "Candidate {arg0}",
+  adopted: "Adopted",
+  drawCountValue: "Draw ×{arg0}"
 };

@@ -8,6 +8,13 @@ import {
   LongBookAnalysisSourceSchema,
   createEnvelope
 } from "@deepwrite/contracts";
+import {
+  SaveLongBookSourceInputSchema,
+  ConfirmLongBookSourceInputSchema,
+  DecompositionSourceConfirmationSchema,
+  type SaveLongBookSourceInput,
+  type ConfirmLongBookSourceInput
+} from "@deepwrite/contracts";
 import { browserId, invokeCommand } from "./invoke";
 export async function chooseLongBookAnalysisSource(
   rawKind: LongBookAnalysisSourceKind
@@ -48,6 +55,49 @@ export async function loadLongBookAnalysisSource(
       createEnvelope(
         "longBookAnalysis.loadSource",
         { sourceId },
+        { id, correlationId: id }
+      )
+    )
+  );
+}
+
+export async function deleteLongBookAnalysisSource(
+  rawSourceId: string
+): Promise<string> {
+  const sourceId = LongBookAnalysisSavedSourceIdSchema.parse(rawSourceId);
+  const id = browserId("cmd_long_book_analysis_source_delete");
+  return LongBookAnalysisSavedSourceIdSchema.parse(
+    await invokeCommand<string>(
+      createEnvelope(
+        "longBookAnalysis.deleteSource",
+        { sourceId },
+        { id, correlationId: id }
+      )
+    )
+  );
+}
+
+export async function saveLongBookAnalysisSource(raw: SaveLongBookSourceInput) {
+  const id = browserId("cmd_long_book_source_save");
+  return LongBookAnalysisSourceSchema.parse(
+    await invokeCommand(
+      createEnvelope(
+        "longBookAnalysis.saveSource",
+        SaveLongBookSourceInputSchema.parse(raw),
+        { id, correlationId: id }
+      )
+    )
+  );
+}
+export async function confirmLongBookAnalysisSource(
+  raw: ConfirmLongBookSourceInput
+) {
+  const id = browserId("cmd_long_book_source_confirm");
+  return DecompositionSourceConfirmationSchema.parse(
+    await invokeCommand(
+      createEnvelope(
+        "longBookAnalysis.confirmSource",
+        ConfirmLongBookSourceInputSchema.parse(raw),
         { id, correlationId: id }
       )
     )

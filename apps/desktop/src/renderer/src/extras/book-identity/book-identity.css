@@ -1,0 +1,234 @@
+@import "./book-identity-candidates.css";
+.book-identity-page .analysis-content {
+  max-width: 1080px;
+}
+.book-identity-page .analysis-card {
+  border-radius: 12px;
+}
+.identity-header-actions,
+.identity-row,
+.identity-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.identity-actions {
+  justify-content: flex-start;
+  gap: 8px;
+}
+.identity-header-actions {
+  justify-content: flex-end;
+  align-self: flex-end;
+  margin-left: auto;
+  gap: 8px;
+}
+.identity-header-actions .analysis-model-settings {
+  margin-left: 0;
+}
+.identity-header-actions button {
+  max-width: 100%;
+}
+.identity-header-actions .identity-image-model {
+  overflow-wrap: anywhere;
+}
+.identity-picker,
+.identity-generation {
+  display: grid;
+  gap: 18px;
+  padding: 22px;
+}
+.identity-segments,
+.identity-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 9px;
+  background: var(--surface-muted);
+  width: fit-content;
+  max-width: 100%;
+  flex-wrap: wrap;
+}
+.identity-segments button,
+.identity-tabs button {
+  border: 0;
+  border-radius: 7px;
+  padding: 7px 12px;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  cursor: pointer;
+}
+.identity-segments .is-active,
+.identity-tabs .is-active {
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  box-shadow: 0 1px 4px #0001;
+}
+.identity-tabs {
+  margin: 2px 0;
+}
+.identity-tabs button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.identity-running-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.identity-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+.identity-summary article {
+  padding: 20px;
+  min-width: 0;
+  cursor: pointer;
+}
+.identity-summary h2 {
+  margin: 12px 0 6px;
+  font-size: 1.15em;
+  overflow-wrap: anywhere;
+}
+.identity-summary p {
+  margin: 10px 0;
+  line-height: 1.65;
+}
+.identity-summary-label {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  cursor: pointer;
+}
+.identity-adopted-cover {
+  width: 90px;
+  aspect-ratio: 3/4;
+  object-fit: cover;
+  display: block;
+  margin: 10px 0;
+  border-radius: 6px;
+}
+.identity-muted {
+  color: var(--text-tertiary);
+  font-size: 0.9em;
+}
+.identity-clamp {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+.identity-profile-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  align-items: end;
+}
+.identity-profile-fields label,
+.identity-editor label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 0.92em;
+  min-width: 0;
+}
+.identity-profile-fields input:not([type="checkbox"]),
+.identity-editor
+  input:not([type="checkbox"]):not([type="color"]):not([type="range"]),
+.identity-editor textarea,
+.identity-profile-fields textarea {
+  box-sizing: border-box;
+  width: 100%;
+  border: 1px solid var(--theme-line);
+  background: var(--surface-main);
+  color: var(--text-primary);
+  border-radius: 8px;
+  padding: 9px 11px;
+  font: inherit;
+  min-width: 0;
+}
+.identity-profile-fields .identity-check,
+.identity-editor .identity-check {
+  flex-direction: row;
+  align-items: center;
+}
+.identity-record-controls {
+  margin: 8px 0;
+}
+.identity-record-controls button,
+.identity-actions button,
+.identity-row > button:not(.analysis-primary-button),
+.identity-seeds button,
+.identity-image-model,
+.identity-candidate details button {
+  padding: 7px 11px;
+  border: 1px solid var(--theme-line);
+  border-radius: 7px;
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.9em;
+}
+.identity-actions button:hover,
+.identity-record-controls button:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+.book-identity-page button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+/* A brief save locks actions without fading them; unavailable actions stay dim. */
+.book-identity-page .identity-save-pending:disabled,
+.book-identity-page .identity-save-pending button:disabled {
+  opacity: 1;
+  cursor: wait;
+}
+.identity-link {
+  border: 0 !important;
+  background: transparent !important;
+  color: var(--text-secondary);
+  padding: 4px !important;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.identity-danger {
+  color: var(--danger, #b42318) !important;
+}
+.identity-adopt {
+  color: var(--text-primary) !important;
+  border-color: var(--theme-line) !important;
+}
+.identity-seeds {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.identity-seeds button {
+  max-width: 250px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.identity-round {
+  display: grid;
+  gap: 16px;
+  padding: 20px 0;
+}
+.identity-round > header {
+  align-items: flex-start;
+}
+.identity-round > header p {
+  margin: 6px 0 0;
+}

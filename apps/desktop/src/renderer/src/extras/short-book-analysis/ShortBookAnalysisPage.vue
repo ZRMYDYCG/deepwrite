@@ -37,6 +37,7 @@ const emit = defineEmits<{ refreshCatalog: [] }>();
 const c = props.controller;
 const managerOpen = ref(false);
 const saving = ref(false);
+const analysisPage = ref<InstanceType<typeof AnalysisPageShell> | null>(null);
 const resultAnchor = ref<HTMLElement | null>(null);
 const resetVersion = ref(0);
 const activeResultId = ref("");
@@ -91,7 +92,7 @@ function start() {
 async function showResult(id?: string) {
   if (id) activeResultId.value = id;
   await nextTick();
-  resultAnchor.value?.scrollIntoView({ behavior: "smooth", block: "start" });
+  analysisPage.value?.scrollToResult(resultAnchor.value);
 }
 async function savePresets(next: LongBookAnalysisPreset[]) {
   saving.value = true;
@@ -146,6 +147,7 @@ onMounted(() => void act(() => c.loadPresets()));
 </script>
 <template>
   <AnalysisPageShell
+    ref="analysisPage"
     class="long-book-analysis-page short-book-analysis-page"
     :title="t('shortBookAnalysis.shortStoryAnalysis')"
     :description="t('shortBookAnalysis.shortAnalysisDescription')"

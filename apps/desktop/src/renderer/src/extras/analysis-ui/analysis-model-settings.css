@@ -2,6 +2,30 @@
   flex: 0 0 auto;
   margin-left: auto;
 }
+.analysis-model-settings.is-field {
+  min-width: 0;
+  margin-left: 0;
+}
+.analysis-model-settings.is-field .analysis-model-trigger {
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  height: 34px;
+  justify-content: flex-start;
+  padding: 0 10px;
+  border-color: var(--theme-line);
+  background: var(--surface-main);
+  font-size: 0.785714rem;
+}
+.analysis-model-settings.is-field .analysis-model-trigger:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+.analysis-model-summary {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .analysis-model-panel {
   position: fixed;
   z-index: 900;

@@ -29,6 +29,10 @@ export const LongWorkspaceIndexSnapshotObjectSchema = z
     bookId: LongBookIdSchema,
     updatedAt: LongTimestampSchema,
     bookLine: LongMarkdownFileReferenceSchema,
+    writeReceipts: z
+      .array(LongMarkdownFileReferenceSchema)
+      .max(100_000)
+      .optional(),
     featureSettings: LongWorkspaceFeatureSettingsSchema.default(
       DEFAULT_LONG_WORKSPACE_FEATURE_SETTINGS
     ),

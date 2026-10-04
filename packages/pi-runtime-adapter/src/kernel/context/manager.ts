@@ -139,7 +139,11 @@ export class RunContextManager {
       }
     }
     const force = policy.manual !== undefined;
-    if (!force && !policy.settings.enabled) return;
+    if (
+      !force &&
+      (!policy.settings.enabled || policy.thresholdCompaction === false)
+    )
+      return;
     const messages = incoming
       ? [...agent.state.messages, incoming]
       : agent.state.messages;
@@ -283,6 +287,7 @@ export class RunContextManager {
     this.options.setBusy(true);
     try {
       const staged = this.state.fork(input.messages);
+      const { agent } = this.options;
       const result = await compactMessages({
         ...input,
         state: staged,
@@ -291,6 +296,17 @@ export class RunContextManager {
         reason,
         fixedTokens: this.options.fixedTokens,
         summaryModel,
+        ...(policy.inPlaceSummary &&
+        summaryModel.model.provider === this.options.model.provider &&
+        summaryModel.model.id === this.options.model.id
+          ? {
+              inPlace: {
+                systemPrompt: agent.state.systemPrompt,
+                tools: agent.state.tools,
+                sessionId: agent.sessionId
+              }
+            }
+          : {}),
         signal: this.options.signal,
         onSummaryStart: () => {
           started = true;

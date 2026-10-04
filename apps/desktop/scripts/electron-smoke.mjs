@@ -1,16 +1,28 @@
 import { prepareSmokeWorkspace } from "./smoke-workspace.mjs";
-import { access, mkdtemp, rm } from "node:fs/promises";
+import { summarizeDecompositionTrialFailure } from "./decomposition-trial-diagnostic.mjs";
+import { access, mkdtemp, realpath, rm } from "node:fs/promises";
 import { spawn, spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { assertElectronLaunchAllowed } from "../../../tools/electron-launch-environment.mjs";
+
+assertElectronLaunchAllowed();
+
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const appDir = resolve(scriptDir, "..");
 const i18nOnly = process.argv.includes("--i18n-only");
 const conversationOnly = process.argv.includes("--conversation-only");
+const decompositionOnly = process.argv.includes("--decomposition-only");
+const bookIdentityOnly = process.argv.includes("--book-identity-only");
+const decompositionRealModel = process.argv.includes(
+  "--decomposition-real-model"
+);
 const workspaceRoot = resolve(appDir, "../..");
-const electronDist = resolve(workspaceRoot, "node_modules/electron/dist");
+const electronDist =
+  process.env.ELECTRON_OVERRIDE_DIST_PATH ||
+  resolve(workspaceRoot, "node_modules/electron/dist");
 const electronBinary =
   process.platform === "darwin"
     ? resolve(electronDist, "Electron.app/Contents/MacOS/Electron")
@@ -35,8 +47,8 @@ const hasDisplay = Boolean(process.env.DISPLAY || process.env.WAYLAND_DISPLAY);
 const hasXvfb =
   spawnSync("sh", ["-c", "command -v xvfb-run"], { encoding: "utf8" })
     .status === 0;
-const smokeUserData = await mkdtemp(
-  join(tmpdir(), "deepwrite-electron-smoke-")
+const smokeUserData = await realpath(
+  await mkdtemp(join(tmpdir(), "deepwrite-electron-smoke-"))
 );
 await prepareSmokeWorkspace(smokeUserData);
 const command = !hasDisplay && hasXvfb ? "xvfb-run" : electronBinary;
@@ -54,17 +66,24 @@ const args =
         `--user-data-dir=${smokeUserData}`,
         "--use-fake-device-for-media-stream"
       ];
+if (process.platform === "darwin") args.push("--use-mock-keychain");
 
 const child = spawn(command, args, {
   cwd: appDir,
   env: {
     ...process.env,
     DEEPWRITE_SMOKE: "1",
-    DEEPWRITE_SMOKE_SUITE: conversationOnly
-      ? "conversation"
-      : i18nOnly
-        ? "i18n"
-        : "all",
+    DEEPWRITE_SMOKE_SUITE: bookIdentityOnly
+      ? "book-identity"
+      : decompositionRealModel
+        ? "decomposition-real-model"
+        : decompositionOnly
+          ? "decomposition"
+          : conversationOnly
+            ? "conversation"
+            : i18nOnly
+              ? "i18n"
+              : "all",
     ELECTRON_DISABLE_SECURITY_WARNINGS: "true"
   },
   stdio: ["ignore", "pipe", "pipe"]
@@ -78,9 +97,18 @@ child.stderr.on("data", (chunk) => {
   output += chunk.toString();
 });
 
-const timeout = setTimeout(() => {
-  child.kill("SIGKILL");
-}, 40_000);
+const timeout = setTimeout(
+  () => {
+    child.kill("SIGKILL");
+  },
+  decompositionRealModel
+    ? 1_800_000
+    : decompositionOnly
+      ? 240_000
+      : bookIdentityOnly
+        ? 120_000
+        : 40_000
+);
 
 child.on("close", async (code) => {
   clearTimeout(timeout);
@@ -90,7 +118,14 @@ child.on("close", async (code) => {
     .find((line) => line.startsWith("DEEPWRITE_SMOKE_OK "));
 
   if (code !== 0 || !marker) {
-    console.error(output.trim());
+    // Provider errors may echo request details; the real trial prints only status.
+    console.error(
+      decompositionRealModel
+        ? "Real-model decomposition smoke did not complete."
+        : output.trim()
+    );
+    if (decompositionRealModel)
+      console.error(JSON.stringify(summarizeDecompositionTrialFailure(output)));
     console.error(`Electron smoke failed with exit code ${String(code)}.`);
     process.exit(1);
   }
@@ -114,6 +149,70 @@ child.on("close", async (code) => {
     process.exit(1);
   }
 
+  if (decompositionOnly || decompositionRealModel) {
+    if (
+      summary.decomposition?.status !== "ok" ||
+      summary.decomposition?.modes?.length !==
+        (decompositionRealModel ? 1 : 2) ||
+      summary.decomposition?.runtime !==
+        (decompositionRealModel ? "provider" : "local-faux") ||
+      !(summary.decomposition?.targetEvents > 0) ||
+      !(summary.decomposition?.outputEvents > 0) ||
+      !(summary.decomposition?.childEvents > 0)
+    ) {
+      console.error(
+        `Electron decomposition smoke returned an invalid summary: ${JSON.stringify(summary)}`
+      );
+      process.exit(1);
+    }
+    console.log(
+      `Electron decomposition smoke passed: ${JSON.stringify(summary.decomposition)}`
+    );
+    if (!decompositionRealModel) {
+      if (
+        summary.decompositionUi?.status !== "ok" ||
+        summary.decompositionUi?.views?.length !== 4
+      )
+        throw new Error("Decomposition UI smoke incomplete.");
+      console.log(
+        `Electron decomposition UI passed: ${JSON.stringify(summary.decompositionUi)}`
+      );
+    }
+    return;
+  }
+  if (bookIdentityOnly) {
+    const identity = summary.bookIdentity;
+    if (
+      identity?.status !== "ok" ||
+      identity.runtime !== "local-faux" ||
+      identity.rounds !== 3 ||
+      !identity.titleAdopted ||
+      !identity.renamed ||
+      !identity.thumbnail ||
+      !identity.composed ||
+      !identity.coverAdopted ||
+      !identity.persisted ||
+      identity.updatedEvents < 6 ||
+      identity.visuals?.status !== "ok" ||
+      identity.visuals.captures?.length !== 11 ||
+      identity.visuals.captures.filter(
+        (capture) => capture.kind === "image-model-settings"
+      ).length !== 1 ||
+      identity.visuals.captures.filter((capture) => capture.kind === "page")
+        .length !== 3 ||
+      identity.visuals.captures.filter((capture) => capture.kind === "composer")
+        .length !== 7
+    ) {
+      console.error(
+        `Electron book identity smoke returned an invalid summary: ${JSON.stringify(summary)}`
+      );
+      process.exit(1);
+    }
+    console.log(
+      `Electron book identity smoke passed: ${JSON.stringify(identity)}`
+    );
+    return;
+  }
   if (i18nOnly) {
     if (!localizationPassed) {
       console.error("Electron language smoke returned an invalid summary.");

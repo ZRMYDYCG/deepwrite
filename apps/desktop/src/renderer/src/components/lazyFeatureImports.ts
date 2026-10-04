@@ -83,3 +83,8 @@ export const loadRevisionAnalysisPage = async () =>
   (await import("../extras/revision-analysis/loader")).loadPage();
 
 export const loadWindowMenuBar = () => import("./WindowMenuBar.vue");
+export const loadLongBookDecompositionPage = async () =>
+  (await import("../extras/long-book-decomposition/loader")).loadPage();
+
+export const loadBookIdentityPage = () =>
+  import("../extras/book-identity/BookIdentityPage.vue");

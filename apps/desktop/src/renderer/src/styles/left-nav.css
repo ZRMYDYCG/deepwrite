@@ -664,9 +664,8 @@ html[data-platform="darwin"] .sidebar-brand-row {
 
 .account-controls {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 32px;
+  grid-template-columns: minmax(0, 1fr);
   align-items: center;
-  gap: 4px;
   width: 100%;
   min-width: 0;
 }

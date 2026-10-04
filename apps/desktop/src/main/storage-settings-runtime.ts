@@ -25,7 +25,7 @@ export function createStorageSettingsService(options: {
       });
       return result.canceled ? undefined : result.filePaths[0];
     },
-    async confirmMigration(source, target, restoreDefault) {
+    async confirmMigration(source, target, restoreDefault, createsSubfolder) {
       const result = await dialog.showMessageBox(options.getWindow(), {
         type: "question",
         title: nativeText("migrateUserData"),
@@ -33,7 +33,8 @@ export function createStorageSettingsService(options: {
         detail: nativeMessages().migrationDetails(
           source,
           target,
-          restoreDefault
+          restoreDefault,
+          createsSubfolder
         ),
         buttons: [nativeText("cancel"), nativeText("migrateAndRestart")],
         defaultId: 0,

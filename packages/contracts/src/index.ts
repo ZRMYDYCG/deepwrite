@@ -22,6 +22,7 @@ export * from "./library-agent";
 export * from "./long-agent-settings";
 export * from "./long-agent-team";
 export * from "./long-book-analysis";
+export * from "./long-book-decomposition";
 export * from "./short-book-analysis";
 export * from "./short-book-analysis-commands";
 export * from "./short-book-analysis-budget";
@@ -83,3 +84,7 @@ export * from "./text-context-menu";
 export { compareVersions } from "./update-version";
 
 export * from "./window-frame";
+
+export * from "./book-identity";
+export * from "./image-models";
+export * from "./https-base-url";

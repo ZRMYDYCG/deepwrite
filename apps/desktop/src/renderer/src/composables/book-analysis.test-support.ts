@@ -2,11 +2,22 @@ import type { DeepWriteApi } from "@deepwrite/contracts/renderer";
 export function createBookAnalysisTestApi(): Pick<
   DeepWriteApi,
   "extrasAgents" | "shortBookAnalysis" | "longBookAnalysis"
-> {
+> &
+  Pick<DeepWriteApi, "longBookDecomposition"> {
   const unused = (): never => {
     throw new Error("Extras agents are not used by conversation tests.");
   };
   return {
+    longBookDecomposition: {
+      createJob: async () => unused(),
+      listJobs: async () => unused(),
+      getJob: async () => unused(),
+      control: async () => unused(),
+      getRegistry: async () => unused(),
+      saveRegistry: async () => unused(),
+      listResults: async () => unused(),
+      readUnit: async () => unused()
+    },
     extrasAgents: {
       run: async () => unused(),
       profiles: {
@@ -44,7 +55,10 @@ export function createBookAnalysisTestApi(): Pick<
           throw new Error(
             "Long book analysis is not used by conversation tests."
           );
-        }
+        },
+        save: async () => unused(),
+        delete: async () => unused(),
+        confirm: async () => unused()
       }
     }
   };

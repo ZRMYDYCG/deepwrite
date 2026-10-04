@@ -1,5 +1,6 @@
 import {
   LongLedgerCommitRecordSchema,
+  LongLedgerCommitIdSchema,
   type LongCommitChapterResult,
   type LongTextFilesBatchCommitInput,
   type LongWorkspaceIndexSnapshot
@@ -20,8 +21,28 @@ import type { LoadedLongProject } from "./types";
 export async function commitTextFilesBatch(
   ctx: LongProjectStoreContext,
   loaded: LoadedLongProject,
-  input: LongTextFilesBatchCommitInput
+  input: LongTextFilesBatchCommitInput,
+  managedCommitId?: string
 ): Promise<LongCommitChapterResult> {
+  if (managedCommitId) {
+    LongLedgerCommitIdSchema.parse(managedCommitId);
+    const existing = loaded.index.ledger.commits.find(
+      ({ id }) => id === managedCommitId
+    );
+    if (existing) {
+      const recordFile = await loadIndexedFile(loaded, existing.recordFile.id);
+      const record = LongLedgerCommitRecordSchema.parse(
+        JSON.parse(recordFile.disk.content)
+      );
+      if (
+        existing.mode !== "text_files_batch" ||
+        JSON.stringify(record.chapterCardIds) !==
+          JSON.stringify(input.chapterCardIds)
+      )
+        throw new Error("账本操作标识对应另一批章节。");
+      return { record };
+    }
+  }
   const chapterEntries = resolveBatchEntries(
     loaded.index,
     input.chapterCardIds
@@ -69,7 +90,9 @@ export async function commitTextFilesBatch(
     }
   }
 
-  const commitId = createId("commit");
+  const commitId = managedCommitId
+    ? LongLedgerCommitIdSchema.parse(managedCommitId)
+    : createId("commit");
   const timestamp = ctx.timestamp();
   const semanticChanges = applyChapterDecisions({
     index: loaded.index,

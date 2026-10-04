@@ -5,6 +5,7 @@ import {
   useEditorAutoSaveCoordinator,
   type EditorPersistOutcome
 } from "./useEditorAutoSaveCoordinator";
+import { useEditorComposition } from "./useEditorComposition";
 
 interface Deferred<Value> {
   promise: Promise<Value>;
@@ -100,6 +101,83 @@ afterEach(() => {
 });
 
 describe("editor auto-save coordinator", () => {
+  it("cancels a pre-existing save until the IME commits the latest text", async () => {
+    vi.useFakeTimers();
+    const { coordinator, drafts, persist } = harness();
+    const composition = useEditorComposition({
+      onChange: (composing) =>
+        coordinator.setComposing({ id: "first", composing })
+    });
+    coordinator.schedule("first");
+    await vi.advanceTimersByTimeAsync(700);
+    composition.start();
+    coordinator.scheduleDirty();
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(persist).not.toHaveBeenCalled();
+
+    composition.finish(() => {
+      drafts.value = { first: draft("确认后的中文") };
+      coordinator.schedule("first");
+    });
+    await vi.advanceTimersByTimeAsync(799);
+    expect(persist).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    await coordinator.drain();
+    expect(persist).toHaveBeenCalledExactlyOnceWith(
+      { id: "first", title: "测试标题", content: "确认后的中文" },
+      false
+    );
+    await coordinator.dispose();
+  });
+
+  it("rechecks queued saves and postpones catalog refresh while composing", async () => {
+    vi.useFakeTimers();
+    const firstSave = deferred<EditorPersistOutcome>();
+    const persist = vi
+      .fn()
+      .mockReturnValueOnce(firstSave.promise)
+      .mockResolvedValue("saved");
+    const onIdle = vi.fn(async () => undefined);
+    const { coordinator, drafts } = harness(persist, { debounceMs: 0, onIdle });
+    drafts.value = { first: draft("第一份"), second: draft("第二份") };
+    coordinator.schedule("first");
+    coordinator.schedule("second");
+    await vi.advanceTimersByTimeAsync(0);
+    coordinator.setComposing({ id: "second", composing: true });
+    firstSave.resolve("saved");
+    await coordinator.drain();
+    expect(persist).toHaveBeenCalledTimes(1);
+    expect(onIdle).not.toHaveBeenCalled();
+
+    drafts.value = { ...drafts.value, second: draft("第二份确认后的中文") };
+    coordinator.setComposing({ id: "second", composing: false });
+    await vi.advanceTimersByTimeAsync(0);
+    await coordinator.drain();
+    expect(persist).toHaveBeenLastCalledWith(
+      { id: "second", title: "测试标题", content: "第二份确认后的中文" },
+      false
+    );
+    expect(onIdle).toHaveBeenCalledOnce();
+    await coordinator.dispose();
+  });
+
+  it("does not resume automatic saves when they were disabled during composition", async () => {
+    vi.useFakeTimers();
+    const onIdle = vi.fn(async () => undefined);
+    const { coordinator, enabled, persist } = harness(undefined, { onIdle });
+    coordinator.setComposing({ id: "first", composing: true });
+    enabled.value = false;
+    coordinator.cancel();
+    await coordinator.drain();
+    expect(onIdle).not.toHaveBeenCalled();
+    coordinator.setComposing({ id: "first", composing: false });
+    await vi.advanceTimersByTimeAsync(5_000);
+    await coordinator.drain();
+    expect(persist).not.toHaveBeenCalled();
+    expect(onIdle).toHaveBeenCalledOnce();
+    await coordinator.dispose();
+  });
+
   it("exposes progress only for an explicitly applied manual save", async () => {
     const pendingSave = deferred<EditorPersistOutcome>();
     const persist = vi.fn(() => pendingSave.promise);

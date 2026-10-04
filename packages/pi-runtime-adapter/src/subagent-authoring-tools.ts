@@ -1,6 +1,7 @@
 import type { AgentTool, AgentToolResult } from "@earendil-works/pi-agent-core";
 import { Type, type Static } from "@earendil-works/pi-ai";
 import {
+  SHORT_AGENT_SUBAGENT_SYSTEM_PROMPT_MAX_LENGTH,
   SUBAGENT_AUTHORING_OUTPUT_MODE_LABELS,
   SubagentAuthoringDraftSchema,
   type SubagentAuthoringDraft,
@@ -59,11 +60,11 @@ export function renderSubagentAuthoringSystemPrompt(
     context.outputMode === "write"
       ? [
           "用户已确认：该子智能体应通过写入 / 替换工具直接修改工作区文档。",
-          "生成的 systemPrompt 必须明确要求：先读后写、正文只能经工具落盘、交接摘要只说明改了什么与是否已产生待审阅变更，禁止用摘要代替写入。"
+          "「输出与交接」一节必须明确要求：先读后写、正文只能经工具落盘、交接摘要只说明改了什么与是否已产生待审阅变更，禁止用摘要代替写入。"
         ].join("\n")
       : [
           "用户已确认：该子智能体只把结论、问题清单或要点交回主智能体，不要直接改文档。",
-          "生成的 systemPrompt 必须明确要求：可读工具可用于核对；不要调用写入 / 替换工具；交接摘要给出主智能体可继续处理的结论与要点，不要整段粘贴文件原文。"
+          "「输出与交接」一节必须明确要求：可读工具可用于核对；不要调用写入 / 替换工具；交接摘要给出主智能体可继续处理的结论与要点，不要整段粘贴文件原文。"
         ].join("\n");
 
   return [
@@ -79,13 +80,23 @@ export function renderSubagentAuthoringSystemPrompt(
     "【当前同队已有子智能体名称】",
     existingNames,
     "",
+    "【技能内容保真】",
+    "- 不要改动技能的主要内容：技能里的方法、步骤、判断标准、约束与禁忌，保留原意与原有措辞，不总结、不扩写、不删减、不换说法，也不要加入技能里没有的新要求。",
+    "- 除「输出与交接」外，其余部分只允许规范格式：统一标题层级、编号、列表与空行，不动文字含义。",
+    "",
+    "【systemPrompt 结构】",
+    "1. 开头一两句说明身份与任务（「你是……子智能体，负责……」），只依据技能标题与用途概括，不引入新要求。",
+    "2. 每条选定技能各占一节，标题写「## 技能：技能标题」，节内是该技能的原有内容，按选定顺序排列；多条技能之间不要合并或改写。",
+    "3. 最后一节固定为「## 输出与交接」，这是唯一需要你改写的部分：把各技能里关于输出格式、交付物、交接、如何回复用户的描述并入此节，并按上面用户确认的产出方式调整，使其与子智能体的实际职责（不直接面对用户、结果交给主智能体或写入文档）一致。技能没有相关描述时，只写产出方式要求。",
+    "",
     "工作流程：",
     "1. 先用 read_authoring_skill 读取全部选定技能正文，必要时可多次读取。",
-    "2. 把技能方法改写成适合子智能体执行的系统提示词：保留可操作步骤，去掉对用户对话口吻或技能库管理无关的内容。",
-    "3. 子智能体运行时没有 load_skill，因此必须把技能中真正需要的方法要点写进 systemPrompt，不能假设运行时还能加载技能。",
-    "4. 名称要简短且与同队已有名称不重复；能力说明写给主智能体看，说明何时委派。",
-    "5. 完成后调用 write_subagent_draft 提交 name、description、systemPrompt；可多次调用覆盖草稿。",
-    "6. 工具写入成功后，简短告知用户草稿已就绪，等待界面确认加入团队。"
+    "2. 按上面的结构整理 systemPrompt：技能正文原样保留，只调整格式；只改写「输出与交接」。",
+    "3. 子智能体运行时没有 load_skill，因此技能内容必须完整写进 systemPrompt，不能假设运行时还能加载技能。",
+    `4. systemPrompt 不得超过 ${SHORT_AGENT_SUBAGENT_SYSTEM_PROMPT_MAX_LENGTH} 字。内容放不下时，只压缩重复表述与格式，不删除要求，并在最终回复中告知用户哪些技能被压缩。`,
+    "5. 名称要简短且与同队已有名称不重复；能力说明写给主智能体看，说明何时委派。",
+    "6. 完成后调用 write_subagent_draft 提交 name、description、systemPrompt；可多次调用覆盖草稿。",
+    "7. 工具写入成功后，简短告知用户草稿已就绪，等待界面确认加入团队。"
   ].join("\n");
 }
 

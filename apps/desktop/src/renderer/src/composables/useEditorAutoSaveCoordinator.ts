@@ -1,5 +1,6 @@
 import { shallowRef, type Ref, type ShallowRef } from "vue";
 import type { EditorDraftState, WorkspaceDocument } from "../types/workspace";
+import type { EditorCompositionChange } from "./useEditorComposition";
 
 export interface EditorSavePayload {
   id: string;
@@ -50,6 +51,7 @@ export function useEditorAutoSaveCoordinator(
   const maxRetryMs = options.maxRetryMs ?? DEFAULT_MAX_RETRY_MS;
   const timers = new Map<string, number>();
   const retryAttempts = new Map<string, number>();
+  const composingDocumentIds = new Set<string>();
   const manualSavingDocumentIds = shallowRef<ReadonlySet<string>>(new Set());
   let saveChain: Promise<void> = Promise.resolve();
   let pendingTaskCount = 0;
@@ -93,7 +95,12 @@ export function useEditorAutoSaveCoordinator(
   }
 
   function arm(documentId: string, delay: number): void {
-    if (disposed || !options.enabled.value) return;
+    if (
+      disposed ||
+      !options.enabled.value ||
+      composingDocumentIds.has(documentId)
+    )
+      return;
     clearTimer(documentId);
     timers.set(
       documentId,
@@ -107,6 +114,19 @@ export function useEditorAutoSaveCoordinator(
   function schedule(documentId: string, delay = debounceMs): void {
     retryAttempts.delete(documentId);
     arm(documentId, delay);
+  }
+
+  function setComposing({ id, composing }: EditorCompositionChange): void {
+    if (disposed) return;
+    if (composing) {
+      composingDocumentIds.add(id);
+      cancel(id);
+    } else {
+      composingDocumentIds.delete(id);
+      if (options.enabled.value && options.drafts.value[id]?.dirty)
+        schedule(id);
+      else enqueue(notifyIdleIfNeeded);
+    }
   }
 
   function scheduleRetry(documentId: string): void {
@@ -124,14 +144,23 @@ export function useEditorAutoSaveCoordinator(
   }
 
   async function notifyIdleIfNeeded(): Promise<void> {
-    if (timers.size === 0 && pendingTaskCount <= 1) {
+    if (
+      timers.size === 0 &&
+      composingDocumentIds.size === 0 &&
+      pendingTaskCount <= 1
+    ) {
       await options.onIdle?.();
     }
   }
 
   async function run(documentId: string): Promise<void> {
     try {
-      if (disposed || !options.enabled.value) return;
+      if (
+        disposed ||
+        !options.enabled.value ||
+        composingDocumentIds.has(documentId)
+      )
+        return;
       const draft = options.drafts.value[documentId];
       const document = options.documents.value.find(
         (candidate) => candidate.id === documentId
@@ -198,6 +227,7 @@ export function useEditorAutoSaveCoordinator(
     if (disposed) return;
     disposed = true;
     cancel();
+    composingDocumentIds.clear();
     await drain();
     await options.onIdle?.();
   }
@@ -209,7 +239,8 @@ export function useEditorAutoSaveCoordinator(
     drain,
     manualSavingDocumentIds,
     schedule,
-    scheduleDirty
+    scheduleDirty,
+    setComposing
   };
 }
 

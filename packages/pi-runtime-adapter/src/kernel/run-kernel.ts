@@ -32,6 +32,7 @@ import {
   interceptToolCallStream,
   type ToolCallAssistantEvent
 } from "../tool-stream";
+import { createConcurrencyLimiter } from "../concurrency-limiter";
 import { AsyncEventQueue } from "./async-event-queue";
 import {
   RunContextManager,
@@ -66,36 +67,44 @@ export class AgentRunKernel {
     const reusableConversationAgent = this.options.agents.select(plan);
     const lifecycle = new RunLifecycle();
     let userInputRequestSequence = 0;
+    // The broker holds one question per run, while parallel children (draw
+    // selections, cross-stage confirmations) may ask at the same time: each
+    // request is shown only after the previous one settled.
+    const userInputTurns = createConcurrencyLimiter(1);
     const requestUserInput: AgentUserInputRequester = async (
       request,
       signal
     ) => {
-      const requestId = `${target.runId}:user-input:${++userInputRequestSequence}`;
-      const response = userInputBroker.wait(
-        {
-          sessionId: target.sessionId,
-          runId: target.runId,
-          requestId,
-          questions: request.questions
-        },
-        signal
-      );
       userInputWaiting += 1;
       lifecycle.clearIdleTimer();
-      emit({
-        type: "agent.user_input_requested",
-        runId: target.runId,
-        sessionId: target.sessionId,
-        payload: {
-          requestId,
-          toolCallId: request.toolCallId,
-          source: request.source,
-          questions: request.questions,
-          runtime
-        }
-      });
       try {
-        return await response;
+        return await userInputTurns.run(async () => {
+          const requestId = `${target.runId}:user-input:${++userInputRequestSequence}`;
+          const response = userInputBroker.wait(
+            {
+              sessionId: target.sessionId,
+              runId: target.runId,
+              requestId,
+              questions: request.questions,
+              ...(request.draw ? { draw: request.draw } : {})
+            },
+            signal
+          );
+          emit({
+            type: "agent.user_input_requested",
+            runId: target.runId,
+            sessionId: target.sessionId,
+            payload: {
+              requestId,
+              toolCallId: request.toolCallId,
+              source: request.source,
+              questions: request.questions,
+              ...(request.draw ? { draw: request.draw } : {}),
+              runtime
+            }
+          });
+          return await response;
+        });
       } finally {
         userInputWaiting = Math.max(0, userInputWaiting - 1);
         if (userInputWaiting === 0) scheduleIdleTimeout();
@@ -441,9 +450,10 @@ export class AgentRunKernel {
       }
     };
 
+    let running: Promise<void> | undefined;
     if (!settled) {
       scheduleIdleTimeout();
-      void startRun()
+      running = startRun()
         .catch((error: unknown) => {
           if (settled || retryWaitController.signal.aborted) return;
           emitError(
@@ -473,6 +483,9 @@ export class AgentRunKernel {
         agent.abort();
         cleanup();
       }
+      // UI completion/abort can close the queue while a model or tool still
+      // owns this Agent. Do not let Utility release its session until it ends.
+      await running;
     }
   }
 }

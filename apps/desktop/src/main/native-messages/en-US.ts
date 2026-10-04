@@ -37,7 +37,7 @@ export default {
   exportEpub: "Export Manuscript as EPUB",
   epubBook: "EPUB E-book",
   export: "Export",
-  chooseUserData: "Choose User Data Folder (Empty Folder)",
+  chooseUserData: "Choose User Data Folder",
   migrateUserData: "Move User Data",
   confirmMigration:
     "Save your current data and restart to move its storage location?",

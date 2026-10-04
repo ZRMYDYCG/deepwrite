@@ -1,5 +1,9 @@
+import bookIdentity from "./book-identity/zh-CN";
 import deviceSyncService from "../../../../../localization/device-sync/zh-CN";
+import longBookDecomposition from "./long-book-decomposition/zh-CN";
 export default {
+  bookIdentity,
+  longBookDecomposition,
   deviceSyncService,
   agentRuntime: {
     stopFailed: "停止失败，请重试。",
@@ -9,6 +13,7 @@ export default {
   },
   analysisUi: {
     modelSettings: "模型设置",
+    modelField: "模型",
     closeModelSettings: "关闭模型设置",
     clearWorkbench: "清空当前分析桌面",
     clearRunningTitle: "停止分析并清空桌面？",
@@ -379,6 +384,11 @@ export default {
     chapterFolderImported: "章节文件夹已导入并备份到工作目录。",
     sourceImportFailed: "导入来源失败。",
     novelLoaded: "已加载工作目录中的长篇。",
+    deleteNovel: "删除长篇《{title}》",
+    deleteNovelConfirmation:
+      "确定删除已导入的长篇《{title}》及其校对记录吗？原始文件和已保存的分析结果会保留。",
+    novelDeleted: "已删除导入的长篇。",
+    novelDeleteFailed: "删除导入的长篇失败。",
     novelLoadFailed: "加载已导入长篇失败。",
     importTxt: "导入 TXT",
     managePresets: "预设管理",
@@ -391,6 +401,9 @@ export default {
     characterCount: "{count} 字",
     moveChapterUp: "上移章节",
     moveChapterDown: "下移章节",
+    deleteChapter: "删除章节",
+    deleteChapterMissing: "未找到要删除的章节。",
+    keepOneChapter: "至少保留一章。",
     unassignedVolume: "未归入卷",
     mergeIntoPrevious: "并入上一章",
     mergeNextChapter: "合并下一章",
@@ -566,7 +579,7 @@ export default {
     extraHighThinking: "极高",
     maxThinking: "最高",
     novelAnalysisUnavailable: "当前环境不支持长篇拆书分析。",
-    sourceLockedWhileRunning: "分析运行中，不能更换导入来源。",
+    sourceLockedWhileRunning: "分析或来源操作正在进行，请完成后再试。",
     importSourceRequired: "请先导入 TXT 或章节文件夹。",
     presetRequired: "请选择一个拆书预设。",
     presetChapterRange: "{preset} · 第 {start}–{end} 章",

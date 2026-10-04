@@ -6,9 +6,13 @@ import type { ModelUsageModule } from "../model-usage";
  * creation-space `session.prompt` payload.
  */
 export const EXTRAS_AGENT_IDS = [
+  "book-title-design",
+  "book-synopsis-design",
+  "book-cover-design",
   "revision-analysis",
   "short-book-analysis",
   "long-book-analysis",
+  "long-book-decomposition",
   "style-comparison",
   "chat-normal",
   "chat-project",
@@ -37,9 +41,13 @@ export function isExtrasConversationAgent(
 }
 
 export const EXTRAS_AGENT_USAGE_MODULES = {
+  "book-title-design": "book-identity",
+  "book-synopsis-design": "book-identity",
+  "book-cover-design": "book-identity",
   "revision-analysis": "revision-analysis",
   "short-book-analysis": "short-book-analysis",
   "long-book-analysis": "long-book-analysis",
+  "long-book-decomposition": "long-book-decomposition",
   "style-comparison": "style-comparison",
   "chat-normal": "assistant-chat",
   "chat-project": "assistant-chat",

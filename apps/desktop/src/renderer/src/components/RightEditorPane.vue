@@ -43,6 +43,10 @@ import { createTransientScrollbarController } from "../utils/transientScrollbar"
 import { uiMessage } from "../ui-feedback";
 import { useEditorSelectionInsertion } from "../composables/useEditorSelectionInsertion";
 import { useEditorSaveViewport } from "../composables/useEditorSaveViewport";
+import {
+  useEditorComposition,
+  type EditorCompositionChange
+} from "../composables/useEditorComposition";
 import { useLongEditorScrollMemory } from "../composables/useLongEditorScrollMemory";
 import {
   searchLocalEditorEntries,
@@ -97,6 +101,7 @@ const emit = defineEmits<{
   toggleRight: [];
   save: [payload: { id: string; title: string; content: string }];
   liveChange: [payload: { id: string; title: string; content: string }];
+  compositionChange: [change: EditorCompositionChange];
   formatAllBodies: [];
   insertSelection: [reference: EditorTextReference];
   selectSection: [sectionId: string];
@@ -108,6 +113,16 @@ const emit = defineEmits<{
 }>();
 
 const editorInput = ref<HTMLTextAreaElement>();
+let composingDocumentId: string | undefined;
+const editorComposition = useEditorComposition({
+  onChange(composing) {
+    if (composing) composingDocumentId = props.document.id;
+    if (composingDocumentId) {
+      emit("compositionChange", { id: composingDocumentId, composing });
+    }
+    if (!composing) composingDocumentId = undefined;
+  }
+});
 const documentPreview = ref<HTMLElement | null>(null);
 const editorToolsElement = ref<HTMLElement>();
 const findPanelElement = ref<HTMLElement | null>(null);
@@ -205,6 +220,7 @@ const {
   documentKey: activeScrollMemoryKey,
   isEditView: () => viewMode.value === "edit",
   isSaving: () => Boolean(props.saving),
+  isComposing: () => editorComposition.isComposing.value,
   isTransientlyReadOnly: () => props.locked,
   rememberScroll: (documentKey, scrollTop) =>
     rememberEditorScrollPosition(documentKey, "edit", scrollTop)
@@ -214,6 +230,7 @@ onBeforeUpdate(captureEditorViewportBeforeRender);
 onUpdated(restoreEditorViewportAfterRender);
 
 watch(activeScrollMemoryKey, (nextScrollMemoryKey, previousScrollMemoryKey) => {
+  editorComposition.reset();
   rememberCurrentDocumentScroll(previousScrollMemoryKey);
   title.value = resolveWorkspaceDocumentTitle(
     props.document,
@@ -346,7 +363,12 @@ const resolvedDeleteSectionLabel = computed(
 );
 
 function markDirty(): void {
-  if (props.document.readOnly || props.locked) return;
+  if (
+    props.document.readOnly ||
+    props.locked ||
+    editorComposition.isComposing.value
+  )
+    return;
   dirty.value = true;
   emit("liveChange", {
     id: props.document.id,
@@ -408,7 +430,7 @@ function resetEditorHistory(): void {
 }
 
 function handleEditorBeforeInput(event: InputEvent): void {
-  if (editorReadOnly.value) return;
+  if (editorReadOnly.value || editorComposition.isComposingInput(event)) return;
   if (event.inputType === "historyUndo") {
     event.preventDefault();
     pendingEditorInput = null;
@@ -433,7 +455,7 @@ function handleEditorBeforeInput(event: InputEvent): void {
 }
 
 function handleEditorInput(event: Event): void {
-  if (editorReadOnly.value) return;
+  if (editorReadOnly.value || editorComposition.isComposingInput(event)) return;
   const input = event.currentTarget as HTMLTextAreaElement;
   const beforeContent = content.value;
   const afterContent = input.value;
@@ -457,6 +479,28 @@ function handleEditorInput(event: Event): void {
     notifyHistoryChanged();
   }
   updateContent(afterContent, historyResult?.nonWhitespaceDelta);
+}
+
+function handleEditorCompositionStart(event: CompositionEvent): void {
+  if (editorReadOnly.value) return;
+  const input = event.currentTarget as HTMLTextAreaElement;
+  pendingEditorInput = {
+    selectionBefore: { start: input.selectionStart, end: input.selectionEnd },
+    inputType: "",
+    timestamp: event.timeStamp
+  };
+  editorComposition.start();
+}
+
+function handleEditorCompositionEnd(event: CompositionEvent): void {
+  editorComposition.finish(() => handleEditorInput(event));
+}
+
+function handleTitleCompositionEnd(event: CompositionEvent): void {
+  editorComposition.finish(() => {
+    title.value = (event.currentTarget as HTMLInputElement).value;
+    markDirty();
+  });
 }
 
 function updateContent(
@@ -520,6 +564,7 @@ function redo(): void {
 }
 
 function handleEditorKeydown(event: KeyboardEvent): void {
+  if (event.isComposing || editorComposition.isComposing.value) return;
   const modifier = event.metaKey || event.ctrlKey;
   const key = event.key.toLowerCase();
 
@@ -549,7 +594,12 @@ function handleEditorKeydown(event: KeyboardEvent): void {
 }
 
 function save(): void {
-  if (props.document.readOnly || props.locked || props.saving) {
+  if (
+    props.document.readOnly ||
+    props.locked ||
+    props.saving ||
+    editorComposition.isComposing.value
+  ) {
     return;
   }
   const resolvedTitle = resolveWorkspaceDocumentTitle(
@@ -803,6 +853,7 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+  editorComposition.reset();
   rememberCurrentDocumentScroll();
   documentScrollbar.dispose();
   globalThis.removeEventListener("pointerdown", handleWindowPointerDown, true);
@@ -1003,6 +1054,8 @@ onBeforeUnmount(() => {
         :readonly="isTitleReadOnly"
         :aria-label="t('documentTitle')"
         @input="markDirty"
+        @compositionstart="editorComposition.start"
+        @compositionend="handleTitleCompositionEnd"
       />
 
       <EditorSearchHighlight
@@ -1014,13 +1067,15 @@ onBeforeUnmount(() => {
       >
         <textarea
           ref="editorInput"
-          :value="content"
+          :value="editorComposition.valueForRender(content, editorInput)"
           class="document-editor transient-scrollbar"
           :readonly="document.readOnly || locked"
           :aria-label="t('textEditor')"
           spellcheck="false"
           @beforeinput="handleEditorBeforeInput"
           @input="handleEditorInput"
+          @compositionstart="handleEditorCompositionStart"
+          @compositionend="handleEditorCompositionEnd"
           @keydown="handleEditorKeydown"
           @contextmenu="handleEditorContextMenu"
           @scroll="handleDocumentScroll"

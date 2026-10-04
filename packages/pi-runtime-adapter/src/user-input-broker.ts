@@ -1,7 +1,11 @@
 import {
+  AgentUserInputDrawSchema,
   AgentUserInputQuestionsSchema,
+  SUBAGENT_DRAW_QUESTION_ID,
+  SUBAGENT_DRAW_REJECT_OPTION_ID,
   SessionUserInputResponseAcceptedPayloadSchema,
   SessionUserInputResponsePayloadSchema,
+  type AgentUserInputDraw,
   type AgentUserInputQuestion,
   type SessionUserInputResponseAcceptedPayload,
   type SessionUserInputResponsePayload
@@ -13,6 +17,7 @@ interface PendingUserInput {
     runId: string;
     requestId: string;
     questions: AgentUserInputQuestion[];
+    draw?: AgentUserInputDraw;
   };
   resolve(response: SessionUserInputResponsePayload): void;
   reject(error: Error): void;
@@ -38,6 +43,30 @@ function abortedError(): Error {
 
 function pendingKey(runId: string, requestId: string): string {
   return `${runId}\u0000${requestId}`;
+}
+
+/** A draw selection picks exactly one candidate, or `reject`, plus a note. */
+function validateDrawAnswer(
+  draw: AgentUserInputDraw,
+  response: SessionUserInputResponsePayload
+): void {
+  const answer = response.answers[0];
+  const selected = answer?.selectedOptionIds ?? [];
+  const allowed = new Set([
+    ...draw.candidates.map((candidate) => candidate.id),
+    SUBAGENT_DRAW_REJECT_OPTION_ID
+  ]);
+  if (
+    response.answers.length !== 1 ||
+    answer?.id !== SUBAGENT_DRAW_QUESTION_ID ||
+    selected.length !== 1 ||
+    !allowed.has(selected[0]!)
+  ) {
+    throw new UserInputResolutionError(
+      "agent.user_input_invalid_answer",
+      "抽卡选择必须选定一份候选，或选择都不采用。"
+    );
+  }
 }
 
 function validateAnswers(
@@ -111,10 +140,14 @@ export class AgentUserInputBroker {
       runId: string;
       requestId: string;
       questions: AgentUserInputQuestion[];
+      draw?: AgentUserInputDraw;
     },
     signal?: AbortSignal
   ): Promise<SessionUserInputResponsePayload> {
     const questions = AgentUserInputQuestionsSchema.parse(request.questions);
+    const draw = request.draw
+      ? AgentUserInputDrawSchema.parse(request.draw)
+      : undefined;
     if (signal?.aborted) throw abortedError();
     if (this.pendingRequestByRun.has(request.runId)) {
       throw new UserInputResolutionError(
@@ -126,7 +159,7 @@ export class AgentUserInputBroker {
     return new Promise((resolve, reject) => {
       const key = pendingKey(request.runId, request.requestId);
       const pending: PendingUserInput = {
-        request: { ...request, questions },
+        request: { ...request, questions, ...(draw ? { draw } : {}) },
         resolve,
         reject,
         ...(signal ? { signal } : {})
@@ -161,7 +194,11 @@ export class AgentUserInputBroker {
         "用户回答不属于当前智能体会话。"
       );
     }
-    validateAnswers(pending.request.questions, response);
+    if (pending.request.draw) {
+      validateDrawAnswer(pending.request.draw, response);
+    } else {
+      validateAnswers(pending.request.questions, response);
+    }
     this.remove(key, pending);
     pending.resolve(response);
     return SessionUserInputResponseAcceptedPayloadSchema.parse({

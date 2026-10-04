@@ -8,6 +8,7 @@ import {
 } from "../../types/conversation";
 import { claimPendingActivityPlaceholder } from "./message-identity";
 import { finalizeUnfinishedMessageTools } from "./attempt-state";
+import { finalizeOpenSubagentDraws } from "./subagent-draw-events";
 import { id, rememberBounded } from "./shared";
 
 const t = createScopedTranslator("workspace.runLifecycle");
@@ -68,6 +69,7 @@ export function finalizeRunningSubagents(
   completedAt: string,
   reason: string
 ): void {
+  finalizeOpenSubagentDraws(message, completedAt, reason);
   for (const run of message.subagentRuns ?? []) {
     if (!isActiveSubagentRun(run)) continue;
     run.status = status;

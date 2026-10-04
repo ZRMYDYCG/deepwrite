@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { createScopedTranslator } from "../i18n";
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, inject, onBeforeUnmount, onMounted, ref } from "vue";
 import type {
   BookResourceDialogMode,
   CatalogResourceNodeActionPayload,
@@ -17,6 +17,8 @@ import type {
 import AppIcon from "./AppIcon.vue";
 import TreeNodeItem from "./TreeNodeItem.vue";
 import { useCreationBookDrag } from "../composables/useCreationBookDrag";
+import { useTreeNodeDisclosure } from "../composables/useTreeNodeDisclosure";
+import { SIDEBAR_SELECTION_ACTIVE } from "../composables/sidebarSelectionContext";
 
 const t = createScopedTranslator("components.treeSection");
 
@@ -59,7 +61,24 @@ const emit = defineEmits<{
   ];
 }>();
 
-const collapsed = ref(false);
+const { open } = useTreeNodeDisclosure(
+  () => ({
+    id: props.section.id,
+    label: props.section.label,
+    children: props.section.nodes
+  }),
+  () => props.selectedId,
+  {
+    initialOpen: true,
+    selectionActive: inject(SIDEBAR_SELECTION_ACTIVE, ref(true))
+  }
+);
+const collapsed = computed({
+  get: () => !open.value,
+  set: (value: boolean) => {
+    open.value = !value;
+  }
+});
 const actionMenuOpen = ref(false);
 const actionArea = ref<HTMLElement | null>(null);
 const creationBookDrag = useCreationBookDrag(

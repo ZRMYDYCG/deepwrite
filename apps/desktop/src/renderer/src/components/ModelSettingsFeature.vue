@@ -59,6 +59,7 @@ function scrollModelEditorIntoView(): void {
 const {
   draftModels,
   draftDefaultModelId,
+  pendingDefaultModelId,
   modelEditor,
   advancedConfigModel,
   modelConfigRows,
@@ -91,7 +92,10 @@ const knownUserProviders = computed(() =>
 <template>
   <section
     class="workspace-settings-panel is-model-config"
-    :class="{ 'is-embedded': embedded }"
+    :class="{
+      'is-embedded': embedded,
+      'is-setting-default': modelSaving && pendingDefaultModelId !== null
+    }"
   >
     <header v-if="!embedded">
       <div>
@@ -247,20 +251,35 @@ const knownUserProviders = computed(() =>
                   </div>
                   <div class="model-card-actions">
                     <button
+                      class="model-default-action"
                       type="button"
                       :class="{
                         'is-active': draftDefaultModelId === row.model.id
                       }"
                       :disabled="modelSaving || Boolean(modelEditor)"
+                      :aria-busy="
+                        modelSaving && pendingDefaultModelId === row.model.id
+                      "
                       @click="setDefaultModel(row.model.id)"
                     >
-                      {{
-                        modelSaving && draftDefaultModelId === row.model.id
+                      <span
+                        v-for="label in [
+                          t('saving'),
+                          t('default'),
+                          t('setAsDefault')
+                        ]"
+                        :key="label"
+                        class="model-default-label-sizer"
+                        aria-hidden="true"
+                        >{{ label }}</span
+                      >
+                      <span>{{
+                        modelSaving && pendingDefaultModelId === row.model.id
                           ? t("saving")
                           : draftDefaultModelId === row.model.id
                             ? t("default")
                             : t("setAsDefault")
-                      }}
+                      }}</span>
                     </button>
                     <button
                       v-if="!row.model.managedBy"

@@ -15,6 +15,9 @@ import { AppearanceService } from "./appearance-service";
 import { createExtrasAgentService } from "../extras/agents";
 import { GeneralSettingsStore } from "./general-settings-store";
 import { VoiceService } from "./voice/voice-service";
+import { ImageService } from "./image/image-service";
+import { imageSmokeOptions } from "./image/image-smoke-transport";
+import { CoverRenderService } from "../extras/book-identity/cover-render-service";
 import { voiceSmokeOptions } from "./smoke-voice-transport";
 import { LibraryAgentConfigStore } from "./library-agent-config-store";
 import { LongAgentConfigStore } from "./long-agent-config-store";
@@ -49,7 +52,13 @@ export function createDesktopServices(options: DesktopServiceOptions) {
   );
   const workspaceDirectory = async () =>
     (await workspaceDirectoryStore.list()).path;
+  const imageService = new ImageService(
+    userDataPath,
+    process.env.DEEPWRITE_SMOKE === "1" ? imageSmokeOptions() : undefined
+  );
   return {
+    imageService,
+    coverRenderService: new CoverRenderService(command, imageService),
     modelConfigStore,
     modelUsageStore,
     softwareTokenUsageReporter: new SoftwareTokenUsageReporter(

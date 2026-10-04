@@ -13,6 +13,7 @@ import type {
 import type { AgentConversationController } from "../composables/useAgentConversation";
 import { AgentConversation } from "./lazyAppComponents";
 import RightEditorPane from "./RightEditorPane.vue";
+import type { EditorCompositionChange } from "../composables/useEditorComposition";
 
 type AgentConversationPublicProps = InstanceType<
   typeof AgentConversation
@@ -114,6 +115,7 @@ const emit = defineEmits<{
   collapse: [];
   save: [payload: { id: string; title: string; content: string }];
   liveChange: [payload: { id: string; title: string; content: string }];
+  compositionChange: [change: EditorCompositionChange];
   formatAllBodies: [];
   insertSelection: [reference: EditorTextReference];
   selectSection: [sectionId: string];
@@ -181,6 +183,7 @@ const emit = defineEmits<{
     @toggle-right="emit('toggleRight')"
     @save="emit('save', $event)"
     @live-change="emit('liveChange', $event)"
+    @composition-change="emit('compositionChange', $event)"
     @format-all-bodies="emit('formatAllBodies')"
     @insert-selection="emit('insertSelection', $event)"
     @select-section="emit('selectSection', $event)"

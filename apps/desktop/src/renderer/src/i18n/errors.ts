@@ -25,6 +25,24 @@ export function getErrorCode(error: unknown): string | undefined {
   return getErrorPayload(error)?.code;
 }
 
+const MAX_ERROR_DETAIL_LENGTH = 240;
+
+/**
+ * Remote diagnostics (provider responses, network failures) cannot be
+ * translated by code, so `formatError` falls back to the caller's headline.
+ * Callers whose failure reason is the useful part append this detail instead.
+ */
+export function getErrorDetail(error: unknown): string | undefined {
+  const raw =
+    getErrorPayload(error)?.message ??
+    (error instanceof Error ? error.message : "");
+  const detail = raw.replace(/\s+/gu, " ").trim();
+  if (!detail) return undefined;
+  return detail.length > MAX_ERROR_DETAIL_LENGTH
+    ? `${detail.slice(0, MAX_ERROR_DETAIL_LENGTH)}…`
+    : detail;
+}
+
 export function formatError(error: unknown, fallback: string): string {
   const payload = getErrorPayload(error);
   if (payload) {

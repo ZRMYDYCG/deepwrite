@@ -12,7 +12,10 @@ import type {
   LongWorkspaceImpactConfirmation,
   LongWorkspaceOperationBatch,
   LongWorldbuildingFileChange,
-  ShortWorkspaceStageId
+  ShortWorkspaceStageId,
+  SubagentDrawPhase,
+  SubagentDrawRef,
+  SubagentDrawSelectedBy
 } from "@deepwrite/contracts";
 
 export type AgentApprovalMode = "request-approval" | "auto-approve";
@@ -231,13 +234,23 @@ export function isActiveSubagentRun(
   return run.status === "running" || run.status === "queued";
 }
 
+/** Identifies one task of a call, shared by all draws of a draw-mode task. */
+export function subagentTaskKey(
+  parentToolCallId: string,
+  batchTask: Pick<AgentSubagentBatchTask, "index"> | undefined
+): string {
+  return batchTask
+    ? `${parentToolCallId}:${batchTask.index}`
+    : parentToolCallId;
+}
+
 /** Stable across the pending placeholder and the started child run. */
 export function subagentRunDetailId(
-  run: Pick<AgentSubagentRun, "parentToolCallId" | "batchTask">
+  run: Pick<AgentSubagentRun, "parentToolCallId" | "batchTask" | "draw">
 ): string {
-  return run.batchTask
-    ? `${run.parentToolCallId}:${run.batchTask.index}`
-    : run.parentToolCallId;
+  const task = subagentTaskKey(run.parentToolCallId, run.batchTask);
+  if (!run.draw) return task;
+  return `${task}:draw:${run.draw.role === "candidate" ? run.draw.index : "evaluator"}`;
 }
 
 export interface AgentRetryMetadata {
@@ -296,6 +309,27 @@ export interface AgentSubagentRun {
   usage?: AgentUsage;
   retry?: AgentRetryMetadata;
   batchTask?: AgentSubagentBatchTask;
+  /** Candidate or evaluator of a draw-mode task. */
+  draw?: SubagentDrawRef;
+  /** Set on a queued card whose member runs in draw mode. */
+  drawCount?: number;
+}
+
+/** Whole-task state of a draw-mode task, keyed like `subagentTaskKey`. */
+export interface AgentSubagentDraw {
+  key: string;
+  parentToolCallId: string;
+  batchTask?: AgentSubagentBatchTask;
+  subagentId: string;
+  name: string;
+  count: number;
+  phase: SubagentDrawPhase;
+  selectedBy?: SubagentDrawSelectedBy;
+  selectedIndex?: number;
+  selectedSubagentRunId?: string;
+  reason?: string;
+  note?: string;
+  updatedAt: string;
 }
 
 export type AgentProcessingStep =
@@ -360,6 +394,7 @@ export interface ChatMessage {
   contextTokens?: number;
   tools?: ChatToolActivity[];
   subagentRuns?: AgentSubagentRun[];
+  subagentDraws?: AgentSubagentDraw[];
   editProposals?: AgentEditProposal[];
   retry?: AgentRetryMetadata;
   contextCompactions?: ChatContextCompaction[];

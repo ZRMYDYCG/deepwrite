@@ -1,11 +1,20 @@
 import { nowIso } from "@deepwrite/shared";
-import type { CachedPagedTextFile, LongProjectStoreOptions } from "./types";
+import type {
+  CachedPagedTextFile,
+  LoadedLongProject,
+  LongProjectStoreOptions
+} from "./types";
 
 export interface LongProjectStoreContext {
   readonly now: () => string;
   readonly queues: Map<string, Promise<void>>;
   readonly documentReadCache: Map<string, CachedPagedTextFile>;
   documentReadCacheCost: number;
+  readonly projectReadCache: Map<
+    string,
+    { loaded: LoadedLongProject; cost: number }
+  >;
+  projectReadCacheCost: number;
   timestamp(): string;
   runExclusive<T>(key: string, task: () => Promise<T>): Promise<T>;
 }
@@ -21,6 +30,8 @@ export function createLongProjectStoreContext(
     queues,
     documentReadCache,
     documentReadCacheCost: 0,
+    projectReadCache: new Map(),
+    projectReadCacheCost: 0,
     timestamp(): string {
       const value = now();
       if (!Number.isFinite(Date.parse(value))) {

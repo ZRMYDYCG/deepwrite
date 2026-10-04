@@ -116,7 +116,9 @@ export default {
     freeModelDisabledAndHiddenFromModelSettings:
       "Free model disabled and hidden from model settings.",
     failedToUpdateFreeModelStatus: "Failed to update free model status.",
-    modelConnectionTestFailed: "Model connection test failed."
+    modelConnectionTestFailed: "Model connection test failed.",
+    modelConnectionTestFailedWithReason:
+      "Model connection test failed: {reason}"
   },
   appearanceThemeRuntime: {
     warmPaper: "Warm paper",
@@ -130,8 +132,28 @@ export default {
       "Data migration is ready. The app will restart.",
     failedToChangeTheUserDataDirectoryPleaseTry:
       "Failed to change the user data directory. Please try again.",
+    failedToChangeTheUserDataDirectoryWithReason:
+      "Failed to change the user data directory: {reason}",
     failedToOpenDirectoryPleaseTryAgain:
-      "Failed to open directory. Please try again."
+      "Failed to open directory. Please try again.",
+    storageBusy:
+      "A task or storage operation is still running. Wait for it to finish before changing storage locations.",
+    invalidDirectory:
+      "Choose a regular folder on this computer. Shortcuts, symbolic links and directory junctions are not supported.",
+    unresolvablePath:
+      "Could not resolve the real path of this folder. Virtual and cloud-mounted drives may not be supported; choose a regular folder on a local disk.",
+    overlapsInstallation:
+      "The user data folder cannot be inside the application installation folder or contain it. Choose another folder.",
+    nestedLocation:
+      "The new location cannot be inside the current user data folder or contain it. Choose a separate folder.",
+    targetNotEmpty:
+      "The DeepWriteData folder at the selected location already contains files. Choose another location so nothing is overwritten.",
+    notWritable:
+      "DeepWrite cannot write to the selected location. Choose another folder.",
+    saveFailed:
+      "Conversations have not finished saving, so the migration was canceled. Try again shortly.",
+    openFailed:
+      "Could not open the storage folder. Check that it exists and is accessible."
   },
   modelEditor: {
     automaticRecommended: "Automatic (recommended)",

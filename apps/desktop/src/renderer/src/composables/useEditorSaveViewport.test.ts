@@ -21,6 +21,34 @@ function createEditor() {
 }
 
 describe("editor save viewport", () => {
+  it("does not restore a pending save's selection or focus into an IME candidate", async () => {
+    const { element, focus, ownerDocument, setSelectionRange } = createEditor();
+    element.selectionStart = 10;
+    element.selectionEnd = 10;
+    ownerDocument.activeElement = element;
+    const composing = ref(false);
+    const remembered = vi.fn();
+    const viewport = useEditorSaveViewport({
+      editorInput: ref(element),
+      documentKey: ref("document-a"),
+      isEditView: () => true,
+      isSaving: () => true,
+      isComposing: () => composing.value,
+      rememberScroll: remembered
+    });
+    viewport.preserveForDispatchedSave();
+    composing.value = true;
+    element.selectionStart = 12;
+    element.selectionEnd = 14;
+    ownerDocument.activeElement = null;
+    viewport.captureBeforeRender();
+    viewport.restoreAfterRender();
+    await nextTick();
+    expect(setSelectionRange).not.toHaveBeenCalled();
+    expect(focus).not.toHaveBeenCalled();
+    expect(remembered).not.toHaveBeenCalled();
+  });
+
   it("restores scroll and selection around a dispatched manual save", async () => {
     const { element, focus, ownerDocument, setSelectionRange } = createEditor();
     element.scrollTop = 640;
