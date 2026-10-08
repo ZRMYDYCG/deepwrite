@@ -110,26 +110,6 @@
   font-size: 0.857143rem;
   font-variant-numeric: tabular-nums;
 }
-.decomposition-activity {
-  color: var(--text-secondary);
-  font-size: 0.857143rem;
-}
-.decomposition-activity summary {
-  width: fit-content;
-  cursor: pointer;
-}
-.decomposition-activity ul {
-  max-height: 220px;
-  margin: 8px 0 0;
-  padding: 8px 12px 8px 30px;
-  overflow: auto;
-  border: 1px solid var(--theme-line-soft);
-  border-radius: 10px;
-  background: var(--surface-muted);
-  line-height: 1.7;
-  overflow-wrap: anywhere;
-}
-
 .decomposition-segmented {
   display: inline-flex;
   gap: 2px;

@@ -692,6 +692,57 @@ describe("blocking subagent runtime", () => {
     });
   });
 
+  it("returns failed tool calls to the child so it can resend them", async () => {
+    let executions = 0;
+    const parameters = Type.Object({ text: Type.String() });
+    const flaky: AgentTool = {
+      name: "flaky_submit",
+      label: "提交",
+      description: "测试提交工具。",
+      parameters,
+      execute: async () => {
+        executions += 1;
+        if (executions === 1) throw new Error("模拟保存失败。");
+        return {
+          content: [{ type: "text", text: "已保存" }],
+          details: { kind: "none" }
+        };
+      }
+    };
+    const call = (args: Record<string, unknown>, id: string) =>
+      fauxAssistantMessage([fauxToolCall("flaky_submit", args, { id })], {
+        stopReason: "toolUse"
+      });
+    let lastContext: Context | undefined;
+    const { tool } = makeHarness({
+      buildChildTools: () => [flaky],
+      onContext: (context) => (lastContext = context),
+      responses: [
+        call({}, "missing-field"),
+        call({ text: "第一次" }, "save-fails"),
+        call({ text: "第二次" }, "save-works"),
+        fauxAssistantMessage(fauxText("重交后已保存。"))
+      ]
+    });
+    if (!tool) throw new Error("spawn_subagent was not built");
+
+    const result = await tool.execute("parent-retry-call", {
+      subagent_id: "continuity_checker",
+      task: "提交结果"
+    } as never);
+
+    expect(result.content[0]).toMatchObject({ text: "重交后已保存。" });
+    expect(executions).toBe(2);
+    const errors = lastContext!.messages.flatMap((message) =>
+      message.role === "toolResult" && message.isError
+        ? [JSON.stringify(message.content)]
+        : []
+    );
+    expect(errors).toHaveLength(2);
+    expect(errors[0]).toContain("Validation failed");
+    expect(errors[1]).toContain("模拟保存失败。");
+  });
+
   it("enforces a wall-clock deadline even while the child keeps streaming", async () => {
     const { tool } = makeHarness({
       tokensPerSecond: 100,

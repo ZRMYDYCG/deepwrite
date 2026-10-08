@@ -3,8 +3,9 @@ import { join, relative } from "node:path";
 import type { DeepWriteApi } from "@deepwrite/contracts";
 import { ModelConfigStore } from "./model-config-store";
 import { runStorageUiSmoke } from "./smoke-storage-ui";
+import { legacyHistorySmokeInRenderer } from "./smoke-storage-history";
 
-type StorageSmokePhase = "seed" | "custom" | "restored";
+type StorageSmokePhase = "seed" | "custom" | "reopened" | "restored";
 
 /** This function is serialized so all assertions use the real sandboxed Preload. */
 async function storageSmokeInRenderer(input: {
@@ -25,7 +26,7 @@ async function storageSmokeInRenderer(input: {
   ensure(snapshot.userData.path === input.currentPath, "current path differs");
   ensure(
     snapshot.userData.defaultPath === input.defaultPath &&
-      snapshot.userData.isDefault === (input.phase !== "custom"),
+      snapshot.userData.isDefault === (input.currentPath === input.defaultPath),
     "default path or location status differs"
   );
   ensure(
@@ -40,7 +41,9 @@ async function storageSmokeInRenderer(input: {
   };
   const preferenceKey = "conversation-preferences:storage-smoke";
   const browserKey = "deepwrite.storage-smoke.layout";
-  const marker = input.phase === "restored" ? "custom" : "seed";
+  const marker = ["reopened", "restored"].includes(input.phase)
+    ? "custom"
+    : "seed";
   const history = persistence.history;
   if (!history) throw new Error("Conversation history API is missing.");
 
@@ -102,6 +105,10 @@ async function storageSmokeInRenderer(input: {
       documentId: book.documents[0].id,
       content: "Existing work stays in its original workspace."
     });
+    ensure(
+      await api.long.create({ title: "Storage seed long book", genre: "其他" }),
+      "long book creation failed"
+    );
   }
 
   const models = await api.models.list();
@@ -141,6 +148,14 @@ async function storageSmokeInRenderer(input: {
       "Existing work stays in its original workspace.",
     "existing workspace book was moved or lost"
   );
+  const long = (await api.long.list()).books.find(
+    (item) => item.title === `Storage ${marker} long book`
+  );
+  if (!long) throw new Error("Storage smoke: registered long book was lost");
+  ensure(
+    (await api.long.open({ bookId: long.id })).book.title === long.title,
+    "registered long book cannot be reopened"
+  );
 
   if (input.phase === "custom") {
     if (!model || !state) throw new Error("Missing persisted smoke state.");
@@ -159,6 +174,15 @@ async function storageSmokeInRenderer(input: {
     });
     await persistence.save(preferenceKey, { layout: "custom" });
     localStorage.setItem(browserKey, "custom");
+    ensure(
+      (
+        await api.long.rename({
+          bookId: long.id,
+          title: "Storage custom long book"
+        })
+      ).book.title === "Storage custom long book",
+      "migrated long registry cannot be updated"
+    );
   }
   return {
     phase: input.phase,
@@ -168,17 +192,24 @@ async function storageSmokeInRenderer(input: {
     history: true,
     preferences: true,
     chromiumStorage: true,
-    workspacePreserved: true
+    workspacePreserved: true,
+    longProjects: true
   };
 }
 
 export async function runStorageSmoke(window: BrowserWindow) {
   const root = process.env.DEEPWRITE_STORAGE_SMOKE_ROOT;
   const phase = process.env.DEEPWRITE_STORAGE_SMOKE;
-  if (!root || !["seed", "custom", "restored"].includes(phase ?? "")) {
+  if (
+    !root ||
+    !["seed", "custom", "reopened", "restored"].includes(phase ?? "")
+  ) {
     throw new Error("Missing isolated storage smoke configuration.");
   }
-  const currentPath = join(root, phase === "custom" ? "custom" : "default");
+  const currentPath = join(
+    root,
+    phase === "custom" || phase === "reopened" ? "custom" : "default"
+  );
   if (relative(currentPath, app.getPath("userData")) !== "") {
     throw new Error("Storage smoke refused a profile outside its fixture.");
   }
@@ -198,6 +229,14 @@ export async function runStorageSmoke(window: BrowserWindow) {
     throw new Error("Migrated model credential could not be decrypted.");
   }
   const ui = phase === "seed" ? await runStorageUiSmoke(window) : undefined;
+  const legacyHistory = await window.webContents.executeJavaScript(
+    `(${legacyHistorySmokeInRenderer.toString()})(${JSON.stringify(phase)})`
+  );
   window.webContents.session.flushStorageData();
-  return { ...result, encryptedCredential: true, ...(ui ? { ui } : {}) };
+  return {
+    ...result,
+    legacyHistory,
+    encryptedCredential: true,
+    ...(ui ? { ui } : {})
+  };
 }

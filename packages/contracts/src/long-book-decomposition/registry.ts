@@ -34,6 +34,30 @@ export const DecompositionRegistryDataSchema = z.object({
     )
     .max(10_000)
 });
+/**
+ * A registrar's decisions, not the registry itself: entries are named by the
+ * numbers the evidence pack gives them, and Core builds the registry from
+ * the names, counts and chapters it already holds. Output grows with the
+ * decisions taken, never with the names reviewed.
+ */
+export const DecompositionRegistryPlanSchema = z.object({
+  /** Numbers of one object; a single number only sets its tier or category. */
+  groups: z
+    .array(
+      z.object({
+        refs: z.array(DecompositionIdSchema).min(1).max(200),
+        name: z.string().trim().min(1).max(256).optional(),
+        tier: DecompositionCharacterTierSchema.optional(),
+        categoryId: DecompositionIdSchema.optional()
+      })
+    )
+    .max(5000),
+  /** Numbers of names that are no object at all. */
+  ignored: z.array(DecompositionIdSchema).max(20_000)
+});
+export type DecompositionRegistryPlan = z.infer<
+  typeof DecompositionRegistryPlanSchema
+>;
 export const DecompositionRegistrySchema =
   DecompositionRegistryDataSchema.extend({
     version: z.number().int().positive(),

@@ -158,6 +158,18 @@ import type {
   MarketplaceUpdateInput
 } from "./marketplace";
 import type {
+  AgentTeamMarketplaceDetail,
+  AgentTeamMarketplaceInstallResult,
+  AgentTeamMarketplaceLikeInput,
+  AgentTeamMarketplaceListFilter,
+  AgentTeamMarketplacePage,
+  AgentTeamMarketplacePublishInput,
+  AgentTeamMarketplaceSetEnabledInput,
+  AgentTeamMarketplaceSummary,
+  AgentTeamMarketplaceTarget,
+  AgentTeamMarketplaceUpdateInput
+} from "./agent-team-marketplace";
+import type {
   CloudBackupApplyResult,
   CloudBackupPreview,
   CloudBackupStatus
@@ -212,6 +224,35 @@ export interface DeepWriteApi extends TextContextMenuPreloadApi {
       ref: MarketplaceContentRef
     ): Promise<MarketplaceInstallPreview>;
     install(input: MarketplaceInstallInput): Promise<MarketplaceInstallResult>;
+  };
+  /** Whole-team plaza; sign-in goes through `marketplace`. */
+  agentTeamMarketplace: {
+    list(
+      filter?: AgentTeamMarketplaceListFilter
+    ): Promise<AgentTeamMarketplacePage>;
+    listMine(
+      filter?: AgentTeamMarketplaceListFilter
+    ): Promise<AgentTeamMarketplacePage>;
+    detail(
+      target: AgentTeamMarketplaceTarget
+    ): Promise<AgentTeamMarketplaceDetail>;
+    myDetail(
+      target: AgentTeamMarketplaceTarget
+    ): Promise<AgentTeamMarketplaceDetail>;
+    publish(
+      input: AgentTeamMarketplacePublishInput
+    ): Promise<AgentTeamMarketplaceDetail>;
+    update(
+      input: AgentTeamMarketplaceUpdateInput
+    ): Promise<AgentTeamMarketplaceDetail>;
+    setEnabled(
+      input: AgentTeamMarketplaceSetEnabledInput
+    ): Promise<AgentTeamMarketplaceSummary>;
+    delete(target: AgentTeamMarketplaceTarget): Promise<void>;
+    like(input: AgentTeamMarketplaceLikeInput): Promise<MarketplaceLikeResult>;
+    install(
+      target: AgentTeamMarketplaceTarget
+    ): Promise<AgentTeamMarketplaceInstallResult>;
   };
   deviceSync?: {
     request(

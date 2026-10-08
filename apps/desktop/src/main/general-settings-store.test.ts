@@ -205,9 +205,42 @@ describe("GeneralSettingsStore", () => {
         useNetworkProxy: false,
         workspacePaneLayout: "agent-editor",
         defaultTextViewMode: "edit",
-        bodyTextFormats: createDefaultGeneralSettings().bodyTextFormats
+        bodyTextFormats: createDefaultGeneralSettings().bodyTextFormats,
+        moreFeatures: createDefaultGeneralSettings().moreFeatures
       }
     });
+  });
+
+  it("preserves existing preferences when adding more features defaults and persists visibility and order across restart", async () => {
+    const { root, store } = await createStore();
+    const { moreFeatures: _, ...legacy } = createDefaultGeneralSettings();
+    await mkdir(join(root, "config"));
+    await writeFile(
+      store.settingsPath,
+      JSON.stringify({
+        version: 2,
+        ...legacy,
+        autoSave: false,
+        language: "en-US"
+      })
+    );
+    const loaded = await store.list();
+    expect(loaded.persisted).toBe(true);
+    expect(loaded.settings).toMatchObject({
+      autoSave: false,
+      language: "en-US",
+      moreFeatures: createDefaultGeneralSettings().moreFeatures
+    });
+    const updated = {
+      ...loaded.settings,
+      moreFeatures: [...loaded.settings.moreFeatures]
+        .reverse()
+        .map((entry) => ({ ...entry, visible: entry.id !== "chat-assistant" }))
+    };
+    await store.save(updated);
+    expect((await new GeneralSettingsStore(root).list()).settings).toEqual(
+      updated
+    );
   });
 
   it("enables explicitly disabled legacy approvals only once", async () => {

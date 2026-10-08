@@ -9,6 +9,7 @@ import {
 import { finalizeDecomposition } from "./completion-service";
 import type { DecompositionService } from "./service";
 import { decompositionErrorMessage } from "./error-message";
+import { settleDecompositionRegistryMerge } from "./submission-staging";
 
 export async function advanceDecompositionJob(
   service: DecompositionService,
@@ -16,6 +17,8 @@ export async function advanceDecompositionJob(
 ) {
   if (job.phase === "done") return job;
   if (job.status === "running") throw new Error("请等待当前工作包结束。");
+  if (job.phase === "registry")
+    await settleDecompositionRegistryMerge(service, job);
   const remaining = Object.values(job.units).filter(
     (unit) =>
       unit.phase === job.phase && !["done", "skipped"].includes(unit.status)

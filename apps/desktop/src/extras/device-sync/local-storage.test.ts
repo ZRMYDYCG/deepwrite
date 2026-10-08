@@ -29,6 +29,7 @@ vi.mock("electron", () => ({
 const { DesktopSyncMetadataStore } = await import("./local-storage");
 
 const KEY = "sk-sync-test-only-0123456789";
+const NOW = "2026-09-08T01:00:00.000Z";
 const config = syncModelConfigSchema.parse({
   id: "model_writer",
   label: "写作模型",
@@ -126,14 +127,54 @@ describe("DesktopSyncMetadataStore", () => {
   });
 
   it("drops a key it cannot decrypt instead of failing the whole sync state", async () => {
-    const { store } = await createStore();
+    const { root, store } = await createStore();
     await store.write(metadata());
 
     storage.brokenDecrypt = true;
-    const read = await store.read();
+    const read = await new DesktopSyncMetadataStore(root).read();
     const item = read!.baselines["model-config:model_writer"]!.item!;
     expect(Object.keys(item.files)).toEqual(["deepwrite.json"]);
     expect(read!.deviceId).toBe("device_1");
+  });
+
+  it("serves reads from memory after a write, as one frozen value with usable keys", async () => {
+    const { root, store } = await createStore();
+    await store.write(metadata());
+    await writeFile(join(root, "device-sync.json"), "{damaged");
+
+    const first = await store.read();
+    expect(first).toEqual(metadata());
+    expect(await store.read()).toBe(first);
+    expect(Object.isFrozen(first?.baselines)).toBe(true);
+    // A restart reads the file again.
+    await expect(new DesktopSyncMetadataStore(root).read()).rejects.toThrow();
+  });
+
+  it("keeps writes in call order and isolates the cache from the caller's objects", async () => {
+    const { root, store } = await createStore();
+    const second = { ...metadata(), lastCheckedAt: NOW };
+    const writes = Promise.all([store.write(metadata()), store.write(second)]);
+    second.deviceId = "device_changed";
+    await writes;
+
+    expect(await store.read()).toMatchObject({
+      deviceId: "device_1",
+      lastCheckedAt: NOW
+    });
+    expect(
+      (await new DesktopSyncMetadataStore(root).read())?.lastCheckedAt
+    ).toBe(NOW);
+  });
+
+  it("reads the file again after a failed write", async () => {
+    const { root, store } = await createStore();
+    await store.write(metadata());
+    storage.available = false;
+    await expect(store.write(metadata())).rejects.toThrow("安全存储");
+    storage.available = true;
+    const plain: SyncMetadata = { ...metadata(), baselines: {} };
+    await writeFile(join(root, "device-sync.json"), JSON.stringify(plain));
+    expect(await store.read()).toEqual(plain);
   });
 
   it("reads metadata written before keys were synced, and returns null when absent", async () => {

@@ -280,7 +280,7 @@ export default {
     conversationHistoryMigrationIsIncompleteTheOriginalRecordsHave:
       "历史对话迁移暂未完成，原始记录已保留",
     conversationHistoryCouldNotBeReadYouCanContinue:
-      "历史对话暂时无法读取，本次运行仍可正常使用",
+      "历史对话暂时无法读取，请检查用户数据目录；消息需保存成功后才能发送",
     theConversationRuntimeRegistryHasBeenClosed: "会话运行时注册表已经关闭。"
   },
   writingContext: {
@@ -297,6 +297,8 @@ export default {
       "智能体运行已停止，工具调用未返回完整终态。"
   },
   sendMessage: {
+    couldNotSaveBeforeSending:
+      "消息尚未保存到本机，暂时无法发送。请检查用户数据目录。",
     pleaseReadAndAnalyzeTheAttachmentsIUploaded: "请阅读并分析我上传的附件。",
     theBrowserPreviewHasNoDesktopAgentRuntimeStart:
       "浏览器预览没有桌面 Agent Runtime，请使用 pnpm dev 启动客户端。",

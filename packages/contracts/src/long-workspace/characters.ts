@@ -42,9 +42,34 @@ export const DEFAULT_LONG_CHARACTER_TYPES: readonly LongCharacterType[] = [
   { id: "passerby", title: "路人", order: 4 }
 ];
 
+export const LONG_CHARACTER_ALIAS_LIMIT = 64;
+export const LONG_CHARACTER_ALIAS_MAX_LENGTH = 120;
+
+/**
+ * The aliases a long character can hold, taken in the given order: trimmed,
+ * unique, never the name itself, at most the alias limit.
+ */
+export function fitLongCharacterAliases(
+  name: string,
+  aliases: readonly string[]
+): string[] {
+  const kept = new Set<string>();
+  for (const value of aliases) {
+    if (kept.size === LONG_CHARACTER_ALIAS_LIMIT) break;
+    const alias = value.trim();
+    if (
+      alias &&
+      alias !== name.trim() &&
+      alias.length <= LONG_CHARACTER_ALIAS_MAX_LENGTH
+    )
+      kept.add(alias);
+  }
+  return [...kept];
+}
+
 const UniqueAliasListSchema = z
-  .array(z.string().trim().min(1).max(120))
-  .max(64)
+  .array(z.string().trim().min(1).max(LONG_CHARACTER_ALIAS_MAX_LENGTH))
+  .max(LONG_CHARACTER_ALIAS_LIMIT)
   .superRefine((values, context) => {
     const seen = new Set<string>();
     values.forEach((value, index) => {

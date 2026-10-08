@@ -6,6 +6,7 @@ export default {
   novelAnalysis: "Novel analysis",
   styleComparison: "Style comparison",
   skillMarketplace: "Skill marketplace",
+  agentTeamMarketplace: "Agent team marketplace",
   expandSidebar: "Expand sidebar",
   deviceSync: "Device sync",
   expandSidebarLabel: "Expand sidebar",

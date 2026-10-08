@@ -1,11 +1,12 @@
 import type { AgentSubagentRun } from "../../types/conversation";
 import type { AgentConversationContext } from "./context";
+import type { TrackedMessages } from "./message-mutations";
 import type { PendingSubagentTextDelta } from "./types";
 
 type SubagentTextDeltaContext = Pick<
   AgentConversationContext,
-  "pendingSubagentTextDeltas" | "messageMutations"
->;
+  "pendingSubagentTextDeltas"
+> & { messageMutations: Pick<TrackedMessages, "appendText"> };
 
 function applySubagentTextDelta(
   ctx: SubagentTextDeltaContext,

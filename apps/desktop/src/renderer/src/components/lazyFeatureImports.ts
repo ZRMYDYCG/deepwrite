@@ -12,6 +12,8 @@ export const loadLongWorkspaceModule = () =>
 export const loadSettingsPage = () => import("./SettingsPage.vue");
 export const loadSkillMarketplacePage = () =>
   import("./SkillMarketplacePage.vue");
+export const loadAgentTeamMarketplacePage = () =>
+  import("../extras/agent-team-marketplace/AgentTeamMarketplacePage.vue");
 export const loadCloudBackupPage = () =>
   import("../extras/cloud-backup/CloudBackupPage.vue");
 export const loadZhuqueDetectionPage = () =>

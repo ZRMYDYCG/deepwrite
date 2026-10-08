@@ -68,7 +68,8 @@ function context(
     record: async (id) => records[id]!,
     asset: async (id) => assets[id],
     repairs: async (id) =>
-      id === "character:rc_main" ? ["最新状态与第 3 章不符"] : []
+      id === "character:rc_main" ? ["最新状态与第 3 章不符"] : [],
+    draft: async () => undefined
   };
 }
 
@@ -100,7 +101,7 @@ describe("decomposition evidence packs", () => {
         })
       ).content;
     expect(await pack()).toContain(
-      "### reading:source_chapter_2｜chapterId=source_chapter_2｜order=2"
+      "### reading:source_chapter_2｜chapterId=source_chapter_2｜order=2｜title=第 2 章"
     );
     expect(await pack()).toContain("主角在第 2 章继续寻找铜铃。");
     job.units["reading:source_chapter_2"]!.status = "done";
@@ -151,40 +152,71 @@ describe("decomposition evidence packs", () => {
     expect(pack).toMatch(/第3\d\d章：/u);
   });
 
-  it("gives the registry merge every saved part", async () => {
+  it("numbers a registry part's names and leaves the merge only cross-part clusters", async () => {
     const { job } = await decompositionFixture("materials", 3);
     unit(job, "registry:part:1");
-    unit(job, "registry:merge", ["registry:part:1"]);
-    const pack = await buildDecompositionBrief(
-      context(
-        job,
-        [],
-        {},
-        {
-          "registry:part:1": {
-            unitId: "registry:part:1",
-            data: {
-              kind: "registry",
-              registry: {
-                characters: [
-                  {
-                    id: "rc_part",
-                    name: "铃铛客",
-                    aliases: [],
-                    tier: "minor_supporting",
-                    firstChapterOrder: 2,
-                    chunkCount: 1
-                  }
-                ],
-                terms: []
-              }
-            }
+    unit(job, "registry:part:2");
+    unit(job, "registry:merge", ["registry:part:1", "registry:part:2"]);
+    job.units["registry:part:1"]!.registryRefs = ["c1"];
+    job.units["registry:part:2"]!.registryRefs = ["c2", "c3"];
+    const cards = [
+      card(1, [["铃铛客", "夜里摇铃。"]]),
+      card(2, [
+        ["铃铛", "铃声又起。"],
+        ["路人甲", "在桥头围观。"]
+      ])
+    ];
+    const entry = (id: string, name: string, tier: string) => ({
+      id,
+      name,
+      aliases: [],
+      tier: tier as "passerby",
+      firstChapterOrder: 1,
+      chunkCount: 1
+    });
+    const records: Record<string, DecompositionRecord> = {
+      "registry:part:1": {
+        unitId: "registry:part:1",
+        data: {
+          kind: "registry",
+          registry: {
+            characters: [entry("c1", "铃铛客", "minor_supporting")],
+            terms: []
           }
         }
-      ),
+      },
+      "registry:part:2": {
+        unitId: "registry:part:2",
+        data: {
+          kind: "registry",
+          registry: {
+            characters: [
+              entry("c2", "铃铛", "major_supporting"),
+              entry("c3", "路人甲", "passerby")
+            ],
+            terms: []
+          }
+        }
+      }
+    };
+    const part = await buildDecompositionBrief(
+      context(job, cards, {}, records),
+      ["registry:part:2"],
+      50_000
+    );
+    expect(part).toContain("共 2 个编号");
+    expect(part).toMatch(
+      /^c2｜铃铛｜别名：无｜首次第2章｜1 章提及｜第2章：铃声又起。$/mu
+    );
+    expect(part).not.toContain("铃铛客");
+    const merge = await buildDecompositionBrief(
+      context(job, cards, {}, records),
       ["registry:merge"],
       50_000
     );
-    expect(pack).toContain('"name":"铃铛客"');
+    expect(merge).toContain("以下 1 个候选簇");
+    expect(merge).toContain("候选簇 1：\nc2｜人物｜铃铛｜主要配角");
+    expect(merge).toContain("c1｜人物｜铃铛客｜次要配角");
+    expect(merge).not.toContain("路人甲");
   });
 });

@@ -12,6 +12,8 @@ import {
   type DecompositionTaskInput,
   type DecompositionControlInput,
   type DecompositionUsage,
+  type DecompositionReadingCard,
+  type DecompositionReceipt,
   type DecompositionSaveRegistryInput
 } from "@deepwrite/contracts";
 import { LongBookAnalysisSourceStore } from "../../extras/agents/sources/long-book-source-store";
@@ -29,7 +31,13 @@ import {
   readyDecompositionUnits
 } from "./workflow";
 import { assertDecompositionSubmission } from "./submission-validation";
-import { assertDecompositionSourceEvidence } from "./evidence-validation";
+import { canonicalDecompositionEvidence } from "./evidence-validation";
+import {
+  markDecompositionUnitDone,
+  resolveDecompositionSubmission,
+  settleDecompositionRegistryMerge,
+  stageDecompositionPart
+} from "./submission-staging";
 import { decompositionErrorMessage } from "./error-message";
 
 export class DecompositionService {
@@ -47,7 +55,7 @@ export class DecompositionService {
     );
     this.reader = new DecompositionRecordsReader(longs, catalog, this.records);
   }
-  async source(job: LongBookDecompositionJob) {
+  private async confirmedSourceStore(job: LongBookDecompositionJob) {
     const store = new LongBookAnalysisSourceStore(
       this.state.workspaceDirectory
     );
@@ -61,6 +69,19 @@ export class DecompositionService {
       JSON.stringify(confirmation.range) !== JSON.stringify(job.source.range)
     )
       throw new Error("来源确认回执与任务输入不一致。");
+    return store;
+  }
+  async assertSource(job: LongBookDecompositionJob): Promise<void> {
+    const store = await this.confirmedSourceStore(job);
+    const source = await store.inspectRevision(
+      job.source.sourceId,
+      job.source.sourceRevision
+    );
+    if (source.fingerprint !== job.source.fingerprint)
+      throw new Error("来源已损坏或被篡改。");
+  }
+  async source(job: LongBookDecompositionJob) {
+    const store = await this.confirmedSourceStore(job);
     const source = await store.load(
       job.source.sourceId,
       job.source.sourceRevision
@@ -137,19 +158,41 @@ export class DecompositionService {
   ) {
     return persistDecompositionUnit(this, job, unitId, data);
   }
-  async submit(input: DecompositionSubmitInput) {
-    const job = await this.state.load(input.jobId);
+  async submit(submitted: DecompositionSubmitInput) {
+    const job = await this.state.load(submitted.jobId);
     const source = await this.source(job);
+    let cards: Promise<DecompositionReadingCard[]> | undefined;
+    const readCards = () =>
+      (cards ??= readDecompositionCards(job, this.reader));
+    // Fields the source decides are filled in before the checks, so an
+    // echoed title or a re-punctuated excerpt never costs a resubmission.
+    const input = {
+      ...submitted,
+      data: canonicalDecompositionEvidence(
+        job,
+        submitted.unitId,
+        await resolveDecompositionSubmission(
+          this,
+          job,
+          submitted.unitId,
+          submitted.data,
+          readCards
+        ),
+        source
+      )
+    };
     const registry =
       job.units["registry:merge"]?.status === "done"
         ? await readDecompositionRegistry(job, this.reader)
         : emptyDecompositionRegistry();
-    const cards =
+    assertDecompositionSubmission(
+      job,
+      input,
+      registry,
       input.data.kind === "registry" && input.unitId === "registry:merge"
-        ? await readDecompositionCards(job, this.reader)
-        : [];
-    assertDecompositionSubmission(job, input, registry, cards);
-    assertDecompositionSourceEvidence(job, input.unitId, input.data, source);
+        ? await readCards()
+        : []
+    );
     const unit = job.units[input.unitId]!;
     if (unit.status === "done") {
       const receipt = (await this.reader.receipts(job)).find(
@@ -158,19 +201,14 @@ export class DecompositionService {
       if (!receipt) throw new Error("完成单元的持久化回执缺失。");
       return receipt;
     }
+    if (input.data.kind === "asset-part")
+      return stageDecompositionPart(this, job, input.unitId, input.data.asset);
     unit.status = "writing";
     await this.state.save(job);
+    let receipt: DecompositionReceipt;
     try {
-      const receipt = await this.write(job, input.unitId, input.data);
-      unit.status = "done";
-      unit.outputRefs = receipt.refs;
-      unit.receiptIds = unit.requiredReceiptIds ?? [receipt.id];
-      delete unit.lastError;
-      delete unit.regenerateApproved;
-      if (job.target?.kind === "long") job.target.baseRevision++;
-      if (job.target?.kind === "material-group")
-        for (const ref of receipt.refs)
-          job.target.baseRevisions[ref.projectId] = ref.revision;
+      receipt = await this.write(job, input.unitId, input.data);
+      markDecompositionUnitDone(job, input.unitId, receipt);
       if (input.data.kind === "review")
         for (const issue of input.data.review.issues) {
           const target = issue.unitId ? job.units[issue.unitId] : undefined;
@@ -183,7 +221,6 @@ export class DecompositionService {
           }
         }
       await this.state.save(job);
-      return receipt;
     } catch (error) {
       unit.status =
         error instanceof Error &&
@@ -194,6 +231,12 @@ export class DecompositionService {
       await this.state.save(job);
       throw error;
     }
+    // The unit is saved; leftovers never turn that into a failure. A merge
+    // Core cannot settle here stays pending for the registrar.
+    await this.records.removeDraft(job, input.unitId).catch(() => undefined);
+    if (input.unitId.startsWith("registry:part:"))
+      await settleDecompositionRegistryMerge(this, job).catch(() => false);
+    return receipt;
   }
   advance(job: LongBookDecompositionJob) {
     return advanceDecompositionJob(this, job);

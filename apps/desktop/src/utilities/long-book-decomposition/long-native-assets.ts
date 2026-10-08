@@ -1,11 +1,10 @@
 import {
+  fitLongCharacterAliases,
   longCharacterCoreProfileFileId,
   longCharacterRelationshipsFileId,
   longCharacterFilePath,
   longChapterWorldRevealsFileId,
   longChapterContinuityFilePath,
-  longStoryPlotBodyFileId,
-  longStoryPlotFilePath,
   type DecompositionAsset,
   type DecompositionRegistry,
   type LongBookDecompositionJob,
@@ -13,11 +12,14 @@ import {
   type LongWorkspaceFileReference
 } from "@deepwrite/contracts";
 import { decompositionResourceId } from "./identity";
+import { applyChronicle } from "./long-chronicle-assets";
 import { applyWorldCategory } from "./long-world-assets";
 
 export interface NativeAssetWriter {
   file(reference: LongWorkspaceFileReference, content: string): Promise<void>;
   object(id: string, value: unknown): void;
+  /** Removes an index object the job wrote, and its document if it has one. */
+  remove(id: string, file?: LongWorkspaceFileReference): Promise<void>;
 }
 export async function applyDecompositionNativeAsset(
   job: LongBookDecompositionJob,
@@ -48,55 +50,7 @@ export async function applyDecompositionNativeAsset(
       }
       break;
     case "chronicle":
-      for (const [number, point] of asset.points.entries()) {
-        if (point.startOrder > point.endOrder)
-          throw new Error("剧情点章节范围无效。");
-        const cards = index.plot.chapterCards.filter(
-          (_, i) =>
-            i + job.source.range.start >= point.startOrder &&
-            i + job.source.range.start <= point.endOrder
-        );
-        if (!cards.length) throw new Error("剧情点不在已读章节中。");
-        for (const volumeId of new Set(cards.map(({ volumeId }) => volumeId))) {
-          const id = decompositionResourceId(
-            "arc",
-            job.id,
-            `${unitId}:${number}:${volumeId}`
-          );
-          const arc = {
-            id,
-            volumeId,
-            title: point.title,
-            summary: point.summary,
-            outline: "",
-            order:
-              index.plot.arcs.filter((a) => a.volumeId === volumeId).length + 1
-          };
-          const prior = index.plot.arcs.find((a) => a.id === id);
-          if (prior) Object.assign(prior, { ...arc, order: prior.order });
-          else index.plot.arcs.push(arc);
-          for (const card of cards)
-            if (card.volumeId === volumeId) card.primaryArcId = id;
-          writer.object(id, prior ?? arc);
-          const storyId = decompositionResourceId("storyplot", job.id, id);
-          let story = index.plot.storyPlots.find((item) => item.id === storyId);
-          if (!story) {
-            story = {
-              id: storyId,
-              arcId: id,
-              title: point.title,
-              order: 1,
-              file: ref(
-                longStoryPlotBodyFileId(storyId),
-                longStoryPlotFilePath(storyId)
-              )
-            };
-            index.plot.storyPlots.push(story);
-          }
-          await writer.file(story.file, point.summary);
-          writer.object(storyId, story);
-        }
-      }
+      await applyChronicle(job, index, asset, writer, unitId);
       break;
     case "character": {
       const entry = registry.characters.find(
@@ -110,7 +64,8 @@ export async function applyDecompositionNativeAsset(
         character = {
           id,
           name: entry.name,
-          aliases: entry.aliases,
+          // The registry keeps more aliases for matching than a character holds.
+          aliases: fitLongCharacterAliases(entry.name, entry.aliases),
           group: entry.tier,
           order:
             index.characters.filter(({ group }) => group === entry.tier)
@@ -164,7 +119,9 @@ export async function applyDecompositionNativeAsset(
             type: beat.type,
             order: number + 1,
             volumeId: chapter.volumeId,
-            arcId: chapter.primaryArcId,
+            // The chapter decides the arc, so a rewritten chronicle that
+            // moves the chapter cannot leave the beat behind.
+            arcId: null,
             chapterCardId: chapter.id,
             eventId: null,
             placementId: null,

@@ -140,6 +140,7 @@ import rightEditorPane from "./rightEditorPane/zh-CN";
 import saveConflictDialog from "./saveConflictDialog/zh-CN";
 import scriptAgentSettingsPanel from "./scriptAgentSettingsPanel/zh-CN";
 import settingsPage from "./settingsPage/zh-CN";
+import moreFeaturesSettings from "./moreFeaturesSettings/zh-CN";
 import shortAgentSettingsPanel from "./shortAgentSettingsPanel/zh-CN";
 import sidebarMoreFeatures from "./sidebarMoreFeatures/zh-CN";
 import sidebarProfileMenu from "./sidebarProfileMenu/zh-CN";
@@ -326,6 +327,7 @@ export default {
   saveConflictDialog,
   scriptAgentSettingsPanel,
   settingsPage,
+  moreFeaturesSettings,
   shortAgentSettingsPanel,
   sidebarMoreFeatures,
   sidebarProfileMenu,

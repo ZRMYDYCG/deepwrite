@@ -28,12 +28,14 @@ export async function queryAll(
     startOrder?: number;
     endOrder?: number;
     characters?: Array<{
+      ref: string;
       name: string;
       aliases: string[];
       firstChapterOrder: number;
       chunkCount: number;
     }>;
     terms?: Array<{
+      ref: string;
       name: string;
       aliases: string[];
       categoryId: string;

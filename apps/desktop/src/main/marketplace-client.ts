@@ -116,7 +116,23 @@ export class MarketplaceClient extends MarketplaceAccountClient {
       authenticated: true,
       body: requestBody(parsed)
     });
-    return normalizeDetail(parsed.contentType, data);
+    const detail = normalizeDetail(parsed.contentType, data);
+    if (detail.enabled) return detail;
+    try {
+      const enabled = await this.setEnabled({
+        contentType: detail.contentType,
+        id: detail.id,
+        enabled: true
+      });
+      return {
+        ...detail,
+        enabled: enabled.enabled,
+        updatedAt: enabled.updatedAt
+      };
+    } catch {
+      // The upload succeeded; let the author enable it without publishing again.
+      return detail;
+    }
   }
 
   async update(

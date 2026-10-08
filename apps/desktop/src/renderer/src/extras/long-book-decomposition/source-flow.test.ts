@@ -6,6 +6,31 @@ import {
 import { useLongBookDecomposition } from "./useLongBookDecomposition";
 import { reactive } from "vue";
 
+it("运行结束后的检查失败显示跨进程错误消息，不把错误对象转成字符串", async () => {
+  const failure = {
+    code: "decomposition.command_failed",
+    message: "完成记录超过大小限制。"
+  };
+  const job = { id: "ldjob_ui", phase: "done", units: {} } as NonNullable<
+    ReturnType<typeof useLongBookDecomposition>["job"]["value"]
+  >;
+  const getJob = vi.fn().mockRejectedValue(failure);
+  const controller = useLongBookDecomposition({
+    api: () =>
+      ({
+        longBookDecomposition: {
+          control: vi.fn(async () => job),
+          getJob
+        }
+      }) as unknown as DeepWriteApi
+  });
+  controller.job.value = job;
+  await controller.run();
+  expect(getJob).toHaveBeenCalledTimes(1);
+  expect(controller.error.value).toBe(failure.message);
+  controller.dispose();
+});
+
 it("保存中与未确认不能建任务；确认使用持久化版本，后续章节编辑使确认失效", async () => {
   const source = LongBookAnalysisSourceSchema.parse({
     id: "long_book_analysis_source_ui",

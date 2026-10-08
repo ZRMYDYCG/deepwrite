@@ -1,0 +1,263 @@
+/* Subtask board and detail dialog of an open decomposition task. */
+.decomposition-subtasks {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 1px solid var(--theme-line-soft);
+}
+.decomposition-subtasks-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+.decomposition-subtasks-heading h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+.decomposition-subtasks-meta {
+  color: var(--text-secondary);
+  font-size: 0.857143rem;
+  font-variant-numeric: tabular-nums;
+}
+.decomposition-subtask-lead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  padding: 8px 12px;
+  border: 1px solid var(--theme-line-soft);
+  border-radius: 10px;
+  background: var(--surface-muted);
+  color: var(--text-secondary);
+  font-size: 0.857143rem;
+}
+.decomposition-subtask-lead strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.decomposition-subtasks .decomposition-segmented {
+  flex-wrap: wrap;
+  align-self: flex-start;
+}
+.decomposition-subtasks-empty {
+  margin: 0;
+  padding: 14px 0;
+  color: var(--text-secondary);
+  font-size: 0.857143rem;
+  text-align: center;
+}
+
+.decomposition-subtask-scroll {
+  max-height: 440px;
+  overflow: auto;
+  border: 1px solid var(--theme-line-soft);
+  border-radius: 10px;
+  background: var(--surface-main);
+  container-type: inline-size;
+  font-size: 0.857143rem;
+}
+.decomposition-subtask-line {
+  display: grid;
+  grid-template-columns: 18% 27% minmax(0, 1fr) 80px 112px 36px;
+  align-items: center;
+}
+.decomposition-subtask-line > * {
+  min-width: 0;
+  padding: 0 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.decomposition-subtask-line.is-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  min-height: 34px;
+  border-bottom: 1px solid var(--theme-line-soft);
+  background: var(--surface-muted);
+  color: var(--text-tertiary);
+  font-size: 0.75rem;
+}
+.decomposition-subtask-group {
+  padding: 10px 12px 4px;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.decomposition-subtask-row {
+  min-height: 38px;
+  border-bottom: 1px solid var(--theme-line-soft);
+}
+[role="rowgroup"]:last-child > .decomposition-subtask-row:last-child {
+  border-bottom: 0;
+}
+.decomposition-subtask-row.is-clickable {
+  cursor: pointer;
+}
+.decomposition-subtask-row.is-clickable:hover {
+  background: var(--surface-hover);
+}
+.decomposition-subtask-row > .is-action {
+  color: var(--text-secondary);
+}
+.decomposition-subtask-row > .is-action.is-accent {
+  color: var(--accent);
+}
+.decomposition-subtask-row > .is-action.is-danger {
+  color: var(--danger);
+}
+.decomposition-subtask-row > :is(.is-time, .is-usage) {
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.decomposition-subtask-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 8px;
+  border: 1.5px solid var(--theme-line);
+  border-radius: 50%;
+  vertical-align: middle;
+}
+.decomposition-subtask-dot.is-accent {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+.decomposition-subtask-dot.is-success {
+  border-color: var(--success);
+  background: var(--success);
+}
+.decomposition-subtask-dot.is-danger {
+  border-color: var(--danger);
+  background: var(--danger);
+}
+.decomposition-subtask-dot.is-muted {
+  background: var(--theme-line);
+}
+.decomposition-subtask-line > .is-open {
+  padding: 0 6px 0 0;
+  text-align: center;
+}
+.decomposition-subtask-open {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  min-height: 28px;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-tertiary);
+}
+.decomposition-subtask-open:hover {
+  color: var(--text-primary);
+}
+@container (max-width: 640px) {
+  .decomposition-subtask-line {
+    grid-template-columns: 20% 28% minmax(0, 1fr) 80px 36px;
+  }
+  .decomposition-subtask-line > .is-usage {
+    display: none;
+  }
+}
+@container (max-width: 500px) {
+  .decomposition-subtask-line {
+    grid-template-columns: 22% 30% minmax(0, 1fr) 36px;
+  }
+  .decomposition-subtask-line > .is-time {
+    display: none;
+  }
+}
+
+.decomposition-subtasks-earlier {
+  color: var(--text-secondary);
+  font-size: 0.857143rem;
+}
+.decomposition-subtasks-earlier summary {
+  width: fit-content;
+  max-width: 100%;
+  cursor: pointer;
+}
+.decomposition-subtasks-earlier[open] > summary {
+  margin-bottom: 8px;
+}
+
+.decomposition-subtask-dialog {
+  width: min(860px, 100%);
+}
+.decomposition-subtask-dialog-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.decomposition-subtask-dialog-eyebrow {
+  margin: 0 0 2px;
+  color: var(--text-tertiary);
+  font-size: 0.75rem;
+}
+.decomposition-subtask-dialog-head h2 {
+  margin: 0;
+}
+.decomposition-subtask-dialog-sub {
+  margin: 4px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.857143rem;
+  overflow-wrap: anywhere;
+}
+.decomposition-subtask-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.decomposition-subtask-units h3 {
+  margin: 0 0 8px;
+  font-size: 0.928571rem;
+}
+.decomposition-subtask-units ul {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.decomposition-subtask-units li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  padding: 6px 10px;
+  border: 1px solid var(--theme-line-soft);
+  border-radius: 8px;
+  background: var(--surface-muted);
+  font-size: 0.857143rem;
+}
+.decomposition-subtask-units code {
+  color: var(--text-tertiary);
+  font-size: 0.75rem;
+  overflow-wrap: anywhere;
+}
+.decomposition-subtask-units li button {
+  min-height: 26px;
+  margin-left: auto;
+  padding: 2px 9px;
+  background: transparent;
+  font-size: 0.785714rem;
+}
+.decomposition-subtask-unit-state {
+  margin-left: auto;
+  color: var(--text-secondary);
+}
+.decomposition-subtask-dialog-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+  color: var(--text-secondary);
+  font-size: 0.857143rem;
+}

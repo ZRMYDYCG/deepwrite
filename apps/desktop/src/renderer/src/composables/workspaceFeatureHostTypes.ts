@@ -98,6 +98,7 @@ export interface WorkspaceFeatureHostCoordinator {
   openOfficialModelsSettings(): void;
   openAgentTeams(): Promise<void>;
   openMarketplace(): Promise<void>;
+  openAgentTeamMarketplace(): Promise<void>;
   openDeviceSync(): Promise<void>;
   openCloudBackup(): Promise<void>;
   openZhuqueDetection(): Promise<void>;

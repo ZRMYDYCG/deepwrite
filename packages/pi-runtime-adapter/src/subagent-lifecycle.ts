@@ -2,6 +2,7 @@ import type { Agent, AgentEvent } from "@earendil-works/pi-agent-core";
 import type { AssistantMessage, UserMessage } from "@earendil-works/pi-ai";
 import type { AgentRuntimeRef } from "@deepwrite/contracts";
 import { runAgentWithTurnRetries } from "./agent-turn-retry";
+import { createSubagentReplyGuard } from "./subagent-reply-guard";
 import {
   RunContextManager,
   estimateRunFixedTokens,
@@ -47,6 +48,10 @@ export async function runSubagentLifecycle(
   let terminalError: string | undefined;
   let terminalAborted = false;
   let acceptingActivity = true;
+  let cutOff = false;
+  const replies = createSubagentReplyGuard(child);
+  // Declared before the handler so a cut-off reply can stop the child.
+  let stopCutOff = (): void => {};
   const handleChildEvent = (event: AgentEvent): void => {
     if (!acceptingActivity) return;
     if (event.type === "message_update" && isAssistantMessage(event.message)) {
@@ -141,10 +146,17 @@ export async function runSubagentLifecycle(
       ) {
         terminalError =
           event.message.errorMessage || "子智能体模型返回错误终态。";
-      } else if (
-        !event.message.content.some((item) => item.type === "toolCall")
-      ) {
-        terminalMessage = event.message;
+      } else {
+        const verdict = replies.inspect(
+          event.message,
+          finalSummary?.() !== undefined
+        );
+        if (verdict === "cut-off") stopCutOff();
+        else if (
+          verdict === "final" &&
+          !event.message.content.some((item) => item.type === "toolCall")
+        )
+          terminalMessage = event.message;
       }
     }
   };
@@ -167,6 +179,13 @@ export async function runSubagentLifecycle(
   if (!cancellationRequested) {
     signal?.addEventListener("abort", abortChild, { once: true });
   }
+  stopCutOff = () => {
+    acceptingActivity = false;
+    cutOff = true;
+    lifecycleController.abort();
+    child.abort();
+    resolveEarly?.({ kind: "timeout" });
+  };
 
   let status: "completed" | "error" | "aborted" = "completed";
   let errorMessage: string | undefined;
@@ -314,6 +333,9 @@ export async function runSubagentLifecycle(
     if (timedOut) {
       status = "error";
       errorMessage = subagentTimeoutMessage(timeoutMs);
+    } else if (cutOff) {
+      status = "error";
+      errorMessage = replies.cutOffMessage();
     } else if (
       status === "completed" &&
       (cancellationRequested || terminalAborted)
@@ -331,9 +353,11 @@ export async function runSubagentLifecycle(
     status = cancellationRequested || signal?.aborted ? "aborted" : "error";
     errorMessage = timedOut
       ? subagentTimeoutMessage(timeoutMs)
-      : error instanceof Error
-        ? error.message
-        : "子智能体运行失败。";
+      : cutOff
+        ? replies.cutOffMessage()
+        : error instanceof Error
+          ? error.message
+          : "子智能体运行失败。";
   } finally {
     acceptingActivity = false;
     if (timeout) clearTimeout(timeout);

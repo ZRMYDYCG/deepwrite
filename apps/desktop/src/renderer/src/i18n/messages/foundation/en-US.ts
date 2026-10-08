@@ -36,6 +36,10 @@ export default {
     "Connect directly to model services by default. Enable this to use the HTTP proxy from your system or environment, including services that require a VPN.",
   saveFailedDetail:
     "General settings are active for this session, but could not be saved locally: {message}",
+  moreFeaturesSaveFailed:
+    "More features settings could not be saved. The last saved visibility and order have been restored.",
+  moreFeaturesSaveFailedDetail:
+    "More features settings could not be saved. The last saved visibility and order have been restored: {message}",
   saveFailed:
     "General settings are active for this session, but could not be saved locally.",
   loadFailed: "Could not load general settings. Using defaults.",
@@ -43,6 +47,23 @@ export default {
     "Auto-save is active, but its preference could not be saved locally.",
   catalogConflict:
     "The local file changed elsewhere. Reload it and review your changes.",
+  conversationStoragePermissionDenied:
+    "The user data folder is not writable. Check its permissions ({code}).",
+  conversationStorageDiskFull: "The user data disk is full ({code}).",
+  conversationStorageLocked:
+    "The conversation database is busy. Try again shortly ({code}).",
+  conversationStorageCorrupt:
+    "The conversation database cannot be read. Keep the user data folder and contact the developer for recovery ({code}).",
+  conversationStorageLocationUnavailable:
+    "The user data folder or conversation database cannot be opened. Check the folder and disk connection ({code}).",
+  conversationStorageIoFailed:
+    "The user data disk could not be read or written. Check the disk ({code}).",
+  conversationStorageWorkerUnavailable:
+    "The conversation storage service could not start ({code}).",
+  conversationStorageMigrationFailed:
+    "The old conversation import is incomplete. The original records have been retained ({code}).",
+  conversationStorageFailed:
+    "The local conversation could not be saved or read ({code}).",
   impactChanged:
     "Relationships or deletion impact have changed. Review the latest impact and confirm again.",
   targetNotFound: "The target item no longer exists. Refresh and try again.",

@@ -1,7 +1,10 @@
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 import {
+  DecompositionDraftFileSchema,
   DecompositionRecordFileSchema,
+  type DecompositionAssetPart,
+  type DecompositionDraftFile,
   type DecompositionRecord,
   type DecompositionRecordFile,
   type DecompositionSubmissionData,
@@ -50,8 +53,9 @@ export function decompositionUnitIsRecordOnly(
 export class DecompositionRecordStore {
   /** `directory` resolves a job's task directory. */
   constructor(readonly directory: (jobId: string) => string) {}
+  /** Transaction paths are portable: always `/`, never the platform separator. */
   private path(id: string) {
-    return join("records", `${id}.json`);
+    return `records/${id}.json`;
   }
   async save(
     job: LongBookDecompositionJob,
@@ -82,7 +86,7 @@ export class DecompositionRecordStore {
   async read(jobId: string, id: string): Promise<DecompositionRecordFile> {
     const root = this.directory(jobId);
     const { bytes } = await readNoFollowFile(
-      join(root, this.path(id)),
+      join(root, "records", `${id}.json`),
       MAX_RECORD_BYTES,
       "拆解单元记录",
       root
@@ -106,6 +110,66 @@ export class DecompositionRecordStore {
     if (file.jobId !== job.id || file.record.unitId !== unitId)
       throw new Error(`拆解单元记录不属于本任务：${unitId}`);
     return file.record;
+  }
+  /** Staged batches live beside the records until the unit is saved. */
+  private draftPath(job: LongBookDecompositionJob, unitId: string) {
+    return `drafts/${decompositionRecordId(job, unitId)}.json`;
+  }
+  async saveDraft(
+    job: LongBookDecompositionJob,
+    unitId: string,
+    asset: DecompositionAssetPart
+  ): Promise<void> {
+    const file: DecompositionDraftFile = {
+      schemaVersion: 1,
+      jobId: job.id,
+      outputVersion: job.outputVersion,
+      inputRevision: job.units[unitId]!.inputRevision.split(":resolved:")[0]!,
+      unitId,
+      savedAt: new Date().toISOString(),
+      asset
+    };
+    await commitProjectTransaction({
+      projectRoot: this.directory(job.id),
+      maxFileBytes: MAX_RECORD_BYTES,
+      operations: [
+        {
+          path: this.draftPath(job, unitId),
+          content: JSON.stringify(DecompositionDraftFileSchema.parse(file))
+        }
+      ]
+    });
+  }
+  /** The batches staged for the unit's current revision, if any. */
+  async draft(
+    job: LongBookDecompositionJob,
+    unitId: string
+  ): Promise<DecompositionAssetPart | undefined> {
+    const root = this.directory(job.id);
+    try {
+      const { bytes } = await readNoFollowFile(
+        join(root, this.draftPath(job, unitId)),
+        MAX_RECORD_BYTES,
+        "拆解暂存批次",
+        root
+      );
+      const file = DecompositionDraftFileSchema.parse(
+        JSON.parse(bytes.toString("utf8"))
+      );
+      return file.jobId === job.id && file.unitId === unitId
+        ? file.asset
+        : undefined;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+      throw error;
+    }
+  }
+  async removeDraft(job: LongBookDecompositionJob, unitId: string) {
+    if (!(await this.draft(job, unitId))) return;
+    await commitProjectTransaction({
+      projectRoot: this.directory(job.id),
+      operations: [{ path: this.draftPath(job, unitId), action: "delete" }]
+    });
   }
   /** Saved record identities, listed once per recovery pass. */
   async ids(jobId: string): Promise<Set<string>> {

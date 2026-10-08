@@ -1,8 +1,10 @@
 import bookIdentity from "./book-identity/en-US";
+import agentTeamMarketplace from "./agent-team-marketplace/en-US";
 import deviceSyncService from "../../../../../localization/device-sync/en-US";
 import longBookDecomposition from "./long-book-decomposition/en-US";
 export default {
   bookIdentity,
+  agentTeamMarketplace,
   longBookDecomposition,
   deviceSyncService,
   agentRuntime: {
@@ -383,7 +385,9 @@ export default {
     restoredLocally:
       "Restored to this device. It will upload on your next manual sync.",
     syncIncompleteRetry: "Sync did not finish. Please try again.",
-    readStatusFailed: "Could not read sync status."
+    readStatusFailed: "Could not read sync status.",
+    scopeSaveFailed:
+      "The sync scope could not be saved and was restored to the previous setting. {reason}"
   },
   longBookAnalysis: {
     previousCompletedResult: "Last completed result",

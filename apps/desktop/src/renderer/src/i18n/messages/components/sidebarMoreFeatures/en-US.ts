@@ -16,6 +16,9 @@ export default {
   skillMarketplace: "Skill marketplace",
   discoverInstallAndPublishWritingSkills:
     "Discover, install, and publish writing skills",
+  agentTeamMarketplace: "Agent team marketplace",
+  discoverInstallAndPublishWholeAgentTeams:
+    "Discover, install, and publish whole agent teams",
   deviceSync: "Device sync",
   continueWritingUsingYourOwnCloudDrive:
     "Continue writing using your own cloud drive",

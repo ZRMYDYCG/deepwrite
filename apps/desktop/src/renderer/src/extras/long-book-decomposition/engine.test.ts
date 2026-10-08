@@ -191,9 +191,117 @@ it("名额不足时等待并重试，不增加单元失败次数，名册确认�
   expect(f.extras.run).toHaveBeenCalledTimes(2);
   expect(f.engine.job.value?.phase).toBe("registry_review");
   expect(f.engine.error.value).toBeNull();
+  // The refused attempt delegated nothing, so it leaves no empty package.
+  expect(f.engine.subtasks.packages.value).toHaveLength(1);
   expect(
     f.control.mock.calls.filter(([input]) => input.action === "finish-package")
   ).toHaveLength(1);
+  f.engine.dispose();
+});
+
+it("工作包里的子任务事件进入看板，包结束后收尾", async () => {
+  const f = fixture();
+  f.accept();
+  const base = f.extras.run.getMockImplementation()!;
+  const at = (n: number) =>
+    new Date(1_700_000_000_000 + n * 1_000).toISOString();
+  const child = {
+    parentToolCallId: "call",
+    subagentRunId: "sub_1",
+    subagentId: "reader",
+    name: "通读员",
+    runtime: { provider: "test", model: "test", mode: "provider" }
+  };
+  f.extras.run.mockImplementation(async (request) => {
+    const send = (n: number, type: string, payload: Record<string, unknown>) =>
+      f.engine.handleEvent({
+        ...runEvent(type, request, payload),
+        id: `event_${n}`,
+        timestamp: at(n)
+      });
+    // Registered before the base mock's own completion timer.
+    setTimeout(() => {
+      send(1, "subagent.planned", {
+        parentToolCallId: "call",
+        tasks: [
+          {
+            index: 0,
+            key: "t1",
+            dependsOn: [],
+            subagentId: "reader",
+            name: "通读员",
+            task: "chunk:1",
+            runtime: child.runtime
+          }
+        ]
+      });
+      send(2, "subagent.started", {
+        ...child,
+        task: "chunk:1",
+        batchTask: { index: 0, key: "t1", dependsOn: [] }
+      });
+      send(3, "subagent.completed", {
+        ...child,
+        status: "completed",
+        summary: "已保存",
+        batchTask: { index: 0, key: "t1", dependsOn: [] }
+      });
+    }, 0);
+    return base(request);
+  });
+  await f.engine.run();
+  const [pkg] = f.engine.subtasks.packages.value;
+  expect(pkg).toMatchObject({ phase: "read", outcome: "completed" });
+  expect(pkg!.unitIds).toEqual(["chunk:1"]);
+  expect(pkg!.message.subagentRuns).toHaveLength(1);
+  expect(pkg!.message.subagentRuns![0]).toMatchObject({
+    name: "通读员",
+    status: "completed",
+    summary: "已保存"
+  });
+  expect(f.engine.subtasks.parent.value).toEqual({ kind: "idle" });
+  // Another task starts with an empty board.
+  f.engine.job.value = null;
+  await Promise.resolve();
+  expect(f.engine.subtasks.packages.value).toHaveLength(0);
+  f.engine.dispose();
+});
+
+it("工作包被接受后立即显示运行中，不等第一章保存", async () => {
+  const f = fixture();
+  let accepted: { sessionId: string } | undefined;
+  f.extras.run.mockImplementation(async (request) => {
+    accepted = request;
+    Object.assign(f.stored(), {
+      status: "running",
+      activeAttemptId: "attempt_ui"
+    });
+    Object.assign(f.stored().units["chunk:1"]!, {
+      status: "running",
+      attemptId: "attempt_ui"
+    });
+    return {
+      sessionId: request.sessionId,
+      runId: `${request.sessionId}-run`,
+      acceptedAt: new Date().toISOString(),
+      runtime: { provider: "test", model: "test", mode: "local-faux" }
+    };
+  });
+  const run = f.engine.run();
+  await vi.waitFor(() =>
+    expect(f.engine.job.value?.units["chunk:1"]?.status).toBe("running")
+  );
+  expect(f.control.mock.calls.map(([input]) => input.action)).toEqual([
+    "resume"
+  ]);
+  f.engine.handleEvent(
+    runEvent("agent.message_completed", accepted!, {
+      content: "已保存",
+      stopReason: "stop"
+    })
+  );
+  await run;
+  expect(f.engine.job.value?.phase).toBe("registry_review");
   f.engine.dispose();
 });
 

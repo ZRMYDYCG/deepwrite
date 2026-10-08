@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import type { AgentToolTrace } from "../types/conversation";
+import type {
+  AgentToolTrace,
+  ChatContextCompaction
+} from "../types/conversation";
 import {
   foldWorkGroups,
   type WorkGroupDisplayItem
@@ -55,6 +58,21 @@ function toolGroup(id: string): {
   };
 }
 
+function compaction(id: string, status: ChatContextCompaction["status"]) {
+  return {
+    id,
+    type: "compaction" as const,
+    createdAt: "2026-01-01T00:00:00.000Z",
+    compaction: {
+      id,
+      status,
+      reason: "run_limit" as const,
+      level: "summary" as const,
+      createdAt: "2026-01-01T00:00:00.000Z"
+    }
+  };
+}
+
 describe("foldWorkGroups", () => {
   it("merges consecutive thinking and tools into one work group", () => {
     const items = foldWorkGroups(
@@ -70,6 +88,65 @@ describe("foldWorkGroups", () => {
     expect(
       (items[0] as WorkGroupDisplayItem).items.map((item) => item.id)
     ).toEqual(["t1", "g1", "t2"]);
+  });
+
+  it("embeds compaction after its preceding work and before the next step", () => {
+    const items = foldWorkGroups(
+      [
+        thinking("t1"),
+        toolGroup("g1"),
+        compaction("summary", "completed"),
+        thinking("t2"),
+        toolGroup("g2")
+      ],
+      false
+    );
+    expect(items).toHaveLength(1);
+    expect(
+      (items[0] as WorkGroupDisplayItem).items.map((item) => item.id)
+    ).toEqual(["t1", "g1", "summary", "t2", "g2"]);
+  });
+
+  it("keeps compaction standalone when there is no preceding work group", () => {
+    const items = foldWorkGroups(
+      [
+        compaction("before-work", "completed"),
+        thinking("t1"),
+        response("r1", "阶段汇报"),
+        compaction("after-response", "completed"),
+        thinking("t2")
+      ],
+      false
+    );
+    expect(items.map((item) => item.id)).toEqual([
+      "before-work",
+      "work:t1",
+      "r1",
+      "after-response",
+      "work:t2"
+    ]);
+    expect((items[1] as WorkGroupDisplayItem).items).toEqual([thinking("t1")]);
+    expect((items[4] as WorkGroupDisplayItem).items).toEqual([thinking("t2")]);
+  });
+
+  it("shows compaction activity only while the embedded compaction is running", () => {
+    const summary = compaction("summary", "running");
+    const members = [thinking("t1"), summary];
+    const running = foldWorkGroups(members, true)[0] as WorkGroupDisplayItem;
+    expect(running.running).toBe(true);
+    expect(workGroupActivityLabel(running)).toBe("压缩上下文中");
+
+    summary.compaction.status = "completed";
+    const waiting = foldWorkGroups(members, true)[0] as WorkGroupDisplayItem;
+    expect(waiting.running).toBe(false);
+    expect(workGroupActivityLabel(waiting)).toBe("处理完成");
+
+    const resumed = foldWorkGroups(
+      [...members, thinking("t2")],
+      true
+    )[0] as WorkGroupDisplayItem;
+    expect(resumed.running).toBe(true);
+    expect(workGroupActivityLabel(resumed)).toBe("思考中");
   });
 
   it("breaks on visible responses, subagents and approval cards", () => {

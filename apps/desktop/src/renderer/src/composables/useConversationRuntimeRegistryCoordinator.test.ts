@@ -471,7 +471,7 @@ describe("useConversationRuntimeRegistryCoordinator", () => {
     await readTest.coordinator.drain();
     expect(readTest.notifications.warning).toHaveBeenCalledTimes(1);
     expect(readTest.notifications.warning).toHaveBeenCalledWith(
-      "历史对话暂时无法读取，本次运行仍可正常使用"
+      "历史对话暂时无法读取，请检查用户数据目录；消息需保存成功后才能发送"
     );
 
     const saveTest = createHarness();

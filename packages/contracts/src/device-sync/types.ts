@@ -111,6 +111,7 @@ export interface SyncWorkspacePort {
   recover(): Promise<void>;
 }
 export interface SyncMetadataStore {
+  /** Returns validated metadata; callers share it and must not change it. */
   read(): Promise<SyncMetadata | null>;
   write(value: SyncMetadata): Promise<void>;
 }

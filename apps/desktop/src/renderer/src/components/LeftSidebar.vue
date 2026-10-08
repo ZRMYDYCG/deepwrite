@@ -13,7 +13,9 @@ import type {
   ResourceTreeNode,
   ResourceTreeSection
 } from "../types/workspace";
-import { moreFeatures } from "./sidebarMoreFeatures";
+import { configuredMoreFeatures } from "./sidebarMoreFeatures";
+import type { MoreFeaturesSettings } from "@deepwrite/contracts";
+import { createDefaultMoreFeaturesSettings } from "@deepwrite/contracts/renderer";
 import AppIcon from "./AppIcon.vue";
 import SidebarResourceList from "./SidebarResourceList.vue";
 import SidebarProfileMenu from "./SidebarProfileMenu.vue";
@@ -36,12 +38,14 @@ const props = defineProps<{
     | PrimaryFeatureId
     | "chat-assistant"
     | "skill-marketplace"
+    | "agent-team-marketplace"
     | "cloud-backup"
     | "device-sync"
     | "zhuque-detection"
     | undefined;
   marketplaceDisplayName?: string | undefined;
   longTreeActionsDisabled?: boolean;
+  moreFeaturesSettings?: MoreFeaturesSettings;
 }>();
 
 const emit = defineEmits<{
@@ -51,6 +55,7 @@ const emit = defineEmits<{
   openChatAssistant: [];
   openAgentTeams: [];
   openMarketplace: [];
+  openAgentTeamMarketplace: [];
   openCloudBackup: [];
   openDeviceSync: [];
   openZhuqueDetection: [];
@@ -138,6 +143,13 @@ const navItems: Array<{
 ];
 
 const moreExpanded = ref(false);
+const visibleMoreFeatures = computed(() =>
+  configuredMoreFeatures(
+    props.moreFeaturesSettings ?? createDefaultMoreFeaturesSettings()
+  )
+    .filter(({ visible }) => visible)
+    .map(({ feature }) => feature)
+);
 
 function activateMoreFeature(
   id:
@@ -149,6 +161,7 @@ function activateMoreFeature(
     | "style-comparison"
     | "book-identity"
     | "skill-marketplace"
+    | "agent-team-marketplace"
     | "cloud-backup"
     | "device-sync"
     | "zhuque-detection"
@@ -184,6 +197,10 @@ function activateMoreFeature(
   }
   if (id === "skill-marketplace") {
     emit("openMarketplace");
+    return;
+  }
+  if (id === "agent-team-marketplace") {
+    emit("openAgentTeamMarketplace");
     return;
   }
   if (id === "device-sync") {
@@ -296,7 +313,7 @@ function activateNav(id: "create-book" | PrimaryFeatureId): void {
           class="more-feature-list"
         >
           <button
-            v-for="feature in moreFeatures"
+            v-for="feature in visibleMoreFeatures"
             :key="feature.id"
             class="more-feature-row"
             :class="{ 'is-active': feature.id === props.activePrimaryFeature }"

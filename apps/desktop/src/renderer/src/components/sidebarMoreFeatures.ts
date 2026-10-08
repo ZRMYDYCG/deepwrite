@@ -1,22 +1,12 @@
 import { createScopedTranslator } from "../i18n";
 import type { IconName } from "../types/workspace";
+import type { MoreFeatureId, MoreFeaturesSettings } from "@deepwrite/contracts";
 
 const t = createScopedTranslator("components.sidebarMoreFeatures");
 const identityT = createScopedTranslator("extras.bookIdentity");
 const decompositionT = createScopedTranslator("extras.longBookDecomposition");
 export const moreFeatures: Array<{
-  id:
-    | "chat-assistant"
-    | "long-book-analysis"
-    | "long-book-decomposition"
-    | "revision-analysis"
-    | "short-book-analysis"
-    | "style-comparison"
-    | "book-identity"
-    | "skill-marketplace"
-    | "cloud-backup"
-    | "device-sync"
-    | "zhuque-detection";
+  id: MoreFeatureId;
   label: string;
   description: string;
   icon: IconName;
@@ -92,6 +82,16 @@ export const moreFeatures: Array<{
     icon: "image"
   },
   {
+    id: "agent-team-marketplace",
+    get label() {
+      return t("agentTeamMarketplace");
+    },
+    get description() {
+      return t("discoverInstallAndPublishWholeAgentTeams");
+    },
+    icon: "brain"
+  },
+  {
     id: "skill-marketplace",
     get label() {
       return t("skillMarketplace");
@@ -132,3 +132,14 @@ export const moreFeatures: Array<{
     icon: "globe"
   }
 ];
+
+const featureById = new Map(
+  moreFeatures.map((feature) => [feature.id, feature])
+);
+
+export function configuredMoreFeatures(settings: MoreFeaturesSettings) {
+  return settings.map((preference) => ({
+    ...preference,
+    feature: featureById.get(preference.id)!
+  }));
+}

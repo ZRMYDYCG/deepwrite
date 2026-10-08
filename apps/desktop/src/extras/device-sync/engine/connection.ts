@@ -2,7 +2,6 @@ import {
   stableSyncJson,
   syncConfigSchema,
   syncJoinCodeSchema,
-  syncMetadataSchema,
   type SyncConfig,
   type SyncMetadata,
   type SyncServiceOptions
@@ -12,8 +11,9 @@ import { SyncRemote } from "./remote";
 export async function loadSyncMetadata(
   options: SyncServiceOptions
 ): Promise<SyncMetadata> {
+  // The store validates what it reads from disk; parsing again would copy the whole state per read.
   const stored = await options.metadata.read();
-  if (stored) return syncMetadataSchema.parse(stored);
+  if (stored) return stored;
   const value: SyncMetadata = {
     schemaVersion: 1,
     deviceId: options.runtime.id(),
@@ -112,7 +112,7 @@ export async function configureSync(
   options: SyncServiceOptions,
   metadata: SyncMetadata,
   input: SyncConfig
-): Promise<void> {
+): Promise<SyncConfig> {
   const config = syncConfigSchema.parse(input);
   if (
     !metadata.config ||
@@ -123,4 +123,5 @@ export async function configureSync(
   )
     throw new Error("修改连接请重新验证网盘。");
   await options.metadata.write({ ...metadata, config });
+  return config;
 }

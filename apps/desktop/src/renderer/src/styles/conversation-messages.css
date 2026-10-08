@@ -21,10 +21,6 @@
   min-width: 0;
 }
 
-.message.is-empty-error {
-  display: none;
-}
-
 .message-copy {
   color: var(--text-primary);
   font-size: 1rem;

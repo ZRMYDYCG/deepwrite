@@ -62,7 +62,9 @@ export const DecompositionUnitSchema = z.object({
       domain: z.enum(["world", "character", "plot", "style"]),
       title: z.string().min(1).max(120)
     })
-    .optional()
+    .optional(),
+  /** Names of a registry part, by the numbers its evidence pack shows. */
+  registryRefs: z.array(DecompositionIdSchema).max(5000).optional()
 });
 export type DecompositionUnit = z.infer<typeof DecompositionUnitSchema>;
 const model = z.object({
@@ -148,6 +150,22 @@ export type DecompositionTaskInput = z.infer<
 export type DecompositionResolvedInput = z.infer<
   typeof DecompositionResolvedInputSchema
 >;
+
+/**
+ * Units of the package that a delegated task names. Agent authorization and
+ * the Renderer's subtask board read assignments the same way.
+ */
+export function decompositionTaskUnitIds(
+  task: string,
+  unitIds: readonly string[]
+): string[] {
+  return unitIds.filter((id) =>
+    new RegExp(
+      `(?<![a-z0-9_:-])${id.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}(?![a-z0-9_:-])`,
+      "iu"
+    ).test(task)
+  );
+}
 
 /** Shared read-only view of the deterministic package plan. Core authorizes it again. */
 export function readyDecompositionUnitIds(

@@ -198,7 +198,11 @@ export class MarketplaceAccountClient {
     return this.clearSession();
   }
 
-  protected async request(
+  /**
+   * Sends a marketplace request with this client's session. Other plazas on
+   * the same server (the agent team plaza) reuse it so sign-in is shared.
+   */
+  async request(
     method: string,
     path: string,
     options: {

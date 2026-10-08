@@ -79,15 +79,32 @@ export const DecompositionReadingCardSchema = z
   })
   .superRefine((value, ctx) => {
     const orders = new Set(value.chapters.map((chapter) => chapter.order));
-    const facts = [
-      ...value.characters.flatMap(({ facts }) => facts),
-      ...value.world.flatMap(({ facts }) => facts),
-      ...value.plot.events,
-      ...value.plot.foreshadowing,
-      ...value.style.excerpts
-    ];
-    if (facts.some(({ chapterOrder }) => !orders.has(chapterOrder)))
-      ctx.addIssue({ code: "custom", message: "事实必须来自提交的章节。" });
+    const located = (
+      path: Array<string | number>,
+      list: ReadonlyArray<{ chapterOrder: number }>
+    ) =>
+      list.map((fact, index) => ({
+        path: [...path, index, "chapterOrder"],
+        order: fact.chapterOrder
+      }));
+    const stray = [
+      ...value.characters.flatMap(({ facts }, index) =>
+        located(["characters", index, "facts"], facts)
+      ),
+      ...value.world.flatMap(({ facts }, index) =>
+        located(["world", index, "facts"], facts)
+      ),
+      ...located(["plot", "events"], value.plot.events),
+      ...located(["plot", "foreshadowing"], value.plot.foreshadowing),
+      ...located(["style", "excerpts"], value.style.excerpts)
+    ].find(({ order }) => !orders.has(order));
+    // The path and the expected orders let a model fix just this field.
+    if (stray)
+      ctx.addIssue({
+        code: "custom",
+        path: stray.path,
+        message: `事实必须来自提交的章节：章号应为 ${[...orders].join("、")}，收到 ${stray.order}。`
+      });
     if (JSON.stringify(value).length > 60_000)
       ctx.addIssue({ code: "custom", message: "阅读记录超过 60,000 字。" });
     if (

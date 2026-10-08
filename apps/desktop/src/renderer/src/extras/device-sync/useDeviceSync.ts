@@ -9,8 +9,16 @@ import {
   type SyncStatus
 } from "@deepwrite/contracts/renderer";
 import { uiMessage } from "../../ui-feedback";
+import { useSyncScope } from "./useSyncScope";
 
 const t = createScopedTranslator("extras.deviceSync");
+/** Operations that report progress while they run; any other one returns its status when done. */
+const PROGRESS_OPERATIONS = new Set<SyncRequest["operation"]>([
+  "sync",
+  "check",
+  "initialize",
+  "preview-initialization"
+]);
 
 export function useDeviceSync(
   changed: () => Promise<void>,
@@ -22,6 +30,9 @@ export function useDeviceSync(
   let timer: ReturnType<typeof setInterval> | undefined;
   let disposed = false;
   let epoch = 0;
+  let active: Promise<void> = Promise.resolve();
+  let showsProgress = false;
+  let polling = false;
   const request = async (input: SyncRequest): Promise<SyncResponse> => {
     const started = epoch;
     const api = window.deepwrite?.deviceSync;
@@ -35,6 +46,25 @@ export function useDeviceSync(
       status.value = result.status;
     return result;
   };
+  const scope = useSyncScope({
+    status,
+    idle: () => active,
+    configure(config) {
+      // Status reads sent before this saw the old scope; only this answer may update the view.
+      epoch++;
+      return request({ operation: "configure", config });
+    },
+    async restore(error) {
+      uiMessage.error(
+        t("scopeSaveFailed", {
+          reason: formatError(error, t("syncIncompleteRetry"))
+        })
+      );
+      await request({ operation: "status" }).catch(() => {
+        /* Keep the last known state; the error is already shown. */
+      });
+    }
+  });
   const run = async (input: SyncRequest): Promise<SyncResponse | null> => {
     if (pending.value && input.operation !== "cancel") return null;
     // The first sync only previews the plan until explicitly confirmed.
@@ -47,11 +77,20 @@ export function useDeviceSync(
       ["sync", "restore", "initialize"].includes(input.operation) &&
       !previewOnly;
     const mutation = input.operation !== "cancel";
+    let finish: () => void = () => {};
     if (mutation) {
-      epoch++;
       pending.value = true;
+      active = new Promise<void>((resolve) => {
+        finish = () => resolve();
+      });
     }
     try {
+      // The operation must run with the scope the user just chose.
+      if (mutation && !(await scope.flush())) return null;
+      if (mutation) {
+        epoch++;
+        showsProgress = PROGRESS_OPERATIONS.has(input.operation);
+      }
       if (
         (changesWorkspace || input.operation === "preview-initialization") &&
         !(await prepareSync())
@@ -93,6 +132,8 @@ export function useDeviceSync(
       if (mutation) {
         epoch++;
         pending.value = false;
+        showsProgress = false;
+        finish();
       }
       if (!disposed)
         void request({ operation: "status" }).catch(() => {
@@ -119,15 +160,29 @@ export function useDeviceSync(
   onMounted(() => {
     void loadInitialStatus();
     timer = setInterval(() => {
-      if (pending.value)
-        void request({ operation: "status" }).catch(() => {
+      if (!showsProgress || polling) return;
+      polling = true;
+      void request({ operation: "status" })
+        .catch(() => {
           /* The active request reports its own error. */
+        })
+        .finally(() => {
+          polling = false;
         });
     }, 1500);
   });
   onBeforeUnmount(() => {
     disposed = true;
     if (timer) clearInterval(timer);
+    scope.dispose();
   });
-  return { status, pending, initialLoading, loadInitialStatus, run, request };
+  return {
+    status,
+    pending,
+    initialLoading,
+    loadInitialStatus,
+    run,
+    request,
+    scope: { items: scope.items, toggle: scope.toggle }
+  };
 }

@@ -1,8 +1,10 @@
 import bookIdentity from "./book-identity/zh-CN";
+import agentTeamMarketplace from "./agent-team-marketplace/zh-CN";
 import deviceSyncService from "../../../../../localization/device-sync/zh-CN";
 import longBookDecomposition from "./long-book-decomposition/zh-CN";
 export default {
   bookIdentity,
+  agentTeamMarketplace,
   longBookDecomposition,
   deviceSyncService,
   agentRuntime: {
@@ -354,7 +356,8 @@ export default {
     saveBeforeSync: "请先保存正文并处理保存冲突。",
     restoredLocally: "已恢复到本机，下次手动同步时上传。",
     syncIncompleteRetry: "同步未完成，请重试。",
-    readStatusFailed: "读取同步状态失败。"
+    readStatusFailed: "读取同步状态失败。",
+    scopeSaveFailed: "同步范围未能保存，已恢复为之前的设置。{reason}"
   },
   longBookAnalysis: {
     previousCompletedResult: "上次完成的结果",

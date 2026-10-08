@@ -83,6 +83,12 @@ export function buildWorkspaceFeatureModule(
         catalogSnapshot: options.catalogSnapshot.value,
         session: marketplaceSession
       };
+    case "agent-team-marketplace":
+      return {
+        kind: "agent-team-marketplace",
+        catalog: settingsStore.agentTeamCatalog,
+        session: marketplaceSession
+      };
     case "device-sync":
       return {
         kind: "device-sync",

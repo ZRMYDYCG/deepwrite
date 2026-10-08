@@ -9,6 +9,7 @@ import {
 import AppIcon from "../../components/AppIcon.vue";
 import { createScopedTranslator, locale } from "../../i18n";
 import DecompositionDialog from "./DecompositionDialog.vue";
+import DecompositionSubtaskBoard from "./DecompositionSubtaskBoard.vue";
 import { decompositionUnitLabel } from "./unit-label";
 import type { LongBookDecompositionController } from "./useLongBookDecomposition";
 const t = createScopedTranslator("extras.longBookDecomposition");
@@ -42,7 +43,7 @@ const done = computed(
   () => units.value.filter(([, unit]) => unit.status === "done").length
 );
 const percent = computed(() =>
-  units.value.length ? Math.round((done.value / units.value.length) * 100) : 0
+  units.value.length ? Math.floor((done.value / units.value.length) * 100) : 0
 );
 const busy = computed(() => props.controller.isBusy.value);
 const usage = computed(() => {
@@ -225,17 +226,10 @@ watch(
         {{ t("next") }}
       </button>
     </div>
-    <details
-      v-if="controller.activity.value.length"
-      class="decomposition-activity"
-    >
-      <summary>{{ t("activity") }}</summary>
-      <ul>
-        <li v-for="(entry, index) in controller.activity.value" :key="index">
-          {{ entry }}
-        </li>
-      </ul>
-    </details>
+    <DecompositionSubtaskBoard
+      :controller="controller"
+      @view="(unitId, title) => emit('view', unitId, title)"
+    />
   </section>
   <DecompositionDialog
     v-if="conflictId"

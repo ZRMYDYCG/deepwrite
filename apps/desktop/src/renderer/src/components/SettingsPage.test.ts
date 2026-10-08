@@ -13,7 +13,10 @@ import appearancePanelSource from "./AppearanceSettingsPanel.vue?raw";
 import themeSource from "./AppearanceThemeSettings.vue?raw";
 import shortAgentSource from "./UnifiedShortAgentSettingsPanel.vue?raw";
 import workspaceAgentFormSource from "./WorkspaceAgentProfileForm.vue?raw";
-import source from "./SettingsPage.vue?raw";
+import settingsPageSource from "./SettingsPage.vue?raw";
+import settingsCategoriesSource from "./settingsCategories.ts?raw";
+
+const source = `${settingsPageSource}\n${settingsCategoriesSource}`;
 
 const generalSettingsSource = `${source}\n${generalPanelSource}`;
 const featureHostSource = `${featureHostCoordinatorSource}\n${featureHostModuleSource}\n${settingsFeatureModuleSource}`;

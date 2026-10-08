@@ -57,6 +57,8 @@ export function createDesktopWindow(
       nodeIntegration: false,
       sandbox: true,
       webSecurity: true,
+      // Inactive smoke windows still need timers and transition frames.
+      backgroundThrottling: process.env.DEEPWRITE_SMOKE !== "1",
       webviewTag: true
     }
   });

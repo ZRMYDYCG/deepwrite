@@ -24,6 +24,7 @@ export function buildSettingsFeatureModule(
     workspacePaneLayout: settingsStore.generalSettings.workspacePaneLayout,
     defaultTextViewMode: settingsStore.generalSettings.defaultTextViewMode,
     bodyTextFormats: settingsStore.generalSettings.bodyTextFormats,
+    moreFeaturesSettings: settingsStore.generalSettings.moreFeatures,
     workspaceAgentSettings: settingsStore.workspaceAgentSettings,
     creativePlotStages: options.catalogSnapshot.value?.creativePlotStages ?? [],
     longAgentSettings: settingsStore.longAgentSettings,

@@ -30,7 +30,7 @@ const mode = ref<"continuation" | "materials">("continuation");
 const targetAction = ref<"create" | "select">("create");
 const targetId = ref("");
 const title = ref("");
-const autoContinue = ref(false);
+const autoContinue = ref(true);
 const reuseJobId = ref("");
 const isLong = computed(() => mode.value === "continuation");
 const targets = computed(() =>

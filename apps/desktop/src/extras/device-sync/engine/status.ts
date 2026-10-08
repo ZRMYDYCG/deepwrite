@@ -4,6 +4,7 @@ import {
   sameSyncContent,
   stableSyncJson,
   syncKey,
+  type SyncConfig,
   type SyncIssue,
   type SyncMetadata,
   type SyncProgress,
@@ -85,6 +86,22 @@ export async function readSyncStatus(
     history: metadata.history.map(({ item, ...entry }) => ({
       ...entry,
       canRestore: item !== null
+    }))
+  };
+}
+
+/** A scope change only flips `included`, so the last scan of every work stays valid. */
+export function withSyncScope(
+  status: SyncStatus,
+  config: SyncConfig
+): SyncStatus {
+  const excluded = new Set(config.excludedKeys);
+  return {
+    ...status,
+    config,
+    items: status.items.map((item) => ({
+      ...item,
+      included: !excluded.has(item.key)
     }))
   };
 }

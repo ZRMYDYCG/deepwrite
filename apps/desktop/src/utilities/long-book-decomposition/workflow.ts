@@ -10,6 +10,11 @@ import {
 } from "@deepwrite/contracts";
 import { decompositionSha } from "./content-guard";
 import { planCharacterBiographies } from "./character-biographies";
+import {
+  addRegistryParts,
+  registryMentionItems,
+  replanLegacyRegistryParts
+} from "./registry-mentions";
 
 export function addDecompositionUnit(
   job: LongBookDecompositionJob,
@@ -64,86 +69,53 @@ export function initializeDecompositionReading(job: LongBookDecompositionJob) {
     addDecompositionUnit(job, chunk.id, "read", checkpoints);
   }
 }
-export function decompositionMentions(cards: DecompositionReadingCard[]) {
-  const characters = new Map<
-    string,
-    {
-      name: string;
-      aliases: string[];
-      firstChapterOrder: number;
-      chunkCount: number;
-      facts: unknown[];
-    }
-  >();
-  const terms = new Map<
-    string,
-    {
-      name: string;
-      aliases: string[];
-      categoryId: string;
-      mentionCount: number;
-      facts: unknown[];
-    }
-  >();
-  for (const card of cards) {
-    for (const entry of card.characters) {
-      const prior = characters.get(entry.name);
-      characters.set(entry.name, {
-        name: entry.name,
-        aliases: [...new Set([...(prior?.aliases ?? []), ...entry.aliases])],
-        firstChapterOrder: Math.min(
-          prior?.firstChapterOrder ?? Infinity,
-          ...entry.facts.map(({ chapterOrder }) => chapterOrder),
-          ...card.chapters.map(({ order }) => order)
-        ),
-        chunkCount: (prior?.chunkCount ?? 0) + 1,
-        facts: [...(prior?.facts ?? []), ...entry.facts]
-      });
-    }
-    for (const entry of card.world) {
-      const prior = terms.get(entry.name);
-      terms.set(entry.name, {
-        name: entry.name,
-        aliases: [
-          ...new Set([...(prior?.aliases ?? []), ...(entry.aliases ?? [])])
-        ],
-        categoryId: entry.categoryId,
-        mentionCount: (prior?.mentionCount ?? 0) + entry.facts.length,
-        facts: [...(prior?.facts ?? []), ...entry.facts]
-      });
-    }
-  }
-  return { characters: [...characters.values()], terms: [...terms.values()] };
-}
+/**
+ * One part per call the integration model can decide: the part size follows
+ * its output and evidence budgets, never a fixed count of names.
+ */
 export function planDecompositionRegistry(
   job: LongBookDecompositionJob,
   cards: DecompositionReadingCard[]
 ) {
-  const mentions = decompositionMentions(cards);
-  const count = mentions.characters.length + mentions.terms.length;
-  const parts = Array.from(
-    { length: Math.max(1, Math.ceil(count / 1000)) },
-    (_, i) => `registry:part:${i + 1}`
+  const parts = addRegistryParts(job, registryMentionItems(cards), 1, (id) =>
+    addDecompositionUnit(job, id, "registry")
   );
-  parts.forEach((id) => addDecompositionUnit(job, id, "registry"));
   addDecompositionUnit(job, "registry:merge", "registry", parts);
   job.phase = "registry";
+}
+/** Re-plans fixed-size registry parts of a job started before budgets. */
+export function replanDecompositionRegistry(
+  job: LongBookDecompositionJob,
+  cards: DecompositionReadingCard[]
+): boolean {
+  return replanLegacyRegistryParts(job, cards, (id, dependencies) =>
+    addDecompositionUnit(job, id, "registry", dependencies)
+  );
 }
 export function validateDecompositionRegistryCoverage(
   registry: DecompositionRegistry,
   cards: DecompositionReadingCard[]
 ) {
-  const mentions = decompositionMentions(cards);
-  for (const [domain, entries] of [
-    ["characters", mentions.characters],
-    ["terms", mentions.terms]
-  ] as const) {
-    const names = new Set(
-      registry[domain].flatMap((entry) => [entry.name, ...entry.aliases])
+  const names = {
+    character: new Set(
+      registry.characters.flatMap((entry) => [entry.name, ...entry.aliases])
+    ),
+    term: new Set(
+      registry.terms.flatMap((entry) => [entry.name, ...entry.aliases])
+    )
+  };
+  const missing = registryMentionItems(cards).filter(
+    ({ domain, name }) => !names[domain].has(name)
+  );
+  if (missing.length)
+    throw new Error(
+      `名册仍有未归属的名字：${missing
+        .slice(0, 8)
+        .map(({ name }) => name)
+        .join(
+          "、"
+        )}${missing.length > 8 ? ` 等 ${missing.length} 个` : ""}，请补齐或标记忽略。`
     );
-    if (entries.some(({ name }) => !names.has(name)))
-      throw new Error("名册仍有未归属的名字，请补齐或标记忽略。");
-  }
 }
 export function planDecompositionIntegration(
   job: LongBookDecompositionJob,

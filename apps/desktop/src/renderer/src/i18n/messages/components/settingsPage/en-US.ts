@@ -1,5 +1,7 @@
 export default {
-  writing: "Writing",
+  writing: "Writing settings",
+  moreFeaturesSettings: "More features",
+  moreFeaturesKeywords: "More features show hide visibility order sorting",
   storage: "Storage",
   workspaceSettings: "Workspace",
   skillLibrarySettings: "Skill library",

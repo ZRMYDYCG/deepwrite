@@ -1,5 +1,7 @@
 export default {
-  writing: "创作",
+  writing: "创作设置",
+  moreFeaturesSettings: "更多功能",
+  moreFeaturesKeywords: "更多功能 显示 隐藏 排序 顺序",
   storage: "存储",
   workspaceSettings: "创作空间",
   skillLibrarySettings: "技能库",

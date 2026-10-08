@@ -7,6 +7,10 @@ import { EnvelopeBaseSchema } from "./envelope";
 import { ContextCompactionSettingsSchema } from "./session/context-compaction-state";
 import { createDefaultContextCompactionSettings } from "./session/context-compaction-defaults";
 import {
+  createDefaultMoreFeaturesSettings,
+  MoreFeaturesSettingsSchema
+} from "./more-features-settings";
+import {
   PROMPT_TEXT_ATTACHMENT_DEFAULT_CONTENT_LENGTH,
   PROMPT_TEXT_ATTACHMENT_MAX_CONTENT_LENGTH,
   PROMPT_TEXT_ATTACHMENTS_MAX_CONTENT_LENGTH
@@ -60,7 +64,12 @@ export const GeneralSettingsSchema = z
     useNetworkProxy: z.boolean().default(false),
     workspacePaneLayout: WorkspacePaneLayoutSchema.default("agent-editor"),
     defaultTextViewMode: TextViewModeSchema.default("edit"),
-    bodyTextFormats: BodyTextFormatsSchema.default(createDefaultBodyTextFormats)
+    bodyTextFormats: BodyTextFormatsSchema.default(
+      createDefaultBodyTextFormats
+    ),
+    moreFeatures: MoreFeaturesSettingsSchema.default(
+      createDefaultMoreFeaturesSettings
+    )
   })
   .transform((settings) => ({
     ...settings,
@@ -94,7 +103,8 @@ export function createDefaultGeneralSettings(): GeneralSettings {
     useNetworkProxy: false,
     workspacePaneLayout: "agent-editor",
     defaultTextViewMode: "edit",
-    bodyTextFormats: createDefaultBodyTextFormats()
+    bodyTextFormats: createDefaultBodyTextFormats(),
+    moreFeatures: createDefaultMoreFeaturesSettings()
   };
 }
 

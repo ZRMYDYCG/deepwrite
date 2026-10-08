@@ -110,17 +110,54 @@ describe("compactSyncMetadata", () => {
     pendingIssues: []
   });
 
-  it("drops ancestors equal to the baseline, keeps older common ancestors and compacts history", () => {
+  const otherDevice = (clock: Record<string, number> | null) => ({
+    hash: "a".repeat(64),
+    commit: {
+      schemaVersion: 1 as const,
+      spaceId: "space_test",
+      deviceId: "pc",
+      deviceName: "测试电脑",
+      sequence: 1,
+      createdAt: NOW,
+      items: clock ? { "book:a": { ...revision(0), clock } } : {},
+      receipts: {}
+    }
+  });
+  const kept = (value: SyncMetadata) =>
+    value.ancestors["book:a"]?.map((entry) => entry.revision.clock.phone);
+
+  it("drops ancestors no merge can use when no other device holds an older version, and compacts history", () => {
     const compact = compactSyncMetadata(metadata());
-    expect(Object.keys(compact.ancestors).sort()).toEqual([
-      "book:a",
-      "book:gone"
-    ]);
-    expect(
-      compact.ancestors["book:a"]?.map((value) => value.revision.clock.phone)
-    ).toEqual([1, 2]);
+    expect(Object.keys(compact.ancestors)).toEqual(["book:gone"]);
     expect(compact.history.map((value) => value.id)).toEqual(["h2"]);
     expect(compact.baselines).toEqual(metadata().baselines);
+  });
+
+  it("ignores this device's own previous commit when deciding what is settled", () => {
+    const own = otherDevice({ phone: 1 });
+    own.commit.deviceId = "phone";
+    expect(kept(compactSyncMetadata({ ...metadata(), devices: [own] }))).toBe(
+      undefined
+    );
+  });
+
+  it("keeps every ancestor a lagging device may still merge from", () => {
+    const lagging = { ...metadata(), devices: [otherDevice({ phone: 1 })] };
+    expect(kept(compactSyncMetadata(lagging))).toEqual([1, 2]);
+    // Once the other device holds version 2, version 1 can never be the newest common base again.
+    const caughtUp = { ...metadata(), devices: [otherDevice({ phone: 2 })] };
+    expect(kept(compactSyncMetadata(caughtUp))).toEqual([2]);
+  });
+
+  it("keeps the merge base of a concurrent version, and ignores a device that has not published the work", () => {
+    // The other device edited after version 2, concurrently with version 3: version 2 is its merge base.
+    const concurrent = {
+      ...metadata(),
+      devices: [otherDevice({ phone: 2, pc: 4 })]
+    };
+    expect(kept(compactSyncMetadata(concurrent))).toEqual([2]);
+    const unpublished = { ...metadata(), devices: [otherDevice(null)] };
+    expect(kept(compactSyncMetadata(unpublished))).toBe(undefined);
   });
 
   it("does not modify its input", () => {

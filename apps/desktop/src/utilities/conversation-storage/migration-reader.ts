@@ -3,6 +3,7 @@ import { createReadStream } from "node:fs";
 import type { Statements } from "./schema";
 import type { JsonNodes, ValueRef } from "./json-nodes";
 import { JsonStreamParser, type JsonParserState } from "./json-stream-parser";
+import { ConversationStorageError } from "./errors";
 
 export type ParsingCursor = {
   phase: "parsing";
@@ -39,6 +40,7 @@ export async function parseLegacyFile(
   sql: Statements,
   nodes: JsonNodes,
   path: string,
+  migrationId: string,
   cursor: ParsingCursor,
   onProgress?: MigrationProgress
 ): Promise<NormalizingCursor> {
@@ -65,12 +67,13 @@ export async function parseLegacyFile(
       };
       const serialized = JSON.stringify(next);
       if (Buffer.byteLength(serialized) > 4 * 1024 * 1024)
-        throw new Error(
+        throw new ConversationStorageError(
+          "migration_checkpoint_limit",
           "History parser checkpoint exceeds its byte budget; original data has been preserved."
         );
       sql
         .get("UPDATE migrations SET cursor = ? WHERE source = ?")
-        .run(serialized, path);
+        .run(serialized, migrationId);
       sql.database.exec("COMMIT");
     } catch (error) {
       sql.database.exec("ROLLBACK");
@@ -93,7 +96,7 @@ export async function parseLegacyFile(
       .get(
         "UPDATE migrations SET state = 'normalizing', cursor = ? WHERE source = ?"
       )
-      .run(JSON.stringify(next), path);
+      .run(JSON.stringify(next), migrationId);
     sql.database.exec("COMMIT");
     return next;
   } catch (error) {

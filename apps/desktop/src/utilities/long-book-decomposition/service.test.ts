@@ -135,6 +135,11 @@ describe("整书拆解持久化工作流", () => {
         );
         expect(new Set(titles).size).toBe(titles.length);
         expect(book.workspaceIndex.ledger.commits).toHaveLength(1);
+        expect(
+          Object.keys(
+            (await service.state.completion(job.id)).postCommitRefs ?? {}
+          )
+        ).toEqual(["plot:foreshadowing"]);
         expect(book.workspaceIndex.plot.foreshadowing).toHaveLength(1);
         expect(
           book.workspaceIndex.plot.foreshadowing[0]!.beats.every(

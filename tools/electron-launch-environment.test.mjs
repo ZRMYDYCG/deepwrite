@@ -35,6 +35,7 @@ describe("Electron launch environment", () => {
     ["tools/run-desktop-dev.mjs"],
     ["tools/run-desktop-preview.mjs"],
     ["tools/run-test-package.mjs", "mac", "arm64"],
+    ["tools/run-test-package.mjs", "desktop"],
     ["apps/desktop/scripts/verify-test-package.mjs", "mac", "arm64"],
     ["apps/desktop/scripts/electron-smoke.mjs"],
     ["apps/desktop/scripts/electron-conversation-smoke.mjs"],

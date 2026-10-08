@@ -5,6 +5,35 @@ import { setAppLanguage } from "./index";
 afterEach(() => setAppLanguage("zh-CN", "zh-CN"));
 
 describe("structured application errors", () => {
+  it("shows actionable local storage causes without revealing raw diagnostic content", () => {
+    const error = {
+      code: "renderer_state.command_failed",
+      message: "fixture private manuscript",
+      details: {
+        storageCode: "permission_denied",
+        nativeCode: "EACCES",
+        phase: "database-open"
+      }
+    };
+    expect(formatError(error, "智能体请求受理失败。")).toContain(
+      "用户数据目录无法写入"
+    );
+    expect(formatError(error, "fallback")).toContain(
+      "permission_denied/EACCES"
+    );
+    expect(formatError(error, "fallback")).not.toContain(
+      "fixture private manuscript"
+    );
+    setAppLanguage("en-US", "zh-CN");
+    expect(formatError(error, "fallback")).toContain("not writable");
+    expect(
+      formatError(
+        { ...error, details: { storageCode: "migration_duplicate_message" } },
+        "fallback"
+      )
+    ).toContain("migration_duplicate_message");
+  });
+
   it("localizes by stable code while preserving diagnostics and data", () => {
     const error = {
       code: "catalog.conflict",

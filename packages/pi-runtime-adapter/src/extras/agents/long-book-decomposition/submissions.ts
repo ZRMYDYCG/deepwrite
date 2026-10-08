@@ -1,4 +1,4 @@
-import { Type } from "@earendil-works/pi-ai";
+import { Type, type Static } from "@earendil-works/pi-ai";
 import type { AgentTool } from "@earendil-works/pi-agent-core";
 import {
   DecompositionToolJsonSchemas,
@@ -10,61 +10,23 @@ import {
 } from "@deepwrite/contracts";
 import type { ExtrasAgentRunServices } from "../../definition";
 import { extrasOutputResult } from "../../output";
-import { defineStrictTool } from "../../tools/analysis-inputs";
-import { decompositionRole, type DecompositionRole } from "./roles";
+import { defineStrictTool, textToolResult } from "../../tools/analysis-inputs";
+import type { DecompositionRole } from "./roles";
+import {
+  STAGED_TOOLS,
+  assetKinds,
+  dataKinds,
+  roleSubmissionTools,
+  submissionNotes,
+  submissionUnitIds
+} from "./submission-kinds";
+import {
+  describeSubmissionIssues,
+  relaxedSubmissionSchema,
+  repairSubmissionArguments,
+  withEmptyCollections
+} from "./submission-schema";
 type Task = ExtrasAgentResolvedTaskOf<"long-book-decomposition">;
-const submissions: Record<DecompositionRole, string[]> = {
-  reader: ["submit_chapter_reading"],
-  registrar: ["submit_registry_part"],
-  chronicler: ["write_chronicle"],
-  plot_architect: ["write_book_line", "write_foreshadowing", "write_opening"],
-  character_archivist: ["write_character_dossier", "write_character_biography"],
-  world_archivist: ["write_world_category"],
-  style_analyst: ["write_style_profile"],
-  continuity_keeper: ["write_latest_continuity"],
-  reviewer: ["report_review_issues"],
-  generalist: ["write_topic"]
-};
-const assetKinds: Record<string, string> = {
-  write_chronicle: "chronicle",
-  write_book_line: "book-line",
-  write_foreshadowing: "foreshadowing",
-  write_opening: "opening",
-  write_character_dossier: "character",
-  write_character_biography: "character-volume",
-  write_world_category: "world",
-  write_style_profile: "style",
-  write_latest_continuity: "continuity",
-  write_topic: "topic"
-};
-const dataKinds: Record<string, string> = {
-  ...assetKinds,
-  submit_chapter_reading: "reading",
-  submit_registry_part: "registry",
-  report_review_issues: "review"
-};
-const notes: Record<string, string> = {
-  submit_chapter_reading:
-    "每项一个 reading 单元，data.card.chapters 只放这一章；本块全部章节保存后系统自动完成阅读块。",
-  write_character_dossier:
-    "registryId 使用单元前缀冒号后的标识，不含 character:。",
-  write_character_biography:
-    "registryId、volume、startOrder、endOrder 与单元的分卷范围一致。",
-  write_world_category: "categoryId 使用单元前缀冒号后的标识，不含 world:。"
-};
-function submissionUnitIds(task: Task, name: string, role: DecompositionRole) {
-  const kind = dataKinds[name]!;
-  return Object.entries(task.input.units)
-    .filter(([id, unit]) => {
-      if (unit.status === "done" || decompositionRole(id) !== role)
-        return false;
-      if (kind === "reading") return id.startsWith("reading:");
-      if (["book-line", "foreshadowing", "opening"].includes(kind))
-        return id === `plot:${kind}`;
-      return id.startsWith(`${kind}:`);
-    })
-    .map(([id]) => id);
-}
 export async function saveDecompositionSubmission(
   task: Task,
   services: ExtrasAgentRunServices,
@@ -108,7 +70,7 @@ function decompositionOutput(
   const kind =
     data.kind === "reading" || data.kind === "finish-card"
       ? "decomposition-card"
-      : data.kind === "registry"
+      : data.kind === "registry" || data.kind === "registry-plan"
         ? "decomposition-registry"
         : data.kind === "review"
           ? "decomposition-review"
@@ -133,23 +95,18 @@ export async function persistDecompositionSubmission(
   );
   return decompositionOutput(task, unitId, data, receipt);
 }
-function assertToolKind(
-  name: string,
-  role: DecompositionRole,
-  data: DecompositionSubmissionData
-) {
-  if (
-    assetKinds[name] &&
-    (data.kind !== "asset" || data.asset.kind !== assetKinds[name])
-  )
-    throw new Error("角色提交类型不匹配。");
-  if (role === "reader" && data.kind !== "reading")
-    throw new Error("阅读提交类型不匹配。");
-  if (
-    (role === "registrar" && data.kind !== "registry") ||
-    (role === "reviewer" && data.kind !== "review")
-  )
-    throw new Error("提交类型不匹配。");
+const isObject = (value: unknown): value is Record<string, unknown> =>
+  !!value && typeof value === "object" && !Array.isArray(value);
+/** The tool decides the kinds; whatever the model sent for them is replaced. */
+function withToolKind(name: string, data: unknown): unknown {
+  if (!isObject(data)) return data;
+  const asset = assetKinds[name];
+  if (!asset) return { ...data, kind: dataKinds[name] };
+  return {
+    ...data,
+    kind: "asset",
+    asset: isObject(data.asset) ? { ...data.asset, kind: asset } : data.asset
+  };
 }
 /** A chunk completes as soon as every one of its checkpoints is saved. */
 export async function finishChunks(
@@ -174,40 +131,58 @@ export async function finishChunks(
   }
   return finished;
 }
+/** Calls in a row that save nothing before the error also advises stopping. */
+const STALLED_ADVICE_AFTER = 4;
 /**
  * Role tools take a batch: one call saves every unit the child finished, so
- * results do not cost a request each. Tool schemas carry no task ids, which
- * keeps them identical for every child of a role; ids are checked here and
- * again by Main and Core.
+ * results do not cost a request each. Each item is validated and saved on
+ * its own, so one bad item never discards the rest. Tool schemas carry no
+ * task ids, which keeps them identical for every child of a role; ids are
+ * checked here and again by Main and Core.
  */
 export function decompositionSubmissionTools(
   task: Task,
   services: ExtrasAgentRunServices,
   role: DecompositionRole
 ): AgentTool[] {
-  return submissions[role].map((name) => {
+  return roleSubmissionTools[role].map((name) => {
     const ids = submissionUnitIds(task, name, role);
-    return defineStrictTool({
+    const schema = (DecompositionToolJsonSchemas as Record<string, object>)[
+      dataKinds[name]!
+    ]!;
+    const staged = STAGED_TOOLS.has(name);
+    const parameters = Type.Object({
+      items: Type.Array(
+        Type.Object({
+          unitId: Type.String(),
+          data: Type.Unsafe<unknown>(relaxedSubmissionSchema(schema) as object),
+          ...(staged
+            ? {
+                more: Type.Optional(
+                  Type.Boolean({
+                    description:
+                      "本单元之后还有条目时设为 true：只暂存本批的条目，单元未完成；最后一批省略 more 并带齐文字字段，系统合并全部批次后保存。"
+                  })
+                )
+              }
+            : {})
+        }),
+        { minItems: 1, maxItems: 20 }
+      )
+    });
+    // Consecutive calls that saved nothing. Errors always go back to the model
+    // to fix and resend; a long streak adds advice but never ends the child.
+    let stalled = 0;
+    const tool = defineStrictTool({
       name,
       label: name,
-      description: `批量提交本任务单元的完整结构化产出，items 每项一个单元，尽量一次提交全部；等待真实目标保存后逐项返回结果，只需重交失败项。单元 id 见任务消息。${notes[name] ?? ""}`,
-      parameters: Type.Object({
-        items: Type.Array(
-          Type.Object({
-            unitId: Type.String(),
-            data: Type.Unsafe<DecompositionSubmissionData>(
-              (DecompositionToolJsonSchemas as Record<string, object>)[
-                dataKinds[name]!
-              ]!
-            )
-          }),
-          { minItems: 1, maxItems: 20 }
-        )
-      }),
+      description: `批量提交本任务单元的完整结构化产出，items 每项写成 {unitId, data}；kind 由工具填写，没有内容的列表可省略。每项单独校验并立即保存，逐项返回结果，失败项按提示修正后只重交失败项。字段说明里的数量与字数上限必须遵守。单元 id 见任务消息。${staged ? "条目超过任务消息给出的每批上限时分批提交：前几批带 more: true 只交条目，最后一批不带 more。" : ""}${submissionNotes[name] ?? ""}`,
+      parameters,
       execute: async (_id, params) => {
         if (!ids.length) throw new Error("本任务没有此类单元可提交。");
         const saved = new Set<string>();
         const lines: string[] = [];
+        let progressed = false;
         let last:
           | {
               unitId: string;
@@ -219,14 +194,33 @@ export function decompositionSubmissionTools(
           try {
             if (!ids.includes(item.unitId))
               throw new Error("提交单元不在本工作包授权范围内。");
-            const parsed = DecompositionSubmissionDataSchema.parse(item.data);
-            assertToolKind(name, role, parsed);
+            const filled = withEmptyCollections(
+              schema,
+              withToolKind(name, item.data)
+            );
+            const more = staged && (item as { more?: boolean }).more === true;
+            const data =
+              more && isObject(filled)
+                ? { ...filled, kind: "asset-part" }
+                : filled;
+            const checked = DecompositionSubmissionDataSchema.safeParse(data);
+            if (!checked.success)
+              throw new Error(
+                describeSubmissionIssues(checked.error.issues, data)
+              );
             const result = await saveDecompositionSubmission(
               task,
               services,
               item.unitId,
-              parsed
+              checked.data
             );
+            progressed = true;
+            if (more) {
+              lines.push(
+                `${item.unitId}：本批已暂存（累计 ${result.receipt.staged ?? 0} 条），单元未完成；继续提交其余条目，最后一批不带 more。`
+              );
+              continue;
+            }
             saved.add(item.unitId);
             task.input.units[item.unitId]!.status = "done";
             last = { unitId: item.unitId, ...result };
@@ -250,7 +244,16 @@ export function decompositionSubmissionTools(
           (id) => task.input.units[id]?.status !== "done"
         );
         if (pending.length) lines.push(`仍未保存：${pending.join("、")}`);
-        if (!last) throw new Error(lines.join("\n"));
+        stalled = progressed ? 0 : stalled + 1;
+        if (!last && progressed)
+          return textToolResult(lines.join("\n"), { kind: "none" });
+        if (!last) {
+          if (stalled >= STALLED_ADVICE_AFTER)
+            lines.push(
+              `已连续 ${stalled} 次没有保存任何单元。数据问题按上面的提示修正后重交；保存失败等改数据也解决不了的问题，停止提交，在最终回复中列出未保存单元及原因，系统会在后续工作包重试。`
+            );
+          throw new Error(lines.join("\n"));
+        }
         return decompositionOutput(
           task,
           last.unitId,
@@ -260,5 +263,8 @@ export function decompositionSubmissionTools(
         );
       }
     });
+    tool.prepareArguments = (args) =>
+      repairSubmissionArguments(args) as Static<typeof parameters>;
+    return tool;
   });
 }

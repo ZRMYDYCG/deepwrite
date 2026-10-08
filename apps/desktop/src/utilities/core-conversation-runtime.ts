@@ -2,6 +2,7 @@ import { createConversationExportRuntime } from "./conversation-export/runtime";
 import { fileURLToPath } from "node:url";
 import { RendererStateStore } from "./renderer-state-store";
 import { handleRendererStateCommand } from "./renderer-state-commands";
+import { describeStorageFailure } from "./conversation-storage/storage-failure";
 import type { UtilityRuntimeOptions } from "./runtime";
 
 /** Keeps conversation routing and the storage worker's lifetime together. */
@@ -45,16 +46,18 @@ export function createCoreConversationRuntime(
             }
           );
         } catch (error: unknown) {
+          const {
+            message,
+            code: storageCode,
+            ...details
+          } = describeStorageFailure(error, "operation");
           return {
             status: "rejected",
             requestId: command.id,
             error: {
               code: "renderer_state.command_failed",
-              message:
-                error instanceof Error
-                  ? error.message
-                  : "会话历史持久化操作失败。",
-              details: { kind: error instanceof Error ? error.name : "unknown" }
+              message,
+              details: { storageCode, ...details }
             }
           };
         }

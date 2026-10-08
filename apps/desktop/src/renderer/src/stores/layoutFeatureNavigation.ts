@@ -11,6 +11,7 @@ export type WorkspaceMainView =
   | "book-identity"
   | "agent-team"
   | "marketplace"
+  | "agent-team-marketplace"
   | "cloud-backup"
   | "device-sync"
   | "zhuque-detection";
@@ -26,6 +27,7 @@ export type PrimaryFeature =
   | "chat-assistant"
   | "agent-teams"
   | "skill-marketplace"
+  | "agent-team-marketplace"
   | "cloud-backup"
   | "device-sync"
   | "zhuque-detection";
@@ -38,6 +40,7 @@ export function primaryFeatureForView(
       return "agent-teams";
     case "marketplace":
       return "skill-marketplace";
+    case "agent-team-marketplace":
     case "device-sync":
     case "cloud-backup":
     case "zhuque-detection":

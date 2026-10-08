@@ -9,6 +9,7 @@ import type { ResourceTreeNode } from "../types/workspace";
 import { projectLongWorkspaceContinuityTree } from "./longWorkspaceContinuityTree";
 import { createLongWorkspaceTreeNode } from "./longWorkspaceTreeNode";
 import { projectLongWorkspaceDraftTree } from "./longWorkspaceDraftTree";
+import { createLongChapterLookup } from "../types/longIndexedChapter";
 import {
   createLongChapterCardVolumeSelection,
   isLongMigrationEvidenceCategoryId,
@@ -93,11 +94,14 @@ export function projectLongWorkspaceNavigation(
   index?: LongWorkspaceIndexSnapshot | null
 ): ResourceTreeNode[] {
   const node = createLongWorkspaceTreeNode(book);
+  const lookup = index ? createLongChapterLookup(book, index) : undefined;
 
   const reconcile = (
     selection: LongWorkspaceSelection
   ): LongWorkspaceSelection | undefined =>
-    index ? reconcileLongWorkspaceSelection(book, index, selection) : selection;
+    index
+      ? reconcileLongWorkspaceSelection(book, index, selection, lookup)
+      : selection;
 
   const characterCountByGroup = new Map<LongCharacterGroup, number>();
   for (const character of book.navigation.characters) {
@@ -553,7 +557,13 @@ export function projectLongWorkspaceNavigation(
       };
       const selection =
         (index
-          ? createLongChapterCardVolumeSelection(book, index, volume.id)
+          ? createLongChapterCardVolumeSelection(
+              book,
+              index,
+              volume.id,
+              undefined,
+              lookup
+            )
           : undefined) ?? fallbackSelection;
       const children =
         plotUsesLeftTree && index
@@ -562,7 +572,8 @@ export function projectLongWorkspaceNavigation(
                 book,
                 index,
                 volume.id,
-                chapter.id
+                chapter.id,
+                lookup
               );
               return chapterSelection
                 ? [
@@ -675,10 +686,15 @@ export function projectLongWorkspaceNavigation(
     ...(index ? { index } : {}),
     volumes: sortedVolumes,
     chaptersByVolume,
+    lookup,
     nodeId: (key) => longNavigationNodeId(book.id, key)
   });
 
-  const continuityChildren = projectLongWorkspaceContinuityTree(book, index);
+  const continuityChildren = projectLongWorkspaceContinuityTree(
+    book,
+    index,
+    lookup
+  );
 
   const counts = book.navigation.counts;
   return [

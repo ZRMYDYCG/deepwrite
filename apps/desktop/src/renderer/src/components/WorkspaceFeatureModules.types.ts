@@ -11,6 +11,7 @@ import type {
   ModelConfig,
   MarketplaceSession,
   ModelSettings,
+  MoreFeaturesSettings,
   ModelUsageDashboard,
   OfficialModelBalance,
   SiteOfficialQuota,
@@ -39,6 +40,7 @@ export interface SettingsFeatureModule {
   workspacePaneLayout: WorkspacePaneLayout;
   defaultTextViewMode: TextViewMode;
   bodyTextFormats: BodyTextFormats;
+  moreFeaturesSettings: MoreFeaturesSettings;
   workspaceAgentSettings: readonly WorkspaceAgentSettings[];
   creativePlotStages: readonly CreativePlotStage[];
   longAgentSettings: LongAgentSettings | null;
@@ -103,6 +105,12 @@ export interface MarketplaceFeatureModule {
   session: MarketplaceSession | null;
 }
 
+export interface AgentTeamMarketplaceFeatureModule {
+  kind: "agent-team-marketplace";
+  catalog: AgentTeamCatalogSnapshot | null;
+  session: MarketplaceSession | null;
+}
+
 export interface DeviceSyncFeatureModule {
   kind: "device-sync";
   prepareSync(): Promise<boolean>;
@@ -152,6 +160,7 @@ export type WorkspaceFeatureModule =
     }
   | LongBookAnalysisFeatureModule
   | MarketplaceFeatureModule
+  | AgentTeamMarketplaceFeatureModule
   | DeviceSyncFeatureModule
   | CloudBackupFeatureModule
   | ZhuqueDetectionFeatureModule;

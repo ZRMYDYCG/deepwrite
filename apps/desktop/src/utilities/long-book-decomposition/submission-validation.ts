@@ -48,7 +48,9 @@ export function assertDecompositionSubmission(
         world.categoryId !== "other" &&
         !job.profile.worldCategories.some(({ id }) => id === world.categoryId)
       )
-        throw new Error("未知世界观类别。");
+        throw new Error(
+          `未知世界观类别 ${world.categoryId}；可用：${[...job.profile.worldCategories.map(({ id }) => id), "other"].join("、")}。`
+        );
   } else if (data.kind === "finish-card") {
     const chunk = job.chunks.find(({ id }) => id === unitId);
     if (
@@ -76,7 +78,11 @@ export function assertDecompositionSubmission(
         entry.categoryId !== "other" &&
         !job.profile.worldCategories.some(({ id }) => id === entry.categoryId)
       )
-        throw new Error("设定名册类别无效。");
+        throw new Error(
+          `设定“${entry.name}”的类别 ${entry.categoryId} 无效；可用：${[...job.profile.worldCategories.map(({ id }) => id), "other"].join("、")}。`
+        );
+  } else if (data.kind === "registry-plan") {
+    throw new Error("名册计划须先由 Core 展开为名册。");
   } else if (data.kind === "review") {
     if (unitId !== `review:${data.review.domain}`)
       throw new Error("审校领域不匹配。");
@@ -90,6 +96,7 @@ export function assertDecompositionSubmission(
       )
         throw new Error("审校问题的单元或证据章号无效。");
   } else {
+    // A staged batch is checked like the asset it belongs to.
     const asset = data.asset;
     const expected =
       asset.kind === "chronicle"

@@ -985,10 +985,24 @@ export function useLongEditorDocumentSession(options: {
           : null
       );
       const snapshot = pendingSaveViewport;
+      const selectedKey = selectedFile
+        ? stateKey(selectedFile.file.id)
+        : undefined;
+      const requestBefore = selectedKey
+        ? requestClockByFile.get(selectedKey)
+        : undefined;
       void loadSelectedDocument().finally(() => {
         if (!snapshot || pendingSaveViewport !== snapshot) return;
         pendingSaveViewport = null;
-        void restoreCurrentEditorViewport(snapshot);
+        // Only a disk reload replaces the textarea. The post-save refresh
+        // usually skips it, and the editor stays writable meanwhile, so
+        // restoring the save-time caret would rewind text typed since then.
+        if (
+          selectedKey &&
+          requestClockByFile.get(selectedKey) !== requestBefore
+        ) {
+          void restoreCurrentEditorViewport(snapshot);
+        }
       });
     },
     { immediate: true }

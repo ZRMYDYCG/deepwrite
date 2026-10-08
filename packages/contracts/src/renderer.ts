@@ -25,12 +25,14 @@ export {
 export type * from "./app-alert";
 export type * from "./agent-team";
 export type * from "./agent-team-catalog";
+export type * from "./agent-team-marketplace";
 export type * from "./catalog";
 export type * from "./chat-assistant";
 export type * from "./cloud-backup";
 export type * from "./envelope";
 export type * from "./expert-draft";
 export type * from "./general-settings";
+export type * from "./more-features-settings";
 export type * from "./storage-settings";
 export {
   StorageLocationSchema,
@@ -57,7 +59,10 @@ export {
   decompositionUsageLimit,
   decompositionUsageTotal
 } from "./long-book-decomposition/usage";
-export { readyDecompositionUnitIds } from "./long-book-decomposition/job";
+export {
+  decompositionTaskUnitIds,
+  readyDecompositionUnitIds
+} from "./long-book-decomposition/job";
 export { decompositionAssetProse } from "./long-book-decomposition/records";
 export type * from "./short-book-analysis";
 export {
@@ -181,6 +186,11 @@ export {
   withAgentTeamEnabled
 } from "./agent-team-catalog";
 export {
+  AGENT_TEAM_MARKETPLACE_OVERVIEW_MAX_LENGTH,
+  agentTeamCustomModelCount,
+  agentTeamMemberCount
+} from "./agent-team-marketplace";
+export {
   CATALOG_LIBRARY_ENTRY_MAX_CHARACTERS,
   CATALOG_LIBRARY_OVERVIEW_MAX_CHARACTERS,
   CATALOG_PROJECT_MAX_CONTENT_ITEMS,
@@ -213,6 +223,11 @@ export {
   createDefaultGeneralSettings,
   maxTextAttachmentCharactersForBudget
 } from "./general-settings";
+export {
+  MORE_FEATURE_IDS,
+  MoreFeaturesSettingsSchema,
+  createDefaultMoreFeaturesSettings
+} from "./more-features-settings";
 export {
   DEFAULT_LIBRARY_AGENT_PROFILES,
   DEFAULT_LIBRARY_AGENT_SETTINGS,

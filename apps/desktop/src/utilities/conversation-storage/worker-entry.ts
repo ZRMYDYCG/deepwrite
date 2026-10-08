@@ -15,19 +15,19 @@ import {
   RendererStateSaveCommandEnvelopeSchema,
   RendererStateHistoryMigrationSchema
 } from "@deepwrite/contracts";
-import { ConversationDatabase, ConversationStorageError } from "./database";
 import { LegacyConversationStore } from "./legacy-store";
-import { migrateLegacyFile } from "./legacy-file-migration";
+import { initializeConversationStorage } from "./worker-startup";
+import { describeStorageFailure } from "./storage-failure";
 
 if (!parentPort)
   throw new Error("Conversation storage must run in a Core-owned worker.");
 const port = parentPort;
 const paths = workerData as { databasePath: string; legacyStatePath?: string };
-const database = new ConversationDatabase(paths.databasePath);
-if (paths.legacyStatePath)
-  await migrateLegacyFile(database.database, paths.legacyStatePath);
-if (process.env.DEEPWRITE_MAIN_INSTANCE_ID)
-  database.claimMainInstance(process.env.DEEPWRITE_MAIN_INSTANCE_ID);
+const database = await initializeConversationStorage(
+  paths,
+  process.env.DEEPWRITE_MAIN_INSTANCE_ID,
+  (error) => port.postMessage({ kind: "startup.failed", error })
+);
 const legacy = new LegacyConversationStore(database.database, () =>
   database.assertMainInstance()
 );
@@ -129,20 +129,12 @@ port.on(
     } catch (error) {
       port.postMessage({
         id: request.id,
-        error: {
-          message:
-            error instanceof Error
-              ? error.message
-              : "Conversation storage failed.",
-          code:
-            error instanceof ConversationStorageError
-              ? error.code
-              : "storage_failed"
-        }
+        error: describeStorageFailure(error, "operation")
       });
     }
   }
 );
+port.postMessage({ kind: "ready" });
 
 // Maintenance runs only between requests and never removes referenced user content.
 const collection = setInterval(() => {

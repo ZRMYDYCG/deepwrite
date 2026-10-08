@@ -1,4 +1,4 @@
-import { createScopedTranslator } from "../i18n";
+import { createScopedTranslator, i18n, locale } from "../i18n";
 import type {
   LongBookSummary,
   LongListBooksResult,
@@ -17,10 +17,8 @@ import {
   parseBookResourcePreferences,
   type BookResourcePreference
 } from "../utils/bookResourcePreferences";
-import {
-  longNavigationNodeId,
-  projectLongWorkspaceNavigation
-} from "../utils/longWorkspaceResourceTree";
+import { longNavigationNodeId } from "../utils/longWorkspaceResourceTree";
+import { createLongWorkspaceNavigationCache } from "../utils/longWorkspaceNavigationCache";
 import { createResourceTreeLookup } from "../utils/resourceTreeLookup";
 
 const t = createScopedTranslator("workspace");
@@ -97,8 +95,10 @@ export function useWorkspaceResourceTreeCoordinator(
     )
   );
 
+  const longNavigationCache = createLongWorkspaceNavigationCache();
   const longBookResourceNodes = computed<ResourceTreeNode[]>(() => {
     const availableIds = new Set(options.longBooks.value.map(({ id }) => id));
+    longNavigationCache.retain(availableIds);
     const unavailable = new Map(
       options.longCatalogDiagnostics.value
         .filter(({ bookId }) => !availableIds.has(bookId))
@@ -119,7 +119,12 @@ export function useWorkspaceResourceTreeCoordinator(
           longBookId: book.id,
           catalogNodeType: "long-book" as const,
           selectableBranch: true,
-          children: projectLongWorkspaceNavigation(book, workspaceIndex)
+          children: longNavigationCache.project(
+            book,
+            workspaceIndex,
+            locale.value,
+            i18n.global.messages.value[locale.value]
+          )
         };
       }),
       ...[...unavailable.values()].map((diagnostic) => ({

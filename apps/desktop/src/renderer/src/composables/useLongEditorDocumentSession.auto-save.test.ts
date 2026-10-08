@@ -35,7 +35,7 @@ const renderer = createRenderer({
   nextSibling: () => null
 });
 
-function setupEditor() {
+function setupEditor(editorInput: HTMLTextAreaElement | null = null) {
   const file = {
     id: "file-1" as LongFileId,
     path: "draft/chapter.md",
@@ -89,7 +89,7 @@ function setupEditor() {
           currentIsStructuredText: computed(() => false),
           currentIsWorldbuildingList: computed(() => false),
           viewMode: ref("edit"),
-          editorInput: ref(null),
+          editorInput: ref(editorInput),
           isComposing: composition.isComposing,
           activeWorldbuildingItemId: ref(null),
           activeBookLineVolumeId: ref(null),
@@ -147,6 +147,44 @@ function setupEditor() {
     composition,
     history
   };
+}
+
+function fakeTextarea(caret: number) {
+  const input = {
+    scrollTop: 0,
+    selectionStart: caret,
+    selectionEnd: caret,
+    selectionDirection: "none" as const,
+    ownerDocument: { activeElement: null as unknown },
+    focus: vi.fn(),
+    setSelectionRange: vi.fn((start: number, end: number) => {
+      input.selectionStart = start;
+      input.selectionEnd = end;
+    })
+  };
+  input.ownerDocument.activeElement = input;
+  return input;
+}
+
+async function autoSaveWithCaret(
+  editor: ReturnType<typeof setupEditor>,
+  input: ReturnType<typeof fakeTextarea>,
+  savedFile: typeof editor.file
+): Promise<void> {
+  editor.selectedFile.value = {
+    file: editor.file,
+    role: "body",
+    label: "正文",
+    readOnly: false
+  };
+  await nextTick();
+  editor.writeDocument.mockResolvedValueOnce({ file: savedFile });
+  editor.props.autoSaveEnabled = true;
+  editor.documentStates.value[editor.key]!.content = "初稿续写";
+  input.selectionStart = input.selectionEnd = 4;
+  await nextTick();
+  await vi.advanceTimersByTimeAsync(800);
+  expect(editor.writeDocument).toHaveBeenCalledOnce();
 }
 
 afterEach(() => {
@@ -307,6 +345,62 @@ describe("long editor auto-save", () => {
     await nextTick();
     await vi.advanceTimersByTimeAsync(900);
     expect(editor.writeDocument).toHaveBeenCalledTimes(1);
+    editor.app.unmount();
+  });
+
+  it("keeps the caret where typing continued after an auto-save when the refresh skips the reload", async () => {
+    vi.useFakeTimers();
+    const input = fakeTextarea(2);
+    const editor = setupEditor(input as unknown as HTMLTextAreaElement);
+    const savedFile = { ...editor.file, updatedAt: "2026-01-01T00:00:05.000Z" };
+    await autoSaveWithCaret(editor, input, savedFile);
+
+    // The editor stays writable while the passive post-save refresh runs.
+    editor.documentStates.value[editor.key]!.content = "初稿续写更多";
+    input.selectionStart = input.selectionEnd = 6;
+    editor.selectedFile.value = {
+      ...editor.selectedFile.value!,
+      file: savedFile
+    };
+    await vi.advanceTimersByTimeAsync(0);
+    await nextTick();
+
+    expect(editor.readDocument).not.toHaveBeenCalled();
+    expect(input.setSelectionRange).not.toHaveBeenCalled();
+    expect([input.selectionStart, input.selectionEnd]).toEqual([6, 6]);
+    editor.app.unmount();
+  });
+
+  it("restores the save-time caret when the refresh does reload the document", async () => {
+    vi.useFakeTimers();
+    const input = fakeTextarea(2);
+    const editor = setupEditor(input as unknown as HTMLTextAreaElement);
+    const savedFile = { ...editor.file, updatedAt: "2026-01-01T00:00:05.000Z" };
+    await autoSaveWithCaret(editor, input, savedFile);
+
+    const externalFile = {
+      ...editor.file,
+      updatedAt: "2026-01-01T00:00:09.000Z"
+    };
+    editor.readDocument.mockImplementationOnce(async () => {
+      input.selectionStart = input.selectionEnd = 0;
+      return {
+        file: externalFile,
+        content: "初稿续写",
+        offset: 0,
+        totalCharacters: 4,
+        nextOffset: null
+      };
+    });
+    editor.selectedFile.value = {
+      ...editor.selectedFile.value!,
+      file: externalFile
+    };
+    await vi.advanceTimersByTimeAsync(0);
+    await nextTick();
+
+    expect(editor.readDocument).toHaveBeenCalledOnce();
+    expect(input.setSelectionRange).toHaveBeenCalledWith(4, 4, "none");
     editor.app.unmount();
   });
 

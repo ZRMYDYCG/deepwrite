@@ -16,7 +16,9 @@ import {
 } from "@deepwrite/contracts";
 import { LongBookAnalysisSourceStore } from "../../extras/agents/sources/long-book-source-store";
 import { DecompositionRecordsReader } from "./records-reader";
-import { decompositionMentions, emptyDecompositionRegistry } from "./workflow";
+import { emptyDecompositionRegistry } from "./workflow";
+import { registryMentionItems, registryPartItems } from "./registry-mentions";
+import { registryMergeInput } from "./registry-merge";
 import { sampleDecompositionPassages } from "./passage-sampling";
 import { briefContext, buildDecompositionBrief } from "./briefs";
 
@@ -40,14 +42,26 @@ async function querySnapshot(
   reader: DecompositionRecordsReader,
   request: DecompositionQuery
 ): Promise<DecompositionQueryResult> {
-  const source = await new LongBookAnalysisSourceStore(workspaceDirectory).load(
-    job.source.sourceId,
-    job.source.sourceRevision
-  );
-  if (source.fingerprint !== job.source.fingerprint)
+  const store = new LongBookAnalysisSourceStore(workspaceDirectory);
+  const needsChapters = [
+    "brief",
+    "chunkText",
+    "searchSource",
+    "samplePassages"
+  ].includes(request.kind);
+  const source = needsChapters
+    ? await store.load(job.source.sourceId, job.source.sourceRevision)
+    : undefined;
+  const identity =
+    source ??
+    (await store.inspectRevision(
+      job.source.sourceId,
+      job.source.sourceRevision
+    ));
+  if (identity.fingerprint !== job.source.fingerprint)
     throw new Error("任务来源指纹不匹配。");
   const range = request.range ?? job.source.range;
-  const chapters = source.chapters.filter(
+  const chapters = (source?.chapters ?? []).filter(
     ({ order }) =>
       order >= range.start &&
       order <= range.end &&
@@ -233,39 +247,21 @@ async function querySnapshot(
       );
     else if (request.kind === "mentions") {
       if (request.unitId === "registry:merge") {
-        const records = await Promise.all(
-          Object.keys(job.units)
-            .filter(
-              (id) =>
-                id.startsWith("registry:part:") &&
-                job.units[id]?.status === "done"
-            )
-            .map((id) => reader.record(job, id))
+        const merge = await registryMergeInput(
+          job,
+          (id) => reader.record(job, id),
+          cards
         );
-        result = {
-          characters: records.flatMap(({ data }) =>
-            data.kind === "registry" ? data.registry.characters : []
-          ),
-          terms: records.flatMap(({ data }) =>
-            data.kind === "registry" ? data.registry.terms : []
-          )
-        };
+        result = { ...merge.registry, candidates: merge.candidates };
       } else {
-        const mentions = decompositionMentions(cards);
-        const part = Math.max(
-          0,
-          Number(request.unitId?.split(":").at(-1) ?? 1) - 1
-        );
-        const all = [
-          ...mentions.characters.map((entry) => ({
-            ...entry,
-            type: "character"
-          })),
-          ...mentions.terms.map((entry) => ({ ...entry, type: "world" }))
-        ].slice(part * 1000, (part + 1) * 1000);
+        const items = registryPartItems(
+          job,
+          registryMentionItems(cards),
+          request.unitId ?? "registry:part:1"
+        ).map(({ facts: _facts, aliasChunks: _uses, ...item }) => item);
         result = {
-          characters: all.filter(({ type }) => type === "character"),
-          terms: all.filter(({ type }) => type === "world")
+          characters: items.filter(({ domain }) => domain === "character"),
+          terms: items.filter(({ domain }) => domain === "term")
         };
       }
     } else result = cards;

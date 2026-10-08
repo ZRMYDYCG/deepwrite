@@ -57,6 +57,12 @@ export interface RunAgentWithTurnRetriesOptions {
    * The default delegates to pi-ai's transient provider-error classifier.
    */
   classifyFailure?: (message: AssistantMessage) => string | undefined;
+  /**
+   * Reject an otherwise successful reply without text or tool calls. Runs
+   * that already delivered a structured result may allow an empty ending;
+   * subagents use their own handoff guard instead.
+   */
+  rejectEmptyResponse?: () => boolean;
   onEvent?: (event: AgentEvent, signal: AbortSignal) => Promise<void> | void;
   /**
    * Runs for every provider-returned assistant terminal message before retry
@@ -234,11 +240,27 @@ export async function runAgentWithTurnRetries(
       return;
     }
 
+    let emptyResponse = false;
     if (
       event.type === "message_end" &&
       isAssistantMessage(event.message) &&
       activeTurn
     ) {
+      if (
+        event.message.stopReason === "stop" &&
+        !event.message.errorMessage &&
+        options.rejectEmptyResponse?.() &&
+        !event.message.content.some(
+          (item) =>
+            item.type === "toolCall" ||
+            (item.type === "text" && item.text.trim().length > 0)
+        )
+      ) {
+        emptyResponse = true;
+        event.message.stopReason = "error";
+        event.message.errorMessage =
+          "模型返回了空回复（没有正文或工具调用），任务尚未完成。请重试或检查模型服务。";
+      }
       await options.onAssistantMessageEnded?.(
         event.message,
         { ...activeTurn },
@@ -296,7 +318,9 @@ export async function runAgentWithTurnRetries(
       activeTurn &&
       activeTurn.attempt < maxAttempts
     ) {
-      const reason = classifyFailure(event.message);
+      const reason = emptyResponse
+        ? event.message.errorMessage
+        : classifyFailure(event.message);
       if (reason) {
         const baseDelayMs = policy.delaysMs[activeTurn.attempt - 1] ?? 0;
         const delayMs = jitterAgentTurnRetryDelay(baseDelayMs, policy.random);

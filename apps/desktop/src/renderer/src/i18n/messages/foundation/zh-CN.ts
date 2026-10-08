@@ -30,10 +30,28 @@ export default {
   proxyDescription:
     "默认直连模型服务。开启后使用系统或环境变量中的 HTTP 代理，适合需要 VPN 的接口。",
   saveFailedDetail: "常规设置已在本次运行中生效，但写入本机失败：{message}",
+  moreFeaturesSaveFailed:
+    "更多功能配置保存失败，已恢复为上次保存的显示与顺序。",
+  moreFeaturesSaveFailedDetail:
+    "更多功能配置保存失败，已恢复为上次保存的显示与顺序：{message}",
   saveFailed: "常规设置已在本次运行中生效，但暂时无法写入本机",
   loadFailed: "加载常规设置失败，已使用默认设置",
   autoSaveFailed: "自动保存设置已生效，但暂时无法写入本机配置",
   catalogConflict: "本地文件已在其他位置更新，请重新加载后核对修改。",
+  conversationStoragePermissionDenied:
+    "用户数据目录无法写入，请检查文件夹权限（{code}）。",
+  conversationStorageDiskFull: "用户数据磁盘空间不足（{code}）。",
+  conversationStorageLocked: "会话数据库正被占用，请稍后重试（{code}）。",
+  conversationStorageCorrupt:
+    "会话数据库无法读取，请保留用户数据目录并联系开发者修复（{code}）。",
+  conversationStorageLocationUnavailable:
+    "用户数据目录或会话数据库无法打开，请检查目录及磁盘连接（{code}）。",
+  conversationStorageIoFailed:
+    "用户数据磁盘读写失败，请检查磁盘状态（{code}）。",
+  conversationStorageWorkerUnavailable: "会话存储服务启动失败（{code}）。",
+  conversationStorageMigrationFailed:
+    "旧会话导入未完成，原始记录已保留（{code}）。",
+  conversationStorageFailed: "本地会话保存或读取失败（{code}）。",
   impactChanged: "关联关系或删除影响已变化，请核对最新影响后再次确认。",
   targetNotFound: "目标条目已不存在，请刷新后重试。",
   targetExists: "同名目标已存在，请检查后重试。",

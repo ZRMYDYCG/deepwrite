@@ -7,6 +7,32 @@ import {
 import { useAgentConversation } from "./useAgentConversation";
 
 describe("durable user messages", () => {
+  it("identifies storage failure before model dispatch and retains the unsent draft", async () => {
+    const deferred = createDeferredApi();
+    const controller = useAgentConversation({
+      api: () => deferred.api,
+      flushPersistence: async () => {
+        throw {
+          code: "renderer_state.command_failed",
+          message: "fixture readonly",
+          details: { storageCode: "permission_denied", nativeCode: "EACCES" }
+        };
+      }
+    });
+    try {
+      controller.draft.value = "尚未发送的问题";
+      await controller.sendMessage(document);
+      expect(deferred.promptCount()).toBe(0);
+      expect(controller.conversationError.value).toContain(
+        "用户数据目录无法写入"
+      );
+      expect(controller.draft.value).toBe("尚未发送的问题");
+      expect(controller.messages.value).toHaveLength(1);
+    } finally {
+      controller.dispose();
+    }
+  });
+
   it("waits for persistence acknowledgement before contacting the model", async () => {
     const deferred = createDeferredApi();
     let acknowledge!: () => void;

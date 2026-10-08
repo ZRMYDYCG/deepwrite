@@ -8,7 +8,6 @@ const t = createScopedTranslator("extras");
 
 const props = defineProps<{
   items: SyncStatus["items"];
-  pending: boolean;
 }>();
 defineEmits<{
   toggle: [key: string, included: boolean];
@@ -71,7 +70,6 @@ const groups = computed(() =>
       :key="group.id"
       :title="group.title"
       :items="group.items"
-      :pending="pending"
       :note="group.note"
       @toggle="(key, included) => $emit('toggle', key, included)"
       @toggle-many="(keys, included) => $emit('toggleMany', keys, included)"

@@ -6,6 +6,8 @@ import progressSource from "./DecompositionProgress.vue?raw";
 import profileSource from "./DecompositionProfileManager.vue?raw";
 import taskBarSource from "./DecompositionTaskBar.vue?raw";
 import recordDialogSource from "./DecompositionRecordDialog.vue?raw";
+import subtaskBoardSource from "./DecompositionSubtaskBoard.vue?raw";
+import subtaskDialogSource from "./DecompositionSubtaskDialog.vue?raw";
 
 describe("long-book decomposition page layout", () => {
   it("shares the long-analysis page scope for source, field and run-bar styles", () => {
@@ -50,5 +52,15 @@ describe("long-book decomposition page layout", () => {
     expect(recordDialogSource).toContain('<Teleport to="body">');
     expect(recordDialogSource).toContain("controller.readUnit(");
     expect(recordDialogSource).toContain('t("viewTarget")');
+  });
+
+  it("shows subtasks in a board and opens a run in the shared run detail", () => {
+    expect(progressSource).toContain("<DecompositionSubtaskBoard");
+    expect(progressSource).not.toContain("controller.activity");
+    expect(pageSource).toContain('import "./decomposition-subtasks.css"');
+    expect(subtaskBoardSource).toContain("<DecompositionSubtaskDialog");
+    expect(subtaskDialogSource).toContain('<Teleport to="body">');
+    expect(subtaskDialogSource).toContain("<SubagentRunDetail");
+    expect(subtaskDialogSource).toContain("decompositionDialogKeydown");
   });
 });

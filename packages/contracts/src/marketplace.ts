@@ -197,6 +197,7 @@ const MarketplaceDetailBaseSchema = z.object({
   coverUrl: z.string(),
   visibility: z.enum(["private", "unlisted", "public"]),
   status: MarketplaceStatusSchema,
+  enabled: z.boolean().default(false),
   downloadCount: z.number().int().nonnegative(),
   metadata: z.record(z.string(), z.unknown()),
   publishedAt: MarketplaceTimestampSchema.optional(),

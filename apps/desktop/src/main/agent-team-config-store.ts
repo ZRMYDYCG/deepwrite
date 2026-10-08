@@ -6,6 +6,7 @@ import { join } from "node:path";
 import {
   AGENT_TEAM_PROFILE_NAME_MAX_LENGTH,
   AgentTeamCatalogSnapshotSchema,
+  AgentTeamMarketplaceSourceSchema,
   AgentTeamProfileSchema,
   AgentTeamProfileCreateInputSchema,
   AgentTeamProfileRenameInputSchema,
@@ -16,6 +17,7 @@ import {
   ScriptWorkspaceAgentIdSchema,
   ShortWorkspaceAgentIdSchema,
   type AgentTeamCatalogSnapshot,
+  type AgentTeamMarketplaceSource,
   type AgentTeamProfile,
   type AgentTeamProfileCreateInput,
   type AgentTeamProfileRenameInput,
@@ -212,14 +214,26 @@ export class AgentTeamConfigStore {
     rawInput: AgentTeamProfileTargetInput
   ): Promise<AgentTeamProfile> {
     const input = AgentTeamProfileTargetInputSchema.parse(rawInput);
-    return structuredClone(this.requireTeam(await this.list(), input.teamId));
+    // The plaza origin is local bookkeeping; packages stay readable by older versions.
+    const { marketplaceSource: _source, ...team } = this.requireTeam(
+      await this.list(),
+      input.teamId
+    );
+    return structuredClone(team);
   }
 
-  async installProfile(rawProfile: AgentTeamProfile): Promise<{
+  /** Installs a copy under a new id; `rawProfile.id` is not reused. */
+  async installProfile(
+    rawProfile: AgentTeamProfile,
+    rawMarketplaceSource?: AgentTeamMarketplaceSource
+  ): Promise<{
     catalog: AgentTeamCatalogSnapshot;
     team: AgentTeamProfile;
   }> {
     const profile = AgentTeamProfileSchema.parse(rawProfile);
+    const marketplaceSource =
+      rawMarketplaceSource &&
+      AgentTeamMarketplaceSourceSchema.parse(rawMarketplaceSource);
     let installedId = "";
     const catalog = await this.mutate((snapshot) => {
       const installed = createAgentTeamProfile(
@@ -227,6 +241,7 @@ export class AgentTeamConfigStore {
         this.availableImportedName(snapshot, profile.name),
         profile.settings
       );
+      if (marketplaceSource) installed.marketplaceSource = marketplaceSource;
       installedId = installed.id;
       snapshot.teams.push(installed);
     });

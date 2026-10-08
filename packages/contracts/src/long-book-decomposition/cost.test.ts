@@ -17,7 +17,7 @@ describe("decomposition cost model", () => {
       decompositionEvidenceBudget(small) * 8
     );
     expect(decompositionChaptersPerSubmission(small)).toBe(1);
-    expect(decompositionChaptersPerSubmission(large)).toBe(6);
+    expect(decompositionChaptersPerSubmission(large)).toBe(3);
   });
 
   it("counts every re-sent turn, so a 1.2M-character book lands in the tens of millions", () => {

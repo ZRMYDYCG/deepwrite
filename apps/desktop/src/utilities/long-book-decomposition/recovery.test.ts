@@ -1,10 +1,14 @@
 import { readFile, writeFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
-import type { DecompositionSubmitInput } from "@deepwrite/contracts";
+import {
+  readyDecompositionUnitIds,
+  type DecompositionSubmitInput
+} from "@deepwrite/contracts";
 import { decompositionFixture } from "./test-support";
 import { addDecompositionUnit } from "./workflow";
 import { requeueDecompositionUnit } from "./unit-retry";
+import { runDecompositionFaux } from "./faux-run.test-support";
 
 const roots: string[] = [];
 vi.setConfig({ testTimeout: 30_000 });
@@ -50,6 +54,163 @@ async function styleFixture() {
   };
   return { ...fixture, input };
 }
+
+it("继续任务重试已失败三次的名册分片，保留已完成单元并走到任务完成", async () => {
+  const fixture = await decompositionFixture("materials", 1);
+  roots.push(fixture.root);
+  const { service } = fixture;
+  const checkpoint = "reading:source_chapter_1";
+  const chapter = fixture.source.chapters[0]!;
+  const reading = await service.open(
+    { jobId: fixture.job.id, phase: "read", unitIds: ["chunk:1"] },
+    fixture.job.profile.id,
+    "ldattempt_read"
+  );
+  const submit = (
+    unitId: string,
+    attemptId: string,
+    inputRevision: string,
+    data: DecompositionSubmitInput["data"]
+  ) =>
+    service.submit({
+      jobId: fixture.job.id,
+      outputVersion: fixture.job.outputVersion,
+      unitId,
+      attemptId,
+      inputRevision,
+      data
+    });
+  await submit(
+    checkpoint,
+    reading.input.attemptId,
+    reading.job.units[checkpoint]!.inputRevision,
+    {
+      kind: "reading",
+      card: {
+        chunkId: "chunk:1",
+        chapters: [
+          {
+            chapterId: chapter.id,
+            order: chapter.order,
+            title: chapter.title,
+            summary: "主角继续寻找铜铃。",
+            events: [],
+            characters: []
+          }
+        ],
+        characters: [],
+        world: [],
+        plot: { events: [], foreshadowing: [] },
+        style: { notes: [], excerpts: [] }
+      }
+    }
+  );
+  await submit(
+    "chunk:1",
+    reading.input.attemptId,
+    reading.job.units["chunk:1"]!.inputRevision,
+    { kind: "finish-card" }
+  );
+  const finish = (attemptId: string) =>
+    service.control({
+      jobId: fixture.job.id,
+      action: "finish-package",
+      attemptId
+    });
+  await finish(reading.input.attemptId);
+  await service.advance(await service.state.load(fixture.job.id));
+  const completed = await service.state.load(fixture.job.id);
+  expect(completed.units["registry:part:1"]!.registryRefs).toEqual([]);
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const opened = await service.open(
+      {
+        jobId: fixture.job.id,
+        phase: "registry",
+        unitIds: ["registry:part:1"]
+      },
+      fixture.job.profile.id,
+      `ldattempt_missing_${attempt}`
+    );
+    await finish(opened.input.attemptId);
+  }
+  const failed = await service.state.load(fixture.job.id);
+  expect(failed.status).toBe("failed");
+  expect(failed.units["registry:part:1"]).toMatchObject({
+    status: "failed",
+    attempts: 3,
+    lastError: "工作包未提交此单元。"
+  });
+  expect(readyDecompositionUnitIds(failed)).toEqual([]);
+  const resumed = (await service.control({
+    jobId: fixture.job.id,
+    action: "resume"
+  }))!;
+  expect(readyDecompositionUnitIds(resumed)).toEqual(["registry:part:1"]);
+  expect(resumed.units["registry:part:1"]).toMatchObject({
+    status: "pending",
+    attempts: 0
+  });
+  expect(resumed.units["registry:part:1"]).not.toHaveProperty("lastError");
+  for (const id of [checkpoint, "chunk:1"])
+    expect(resumed.units[id]).toEqual(completed.units[id]);
+  const result = await runDecompositionFaux({ ...fixture, job: resumed });
+  expect(result.phase).toBe("done");
+  expect(result.status).toBe("completed");
+});
+
+it("继续失败的部分写入复用原回执，不重复写入已保存素材", async () => {
+  const fixture = await styleFixture();
+  const original = fixture.catalog.writeManagedEntry.bind(fixture.catalog);
+  let writes = 0;
+  vi.spyOn(fixture.catalog, "writeManagedEntry").mockImplementation((input) =>
+    ++writes === 2
+      ? Promise.reject(new Error("模拟第二条写入中断"))
+      : original(input)
+  );
+  await expect(fixture.service.submit(fixture.input)).rejects.toThrow("中断");
+  const entriesBefore = (await fixture.catalog.snapshot()).materials.find(
+    ({ materialKind }) => materialKind === "draft"
+  )!.entries;
+  expect(entriesBefore).toHaveLength(1);
+  const partial = await fixture.service.state.load(fixture.job.id);
+  partial.units["style:profile"]!.attempts = 2;
+  await fixture.service.state.save(partial);
+  await fixture.service.control({
+    jobId: fixture.job.id,
+    action: "finish-package",
+    attemptId: fixture.input.attemptId
+  });
+  const resumed = (await fixture.service.control({
+    jobId: fixture.job.id,
+    action: "resume"
+  }))!;
+  expect(readyDecompositionUnitIds(resumed)).toEqual(["style:profile"]);
+  expect(resumed.units["style:profile"]!.inputRevision).toBe(
+    partial.units["style:profile"]!.inputRevision
+  );
+  expect(resumed.units["style:profile"]!.requiredReceiptIds).toEqual(
+    partial.units["style:profile"]!.requiredReceiptIds
+  );
+  const opened = await fixture.service.open(
+    { jobId: fixture.job.id, phase: "integrate", unitIds: ["style:profile"] },
+    fixture.job.profile.id,
+    "ldattempt_resume_failed"
+  );
+  await fixture.service.submit({
+    ...fixture.input,
+    attemptId: opened.input.attemptId
+  });
+  const saved = await fixture.service.state.load(fixture.job.id);
+  expect(saved.units["style:profile"]!.status).toBe("done");
+  expect(saved.units["style:profile"]!.outputRefs).toHaveLength(2);
+  const entriesAfter = (await fixture.catalog.snapshot()).materials.find(
+    ({ materialKind }) => materialKind === "draft"
+  )!.entries;
+  expect(entriesAfter).toHaveLength(2);
+  expect(entriesAfter.find(({ id }) => id === entriesBefore[0]!.id)).toEqual(
+    entriesBefore[0]
+  );
+});
 
 it("一个单元跨两次素材写入时，部分回执不能冒充完整完成", async () => {
   const fixture = await styleFixture();
@@ -147,6 +308,12 @@ it("用户编辑产生冲突，保留或明确批准重新生成，且其他用�
     await fixture.service.state.load(fixture.job.id)
   );
   expect(conflict.units["style:profile"]!.status).toBe("conflict");
+  const resumed = (await fixture.service.control({
+    jobId: fixture.job.id,
+    action: "resume"
+  }))!;
+  expect(resumed.units["style:profile"]!.status).toBe("conflict");
+  expect(readyDecompositionUnitIds(resumed)).toEqual([]);
   await fixture.service.control({
     jobId: fixture.job.id,
     action: "resolve-conflict",

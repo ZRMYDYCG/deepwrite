@@ -22,3 +22,12 @@ export function createId(prefix: string): string {
 export function createCatalogId(prefix: string): string {
   return `${prefix}-${randomHex8()}`;
 }
+
+/** Freezes a plain object graph in place, so a value shared by reference cannot be changed by a reader. */
+export function deepFreeze<T>(value: T): T {
+  if (value === null || typeof value !== "object" || Object.isFrozen(value))
+    return value;
+  Object.freeze(value);
+  for (const entry of Object.values(value)) deepFreeze(entry);
+  return value;
+}

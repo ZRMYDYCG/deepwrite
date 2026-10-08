@@ -102,3 +102,14 @@ DeepWrite 是 pnpm workspace，`apps/desktop/` 是唯一桌面客户端。根目
   - **受控控件：**显示值只来自数据（`:checked="modelValue"`），变更事件只上报请求，随后把 DOM 对齐回数据。不要用 `preventDefault` 抢回状态，Vue 在微任务里的更新会被浏览器的取消激活覆盖。参考 `AgentTeamSwitch.vue`。
   - **共用规则：**像“每种类型只启用一个团队”这类业务规则，放 contracts 的纯函数（`withAgentTeamEnabled`），Main 落盘与 Renderer 预览共用，避免两侧漂移。
   - **验证：**闪烁不能靠肉眼、类型检查或源码断言确认。在 Browser 窗格用临时 harness（真实组件、真实 store 与 coordinator、带延迟的假 api），用 `setInterval` 或 `requestAnimationFrame` 逐帧采样关键控件的 `checked`、`opacity`、`disabled` 与布局高度；点击后应只有一次状态变化，没有中间态。harness 放在 scratchpad，用完删除。
+- **一次输出超限，重试也一样失败：**
+  - **现象：**整书拆解的名册员思考两分钟后结束，工具调用 0 次，报“子智能体没有生成可交接的摘要”；同一分片重派时用量一模一样，反复失败。
+  - **根源：**名册分片固定 1000 个名字，且要求一次工具调用交出整片名册（数万 token 的 JSON），超出模型单次输出上限（思考与正文共用 `maxTokens`）。回复在思考中被截断（`stopReason: "length"`），子智能体生命周期却当作正常结束并误报原因；重派时输入不变，失败必然重演。
+  - **输出定额：**凡是一次调用交出的内容会随书变长的单元，都按阶段模型的配置动态定额：`decompositionCallOutputTokens`（`maxTokens` 扣除思考档位份额后封顶），以及由它派生的 `decompositionBatchLimit`、`decompositionProseCharacters`，不写死条数。列表型成品（编年、主线分卷、伏笔线、设定条目）用 `more` 分批，由 Core 暂存在任务目录 `drafts/`，重试时从暂存处续交。名册只让模型输出编号决定（`registry-plan`），次数、章号、别名和合并由 Core 计算；跨分片合并先由程序完成，只把候选簇交给模型。
+  - **截断处理：**`stopReason: "length"` 不是正常结束。子智能体由 `createSubagentReplyGuard` 提示“拆小批次”后继续，次数用尽时明确报“超过模型单次输出上限”；不要原样重发同一请求。
+  - **验证：**用小 `maxTokens` 加高思考档位的模型配置跑 Core 流程测试（参考 `registry-flow.test.ts`），并用 Faux 截断回复覆盖子智能体（参考 `subagent-reply-guard.test.ts`），确认分片变小、分批暂存可续交、截断时报出真实原因。
+- **全部单元完成，最后却报完成记录超限：**
+  - **现象：**拆书进度达到 100%，收尾时报“完成记录超过大小限制”，随后又出现 `[object Object]`，继续任务也无法读取。
+  - **根源：**`completion.json` 复制所有单元的输出引用，写入允许 32 MB，读取却只允许 1 MB；账本已提交后回读失败。Renderer 收尾检查又直接 `String(cause)`，丢失跨进程错误载荷中的消息。
+  - **守则：**任务状态和完成日志的写入、读取及事务恢复共用大小上限；完成日志仅保存账本改变的单元引用，同时兼容旧版完整引用日志。界面使用 `getErrorPayload` 读取结构化错误。参考 `job-state-store.ts`、`completion-ledger.ts` 和 `useLongBookDecomposition.ts`。
+  - **验证：**用 1910 个单元生成超过 1 MB 的旧完成日志，验证重启读取、完成保存和超限拒绝；模拟账本提交后、回执刷新前中断，确认继续只补齐收尾、所有单元仍已完成且账本只有一条。参考 `job-state-store.test.ts`、`completion-recovery.test.ts` 和 `process-recovery.test.ts`。

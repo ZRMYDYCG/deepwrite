@@ -465,7 +465,7 @@ describe("AgentConversation edit proposal placement", () => {
   it("renders subagent cards within both ordered timelines without a trailing list", () => {
     expect(processingTimelineSource).toContain('v-for="block in blocks"');
     const disclosureStart = processingTimelineSource.indexOf(
-      "v-else-if=\"block.kind === 'processing'\""
+      "<ConversationDetails\n      v-else"
     );
     const disclosureEnd = processingTimelineSource.indexOf(
       "</ConversationDetails>",
@@ -510,9 +510,7 @@ describe("AgentConversation edit proposal placement", () => {
       "connectionInterruptedRetryingValueInValueS"
     );
     expect(presentationSource).toContain("retryingValue");
-    expect(processingTimelineSource).toContain(
-      "timelineProcessingLabel(message, block, now)"
-    );
+    expect(processingTimelineSource).toContain("processingLabel(message, now)");
     expectSourceToContain(
       timelineBlocksSource,
       "message.retry || message.processingStartedAt"

@@ -314,6 +314,7 @@ const {
   updateAutoSave: updateEditorAutoSave,
   updateDefaultTextViewMode,
   updateBodyTextFormat,
+  updateMoreFeatures,
   updateLanguage: updateAppLanguage,
   updatePermissionMode,
   updateShowContextUsage,
@@ -654,6 +655,7 @@ const {
   saveActiveEditorBeforeLeaving: saveActiveLongEditorBeforeLeaving,
   openBook: openLongBook,
   refreshActiveWorkspace: refreshActiveLongWorkspace,
+  refreshAfterBackgroundWrite: refreshLongWorkspaceAfterBackgroundWrite,
   selectWorkspaceFile: selectLongWorkspaceFile,
   selectCharacterTab: selectLongCharacterTab,
   selectPlotPointTab: selectLongPlotPointTab,
@@ -2119,11 +2121,13 @@ const navigateToApprovalTarget = approvalNavigation.navigateToTarget;
 const decompositionWorkspace = createDecompositionWorkspaceBridge({
   loadCatalog: loadCatalogSnapshot,
   loadBooks: () => loadLongBookList({ force: true }),
-  refreshBook: refreshActiveLongWorkspace,
+  refreshBook: refreshLongWorkspaceAfterBackgroundWrite,
   activeBookId: activeLongBookId,
   navigate: navigateToApprovalTarget,
   find: findResourceNodeWhere,
-  select: selectResource
+  select: selectResource,
+  documentForResourceId,
+  unavailable: () => uiMessage.warning(t("theTargetEntryNoLongerExists"))
 });
 
 async function prepareEditorEntrySearch(): Promise<void> {
@@ -2452,6 +2456,7 @@ onBeforeUnmount(() => {
     @update-workspace-pane-layout="updateWorkspacePaneLayout"
     @update-default-text-view-mode="updateDefaultTextViewMode"
     @update-body-text-format="updateBodyTextFormat"
+    @update-more-features="updateMoreFeatures"
     @save-workspace-agents="saveWorkspaceAgentSettings"
     @retry-long-agents="loadLongAgentSettings"
     @save-long-agents="saveLongAgentSettings"
@@ -2491,6 +2496,7 @@ onBeforeUnmount(() => {
       v-if="!leftCollapsed"
       :sections="resourceTreeSections"
       :selected-id="selectedResourceId"
+      :more-features-settings="generalSettings.moreFeatures"
       :long-book-analysis-running="longBookAnalysisRunning"
       :long-book-decomposition-running="longBookDecompositionRunning"
       :revision-analysis-running="revisionAnalysisRunning"
@@ -2507,6 +2513,7 @@ onBeforeUnmount(() => {
       @open-chat-assistant="chatAssistant.open"
       @open-agent-teams="featureHost.openAgentTeams"
       @open-marketplace="featureHost.openMarketplace"
+      @open-agent-team-marketplace="featureHost.openAgentTeamMarketplace"
       @open-cloud-backup="featureHost.openCloudBackup"
       @open-device-sync="featureHost.openDeviceSync"
       @open-zhuque-detection="featureHost.openZhuqueDetection"
@@ -2554,6 +2561,9 @@ onBeforeUnmount(() => {
       @open-decomposition-ref="decompositionWorkspace.openRef"
       @open-decomposition-target="decompositionWorkspace.openTarget"
       @marketplace-session-change="featureHost.applyMarketplaceSession"
+      @agent-team-catalog-change="
+        settingsStore.markLoaded('agentTeams', $event)
+      "
     />
 
     <LongWorkspaceModule

@@ -5,7 +5,11 @@ import {
   parseStoredContextCompactions
 } from "../composables/agent-conversation/context-compaction";
 import { parseStoredMessage } from "../composables/agent-conversation/parse-message";
-import { visibleResponse } from "./conversationToolPresentation";
+import {
+  processingLabel,
+  visibleResponse,
+  type ProcessingDisplayItem
+} from "./conversationToolPresentation";
 import { conversationTimelineBlocks } from "./conversationTimelineBlocks";
 
 const at = (seconds: number): string =>
@@ -68,8 +72,16 @@ function compaction(
   );
 }
 
+function timelineItems(item: ChatMessage): ProcessingDisplayItem[] {
+  return (
+    conversationTimelineBlocks(item)[0]?.items.flatMap<ProcessingDisplayItem>(
+      (step) => (step.type === "work-group" ? step.items : [step])
+    ) ?? []
+  );
+}
+
 describe("conversation compaction placement", () => {
-  it("closes processing at each compaction and preserves a preceding final response", () => {
+  it("keeps every compaction inside settled processing and shows the final answer once", () => {
     const item = message("completed");
     compaction(item, "prune", 2, "completed", "prune");
     item.processingSteps!.push({
@@ -86,32 +98,49 @@ describe("conversation compaction placement", () => {
     });
     compaction(item, "summary-start", 5, "started", "summary");
     compaction(item, "summary-end", 6, "completed", "summary");
+    item.processingCompletedAt = at(6);
 
     const blocks = conversationTimelineBlocks(item);
-    expect(blocks.map((block) => block.kind)).toEqual([
-      "processing",
-      "compaction",
-      "processing",
-      "response",
-      "compaction"
-    ]);
-    expect(blocks.filter((block) => block.kind === "compaction")).toHaveLength(
-      2
-    );
-    expect(blocks[0]).toMatchObject({ endedAt: at(2) });
-    expect(blocks[2]).toMatchObject({ endedAt: at(4) });
-    expect(blocks[4]).toMatchObject({
-      item: { compaction: { status: "completed", level: "summary" } }
+    expect(blocks.map((block) => block.kind)).toEqual(["processing"]);
+    expect(blocks[0]).toMatchObject({
+      endedAt: at(6),
+      items: [
+        {
+          type: "work-group",
+          items: [
+            { id: "thinking-a", type: "thinking" },
+            { type: "compaction", compaction: { id: "prune" } },
+            { id: "thinking-b", type: "thinking" },
+            {
+              type: "compaction",
+              compaction: { status: "completed", level: "summary" }
+            }
+          ]
+        }
+      ]
     });
-    expect(visibleResponse(item)).toBe("");
+    expect(visibleResponse(item)).toBe("最终回答");
   });
 
-  it("shows a running summary in place, then starts a new processing section", () => {
+  it("shows a summary in the same timeline without resetting the run clock", () => {
     const item = message("streaming");
     compaction(item, "summary-start", 2, "started", "summary");
     expect(conversationTimelineBlocks(item).map((block) => block.kind)).toEqual(
-      ["processing", "compaction"]
+      ["processing"]
     );
+    expect(conversationTimelineBlocks(item)[0]).toMatchObject({
+      live: true,
+      items: [
+        {
+          type: "work-group",
+          running: true,
+          items: [
+            { id: "thinking-a" },
+            { type: "compaction", compaction: { status: "running" } }
+          ]
+        }
+      ]
+    });
     compaction(item, "summary-end", 3, "completed", "summary");
     item.processingSteps!.push({
       id: "thinking-b",
@@ -120,15 +149,83 @@ describe("conversation compaction placement", () => {
       createdAt: at(4)
     });
     const blocks = conversationTimelineBlocks(item);
-    expect(blocks.map((block) => block.kind)).toEqual([
-      "processing",
-      "compaction",
-      "processing"
-    ]);
-    expect(blocks[2]).toMatchObject({ live: true, startedAt: at(3) });
+    expect(blocks.map((block) => block.kind)).toEqual(["processing"]);
+    expect(blocks[0]).toMatchObject({
+      live: true,
+      startedAt: at(0),
+      items: [
+        {
+          type: "work-group",
+          items: [
+            { id: "thinking-a" },
+            { type: "compaction", compaction: { status: "completed" } },
+            { id: "thinking-b" }
+          ]
+        }
+      ]
+    });
+    expect(processingLabel(item, Date.parse(at(65)))).toBe("已处理 1分5秒");
     expect(
       item.processingSteps?.filter((step) => step.type === "compaction")
     ).toHaveLength(1);
+  });
+
+  it("preserves summary positions when a live run completes and history is restored", () => {
+    const item = message("streaming");
+    compaction(item, "summary-one", 2, "completed", "summary");
+    item.processingSteps!.push({
+      id: "progress",
+      type: "response",
+      content: "阶段汇报",
+      createdAt: at(3)
+    });
+    compaction(item, "summary-two", 4, "completed", "summary");
+    item.processingSteps!.push({
+      id: "final-response",
+      type: "response",
+      content: item.content,
+      createdAt: at(5)
+    });
+    applyContextCompactionEvent(
+      item,
+      {
+        runId: "run-one",
+        sessionId: "session-one",
+        messageId: item.id,
+        runtime,
+        phase: "completed",
+        reason: "idle",
+        level: "summary",
+        checkpoint: {
+          summary: "收尾摘要",
+          createdAt: at(6),
+          tokensBefore: 100
+        }
+      },
+      "summary-idle",
+      at(6)
+    );
+    const liveIds = timelineItems(item).map((step) => step.id);
+    expect(liveIds).toEqual([
+      "thinking-a",
+      "compaction:summary-one",
+      "progress",
+      "compaction:summary-two",
+      "final-response",
+      "compaction:summary-idle"
+    ]);
+
+    item.status = "completed";
+    item.processingCompletedAt = at(7);
+    const settled = conversationTimelineBlocks(item);
+    expect(settled).toHaveLength(1);
+    expect(timelineItems(item).map((step) => step.id)).toEqual(
+      liveIds.filter((stepId) => stepId !== "final-response")
+    );
+    expect(visibleResponse(item)).toBe("最终回答");
+    const restored = parseStoredMessage(JSON.parse(JSON.stringify(item)));
+    if (!restored) throw new Error("Stored message did not parse");
+    expect(conversationTimelineBlocks(restored)).toEqual(settled);
   });
 
   it("keeps ordinary conversations in one processed section", () => {
@@ -164,6 +261,71 @@ describe("conversation compaction placement", () => {
     ]);
   });
 
+  it.each(["completed", "stopped", "error"] as const)(
+    "keeps one summary across repeated progress replies, compactions and %s",
+    (status) => {
+      const item = message("streaming");
+      for (let round = 1; round <= 3; round += 1) {
+        item.processingSteps!.push({
+          id: `progress-${round}`,
+          type: "response",
+          content: `阶段汇报 ${round}`,
+          createdAt: at(round * 10)
+        });
+        compaction(
+          item,
+          `prune-${round}`,
+          round * 10 + 1,
+          "completed",
+          "prune"
+        );
+        item.processingSteps!.push({
+          id: `thinking-${round}`,
+          type: "thinking",
+          content: "继续处理",
+          createdAt: at(round * 10 + 2)
+        });
+      }
+      item.processingSteps!.push({
+        id: "final-response",
+        type: "response",
+        content: item.content,
+        createdAt: at(100)
+      });
+      const live = conversationTimelineBlocks(item);
+      expect(live).toHaveLength(1);
+      expect(live[0]).toMatchObject({
+        id: `processing:${item.id}`,
+        startedAt: at(0),
+        live: true
+      });
+      expect(processingLabel(item, Date.parse(at(120)))).toBe("已处理 2分0秒");
+
+      item.status = status;
+      item.processingCompletedAt = at(125);
+      const settled = conversationTimelineBlocks(item);
+      expect(settled).toHaveLength(1);
+      const processing = settled[0];
+      if (processing?.kind !== "processing") throw new Error("Missing summary");
+      expect(processing.id).toBe(live[0]?.id);
+      expect(processing.live).toBe(false);
+      expect(
+        processing.items
+          .filter((step) => step.type === "response")
+          .map((step) => step.content)
+      ).toEqual(["阶段汇报 1", "阶段汇报 2", "阶段汇报 3"]);
+      expect(
+        timelineItems(item).filter((step) => step.type === "compaction")
+      ).toHaveLength(3);
+      expect(visibleResponse(item)).toBe("最终回答");
+      expect(processingLabel(item, Date.parse(at(200)))).toBe("已处理 2分5秒");
+
+      const restored = parseStoredMessage(JSON.parse(JSON.stringify(item)));
+      if (!restored) throw new Error("Stored message did not parse");
+      expect(conversationTimelineBlocks(restored)).toEqual(settled);
+    }
+  );
+
   it("restores compaction markers and places older events by their timestamp", () => {
     const item = message("completed");
     compaction(item, "prune", 2, "completed", "prune");
@@ -178,17 +340,28 @@ describe("conversation compaction placement", () => {
     if (!restored) throw new Error("Stored message did not parse");
     expect(
       conversationTimelineBlocks(restored).map((block) => block.kind)
-    ).toEqual(["processing", "compaction"]);
+    ).toEqual(["processing"]);
+    expect(conversationTimelineBlocks(restored)[0]).toMatchObject({
+      items: [
+        {
+          type: "work-group",
+          items: [
+            { id: "thinking-a" },
+            { type: "compaction", compaction: { id: "prune" } }
+          ]
+        }
+      ]
+    });
 
     restored.processingSteps = (restored.processingSteps ?? []).filter(
       (step) => step.type !== "compaction"
     );
     expect(
       conversationTimelineBlocks(restored).map((block) => block.kind)
-    ).toEqual(["processing", "compaction"]);
+    ).toEqual(["processing"]);
   });
 
-  it("keeps old idle compactions after the response they followed", () => {
+  it("keeps old idle compactions inside processing with and without response steps", () => {
     const item = message("completed");
     item.processingSteps!.push({
       id: "terminal-response",
@@ -208,14 +381,26 @@ describe("conversation compaction placement", () => {
       }
     ];
     expect(conversationTimelineBlocks(item).map((block) => block.kind)).toEqual(
-      ["processing", "response", "compaction"]
+      ["processing"]
     );
-    expect(visibleResponse(item)).toBe("");
+    expect(conversationTimelineBlocks(item)[0]?.items).toMatchObject([
+      {
+        type: "work-group",
+        items: [
+          { id: "thinking-a" },
+          { type: "compaction", compaction: { id: "old-idle" } }
+        ]
+      }
+    ]);
+    expect(visibleResponse(item)).toBe("最终回答");
 
     item.processingSteps = [];
     expect(conversationTimelineBlocks(item).map((block) => block.kind)).toEqual(
-      ["processing", "response", "compaction"]
+      ["processing"]
     );
-    expect(visibleResponse(item)).toBe("");
+    expect(conversationTimelineBlocks(item)[0]?.items).toMatchObject([
+      { type: "compaction", compaction: { id: "old-idle" } }
+    ]);
+    expect(visibleResponse(item)).toBe("最终回答");
   });
 });

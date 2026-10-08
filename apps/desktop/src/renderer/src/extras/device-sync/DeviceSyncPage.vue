@@ -20,7 +20,7 @@ const props = defineProps<{
   prepareSync(): Promise<boolean>;
   refreshSync(): Promise<void>;
 }>();
-const { status, pending, initialLoading, loadInitialStatus, run } =
+const { status, pending, initialLoading, loadInitialStatus, run, scope } =
   useDeviceSync(props.refreshSync, props.prepareSync);
 const tab = ref("overview");
 const qr = ref("");
@@ -75,19 +75,6 @@ async function connectPhone() {
   } catch {
     uiMessage.error(t("deviceSync.connectionCodeFailed"));
   }
-}
-async function toggle(keys: string[], included: boolean) {
-  const config = status.value?.config;
-  if (!config) return;
-  const excluded = new Set(config.excludedKeys);
-  for (const key of keys) {
-    if (included) excluded.delete(key);
-    else excluded.add(key);
-  }
-  await run({
-    operation: "configure",
-    config: { ...config, excludedKeys: [...excluded] }
-  });
 }
 async function restore() {
   const entry = restoring.value;
@@ -208,10 +195,9 @@ async function restore() {
       />
       <SyncContentPanel
         v-if="tab === 'content'"
-        :items="status.items"
-        :pending="pending"
-        @toggle="(key, included) => toggle([key], included)"
-        @toggle-many="toggle"
+        :items="scope.items.value"
+        @toggle="(key, included) => scope.toggle([key], included)"
+        @toggle-many="scope.toggle"
       />
       <section v-if="tab === 'devices'" class="sync-card">
         <h2>{{ t("deviceSync.connectedDevices") }}</h2>

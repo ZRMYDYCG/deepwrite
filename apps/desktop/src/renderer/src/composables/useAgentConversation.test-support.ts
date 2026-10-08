@@ -416,6 +416,38 @@ function createDeferredApi(): {
         throw new Error("Marketplace is not used by conversation tests.");
       }
     },
+    agentTeamMarketplace: {
+      async list() {
+        throw new Error("Team plaza is not used by conversation tests.");
+      },
+      async listMine() {
+        throw new Error("Team plaza is not used by conversation tests.");
+      },
+      async detail() {
+        throw new Error("Team plaza is not used by conversation tests.");
+      },
+      async myDetail() {
+        throw new Error("Team plaza is not used by conversation tests.");
+      },
+      async publish() {
+        throw new Error("Team plaza is not used by conversation tests.");
+      },
+      async update() {
+        throw new Error("Team plaza is not used by conversation tests.");
+      },
+      async setEnabled() {
+        throw new Error("Team plaza is not used by conversation tests.");
+      },
+      async delete() {
+        throw new Error("Team plaza is not used by conversation tests.");
+      },
+      async like() {
+        throw new Error("Team plaza is not used by conversation tests.");
+      },
+      async install() {
+        throw new Error("Team plaza is not used by conversation tests.");
+      }
+    },
     cloudBackup: {
       async status() {
         throw new Error("Cloud backup is not used by conversation tests.");

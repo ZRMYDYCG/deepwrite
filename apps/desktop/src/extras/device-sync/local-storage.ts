@@ -2,6 +2,7 @@ import { readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { writeSyncJson } from "./atomic-json";
 import { safeStorage } from "electron";
+import { deepFreeze } from "@deepwrite/shared";
 import {
   DeviceSyncSecretSchema,
   openSyncMetadata,
@@ -52,27 +53,52 @@ const secretSealer: SyncSecretSealer = {
   }
 };
 
+/**
+ * Main is the only writer of the sync state, so after the first read every read is served from memory:
+ * the file can hold a full copy of every work, and parsing it per status read stalls the main process.
+ * Cached values are frozen because every reader shares them.
+ */
 export class DesktopSyncMetadataStore implements SyncMetadataStore {
   private readonly path: string;
+  private cached: SyncMetadata | null = null;
+  private writing: Promise<void> = Promise.resolve();
   constructor(root: string) {
     this.path = join(root, "device-sync.json");
   }
   async read(): Promise<SyncMetadata | null> {
+    if (this.cached) return this.cached;
     const value = await readOptional(this.path);
-    return value === null
-      ? null
-      : openSyncMetadata(
-          syncMetadataSchema.parse(JSON.parse(value)),
-          secretSealer
-        );
+    if (value === null) return null;
+    const metadata = deepFreeze(
+      await openSyncMetadata(
+        syncMetadataSchema.parse(JSON.parse(value)),
+        secretSealer
+      )
+    );
+    // A write that finished during this read is newer than the file it read.
+    this.cached ??= metadata;
+    return metadata;
   }
   /** A copy with every API key sealed, for writers that put sync state in files themselves. */
   seal(value: SyncMetadata): Promise<SyncMetadata> {
     return sealSyncMetadata(syncMetadataSchema.parse(value), secretSealer);
   }
   async write(value: SyncMetadata): Promise<void> {
-    const sealed = await this.seal(value);
-    await writeSyncJson(this.path, JSON.stringify(sealed));
+    // Parsing copies the value, so later changes to the caller's objects cannot reach the cache.
+    const parsed = syncMetadataSchema.parse(value);
+    const next = this.writing.then(async () => {
+      try {
+        const sealed = await sealSyncMetadata(parsed, secretSealer);
+        await writeSyncJson(this.path, JSON.stringify(sealed));
+        // A recovered intent arrives sealed; readers always get usable keys.
+        this.cached = deepFreeze(await openSyncMetadata(parsed, secretSealer));
+      } catch (error) {
+        this.cached = null;
+        throw error;
+      }
+    });
+    this.writing = next.catch(() => undefined);
+    return next;
   }
 }
 export class DesktopSyncCredentialStore implements SyncCredentialStore {

@@ -203,6 +203,7 @@ import {
   submitUserInput
 } from "./session-models-api";
 import { marketplace } from "./marketplace-api";
+import { agentTeamMarketplace } from "./agent-team-marketplace-api";
 
 async function getHealth(): Promise<SystemHealthPayload> {
   const id = browserId("cmd_health");
@@ -1033,6 +1034,7 @@ const api: DeepWriteApi = {
     acknowledgeDesktop: acknowledgeDesktopAlert
   },
   marketplace,
+  agentTeamMarketplace,
 
   deviceSync,
   cloudBackup,

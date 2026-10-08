@@ -134,15 +134,6 @@ export function processingItems(message: ChatMessage): ProcessingItem[] {
     if (compaction.reason === "idle") {
       const responseIndex = lastResponseIndex(items);
       if (responseIndex >= 0) insertAt = responseIndex + 1;
-      else if (message.content && message.status !== "streaming") {
-        items.splice(insertAt, 0, {
-          id: `${message.id}_final_response`,
-          type: "response",
-          content: message.content,
-          createdAt: compaction.createdAt
-        });
-        insertAt += 1;
-      }
     }
     items.splice(insertAt, 0, {
       id: `compaction:${compaction.id}`,
@@ -153,10 +144,7 @@ export function processingItems(message: ChatMessage): ProcessingItem[] {
   }
   if (message.status !== "streaming") {
     const lastResponse = lastResponseIndex(items);
-    if (
-      lastResponse >= 0 &&
-      !items.slice(lastResponse + 1).some((item) => item.type === "compaction")
-    ) {
+    if (lastResponse >= 0) {
       // The final response is displayed as the assistant's ordinary body.
       items.splice(lastResponse, 1);
     }

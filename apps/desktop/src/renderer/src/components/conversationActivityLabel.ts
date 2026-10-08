@@ -80,6 +80,7 @@ export function workGroupActivityLabel(group: {
   if (!group.running) return t("finished");
   const last = group.items.at(-1);
   if (last?.type === "thinking") return t("thinking");
+  if (last?.type === "compaction") return t("compactingContext");
   if (last?.type === "tool" && "tool" in last) {
     return toolActivityLabel(last.tool.name);
   }

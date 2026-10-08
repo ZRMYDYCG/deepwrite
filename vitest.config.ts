@@ -1,8 +1,10 @@
 import { defineConfig } from "vitest/config";
+import vue from "@vitejs/plugin-vue";
 import { resolveRendererStyles } from "./tools/resolve-renderer-styles.mjs";
 
 export default defineConfig({
   plugins: [
+    vue(),
     {
       name: "deepwrite-test-source",
       enforce: "pre",

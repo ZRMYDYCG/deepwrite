@@ -26,7 +26,7 @@ import {
   loadSyncMetadata,
   syncJoinCode
 } from "./connection";
-import { readSyncStatus } from "./status";
+import { readSyncStatus, withSyncScope } from "./status";
 import { preserveSync } from "./persistence";
 import { runSync, type SyncRunState } from "./run";
 
@@ -39,6 +39,8 @@ export class DeviceSyncService implements SyncApi {
   private state: SyncRunState = { progress: IDLE, issues: [] };
   private initialization: Promise<void> | null = null;
   private lastStatus: SyncStatus | null = null;
+  private statusRead: Promise<SyncStatus> | null = null;
+  private statusGeneration = 0;
   constructor(private readonly options: SyncServiceOptions) {}
   private async metadata(): Promise<SyncMetadata> {
     await this.options.workspace.recover();
@@ -52,20 +54,33 @@ export class DeviceSyncService implements SyncApi {
     return loadSyncMetadata(this.options);
   }
 
+  /**
+   * Reading the status scans every work, so polls never repeat it: while an operation holds the lock they get
+   * the last status with live progress (the operation refreshes it when done), and concurrent reads share one.
+   */
   async status(): Promise<SyncStatus> {
-    if (this.running && this.controller && this.lastStatus)
+    if (this.running && this.lastStatus)
       return { ...this.lastStatus, progress: this.state.progress };
-    this.lastStatus = await readSyncStatus(
+    this.statusRead ??= this.freshStatus().finally(() => {
+      this.statusRead = null;
+    });
+    return this.statusRead;
+  }
+  private async freshStatus(): Promise<SyncStatus> {
+    const generation = ++this.statusGeneration;
+    const status = await readSyncStatus(
       this.options,
       await this.metadata(),
       this.state.progress
     );
-    return this.lastStatus;
+    // A read that started before a later one finished must not replace it.
+    if (generation === this.statusGeneration) this.lastStatus = status;
+    return status;
   }
   async check(): Promise<SyncStatus> {
     return this.exclusive(async () => {
       const metadata = await this.metadata();
-      if (!metadata.config?.spaceId) return this.status();
+      if (!metadata.config?.spaceId) return this.freshStatus();
       this.controller = new AbortController();
       this.state.progress = {
         ...IDLE,
@@ -102,7 +117,7 @@ export class DeviceSyncService implements SyncApi {
       } finally {
         this.controller = null;
       }
-      return this.status();
+      return this.freshStatus();
     });
   }
   private async exclusive<T>(work: () => Promise<T>): Promise<T> {
@@ -151,13 +166,20 @@ export class DeviceSyncService implements SyncApi {
           : {})
       });
       this.state.issues = [];
-      return this.status();
+      return this.freshStatus();
     });
   }
   async configure(config: SyncConfig): Promise<SyncStatus> {
     return this.exclusive(async () => {
-      await configureSync(this.options, await this.metadata(), config);
-      return this.status();
+      const next = await configureSync(
+        this.options,
+        await this.metadata(),
+        config
+      );
+      if (!this.lastStatus) return this.freshStatus();
+      this.statusGeneration++;
+      this.lastStatus = withSyncScope(this.lastStatus, next);
+      return { ...this.lastStatus, progress: this.state.progress };
     });
   }
   async joinCode(): Promise<string> {
@@ -216,7 +238,7 @@ export class DeviceSyncService implements SyncApi {
         this.controller = null;
         this.prepared = null;
       }
-      return this.status();
+      return this.freshStatus();
     });
   }
 
@@ -257,7 +279,7 @@ export class DeviceSyncService implements SyncApi {
           pendingIssues: this.state.issues
         });
       }
-      return this.status();
+      return this.freshStatus();
     });
   }
   async restore(historyId: string): Promise<SyncStatus> {
@@ -282,7 +304,7 @@ export class DeviceSyncService implements SyncApi {
         ...IDLE,
         ...syncProgressTitle("restored")
       };
-      return this.status();
+      return this.freshStatus();
     });
   }
 }

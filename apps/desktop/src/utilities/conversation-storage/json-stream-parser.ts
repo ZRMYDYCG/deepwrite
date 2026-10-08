@@ -1,3 +1,4 @@
+import { ConversationStorageError } from "./errors";
 import type { JsonNodes, ValueRef } from "./json-nodes";
 
 type Frame = {
@@ -36,14 +37,22 @@ export class JsonStreamParser {
     const frame = this.state.frames.at(-1);
     if (!frame) {
       if (this.state.root)
-        throw new Error("History contains multiple JSON documents.");
+        throw new ConversationStorageError(
+          "migration_invalid",
+          "History contains multiple JSON documents."
+        );
       this.state.root = ref;
       return;
     }
     const key = frame.kind === "array" ? frame.count : frame.key;
-    if (key === undefined) throw new Error("History object key is missing.");
+    if (key === undefined)
+      throw new ConversationStorageError(
+        "migration_invalid",
+        "History object key is missing."
+      );
     if (frame.kind === "object" && this.nodes.get(frame.ref, [key]))
-      throw new Error(
+      throw new ConversationStorageError(
+        "migration_invalid",
         "History contains a duplicate object key; original data has been preserved."
       );
     frame.ref = this.nodes.patch(
@@ -69,7 +78,10 @@ export class JsonStreamParser {
   private string(char: string, token: Token): void {
     if (token.unicode !== undefined) {
       if (!/^[\da-f]$/i.test(char))
-        throw new Error("History contains an invalid Unicode escape.");
+        throw new ConversationStorageError(
+          "migration_invalid",
+          "History contains an invalid Unicode escape."
+        );
       token.unicode += char;
       if (token.unicode.length === 4) {
         token.buffer += String.fromCharCode(parseInt(token.unicode, 16));
@@ -91,7 +103,10 @@ export class JsonStreamParser {
         };
         const value = escapes[char];
         if (value === undefined)
-          throw new Error("History contains an invalid string escape.");
+          throw new ConversationStorageError(
+            "migration_invalid",
+            "History contains an invalid string escape."
+          );
         token.buffer += value;
       }
     } else if (char === "\\") token.escaped = true;
@@ -108,11 +123,15 @@ export class JsonStreamParser {
       return;
     } else {
       if (char.charCodeAt(0) < 32)
-        throw new Error("History contains an unescaped control character.");
+        throw new ConversationStorageError(
+          "migration_invalid",
+          "History contains an unescaped control character."
+        );
       token.buffer += char;
     }
     if (token.key && token.buffer.length > 1024 * 1024)
-      throw new Error(
+      throw new ConversationStorageError(
+        "migration_invalid",
         "History contains an oversized property name; original data has been preserved."
       );
     if (!token.key && token.buffer.length >= 64 * 1024) this.flushText(token);
@@ -121,13 +140,19 @@ export class JsonStreamParser {
   private primitive(token: Token): void {
     const value: unknown = JSON.parse(token.buffer);
     if (typeof value === "number" && !Number.isFinite(value))
-      throw new Error("History contains a non-finite number.");
+      throw new ConversationStorageError(
+        "migration_invalid",
+        "History contains a non-finite number."
+      );
     if (
       value !== null &&
       typeof value !== "boolean" &&
       typeof value !== "number"
     )
-      throw new Error("History primitive is invalid.");
+      throw new ConversationStorageError(
+        "migration_invalid",
+        "History primitive is invalid."
+      );
     delete this.state.token;
     this.accept(this.nodes.create(value));
   }
@@ -148,13 +173,20 @@ export class JsonStreamParser {
         }
         token.buffer += char;
         if (token.buffer.length > 1024)
-          throw new Error("History contains an oversized primitive token.");
+          throw new ConversationStorageError(
+            "migration_invalid",
+            "History contains an oversized primitive token."
+          );
         continue;
       }
       if (/^[ \t\r\n]$/.test(char)) continue;
       const frame = this.state.frames.at(-1);
       if (frame?.state === "colon") {
-        if (char !== ":") throw new Error("History object is missing a colon.");
+        if (char !== ":")
+          throw new ConversationStorageError(
+            "migration_invalid",
+            "History object is missing a colon."
+          );
         frame.state = "value";
         continue;
       }
@@ -165,7 +197,10 @@ export class JsonStreamParser {
           continue;
         }
         if (char !== (frame.kind === "array" ? "]" : "}"))
-          throw new Error("History container is missing a comma.");
+          throw new ConversationStorageError(
+            "migration_invalid",
+            "History container is missing a comma."
+          );
       }
       if (frame && char === (frame.kind === "array" ? "]" : "}")) {
         if (
@@ -174,22 +209,32 @@ export class JsonStreamParser {
             (frame.count > 0 ||
               (frame.state === "value" && frame.kind === "object")))
         )
-          throw new Error("History container ends before its value.");
+          throw new ConversationStorageError(
+            "migration_invalid",
+            "History container ends before its value."
+          );
         this.state.frames.pop();
         this.accept(frame.ref);
         continue;
       }
       if (frame?.state === "key") {
         if (char !== '"')
-          throw new Error("History object key is not a string.");
+          throw new ConversationStorageError(
+            "migration_invalid",
+            "History object key is not a string."
+          );
         this.state.token = { kind: "string", buffer: "", key: true };
         continue;
       }
       if (this.state.root && !frame)
-        throw new Error("History contains trailing content.");
+        throw new ConversationStorageError(
+          "migration_invalid",
+          "History contains trailing content."
+        );
       if (char === "{" || char === "[") {
         if (this.state.frames.length >= 256)
-          throw new Error(
+          throw new ConversationStorageError(
+            "migration_invalid",
             "History exceeds the supported nesting depth; original data has been preserved."
           );
         this.state.frames.push({
@@ -204,7 +249,11 @@ export class JsonStreamParser {
         this.state.token = { kind: "number", buffer: char, key: false };
       else if (/^[tfn]$/.test(char))
         this.state.token = { kind: "literal", buffer: char, key: false };
-      else throw new Error("History contains an unexpected JSON token.");
+      else
+        throw new ConversationStorageError(
+          "migration_invalid",
+          "History contains an unexpected JSON token."
+        );
     }
   }
 
@@ -212,7 +261,8 @@ export class JsonStreamParser {
     if (this.state.token && this.state.token.kind !== "string")
       this.primitive(this.state.token);
     if (this.state.frames.length || this.state.token || !this.state.root)
-      throw new Error(
+      throw new ConversationStorageError(
+        "migration_invalid",
         "History JSON is incomplete; original data has been preserved."
       );
     return this.state.root;

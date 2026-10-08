@@ -150,6 +150,7 @@ export class AgentRunKernel {
 
     let settled = false;
     let terminalEmitted = false;
+    let resultDelivered = false;
     let evaluationSnapshotEmitter: (() => void) | undefined;
     let modelRequestInFlight = false;
     let retryWaiting = false;
@@ -162,6 +163,7 @@ export class AgentRunKernel {
     const retryWaitController = new AbortController();
 
     const emit = (event: AgentRuntimeEvent): void => {
+      if (event.type === "extras_agent.output_updated") resultDelivered = true;
       if (event.type === "agent.completed" && !terminalEmitted) {
         for (const derived of plan.completionEvents?.(event) ?? []) {
           emit(derived);
@@ -354,6 +356,7 @@ export class AgentRunKernel {
         agent,
         initialPrompt: runtimeUserMessage,
         runId: target.runId,
+        rejectEmptyResponse: () => !resultDelivered,
         signal: retryWaitController.signal,
         ...(this.options.retryPolicy
           ? { retryPolicy: this.options.retryPolicy }

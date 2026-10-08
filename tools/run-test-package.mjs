@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { ensureElectronRuntime } from "./ensure-electron-runtime.mjs";
 import { assertElectronLaunchAllowed } from "./electron-launch-environment.mjs";
 
@@ -33,11 +33,11 @@ function run(command, args, cwd = workspaceRoot) {
   });
 }
 
-function parseTarget(args) {
+export function parseTarget(args) {
   const [platform, arch] = args;
-  if (platform === "all" && arch === undefined) {
+  if ((platform === "all" || platform === "desktop") && arch === undefined) {
     return {
-      buildLinuxX64: true,
+      buildLinuxX64: platform === "all",
       buildMacArm64: true,
       buildMacX64: true,
       buildWinX64: true
@@ -84,7 +84,7 @@ function parseTarget(args) {
     };
   }
   throw new Error(
-    "Usage: node tools/run-test-package.mjs <all | linux x64 | mac arm64 | mac x64 | mac all | win x64>"
+    "Usage: node tools/run-test-package.mjs <all | desktop | linux x64 | mac arm64 | mac x64 | mac all | win x64>"
   );
 }
 
@@ -228,9 +228,14 @@ async function main() {
   if (packagingError) throw packagingError;
 }
 
-main().catch((error) => {
-  console.error(
-    error instanceof Error ? (error.stack ?? error.message) : String(error)
-  );
-  process.exitCode = 1;
-});
+if (
+  process.argv[1] &&
+  pathToFileURL(resolve(process.argv[1])).href === import.meta.url
+) {
+  main().catch((error) => {
+    console.error(
+      error instanceof Error ? (error.stack ?? error.message) : String(error)
+    );
+    process.exitCode = 1;
+  });
+}

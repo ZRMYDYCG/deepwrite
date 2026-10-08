@@ -1,6 +1,6 @@
 {
   "name": "deepwrite",
-  "version": "1.6.3",
+  "version": "1.6.308",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@11.7.0",
@@ -26,6 +26,7 @@
     "smoke:renderer": "node tools/check-renderer-build.mjs",
     "verify": "pnpm format:check && pnpm typecheck && pnpm lint && pnpm test && pnpm build",
     "pack:test": "node tools/run-test-package.mjs all",
+    "pack:test:desktop": "node tools/run-test-package.mjs desktop",
     "pack:test:win": "node tools/run-test-package.mjs win x64",
     "pack:test:linux": "node tools/run-test-package.mjs linux x64",
     "pack:test:mac:arm64": "node tools/run-test-package.mjs mac arm64",

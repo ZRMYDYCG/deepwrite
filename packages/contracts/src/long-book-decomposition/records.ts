@@ -1,5 +1,6 @@
 import { z } from "zod";
 import {
+  DecompositionAssetPartSchema,
   DecompositionSubmissionDataSchema,
   type DecompositionSubmissionData
 } from "./assets";
@@ -27,6 +28,25 @@ export const DecompositionRecordFileSchema = z
   .strict();
 export type DecompositionRecordFile = z.infer<
   typeof DecompositionRecordFileSchema
+>;
+
+/**
+ * Batches of one unit revision staged before its final submission. A retry
+ * of the unit continues from here instead of writing everything again.
+ */
+export const DecompositionDraftFileSchema = z
+  .object({
+    schemaVersion: z.literal(1),
+    jobId: DecompositionIdSchema,
+    outputVersion: z.number().int().positive(),
+    inputRevision: z.string().min(1).max(256),
+    unitId: DecompositionIdSchema,
+    savedAt: z.string().datetime(),
+    asset: DecompositionAssetPartSchema
+  })
+  .strict();
+export type DecompositionDraftFile = z.infer<
+  typeof DecompositionDraftFileSchema
 >;
 
 type DecompositionAssetData = Extract<

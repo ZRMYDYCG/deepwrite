@@ -3,11 +3,13 @@ import {
   type DeepWriteApi,
   type GeneralPermissionMode,
   type GeneralSettings,
+  type MoreFeaturesSettings,
   type TextViewMode,
   type WorkspacePaneLayout
 } from "@deepwrite/contracts";
 import {
   createDefaultGeneralSettings,
+  MoreFeaturesSettingsSchema,
   maxTextAttachmentCharactersForBudget
 } from "@deepwrite/contracts/renderer";
 import type { Ref } from "vue";
@@ -75,6 +77,10 @@ export function useGeneralSettingsCoordinator(
   let saveRequestedWhileLoading = false;
   let localPatch: Partial<GeneralSettings> = {};
   let bodyTextPatch: Partial<GeneralSettings["bodyTextFormats"]> = {};
+  let savedMoreFeatures = options.settings.value.moreFeatures;
+  let moreFeaturesRevision = 0;
+  let savedMoreFeaturesRevision = 0;
+  let saveRevision = 0;
 
   function applyLanguage(language: GeneralSettings["language"]): void {
     setAppLanguage(language, options.browserLanguage());
@@ -90,18 +96,37 @@ export function useGeneralSettingsCoordinator(
     const api = options.api();
     if (!api || disposed) return;
     const snapshot = { ...options.settings.value };
+    const featureRevision = moreFeaturesRevision;
+    const revision = ++saveRevision;
     const operation = saveChain
       .catch(() => undefined)
       .then(async () => {
-        await api.save(snapshot);
+        const saved = await api.save(snapshot);
+        savedMoreFeatures = saved.settings.moreFeatures;
+        savedMoreFeaturesRevision = featureRevision;
+        if (featureRevision > 0 && revision === saveRevision) {
+          applyLocalPatch({ moreFeatures: savedMoreFeatures });
+        }
         saveFailed = false;
       });
     saveChain = operation.catch((error: unknown) => {
       saveFailed = true;
+      const restoredMoreFeatures =
+        revision === saveRevision &&
+        featureRevision > savedMoreFeaturesRevision;
+      if (restoredMoreFeatures) {
+        applyLocalPatch({ moreFeatures: savedMoreFeatures });
+        savedMoreFeaturesRevision = featureRevision;
+      }
       options.notifications.warning(
         error instanceof Error
-          ? t("saveFailedDetail", { message: error.message })
-          : t("saveFailed")
+          ? t(
+              restoredMoreFeatures
+                ? "moreFeaturesSaveFailedDetail"
+                : "saveFailedDetail",
+              { message: error.message }
+            )
+          : t(restoredMoreFeatures ? "moreFeaturesSaveFailed" : "saveFailed")
       );
     });
   }
@@ -138,6 +163,7 @@ export function useGeneralSettingsCoordinator(
       const settings = shouldPersistLegacyAutoSave
         ? { ...snapshot.settings, autoSave: true }
         : snapshot.settings;
+      savedMoreFeatures = settings.moreFeatures;
       if (disposed) {
         loading = false;
         return;
@@ -255,6 +281,14 @@ export function useGeneralSettingsCoordinator(
     queueSave();
   }
 
+  function updateMoreFeatures(moreFeatures: MoreFeaturesSettings): void {
+    moreFeaturesRevision += 1;
+    applyLocalPatch({
+      moreFeatures: MoreFeaturesSettingsSchema.parse(moreFeatures)
+    });
+    queueSave();
+  }
+
   async function drain(input: { strict?: boolean } = {}): Promise<void> {
     if (input.strict && loading) {
       throw new Error(t("settingsStillLoading"));
@@ -285,6 +319,7 @@ export function useGeneralSettingsCoordinator(
     updateAutoSave,
     updateDefaultTextViewMode,
     updateBodyTextFormat,
+    updateMoreFeatures,
     updateLanguage,
     updatePermissionMode,
     updateShowContextUsage,

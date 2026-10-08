@@ -48,12 +48,18 @@ interface RefreshActiveWorkspaceOptions {
   publishPending?: boolean;
 }
 
+interface SavedDocumentRefresh {
+  trailing: boolean;
+  done?: Promise<void>;
+}
+
 /** Owns refresh ordering and passive focus reconciliation. */
 export function useLongWorkspaceRefreshCoordinator(
   options: LongWorkspaceRefreshCoordinatorOptions
 ) {
   const { state, notifications } = options;
   const refreshClock = createLongWorkspaceRefreshClock();
+  const savedDocumentRefreshes = new Map<string, SavedDocumentRefresh>();
 
   async function refreshActiveWorkspace(
     bookId: string,
@@ -152,8 +158,40 @@ export function useLongWorkspaceRefreshCoordinator(
     }
   }
 
-  function handleDocumentSaved(result: LongWriteDocumentResult): void {
-    void refreshActiveWorkspace(result.bookId);
+  /**
+   * A document write cannot change structure, so its follow-up refresh is
+   * passive: publishing `pending` would make the editor read-only mid-sentence
+   * after every auto-save. Saves that land while one is in flight coalesce
+   * into a single trailing read instead of queueing a Core read per save.
+   */
+  async function handleDocumentSaved(
+    result: LongWriteDocumentResult
+  ): Promise<void> {
+    const bookId = result.bookId;
+    const inflight = savedDocumentRefreshes.get(bookId);
+    if (inflight) {
+      inflight.trailing = true;
+      await inflight.done;
+      return;
+    }
+    const entry: SavedDocumentRefresh = { trailing: false };
+    savedDocumentRefreshes.set(bookId, entry);
+    entry.done = refreshAfterSaves(bookId, entry);
+    await entry.done;
+  }
+
+  async function refreshAfterSaves(
+    bookId: string,
+    entry: SavedDocumentRefresh
+  ): Promise<void> {
+    try {
+      do {
+        entry.trailing = false;
+        await refreshActiveWorkspace(bookId, { publishPending: false });
+      } while (entry.trailing && !options.isDisposed());
+    } finally {
+      savedDocumentRefreshes.delete(bookId);
+    }
   }
 
   async function retryActiveRefresh(): Promise<void> {
@@ -166,6 +204,10 @@ export function useLongWorkspaceRefreshCoordinator(
     await refreshActiveWorkspace(bookId, { publishPending: false });
   }
 
+  function refreshAfterBackgroundWrite(bookId: string): Promise<boolean> {
+    return refreshActiveWorkspace(bookId, { publishPending: false });
+  }
+
   function invalidate(bookId: string): void {
     refreshClock.invalidate(bookId);
   }
@@ -175,6 +217,7 @@ export function useLongWorkspaceRefreshCoordinator(
     handleDocumentSaved,
     retryActiveRefresh,
     refreshOnWindowFocus,
+    refreshAfterBackgroundWrite,
     invalidate
   };
 }

@@ -46,6 +46,38 @@ export function getErrorDetail(error: unknown): string | undefined {
 export function formatError(error: unknown, fallback: string): string {
   const payload = getErrorPayload(error);
   if (payload) {
+    if (payload.code === "renderer_state.command_failed") {
+      const details = payload.details ?? {};
+      const code =
+        typeof details.storageCode === "string" &&
+        /^[a-z][a-z_]{0,63}$/u.test(details.storageCode)
+          ? details.storageCode
+          : "storage_failed";
+      const suffix =
+        typeof details.sqliteCode === "number" &&
+        Number.isSafeInteger(details.sqliteCode)
+          ? `SQLite-${details.sqliteCode}`
+          : typeof details.nativeCode === "string" &&
+              /^[A-Z][A-Z_0-9]{0,63}$/u.test(details.nativeCode)
+            ? details.nativeCode
+            : undefined;
+      const keys: Readonly<Record<string, TranslationKey>> = {
+        permission_denied: "foundation.conversationStoragePermissionDenied",
+        disk_full: "foundation.conversationStorageDiskFull",
+        database_locked: "foundation.conversationStorageLocked",
+        database_corrupt: "foundation.conversationStorageCorrupt",
+        location_unavailable:
+          "foundation.conversationStorageLocationUnavailable",
+        disk_io_failed: "foundation.conversationStorageIoFailed",
+        worker_unavailable: "foundation.conversationStorageWorkerUnavailable"
+      };
+      return t(
+        code.startsWith("migration_")
+          ? "foundation.conversationStorageMigrationFailed"
+          : (keys[code] ?? "foundation.conversationStorageFailed"),
+        { code: suffix ? `${code}/${suffix}` : code }
+      );
+    }
     const key = errorKeys[payload.code];
     return key ? t(key) : error instanceof Error ? error.message : fallback;
   }

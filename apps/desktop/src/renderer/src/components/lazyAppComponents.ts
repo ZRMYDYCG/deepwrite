@@ -38,6 +38,9 @@ export const SettingsPage = lazyFeature((features) =>
 export const SkillMarketplacePage = lazyFeature((features) =>
   features.loadSkillMarketplacePage()
 );
+export const AgentTeamMarketplacePage = lazyFeature((features) =>
+  features.loadAgentTeamMarketplacePage()
+);
 export const CloudBackupPage = lazyFeature((features) =>
   features.loadCloudBackupPage()
 );

@@ -1,9 +1,18 @@
-import type { AgentToolTrace } from "../types/conversation";
+import type {
+  AgentToolTrace,
+  ChatContextCompaction
+} from "../types/conversation";
 
 export type WorkGroupMemberItem =
   | { id: string; type: "thinking"; content: string; createdAt: string }
   | { id: string; type: "tool"; tool: AgentToolTrace; createdAt?: string }
-  | { id: string; type: "tool-group"; tools: AgentToolTrace[] };
+  | { id: string; type: "tool-group"; tools: AgentToolTrace[] }
+  | {
+      id: string;
+      type: "compaction";
+      compaction: ChatContextCompaction;
+      createdAt: string;
+    };
 
 export type WorkGroupDisplayItem = {
   id: string;
@@ -12,7 +21,12 @@ export type WorkGroupDisplayItem = {
   items: WorkGroupMemberItem[];
 };
 
-const WORK_MEMBER_TYPES = new Set(["thinking", "tool", "tool-group"]);
+const WORK_MEMBER_TYPES = new Set([
+  "thinking",
+  "tool",
+  "tool-group",
+  "compaction"
+]);
 
 function isEmptyResponse(item: { type: string; content?: string }): boolean {
   return item.type === "response" && !item.content;
@@ -37,7 +51,9 @@ export function foldWorkGroups<T extends { id: string; type: string }>(
 
   for (const item of items) {
     if (isEmptyResponse(item)) continue;
-    if (isWorkMember(item)) {
+    // Keep compaction beside the work that preceded it, without moving it
+    // across a response, subagent or approval card.
+    if (isWorkMember(item) && (item.type !== "compaction" || current)) {
       current ??= {
         id: `work:${item.id}`,
         type: "work-group",
@@ -55,7 +71,9 @@ export function foldWorkGroups<T extends { id: string; type: string }>(
   if (running) {
     const last = result.at(-1);
     if (last && last.type === "work-group" && "running" in last) {
-      last.running = true;
+      const member = (last as WorkGroupDisplayItem).items.at(-1);
+      last.running =
+        member?.type !== "compaction" || member.compaction.status === "running";
     }
   }
   return result;

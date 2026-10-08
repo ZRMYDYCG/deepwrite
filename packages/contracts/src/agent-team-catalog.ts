@@ -31,9 +31,23 @@ export const AgentTeamProfileNameSchema = z
   .min(1)
   .max(AGENT_TEAM_PROFILE_NAME_MAX_LENGTH);
 
+/** Where an installed team came from in the agent team plaza. */
+export const AgentTeamMarketplaceSourceSchema = z
+  .object({
+    teamId: z.string().trim().min(1).max(512),
+    version: z.number().int().positive(),
+    installedAt: z.string().datetime()
+  })
+  .strict();
+export type AgentTeamMarketplaceSource = z.infer<
+  typeof AgentTeamMarketplaceSourceSchema
+>;
+
 const AgentTeamProfileBaseSchema = z.object({
   id: AgentTeamProfileIdSchema,
-  name: AgentTeamProfileNameSchema
+  name: AgentTeamProfileNameSchema,
+  /** Absent on local, file-installed and older teams. */
+  marketplaceSource: AgentTeamMarketplaceSourceSchema.optional()
 });
 
 export const AgentTeamProfileSchema = z.discriminatedUnion("workspaceType", [

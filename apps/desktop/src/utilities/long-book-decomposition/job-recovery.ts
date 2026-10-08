@@ -2,6 +2,7 @@ import type { LongBookDecompositionJob } from "@deepwrite/contracts";
 import type { DecompositionService } from "./service";
 import { decompositionErrorMessage } from "./error-message";
 import { currentDecompositionRefs } from "./content-guard";
+import { mapDecompositionReads } from "./read-cache";
 
 export async function recoverDecompositionJob(
   service: DecompositionService,
@@ -10,7 +11,7 @@ export async function recoverDecompositionJob(
 ) {
   return service.reader.snapshot(async () => {
     const before = JSON.stringify(job);
-    await service.source(job);
+    await service.assertSource(job);
     if (job.target) {
       const completion = await service.state.completion(job.id);
       const committed =
@@ -59,9 +60,9 @@ export async function recoverDecompositionJob(
       const current = new Set(
         currentDecompositionRefs(receipts.flatMap(({ refs }) => refs))
       );
-      for (const receipt of receipts) {
+      await mapDecompositionReads(receipts, async (receipt) => {
         const unit = job.units[receipt.unitId];
-        if (!unit || receipt.inputRevision !== unit.inputRevision) continue;
+        if (!unit || receipt.inputRevision !== unit.inputRevision) return;
         try {
           if (
             receipt.refs.some(({ projectId }) => !projects.includes(projectId))
@@ -73,13 +74,13 @@ export async function recoverDecompositionJob(
           unit.status = "conflict";
           unit.outputRefs = receipt.refs;
           unit.lastError = decompositionErrorMessage(error, "真实内容冲突。");
-          continue;
+          return;
         }
         unit.status = "done";
         delete unit.lastError;
         unit.outputRefs = receipt.refs;
         unit.receiptIds = unit.requiredReceiptIds ?? [receipt.id];
-      }
+      });
     }
     if (recoverInFlight && job.status === "running") {
       for (const unit of Object.values(job.units))

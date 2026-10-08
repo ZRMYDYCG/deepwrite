@@ -4,17 +4,14 @@ import { computed } from "vue";
 import type { LongWorkspaceIndexSnapshot } from "@deepwrite/contracts";
 import type { LongWorkspaceProposalItem } from "../composables/useLongWorkspaceProposals";
 import type { ChatMessage } from "../types/conversation";
-import {
-  conversationTimelineBlocks,
-  timelineProcessingLabel
-} from "./conversationTimelineBlocks";
+import { conversationTimelineBlocks } from "./conversationTimelineBlocks";
+import { processingLabel } from "./conversationToolPresentation";
 import AppIcon from "./AppIcon.vue";
 import ConversationContextCompactionNotice from "./ConversationContextCompactionNotice.vue";
 import ConversationDetails from "./ConversationDetails.vue";
 import ConversationRunClock from "./ConversationRunClock.vue";
 import ConversationProcessingItem from "./ConversationProcessingItem.vue";
 import ConversationWorkGroup from "./ConversationWorkGroup.vue";
-import StreamedContent from "./StreamedContent.vue";
 import SubagentRunList from "./SubagentRunList.vue";
 
 const props = withDefaults(
@@ -55,7 +52,7 @@ const emit = defineEmits<{
 <template>
   <template v-for="block in blocks" :key="block.id">
     <div
-      v-if="block.kind === 'processing' && block.live"
+      v-if="block.live"
       class="processing-live-list"
       :aria-label="t('components.conversationProcessingTimeline.execution')"
     >
@@ -64,7 +61,7 @@ const emit = defineEmits<{
           v-slot="{ now }"
           :active="message.status === 'streaming' || Boolean(message.retry)"
         >
-          {{ timelineProcessingLabel(message, block, now) }}
+          {{ processingLabel(message, now) }}
         </ConversationRunClock>
       </div>
       <template v-for="item in block.items" :key="item.id">
@@ -77,6 +74,10 @@ const emit = defineEmits<{
           v-else-if="item.type === 'subagent'"
           :message="message"
           :runs="item.runs"
+        />
+        <ConversationContextCompactionNotice
+          v-else-if="item.type === 'compaction'"
+          :compactions="[item.compaction]"
         />
         <ConversationProcessingItem
           v-else
@@ -99,18 +100,14 @@ const emit = defineEmits<{
     </div>
 
     <ConversationDetails
-      v-else-if="block.kind === 'processing'"
-      :detail-id="
-        block.id === `processing:${message.id}`
-          ? `${message.id}:processing`
-          : `${message.id}:${block.id}`
-      "
+      v-else
+      :detail-id="`${message.id}:processing`"
       class="processing-block"
     >
       <template #summary>
         <span
           ><ConversationRunClock v-slot="{ now }" :active="false">
-            {{ timelineProcessingLabel(message, block, now) }}
+            {{ processingLabel(message, now) }}
           </ConversationRunClock></span
         >
         <AppIcon name="chevron" :size="13" />
@@ -126,6 +123,10 @@ const emit = defineEmits<{
             v-else-if="item.type === 'subagent'"
             :message="message"
             :runs="item.runs"
+          />
+          <ConversationContextCompactionNotice
+            v-else-if="item.type === 'compaction'"
+            :compactions="[item.compaction]"
           />
           <ConversationProcessingItem
             v-else
@@ -147,28 +148,5 @@ const emit = defineEmits<{
         </template>
       </div>
     </ConversationDetails>
-
-    <ConversationContextCompactionNotice
-      v-else-if="block.kind === 'compaction'"
-      :compactions="[block.item.compaction]"
-    />
-
-    <div
-      v-else
-      class="timeline-response message-copy"
-      :class="{ 'is-streaming': block.live }"
-    >
-      <StreamedContent
-        :content="block.item.content"
-        format="markdown"
-        :streaming="block.live"
-      />
-    </div>
   </template>
 </template>
-
-<style scoped>
-.timeline-response {
-  margin-bottom: 20px;
-}
-</style>

@@ -11,6 +11,8 @@ export default {
   compareTheStyleAndSimilarityOfTwoTexts: "比较两份文本的文风与相似度",
   skillMarketplace: "技能广场",
   discoverInstallAndPublishWritingSkills: "发现、安装与发布写作技能",
+  agentTeamMarketplace: "团队广场",
+  discoverInstallAndPublishWholeAgentTeams: "发现、安装与发布完整的智能体团队",
   deviceSync: "双端同步",
   continueWritingUsingYourOwnCloudDrive: "使用自己的网盘接续写作",
   cloudBackup: "云端备份",

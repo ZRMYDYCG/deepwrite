@@ -2,7 +2,8 @@ import {
   type LongBookSummary,
   type LongFileId,
   type LongListBooksResult,
-  type LongWorkspaceIndexSnapshot
+  type LongWorkspaceIndexSnapshot,
+  type LongWriteDocumentResult
 } from "@deepwrite/contracts";
 import { createPinia, setActivePinia, storeToRefs } from "pinia";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -118,6 +119,14 @@ function summary(bookId: string, sequence = 1): LongBookSummary {
       committedThroughChapterId: null
     }
   };
+}
+
+function savedResult(bookId: string): LongWriteDocumentResult {
+  return {
+    bookId,
+    file: { id: "long_file_chapter_body" },
+    summary: summary(bookId, 2)
+  } as unknown as LongWriteDocumentResult;
 }
 
 function listResult(
@@ -448,6 +457,109 @@ describe("long workspace session coordinator", () => {
     });
     await refreshing;
     expect(harness.refs.activeRefreshStatus.value).toBeNull();
+  });
+
+  it("background writes publish current metadata without locking or saving the active editor", async () => {
+    const response = deferred<{
+      bookId: string;
+      workspaceIndex: LongWorkspaceIndexSnapshot;
+    }>();
+    const harness = createHarness({
+      getWorkspaceIndex: vi.fn(() => response.promise)
+    });
+    const editor = editorPort();
+    harness.coordinator.editor.value = editor;
+    harness.store.publishBook(summary("longbook_a", 1), index("longbook_a", 1));
+    const syncing =
+      harness.coordinator.refreshAfterBackgroundWrite("longbook_a");
+    await flushMicrotasks();
+    expect(harness.refs.activeRefreshStatus.value).toBeNull();
+    expect(editor.saveAllChanges).not.toHaveBeenCalled();
+    response.resolve({
+      bookId: "longbook_a",
+      workspaceIndex: index("longbook_a", 2)
+    });
+    await expect(syncing).resolves.toBe(true);
+    expect(
+      harness.refs.longBooks.value.find(({ id }) => id === "longbook_a")
+        ?.updatedAt
+    ).toBe(index("longbook_a", 2).updatedAt);
+    expect(harness.refs.activeRefreshStatus.value).toBeNull();
+  });
+
+  it("keeps the editor writable while refreshing after a document save", async () => {
+    const pendingRefresh = deferred<{
+      bookId: string;
+      workspaceIndex: LongWorkspaceIndexSnapshot;
+    }>();
+    const harness = createHarness({
+      getWorkspaceIndex: vi.fn(() => pendingRefresh.promise)
+    });
+    harness.store.publishBook(summary("longbook_a", 1), index("longbook_a", 1));
+
+    const refreshing = harness.coordinator.handleDocumentSaved(
+      savedResult("longbook_a")
+    );
+    await flushMicrotasks();
+    expect(harness.api.getWorkspaceIndex).toHaveBeenCalledOnce();
+    expect(harness.refs.activeRefreshStatus.value).toBeNull();
+
+    pendingRefresh.resolve({
+      bookId: "longbook_a",
+      workspaceIndex: index("longbook_a", 2)
+    });
+    await refreshing;
+    expect(harness.refs.activeRefreshStatus.value).toBeNull();
+    expect(harness.refs.workspaceIndex.value?.updatedAt).toBe(
+      "2026-08-14T08:00:02.000Z"
+    );
+  });
+
+  it("coalesces saves that land during a refresh into one trailing read", async () => {
+    const first = deferred<{
+      bookId: string;
+      workspaceIndex: LongWorkspaceIndexSnapshot;
+    }>();
+    const harness = createHarness({
+      getWorkspaceIndex: vi
+        .fn()
+        .mockImplementationOnce(() => first.promise)
+        .mockResolvedValueOnce({
+          bookId: "longbook_a",
+          workspaceIndex: index("longbook_a", 3)
+        })
+    });
+    harness.store.publishBook(summary("longbook_a", 1), index("longbook_a", 1));
+
+    const initial = harness.coordinator.handleDocumentSaved(
+      savedResult("longbook_a")
+    );
+    const second = harness.coordinator.handleDocumentSaved(
+      savedResult("longbook_a")
+    );
+    const third = harness.coordinator.handleDocumentSaved(
+      savedResult("longbook_a")
+    );
+    await flushMicrotasks();
+    expect(harness.api.getWorkspaceIndex).toHaveBeenCalledOnce();
+
+    first.resolve({
+      bookId: "longbook_a",
+      workspaceIndex: index("longbook_a", 2)
+    });
+    await Promise.all([initial, second, third]);
+    expect(harness.api.getWorkspaceIndex).toHaveBeenCalledTimes(2);
+    expect(harness.refs.workspaceIndex.value?.updatedAt).toBe(
+      "2026-08-14T08:00:03.000Z"
+    );
+    expect(harness.refs.activeRefreshStatus.value).toBeNull();
+
+    harness.api.getWorkspaceIndex.mockResolvedValueOnce({
+      bookId: "longbook_a",
+      workspaceIndex: index("longbook_a", 4)
+    });
+    await harness.coordinator.handleDocumentSaved(savedResult("longbook_a"));
+    expect(harness.api.getWorkspaceIndex).toHaveBeenCalledTimes(3);
   });
 
   it("invalidates and clears the active session before selecting a fallback", async () => {

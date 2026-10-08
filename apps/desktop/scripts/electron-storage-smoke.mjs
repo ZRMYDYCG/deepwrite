@@ -7,11 +7,16 @@ import {
   readFile,
   realpath,
   rm,
+  symlink,
   writeFile
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  seedLegacyStorageSmoke,
+  useLegacyStorageSmokePath
+} from "./fixtures/legacy-storage-smoke.mjs";
 
 import { assertElectronLaunchAllowed } from "../../../tools/electron-launch-environment.mjs";
 
@@ -39,6 +44,8 @@ const root = await realpath(
 );
 const defaultPath = join(root, "default");
 const customPath = join(root, "custom");
+const profileAlias = join(root, "profile-alias");
+const customAlias = join(profileAlias, "custom");
 const anchor = join(root, ".default.storage-location.json");
 const modelsFile = (profile) => join(profile, "config/models.json");
 await Promise.all(
@@ -56,6 +63,7 @@ await writeFile(
   join(defaultPath, "config/workspace-directory.json"),
   JSON.stringify({ version: 1, path: join(root, "workspace-custom") })
 );
+await seedLegacyStorageSmoke(defaultPath);
 
 async function run(phase) {
   const environment = { ...process.env };
@@ -133,9 +141,11 @@ async function run(phase) {
     "paths",
     "models",
     "history",
+    "legacyHistory",
     "preferences",
     "chromiumStorage",
     "workspacePreserved",
+    "longProjects",
     "encryptedCredential"
   ])
     assert.equal(summary[key], true, `${phase}: ${key}`);
@@ -166,11 +176,18 @@ async function assertAnchor(path) {
 
 try {
   await run("seed");
+  useLegacyStorageSmokePath(defaultPath);
   const initialModels = await readFile(modelsFile(defaultPath), "utf8");
   assert.ok(!initialModels.includes("invalid-storage-smoke-placeholder"));
-  await migrate(defaultPath, customPath, false);
+  await symlink(
+    root,
+    profileAlias,
+    process.platform === "win32" ? "junction" : "dir"
+  );
+  await migrate(defaultPath, customAlias, false);
   await run("custom");
-  await assertAnchor(customPath);
+  await assertAnchor(customAlias);
+  await run("reopened");
   assert.equal(await readFile(modelsFile(defaultPath), "utf8"), initialModels);
   const customModels = await readFile(modelsFile(customPath), "utf8");
   assert.notEqual(customModels, initialModels);
@@ -179,7 +196,7 @@ try {
   await assertAnchor(defaultPath);
   assert.equal(await readFile(modelsFile(customPath), "utf8"), customModels);
   console.log(
-    "Storage smoke passed: real Electron/Preload/Core, default and custom paths, encrypted models, SQLite history, Chromium preferences, workspace reset, profile isolation and return migration."
+    "Storage smoke passed: real Electron/Preload/Core, canonical migrated paths, retained reinstall setting, legacy migration recovery, long registry writes, encrypted models, SQLite history, Chromium preferences, workspace reset, profile isolation and return migration."
   );
 } finally {
   await rm(root, { recursive: true, force: true });

@@ -1,5 +1,6 @@
 import longLibraryReferencesSource from "../utils/longLibraryReferences.ts?raw";
 import treeNodeFactorySource from "../utils/longWorkspaceTreeNode.ts?raw";
+import navigationCacheSource from "../utils/longWorkspaceNavigationCache.ts?raw";
 import {
   agentConversationSource,
   agentRunPreferencesSource,
@@ -35,10 +36,13 @@ describe("long-form renderer vertical slice: agents-writing-and-navigation", () 
       "longWorkspaceSelection: selection"
     );
     expect(resourceTreeCoordinatorSource).toContain(
-      "children: projectLongWorkspaceNavigation(book, workspaceIndex)"
+      "children: longNavigationCache.project("
+    );
+    expect(navigationCacheSource).toContain(
+      "nodes: projectLongWorkspaceNavigation(book, index)"
     );
     expect(longWorkspaceResourceTreeSource).toContain(
-      "reconcileLongWorkspaceSelection(book, index, selection)"
+      "reconcileLongWorkspaceSelection(book, index, selection, lookup)"
     );
     expect(longWorkspaceResourceTreeSource).toContain(
       "[...book.navigation.worldbuilding]"

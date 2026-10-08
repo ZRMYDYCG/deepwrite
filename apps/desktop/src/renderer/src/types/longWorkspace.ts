@@ -23,7 +23,14 @@ import {
   type LongWorldbuildingItemId,
   type LongWorldbuildingFormat
 } from "@deepwrite/contracts";
-import { indexedVolume, indexedChapterCard } from "./longIndexedChapter";
+import {
+  indexedVolume,
+  indexedChapterCard,
+  createLongChapterLookup,
+  nextWritableLongChapterId,
+  type LongChapterLookup
+} from "./longIndexedChapter";
+export { nextWritableLongChapterId } from "./longIndexedChapter";
 import { createLongContinuitySelection } from "./longContinuitySelection";
 import { latestCommittedContinuityChapter } from "../utils/longLatestContinuityChapter";
 
@@ -212,29 +219,6 @@ export function replaceLongBookSummary(
     (left, right) =>
       right.updatedAt.localeCompare(left.updatedAt) ||
       left.id.localeCompare(right.id)
-  );
-}
-
-export function nextWritableLongChapterId(
-  workspaceIndex: LongWorkspaceIndexSnapshot
-): LongChapterCardId | null {
-  const volumeOrder = new Map(
-    workspaceIndex.plot.volumes.map(({ id, order }) => [id, order])
-  );
-  const ordered = [...workspaceIndex.plot.chapterCards].sort(
-    (left, right) =>
-      (volumeOrder.get(left.volumeId) ?? Number.MAX_SAFE_INTEGER) -
-        (volumeOrder.get(right.volumeId) ?? Number.MAX_SAFE_INTEGER) ||
-      left.narrativeOrder - right.narrativeOrder ||
-      left.id.localeCompare(right.id)
-  );
-  return (
-    ordered.find((candidate) =>
-      workspaceIndex.chapters.some(
-        ({ chapterCardId, bodyStatus }) =>
-          chapterCardId === candidate.id && bodyStatus === "empty"
-      )
-    )?.id ?? null
   );
 }
 
@@ -533,37 +517,17 @@ export function createLongChapterCardVolumeSelection(
   summary: LongBookSummary,
   workspaceIndex: LongWorkspaceIndexSnapshot,
   volumeId: LongVolumeId,
-  preferredChapterCardId?: LongChapterCardId
+  preferredChapterCardId?: LongChapterCardId,
+  lookup = createLongChapterLookup(summary, workspaceIndex)
 ): LongWorkspaceSelection | undefined {
-  const volume = indexedVolume(summary, workspaceIndex, volumeId);
+  const volume = indexedVolume(summary, workspaceIndex, volumeId, lookup);
   if (!volume) return undefined;
-  const indexedChapterIds = new Set(
-    workspaceIndex.plot.chapterCards.map(({ id }) => id)
-  );
-  const navigationChapters = summary.navigation.chapterCards.filter(
-    (chapter) =>
-      chapter.volumeId === volumeId && indexedChapterIds.has(chapter.id)
-  );
-  const navigationIds = new Set(navigationChapters.map(({ id }) => id));
-  const chapterCards = [
-    ...navigationChapters,
-    ...workspaceIndex.plot.chapterCards.filter(
-      (chapter) =>
-        chapter.volumeId === volumeId && !navigationIds.has(chapter.id)
-    )
-  ].sort(
-    (left, right) =>
-      left.narrativeOrder - right.narrativeOrder ||
-      left.id.localeCompare(right.id)
-  );
-  const chapterCardTabs = chapterCards.map((chapter) => ({
-    id: chapter.id,
-    label: chapter.title || chapter.id,
-    narrativeOrder: chapter.narrativeOrder
-  }));
-  const chapterCard =
-    chapterCards.find(({ id }) => id === preferredChapterCardId) ??
-    chapterCards[0];
+  const chapterCards = lookup.chaptersByVolume.get(volumeId) ?? [];
+  const chapterCardTabs = lookup.tabsByVolume.get(volumeId) ?? [];
+  const preferred = preferredChapterCardId
+    ? lookup.cardsByVolume.get(volumeId)?.get(preferredChapterCardId)
+    : undefined;
+  const chapterCard = preferred ?? chapterCards[0];
   const baseSelection = {
     key: `plot-design:chapter-cards:${volume.id}`,
     root: "plot_design" as const,
@@ -589,9 +553,7 @@ export function createLongChapterCardVolumeSelection(
       }
     };
   }
-  const entry = workspaceIndex.chapters.find(
-    (candidate) => candidate.chapterCardId === chapterCard.id
-  );
+  const entry = lookup.entries.get(chapterCard.id);
   if (!entry) {
     return {
       ...baseSelection,
@@ -650,18 +612,31 @@ export function createLongChapterCardVolumeSelection(
 export function createLongChapterSelection(
   summary: LongBookSummary,
   workspaceIndex: LongWorkspaceIndexSnapshot,
-  chapterCardId: LongChapterCardId
+  chapterCardId: LongChapterCardId,
+  lookup?: LongChapterLookup
 ): LongWorkspaceSelection | undefined {
-  const chapter = indexedChapterCard(summary, workspaceIndex, chapterCardId);
-  const volume = chapter
-    ? indexedVolume(summary, workspaceIndex, chapter.volumeId)
-    : undefined;
-  const entry = workspaceIndex.chapters.find(
-    (candidate) => candidate.chapterCardId === chapterCardId
+  const chapter = indexedChapterCard(
+    summary,
+    workspaceIndex,
+    chapterCardId,
+    lookup
   );
+  const volume = chapter
+    ? indexedVolume(summary, workspaceIndex, chapter.volumeId, lookup)
+    : undefined;
+  const entry = lookup
+    ? lookup.entries.get(chapterCardId)
+    : workspaceIndex.chapters.find(
+        ({ chapterCardId: id }) => id === chapterCardId
+      );
   if (!chapter || !volume || !entry) return undefined;
   const committed = entry.commitId !== null;
-  const nextWritable = nextWritableLongChapterId(workspaceIndex);
+  const nextWritable =
+    committed || entry.bodyStatus === "written"
+      ? null
+      : lookup
+        ? lookup.nextWritable
+        : nextWritableLongChapterId(workspaceIndex);
   return {
     key: `chapter:${chapter.id}`,
     root: "draft",
@@ -739,7 +714,8 @@ function preserveRequestedLongFile(
 export function reconcileLongWorkspaceSelection(
   summary: LongBookSummary,
   workspaceIndex: LongWorkspaceIndexSnapshot,
-  selection: LongWorkspaceSelection
+  selection: LongWorkspaceSelection,
+  lookup?: LongChapterLookup
 ): LongWorkspaceSelection | undefined {
   if (selection.key.startsWith("root:")) {
     return {
@@ -753,7 +729,8 @@ export function reconcileLongWorkspaceSelection(
       createLongChapterSelection(
         summary,
         workspaceIndex,
-        selection.key.slice("chapter:".length)
+        selection.key.slice("chapter:".length),
+        lookup
       ),
       selection,
       false
@@ -764,7 +741,8 @@ export function reconcileLongWorkspaceSelection(
       createLongContinuitySelection(
         summary,
         workspaceIndex,
-        selection.key.slice("continuity:".length)
+        selection.key.slice("continuity:".length),
+        lookup
       ),
       selection
     );
@@ -844,7 +822,8 @@ export function reconcileLongWorkspaceSelection(
         summary,
         workspaceIndex,
         volumeId,
-        selection.chapterCardId
+        selection.chapterCardId,
+        lookup
       ),
       selection,
       false

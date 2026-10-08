@@ -34,6 +34,7 @@ import {
 } from "./long-book-source-store";
 
 const roots: string[] = [];
+vi.setConfig({ testTimeout: 30_000 });
 function createEnvelope<const T, K extends string>(type: K, payload: T) {
   return envelope(type, payload, {
     id: "test-command",

@@ -233,7 +233,8 @@ export async function i18nSmokeInRenderer(
     ["style-comparison", "Style comparison"],
     ["device-sync", "Device sync"],
     ["cloud-backup", "Cloud backup"],
-    ["skill-marketplace", "Skill marketplace"]
+    ["skill-marketplace", "Skill marketplace"],
+    ["agent-team-marketplace", "Agent team marketplace"]
   ]) {
     if (!select(`[data-feature-id="${id}"]`)) more.click();
     await click(`[data-feature-id="${id}"]`);

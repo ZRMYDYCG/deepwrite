@@ -2,7 +2,7 @@ import { useCatalogIndexStore } from "../../stores/catalogIndexStore";
 import { createPinia, setActivePinia } from "pinia";
 import { useLongWorkspaceStore } from "../../stores/longWorkspaceStore";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ref } from "vue";
+import { onMounted, ref } from "vue";
 import type {
   SyncConfig,
   SyncItem,
@@ -349,5 +349,126 @@ describe("device sync renderer bridge", () => {
       })
     ).rejects.toThrow("请填写有效的 HTTPS 地址、账号和同步目录。");
     expect(bridgeRequest).not.toHaveBeenCalled();
+  });
+});
+
+describe("device sync status refresh and scope", () => {
+  const status = (): SyncStatus => ({
+    config: { ...config(), spaceId: "space_test" },
+    credentialSaved: true,
+    deviceId: "test-device",
+    firstSyncConfirmed: true,
+    lastSuccessAt: null,
+    lastCheckedAt: null,
+    progress: { phase: "idle", completed: 0, total: 0, title: "" },
+    items: [
+      {
+        key: "book:a",
+        title: "测试作品",
+        kind: "book",
+        included: true,
+        dirty: true,
+        remoteDirty: false
+      }
+    ],
+    issues: [],
+    devices: [],
+    history: []
+  });
+  function deferred() {
+    let resolve!: (value: SyncResponse) => void;
+    const promise = new Promise<SyncResponse>((done) => (resolve = done));
+    return { promise, resolve };
+  }
+  const calls = (operation: SyncRequest["operation"]) =>
+    bridgeRequest.mock.calls.filter(([input]) => input.operation === operation)
+      .length;
+  const original = bridgeRequest.getMockImplementation()!;
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => {
+    bridgeRequest.mockImplementation(original);
+    vi.useRealTimers();
+  });
+
+  it("polls only while an operation reports progress, one read at a time", async () => {
+    const sync = useDeviceSync(
+      vi.fn(async () => undefined),
+      vi.fn(async () => true)
+    );
+    vi.mocked(onMounted).mock.calls.at(-1)![0]();
+    await vi.advanceTimersByTimeAsync(0);
+    sync.status.value = status();
+    const restoring = deferred();
+    const syncing = deferred();
+    const polled = deferred();
+    bridgeRequest.mockImplementation(async (input) =>
+      input.operation === "restore"
+        ? restoring.promise
+        : input.operation === "sync"
+          ? syncing.promise
+          : input.operation === "status"
+            ? polled.promise
+            : { kind: "cancelled" }
+    );
+
+    const restore = sync.run({ operation: "restore", historyId: "history_1" });
+    await vi.advanceTimersByTimeAsync(4500);
+    expect(calls("status")).toBe(1);
+    restoring.resolve({ kind: "cancelled" });
+    await restore;
+    const before = calls("status");
+
+    const run = sync.run({ operation: "sync", confirmFirst: true });
+    await vi.advanceTimersByTimeAsync(1500);
+    expect(calls("status")).toBe(before + 1);
+    await vi.advanceTimersByTimeAsync(4500);
+    expect(calls("status")).toBe(before + 1);
+    polled.resolve({ kind: "status", status: status() });
+    await vi.advanceTimersByTimeAsync(1500);
+    expect(calls("status")).toBe(before + 2);
+    syncing.resolve({ kind: "status", status: status() });
+    await run;
+  });
+
+  it("saves the scope just chosen before a sync starts, without blocking the page", async () => {
+    const sync = useDeviceSync(
+      vi.fn(async () => undefined),
+      vi.fn(async () => true)
+    );
+    sync.status.value = status();
+    sync.scope.toggle(["book:a"], false);
+    expect(sync.pending.value).toBe(false);
+    expect(sync.scope.items.value[0]?.included).toBe(false);
+
+    await sync.run({ operation: "sync" });
+
+    const operations = bridgeRequest.mock.calls.map(
+      ([input]) => input.operation
+    );
+    expect(operations.slice(0, 2)).toEqual(["configure", "sync"]);
+    const sent = bridgeRequest.mock.calls[0]![0];
+    expect(sent.operation === "configure" && sent.config.excludedKeys).toEqual([
+      "book:excluded",
+      "book:a"
+    ]);
+  });
+
+  it("does not sync when Main rejects the new scope", async () => {
+    const sync = useDeviceSync(
+      vi.fn(async () => undefined),
+      vi.fn(async () => true)
+    );
+    sync.status.value = status();
+    bridgeRequest.mockRejectedValueOnce(new Error("同步正在进行，请稍候。"));
+    sync.scope.toggle(["book:a"], false);
+
+    await expect(sync.run({ operation: "sync" })).resolves.toBeNull();
+
+    expect(calls("sync")).toBe(0);
+    expect(uiMessage.error).toHaveBeenCalledWith(
+      "同步范围未能保存，已恢复为之前的设置。同步正在进行，请稍候。"
+    );
+    expect(sync.scope.items.value[0]?.included).toBe(true);
+    expect(sync.pending.value).toBe(false);
   });
 });

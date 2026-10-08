@@ -177,6 +177,7 @@ export function normalizeDetailBase(raw: unknown): Record<string, unknown> {
     coverUrl: requiredString(value, "cover_url"),
     visibility: requiredString(value, "visibility"),
     status: requiredString(value, "status"),
+    enabled: requiredBoolean(value, "enabled"),
     downloadCount: requiredNumber(value, "download_count"),
     metadata: metadata(value),
     ...(optionalString(value, "published_at")

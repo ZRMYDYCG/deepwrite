@@ -1,4 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
+import type { AgentTool } from "@earendil-works/pi-agent-core";
+import { validateToolArguments } from "@earendil-works/pi-ai";
 import {
   DEFAULT_DECOMPOSITION_PROFILE,
   DECOMPOSITION_CHILD_QUERY_LIMIT,
@@ -118,6 +120,22 @@ const reading = (
   }
 });
 
+/** The path a model's call takes in PI: repair, whole-call check, execute. */
+function callAsModel(tool: AgentTool, args: Record<string, unknown>) {
+  return tool.execute(
+    "write",
+    validateToolArguments(tool, {
+      type: "toolCall",
+      id: "write",
+      name: tool.name,
+      arguments: (tool.prepareArguments?.(args) ?? args) as Record<
+        string,
+        unknown
+      >
+    })
+  );
+}
+
 function worldTask(category: string) {
   const setup = fixture();
   const { task } = setup;
@@ -174,7 +192,7 @@ describe("decomposition child execution boundaries", () => {
     const first = await fixture().prepareReader("通读 chunk:1");
     const second = await fixture().prepareReader("通读 chunk:2");
     expect(first.systemPrompt).toBe(second.systemPrompt);
-    expect(first.systemPrompt).not.toContain("chunk:");
+    expect(first.systemPrompt).not.toMatch(/chunk:\d/u);
   });
 
   it("rejects invented unit identifiers when the batch executes", async () => {
@@ -263,6 +281,177 @@ describe("decomposition child execution boundaries", () => {
     );
   });
 
+  it("keeps a batch's valid chapters when another breaks a schema limit", async () => {
+    const { prepareReader, submit } = fixture("ok");
+    const child = await prepareReader("通读 chunk:1");
+    const tool = toolNamed(child.tools, "submit_chapter_reading");
+    const over = reading("chapter_3", 3);
+    if (over.kind !== "reading") throw new Error("reading data");
+    over.card.chapters[0]!.events = Array.from(
+      { length: 9 },
+      (_, index) => `第${index + 1}件私密事件`
+    );
+    // The path PI really takes: whole-call validation, then execute.
+    const args = validateToolArguments(tool, {
+      type: "toolCall",
+      id: "write",
+      name: tool.name,
+      arguments: {
+        items: [
+          { unitId: "reading:chapter_1", data: reading("chapter_1", 1) },
+          { unitId: "reading:chapter_3", data: over }
+        ]
+      }
+    });
+    const text = JSON.stringify((await tool.execute("write", args)).content);
+    expect(text).toContain("reading:chapter_1：已保存");
+    expect(text).toContain(
+      "reading:chapter_3：未保存（card.chapters.0.events：当前 9 项，上限 8）"
+    );
+    expect(text).not.toContain("私密事件");
+    expect(submit.mock.calls.map(([input]) => input.unitId)).toEqual([
+      "reading:chapter_1"
+    ]);
+    // Limits still reach the model, as field descriptions.
+    expect(JSON.stringify(tool.parameters)).toContain("最多 8 项");
+    expect(JSON.stringify(tool.parameters)).not.toContain('"maxItems":8');
+  });
+
+  it("accepts a first submission that leaves out fixed kinds and empty sections", async () => {
+    const { prepareReader, submit } = fixture("ok");
+    const reader = toolNamed(
+      (await prepareReader("通读 chunk:1")).tools,
+      "submit_chapter_reading"
+    );
+    const card = (chapterId: string, order: number) => ({
+      chunkId: "chunk:1",
+      chapters: [
+        {
+          chapterId,
+          order,
+          title: `第${order}章`,
+          summary: "雨夜发现铜铃。",
+          events: []
+        }
+      ],
+      characters: [],
+      world: []
+    });
+    // What a real model sent: `kind` beside `unitId`; plot, style and the
+    // chapter's characters left out because they had nothing in them.
+    await callAsModel(reader, {
+      items: [
+        {
+          unitId: "reading:chapter_1",
+          kind: "reading",
+          data: { card: card("chapter_1", 1) }
+        }
+      ]
+    });
+    expect(JSON.stringify(reader.parameters)).not.toContain('"reading"');
+    expect(submit.mock.calls[0]![0].data).toMatchObject({
+      kind: "reading",
+      card: {
+        chapters: [{ characters: [] }],
+        plot: { events: [], foreshadowing: [] },
+        style: { notes: [], excerpts: [] }
+      }
+    });
+    // Items sent as JSON text, with the card beside `unitId`, are repaired.
+    // The fixture's save fails here; reaching it means the call was accepted.
+    await expect(
+      callAsModel(reader, {
+        items: JSON.stringify([
+          { unitId: "reading:chapter_3", card: card("chapter_3", 3) }
+        ])
+      })
+    ).rejects.toThrow("reading:chapter_3：未保存（测试保存失败。）");
+    expect(submit.mock.calls[1]![0].unitId).toBe("reading:chapter_3");
+    // Encoded twice, a "\n" in the summary arrives as a raw line break.
+    const plain = card("chapter_3", 3);
+    const withFacts = {
+      ...plain,
+      chapters: [{ ...plain.chapters[0]!, summary: "雨夜\n发现铜铃。" }],
+      characters: [
+        { name: "沈砚", facts: [{ text: "沈砚拾到铜铃。", chapterOrder: 3 }] }
+      ]
+    };
+    await expect(
+      callAsModel(reader, {
+        items: JSON.stringify(
+          JSON.stringify([
+            { unitId: "reading:chapter_3", data: { card: withFacts } }
+          ])
+        ).replace("\\\\n", "\\n")
+      })
+    ).rejects.toThrow("reading:chapter_3：未保存（测试保存失败。）");
+    expect(submit.mock.calls[2]![0].data).toMatchObject({
+      card: {
+        chapters: [{ summary: "雨夜\n发现铜铃。" }],
+        characters: [{ name: "沈砚" }]
+      }
+    });
+    // Text that still does not parse gets a short reason, not `items.0` and
+    // an echo of every argument.
+    const broken = `[{"unitId":"reading:chapter_3","data":{"card":{"world":[{"name":"他称之为"血玄功""}]}}}]`;
+    expect(() => callAsModel(reader, { items: broken })).toThrow(
+      /^items 被写成了文本，且无法解析为 JSON（第 \d+ 个字符附近）/u
+    );
+    expect(() =>
+      callAsModel(reader, {
+        items: [{ unitId: "reading:chapter_3", data: broken }]
+      })
+    ).toThrow(/^items\.0\.data 被写成了文本/u);
+
+    const world = worldTask("items");
+    const writer = toolNamed(
+      decompositionSubmissionTools(
+        world.task,
+        world.services,
+        "world_archivist"
+      ),
+      "write_world_category"
+    );
+    // The fixture's save fails; reaching it means the kinds were accepted.
+    await expect(
+      writer.execute("write", {
+        items: [
+          {
+            unitId: "world:items",
+            data: {
+              kind: "reading",
+              asset: { categoryId: "items", overview: "器物。", items: [] }
+            }
+          }
+        ]
+      })
+    ).rejects.toThrow("world:items：未保存（测试保存失败。）");
+    expect(world.submit.mock.calls[0]![0].data).toMatchObject({
+      kind: "asset",
+      asset: { kind: "world", categoryId: "items" }
+    });
+  });
+
+  it("keeps returning failed submissions to the model instead of ending the child", async () => {
+    const { prepareReader, submit } = fixture("fail");
+    const child = await prepareReader("通读 chunk:1");
+    const tool = toolNamed(child.tools, "submit_chapter_reading");
+    const call = () =>
+      callAsModel(tool, {
+        items: [{ unitId: "reading:chapter_1", data: reading("chapter_1", 1) }]
+      });
+    for (let index = 0; index < 3; index++)
+      await expect(call()).rejects.toThrow(
+        /^reading:chapter_1：未保存（测试保存失败。）\n仍未保存：reading:chapter_1、reading:chapter_3$/u
+      );
+    // A long streak advises the model what to do; the tool still accepts calls.
+    for (let index = 0; index < 2; index++)
+      await expect(call()).rejects.toThrow(
+        "停止提交，在最终回复中列出未保存单元"
+      );
+    expect(submit).toHaveBeenCalledTimes(5);
+  });
+
   it("closes a block whose chapters were already saved while preparing", async () => {
     const { task, prepareReader, submit } = fixture("ok");
     task.input.units["reading:chapter_2"]!.status = "done";
@@ -302,6 +491,16 @@ describe("decomposition child execution boundaries", () => {
     );
   });
 
+  it("tells the coordinator what to dispatch instead", async () => {
+    const { prepareReader, prepareRole } = fixture();
+    await expect(prepareReader("通读 reading:chapter_1")).rejects.toThrow(
+      "可分派的 reader 单元：chunk:1、chunk:2；reading:… 是阅读块的章节检查点"
+    );
+    await expect(prepareRole("registrar", "完成 chunk:1")).rejects.toThrow(
+      "chunk:1 属于 reader，subagent_id 应为该角色"
+    );
+  });
+
   it("permits one redispatch per unit without consuming other units' attempts", async () => {
     const { prepareReader } = fixture();
     await prepareReader("完成 chunk:1");
@@ -316,10 +515,9 @@ describe("decomposition child execution boundaries", () => {
     const { task } = fixture();
     const message = longBookDecompositionAgent.userMessage(task);
     const plan = JSON.parse(message.split("\n")[0]!.slice("工作包：".length));
-    expect(plan.units["chunk:1"]).toMatchObject({
-      role: "reader",
-      dependencies: ["reading:chapter_1", "reading:chapter_3"]
-    });
+    // Chapter checkpoints are not shown as units the coordinator could dispatch.
+    expect(plan.units["chunk:1"]).toEqual({ role: "reader", chapterCount: 2 });
+    expect(message).not.toContain("reading:");
     expect(message).not.toContain("雨夜发现铜铃");
     expect(longBookDecompositionAgent.boundary(task).join("\n")).not.toContain(
       "chunk:1"

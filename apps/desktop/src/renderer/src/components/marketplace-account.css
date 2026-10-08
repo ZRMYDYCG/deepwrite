@@ -5,6 +5,7 @@
 }
 .auth-card {
   width: min(430px, 100%);
+  min-width: 0;
   border: 1px solid var(--theme-line);
   border-radius: 18px;
   background: var(--surface-raised);
@@ -28,6 +29,8 @@
 .email-fields,
 .bind-form {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
   gap: 15px;
 }
 .auth-form {
@@ -49,6 +52,8 @@
 }
 label {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
   gap: 7px;
   color: var(--text-secondary);
   font-size: inherit;
@@ -100,12 +105,66 @@ p {
 .bind-entry {
   min-width: 0;
 }
-.bind-form {
-  width: min(350px, 100%);
-  box-sizing: border-box;
-  margin-top: 12px;
-  padding: 16px;
+.bind-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2100;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  place-items: center;
+  padding: 24px;
+  background: color-mix(in srgb, var(--theme-foreground) 28%, transparent);
+  backdrop-filter: blur(2px);
+}
+.bind-dialog {
+  display: flex;
+  flex-direction: column;
+  width: min(430px, 100%);
+  min-width: 0;
+  max-height: calc(100dvh - 48px);
+  overflow: hidden;
   border: 1px solid var(--theme-line);
-  border-radius: 12px;
+  border-radius: 15px;
+  color: var(--text-primary);
   background: var(--surface-raised);
+  box-shadow: 0 24px 70px var(--shadow-color);
+  white-space: normal;
+}
+.bind-dialog > header {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--theme-line-soft);
+}
+.bind-dialog h2 {
+  margin: 0;
+  font-size: 1.25em;
+}
+.bind-close {
+  flex: 0 0 auto;
+  width: 44px;
+  border: 0;
+  padding: 0;
+  color: var(--text-secondary);
+  background: transparent;
+  font-size: 24px;
+}
+.bind-close:hover {
+  background: var(--surface-hover);
+}
+.bind-form {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 20px;
+  overflow-wrap: anywhere;
+}
+.bind-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
 }

@@ -15,6 +15,7 @@ import { deleteLongBookSourceSnapshot } from "./long-book-source-deletion";
 import {
   confirmLongBookSource,
   loadLongBookSourceRevision,
+  inspectLongBookSourceRevision,
   readLongBookSourceConfirmation,
   saveLongBookSourceVersion,
   versionedLongBookSource
@@ -210,11 +211,7 @@ export class LongBookAnalysisSourceStore {
     return LongBookAnalysisSavedSourceCatalogSchema.parse({ sources });
   }
 
-  async load(
-    rawSourceId: string,
-    revision?: number
-  ): Promise<LongBookAnalysisSource> {
-    const sourceId = LongBookAnalysisSavedSourceIdSchema.parse(rawSourceId);
+  private async sourceDirectory(sourceId: string): Promise<string> {
     let entryDirectory = this.entryDirectory(sourceId);
     let entryStats;
     try {
@@ -230,6 +227,24 @@ export class LongBookAnalysisSourceStore {
     }
     entryDirectory = await secureDirectory(entryDirectory, "长篇拆书来源");
     await recoverProjectTransaction(entryDirectory, MAX_SOURCE_SNAPSHOT_BYTES);
+    return entryDirectory;
+  }
+
+  async inspectRevision(rawSourceId: string, revision: number) {
+    const sourceId = LongBookAnalysisSavedSourceIdSchema.parse(rawSourceId);
+    return inspectLongBookSourceRevision(
+      await this.sourceDirectory(sourceId),
+      sourceId,
+      revision
+    );
+  }
+
+  async load(
+    rawSourceId: string,
+    revision?: number
+  ): Promise<LongBookAnalysisSource> {
+    const sourceId = LongBookAnalysisSavedSourceIdSchema.parse(rawSourceId);
+    const entryDirectory = await this.sourceDirectory(sourceId);
     if (revision !== undefined)
       return loadLongBookSourceRevision(entryDirectory, sourceId, revision);
     const source = LongBookAnalysisSourceSchema.parse(

@@ -217,9 +217,11 @@ export async function sendMessage(
     expectedSessionId: sendSessionId,
     attemptId
   });
+  let savedBeforeSending = !ctx.options.flushPersistence;
   try {
     if (ctx.options.flushPersistence) {
       await ctx.options.flushPersistence({ allowDeferred: true });
+      savedBeforeSending = true;
       if (
         ctx.epoch !== sendEpoch ||
         ctx.sessionId.value !== sendSessionId ||
@@ -364,7 +366,11 @@ export async function sendMessage(
     }
     const messageText = formatError(
       error,
-      t("theAgentRequestCouldNotBeAccepted")
+      t(
+        savedBeforeSending
+          ? "theAgentRequestCouldNotBeAccepted"
+          : "couldNotSaveBeforeSending"
+      )
     );
     const observedRunId = ctx.observedRunByAttempt.get(attemptId);
     if (observedRunId) {

@@ -112,8 +112,13 @@ export class StorageLocationStore {
         "用户数据目录不可用。请重新连接相应磁盘或恢复目录后启动，现有存储配置未更改。"
       );
     }
-    // Do not silently open a fresh profile if an external drive is missing.
-    realpathSync(this.currentPath);
+    // Use the same native resolution as fs/promises.realpath in Core (including
+    // Windows casing). Keep the bootstrap anchor at its original location;
+    // resolving the active profile must not move data or create a new pointer.
+    this.state = {
+      ...this.state,
+      currentPath: realpathSync.native(this.currentPath)
+    };
   }
 
   private save(state: StorageLocationState): void {

@@ -131,7 +131,7 @@ export function createDecompositionTrialDiagnostics(realModel: boolean) {
     if (!isError) return;
     count.errors++;
     const reasons = [
-      "拆解子任务必须在任务说明中写明本包的单元 id。",
+      "拆解子任务必须在任务说明中写明本包的单元 id",
       "阅读检查点每次必须完整提交一章或一个片段。",
       "章节提交范围不匹配。",
       "未知世界观类别。",
@@ -139,9 +139,6 @@ export function createDecompositionTrialDiagnostics(realModel: boolean) {
       "阅读卡的章节身份、章号或标题与确认来源不一致。",
       "阅读片段中的摘录必须来自当前片段。",
       "提交单元不在本工作包授权范围内。",
-      "角色提交类型不匹配。",
-      "阅读提交类型不匹配。",
-      "提交类型不匹配。",
       "事实必须来自提交的章节。",
       "成品键与结构不匹配。",
       "每个原始名字必须归属或明确忽略。"

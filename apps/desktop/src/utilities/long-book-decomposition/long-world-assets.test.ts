@@ -31,7 +31,8 @@ const fixture = (
     file: async (reference) => {
       files.push(reference.id);
     },
-    object: (id) => objects.push(id)
+    object: (id) => objects.push(id),
+    remove: async () => {}
   };
   return {
     job: {

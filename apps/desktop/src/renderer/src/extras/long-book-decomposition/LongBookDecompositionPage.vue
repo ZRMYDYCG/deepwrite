@@ -28,6 +28,7 @@ import { uiMessage } from "../../ui-feedback";
 import "../long-book-analysis/long-book-analysis.css";
 import "./decomposition.css";
 import "./decomposition-tables.css";
+import "./decomposition-subtasks.css";
 const t = createScopedTranslator("extras.longBookDecomposition");
 const props = defineProps<{
   controller: LongBookDecompositionController;

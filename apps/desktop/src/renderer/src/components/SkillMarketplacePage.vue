@@ -1142,8 +1142,16 @@ async function submitPublish(): Promise<void> {
       });
       uiMessage.success(t("changesSubmittedTheContentIsPendingReviewAgain"));
     } else {
-      await window.deepwrite!.marketplace.publish(input);
-      uiMessage.success(t("contentSubmittedForReview"));
+      const published = await window.deepwrite!.marketplace.publish(input);
+      if (!published.enabled) {
+        uiMessage.warning(t("contentSubmittedButEnableFailed"));
+      } else {
+        uiMessage.success(
+          published.status === "published"
+            ? t("enabledThisContentWillAppearInTheMarketplace")
+            : t("contentSubmittedForReview")
+        );
+      }
     }
     resetPublishForm(input.contentType);
     await loadMine(1);

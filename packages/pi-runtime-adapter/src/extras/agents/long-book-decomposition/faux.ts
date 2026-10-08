@@ -114,18 +114,18 @@ export function fauxDecompositionTool(
           kind: "mentions",
           unitId
         });
+        // A part decides tiers by number; the merge has nothing left to decide.
         data = {
-          kind: "registry",
-          registry: {
-            characters: (mentions.characters ?? []).map((item, i) => ({
-              ...item,
-              id: `rc_${i + 1}`,
-              tier: i ? "minor_supporting" : "protagonist"
-            })),
-            terms: (mentions.terms ?? []).map((item, i) => ({
-              ...item,
-              id: `rt_${i + 1}`
-            }))
+          kind: "registry-plan",
+          plan: {
+            groups:
+              unitId === "registry:merge"
+                ? []
+                : (mentions.characters ?? []).map(({ ref }, i) => ({
+                    refs: [ref],
+                    tier: i ? "minor_supporting" : "protagonist"
+                  })),
+            ignored: []
           }
         };
       } else if (unitId.startsWith("review:")) {

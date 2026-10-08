@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { createScopedTranslator } from "../../i18n";
-import { computed, ref, useId } from "vue";
+import { computed, nextTick, ref, useId } from "vue";
 import type { SyncStatus } from "@deepwrite/contracts/renderer";
 import AppIcon from "../../components/AppIcon.vue";
 
@@ -9,7 +9,6 @@ const t = createScopedTranslator("extras");
 const props = defineProps<{
   title: string;
   items: SyncStatus["items"];
-  pending: boolean;
   note?: string | undefined;
 }>();
 const emit = defineEmits<{
@@ -34,16 +33,27 @@ function itemStatus(item: SyncStatus["items"][number]): string {
   if (item.remoteDirty) return t("deviceSync.awaitingDownload");
   return t("deviceSync.synced");
 }
+// A native checkbox flips itself on click. Report the request, then pin the DOM back to
+// the data once the parent has updated it, so a rejected change never stays on screen.
 function changeItem(key: string, event: Event) {
-  if (event.target instanceof HTMLInputElement)
-    emit("toggle", key, event.target.checked);
+  const input = event.target as HTMLInputElement;
+  emit("toggle", key, input.checked);
+  void nextTick(() => {
+    input.checked =
+      props.items.find((item) => item.key === key)?.included ?? false;
+  });
 }
-function changeAll() {
+function changeAll(event: Event) {
+  const input = event.target as HTMLInputElement;
   const target = !allIncluded.value;
   const keys = props.items
     .filter((item) => item.included !== target)
     .map((item) => item.key);
   if (keys.length) emit("toggleMany", keys, target);
+  void nextTick(() => {
+    input.checked = allIncluded.value;
+    input.indeterminate = partlyIncluded.value;
+  });
 }
 </script>
 
@@ -81,7 +91,7 @@ function changeAll() {
           type="checkbox"
           :checked="allIncluded"
           :indeterminate="partlyIncluded"
-          :disabled="pending || !items.length"
+          :disabled="!items.length"
           :aria-label="t('deviceSync.selectAllGroup', { category: title })"
           @change="changeAll"
         />
@@ -98,7 +108,6 @@ function changeAll() {
         <input
           type="checkbox"
           :checked="item.included"
-          :disabled="pending"
           :aria-label="t('deviceSync.syncItem', { title: item.title })"
           @change="changeItem(item.key, $event)"
         />

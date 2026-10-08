@@ -9,7 +9,11 @@ import type {
   LongWorkspaceSelection,
   LongWorkspaceSelectionFile
 } from "./longWorkspace";
-import { indexedVolume, indexedChapterCard } from "./longIndexedChapter";
+import {
+  indexedVolume,
+  indexedChapterCard,
+  type LongChapterLookup
+} from "./longIndexedChapter";
 
 const t = createScopedTranslator("workspace.selection");
 
@@ -21,29 +25,41 @@ const t = createScopedTranslator("workspace.selection");
 export function createLongContinuitySelection(
   summary: LongBookSummary,
   workspaceIndex: LongWorkspaceIndexSnapshot,
-  chapterCardId: LongChapterCardId
+  chapterCardId: LongChapterCardId,
+  lookup?: LongChapterLookup
 ): LongWorkspaceSelection | undefined {
-  const chapter = indexedChapterCard(summary, workspaceIndex, chapterCardId);
-  const volume = chapter
-    ? indexedVolume(summary, workspaceIndex, chapter.volumeId)
-    : undefined;
-  const entry = workspaceIndex.chapters.find(
-    (candidate) => candidate.chapterCardId === chapterCardId
+  const chapter = indexedChapterCard(
+    summary,
+    workspaceIndex,
+    chapterCardId,
+    lookup
   );
+  const volume = chapter
+    ? indexedVolume(summary, workspaceIndex, chapter.volumeId, lookup)
+    : undefined;
+  const entry = lookup
+    ? lookup.entries.get(chapterCardId)
+    : workspaceIndex.chapters.find(
+        (candidate) => candidate.chapterCardId === chapterCardId
+      );
   if (!chapter || !volume || !entry) {
     return undefined;
   }
   const committed = entry.commitId !== null;
   const commit = committed
-    ? workspaceIndex.ledger.commits.find(({ id }) => id === entry.commitId)
+    ? lookup
+      ? lookup.commits.get(entry.commitId!)
+      : workspaceIndex.ledger.commits.find(({ id }) => id === entry.commitId)
     : undefined;
   const importCheckpoint = commit?.mode === "import_checkpoint";
   if (!committed && entry.bodyStatus !== "written") {
     return undefined;
   }
-  const characterNameById = new Map(
-    summary.navigation.characters.map(({ id, name }) => [id, name] as const)
-  );
+  const characterNameById =
+    lookup?.characterNames ??
+    new Map(
+      summary.navigation.characters.map(({ id, name }) => [id, name] as const)
+    );
   const characterContinuityFiles = [...(entry.characterContinuity ?? [])]
     .sort((left, right) =>
       (

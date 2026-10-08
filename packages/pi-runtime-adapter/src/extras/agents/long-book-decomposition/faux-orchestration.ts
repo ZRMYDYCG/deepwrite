@@ -15,7 +15,11 @@ export function fauxDecompositionParent(task: Task) {
   }
   const taskGroups: Array<[DecompositionRole, string[]]> = [];
   for (const [role, ids] of groups) {
-    if (["reader", "chronicler", "character_archivist"].includes(role))
+    if (
+      ["reader", "registrar", "chronicler", "character_archivist"].includes(
+        role
+      )
+    )
       ids.forEach((id) => taskGroups.push([role, [id]]));
     else taskGroups.push([role, ids]);
   }

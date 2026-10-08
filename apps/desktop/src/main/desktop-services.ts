@@ -13,6 +13,7 @@ import { AgentTeamConfigStore } from "./agent-team-config-store";
 import { AppAlertStore } from "./app-alert-store";
 import { AppearanceService } from "./appearance-service";
 import { createExtrasAgentService } from "../extras/agents";
+import { AgentTeamMarketplaceClient } from "../extras/agent-team-marketplace";
 import { GeneralSettingsStore } from "./general-settings-store";
 import { VoiceService } from "./voice/voice-service";
 import { ImageService } from "./image/image-service";
@@ -56,6 +57,34 @@ export function createDesktopServices(options: DesktopServiceOptions) {
     userDataPath,
     process.env.DEEPWRITE_SMOKE === "1" ? imageSmokeOptions() : undefined
   );
+  const agentTeamConfigStore = new AgentTeamConfigStore(userDataPath);
+  const marketplaceClient = new MarketplaceClient(userDataPath, {
+    loadCatalogSnapshot: async () => {
+      const id = createId("cmd_marketplace_snapshot");
+      const result = await command(
+        CommandEnvelopeSchema.parse(
+          createEnvelope("catalog.snapshot", {}, { id, correlationId: id })
+        )
+      );
+      if (result.status === "rejected") throw new Error(result.error.message);
+      return CatalogSnapshotSchema.parse(result.payload);
+    },
+    installPackage: async (input) => {
+      const id = createId("cmd_marketplace_install");
+      const result = await command(
+        CommandEnvelopeSchema.parse(
+          createEnvelope("catalog.installMarketplaceSkillContent", input, {
+            id,
+            correlationId: id
+          })
+        )
+      );
+      if (result.status === "rejected") throw new Error(result.error.message);
+      return CatalogInstallMarketplaceSkillContentResultSchema.parse(
+        result.payload
+      );
+    }
+  });
   return {
     imageService,
     coverRenderService: new CoverRenderService(command, imageService),
@@ -66,7 +95,7 @@ export function createDesktopServices(options: DesktopServiceOptions) {
       modelUsageStore
     ),
     workspaceAgentConfigStore: new WorkspaceAgentConfigStore(userDataPath),
-    agentTeamConfigStore: new AgentTeamConfigStore(userDataPath),
+    agentTeamConfigStore,
     libraryAgentConfigStore: new LibraryAgentConfigStore(userDataPath),
     longAgentConfigStore: new LongAgentConfigStore(userDataPath),
     extrasAgentService: createExtrasAgentService(userDataPath),
@@ -90,33 +119,11 @@ export function createDesktopServices(options: DesktopServiceOptions) {
       busy: options.busy,
       models: modelConfigStore
     }),
-    marketplaceClient: new MarketplaceClient(userDataPath, {
-      loadCatalogSnapshot: async () => {
-        const id = createId("cmd_marketplace_snapshot");
-        const result = await command(
-          CommandEnvelopeSchema.parse(
-            createEnvelope("catalog.snapshot", {}, { id, correlationId: id })
-          )
-        );
-        if (result.status === "rejected") throw new Error(result.error.message);
-        return CatalogSnapshotSchema.parse(result.payload);
-      },
-      installPackage: async (input) => {
-        const id = createId("cmd_marketplace_install");
-        const result = await command(
-          CommandEnvelopeSchema.parse(
-            createEnvelope("catalog.installMarketplaceSkillContent", input, {
-              id,
-              correlationId: id
-            })
-          )
-        );
-        if (result.status === "rejected") throw new Error(result.error.message);
-        return CatalogInstallMarketplaceSkillContentResultSchema.parse(
-          result.payload
-        );
-      }
-    })
+    marketplaceClient,
+    agentTeamMarketplaceClient: new AgentTeamMarketplaceClient(
+      marketplaceClient,
+      agentTeamConfigStore
+    )
   };
 }
 

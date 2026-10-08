@@ -1,4 +1,4 @@
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -18,6 +18,7 @@ let directory: string;
 const clients: ConversationStorageWorker[] = [];
 beforeAll(async () => {
   directory = await mkdtemp(join(tmpdir(), "deepwrite-storage-worker-test-"));
+  await mkdir(join(directory, "renderer-state"));
   await build({
     configFile: false,
     logLevel: "silent",
@@ -41,7 +42,7 @@ afterAll(async () => {
 });
 function client(name: string, legacyStatePath?: string) {
   const worker = new ConversationStorageWorker(
-    join(directory, `${name}.sqlite`),
+    join(directory, "renderer-state", `${name}.sqlite`),
     join(directory, "worker.mjs"),
     legacyStatePath
   );
@@ -50,6 +51,31 @@ function client(name: string, legacyStatePath?: string) {
 }
 
 describe("Core-owned conversation worker", () => {
+  it("preserves the actual SQLite startup cause and writes a safe diagnostic instead of a generic request error", async () => {
+    await writeFile(
+      join(directory, "renderer-state", "corrupt.sqlite"),
+      "INVALID_FIXTURE_SQLITE_BYTES"
+    );
+    const worker = client("corrupt");
+    await expect(
+      worker.list({ key: "conversation-history:fixture" })
+    ).rejects.toMatchObject({
+      code: "database_corrupt",
+      phase: "database-open",
+      nativeCode: "ERR_SQLITE_ERROR",
+      sqliteCode: 26
+    });
+    const log = await readFile(
+      join(directory, "diagnostics", "conversation-storage.log"),
+      "utf8"
+    );
+    expect(log).toContain('"sqliteCode":26');
+    expect(log).toContain('"phase":"database-open"');
+    expect(log).not.toContain("INVALID_FIXTURE_SQLITE_BYTES");
+    expect(log).not.toContain('"message"');
+    expect(log).not.toContain('"stack"');
+  });
+
   it("waits for legacy migration, preserves the source, commits incrementally and recovers after restart", async () => {
     vi.stubEnv("DEEPWRITE_MAIN_INSTANCE_ID", "fixture-worker-main");
     const source = join(directory, "legacy.json");

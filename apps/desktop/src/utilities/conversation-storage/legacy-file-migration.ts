@@ -5,10 +5,16 @@ import { MessageRecords } from "./message-records";
 import {
   fileFingerprint,
   parseLegacyFile,
-  type MigrationCursor,
   type MigrationProgress
 } from "./migration-reader";
 import { MigrationNormalizer } from "./migration-normalizer";
+import { ConversationStorageError } from "./errors";
+import {
+  LEGACY_FILE_MIGRATION_ID,
+  hasPendingLegacyMigration,
+  prepareLegacyMigration,
+  restoreCompletedLegacyMigration
+} from "./legacy-migration-state";
 
 function missing(error: unknown): boolean {
   return error instanceof Error && "code" in error && error.code === "ENOENT";
@@ -21,47 +27,45 @@ export async function migrateLegacyFile(
   onProgress?: MigrationProgress
 ): Promise<void> {
   const sql = new Statements(database);
-  const previous = sql
-    .get("SELECT fingerprint, state, cursor FROM migrations WHERE source = ?")
-    .get(source);
-  if (previous?.state === "complete") return;
+  if (await restoreCompletedLegacyMigration(sql)) return;
   let fingerprint: string;
   try {
     fingerprint = await fileFingerprint(source);
   } catch (error) {
-    if (!missing(error) || previous) throw error;
+    if (!missing(error)) throw error;
+    if (hasPendingLegacyMigration(sql))
+      throw new ConversationStorageError(
+        "migration_source_missing",
+        "The original history file is missing during migration; the database checkpoints have been preserved."
+      );
     sql
       .get(
         "INSERT INTO migrations(source, fingerprint, state, cursor) VALUES (?, 'absent', 'complete', '{}')"
       )
-      .run(source);
+      .run(LEGACY_FILE_MIGRATION_ID);
     return;
   }
-  if (previous && previous.fingerprint !== fingerprint)
-    throw new Error(
-      "The original history file changed during migration; both copies have been preserved."
-    );
-  let cursor: MigrationCursor = previous
-    ? (JSON.parse(String(previous.cursor)) as MigrationCursor)
-    : { phase: "parsing", offset: 0, parser: { frames: [] } };
-  if (!previous)
-    sql
-      .get(
-        "INSERT INTO migrations(source, fingerprint, state, cursor) VALUES (?, ?, 'parsing', ?)"
-      )
-      .run(source, fingerprint, JSON.stringify(cursor));
+  let cursor = prepareLegacyMigration(sql, fingerprint);
   const nodes = new JsonNodes(sql);
   if (cursor.phase === "parsing")
-    cursor = await parseLegacyFile(sql, nodes, source, cursor, onProgress);
+    cursor = await parseLegacyFile(
+      sql,
+      nodes,
+      source,
+      LEGACY_FILE_MIGRATION_ID,
+      cursor,
+      onProgress
+    );
   await new MigrationNormalizer(
     sql,
     nodes,
     new MessageRecords(sql, nodes),
-    source,
+    LEGACY_FILE_MIGRATION_ID,
     cursor
   ).run();
   if ((await fileFingerprint(source)) !== fingerprint)
-    throw new Error(
+    throw new ConversationStorageError(
+      "migration_changed",
       "The original history file changed during migration; both copies have been preserved."
     );
   database.exec("BEGIN IMMEDIATE");
@@ -72,7 +76,7 @@ export async function migrateLegacyFile(
       .get(
         "UPDATE migrations SET state = 'complete', cursor = ? WHERE source = ?"
       )
-      .run(JSON.stringify({ document: container }), source);
+      .run(JSON.stringify({ document: container }), LEGACY_FILE_MIGRATION_ID);
     database.exec("COMMIT");
   } catch (error) {
     database.exec("ROLLBACK");

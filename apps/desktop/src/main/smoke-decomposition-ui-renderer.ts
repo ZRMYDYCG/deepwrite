@@ -224,6 +224,38 @@ export async function decompositionUiStep(
         ),
       "unit titles are not readable"
     );
+    const targetJob = (await api.longBookDecomposition.listJobs()).find(
+      (job) => job.mode === "materials" && job.phase === "done"
+    );
+    ensure(targetJob?.target?.kind === "material-group", "material target");
+    const target = targetJob!.target!;
+    if (target.kind !== "material-group") throw new Error("material target");
+    await button("打开写入目标");
+    await until(
+      () =>
+        !document.querySelector(".analysis-workbench") &&
+        [
+          ...document.querySelectorAll<HTMLElement>(".tree-row.is-selected")
+        ].some((node) =>
+          Object.values(target.libraryIds).some(
+            (id) =>
+              node.dataset.resourceId ===
+              `catalog:material-overview:${encodeURIComponent(id)}`
+          )
+        ),
+      "material target overview opened"
+    );
+    if (
+      document
+        .querySelector('[data-nav-id="more"]')
+        ?.getAttribute("aria-expanded") !== "true"
+    )
+      await click('[data-nav-id="more"]');
+    await click('[data-feature-id="long-book-decomposition"]');
+    await until(
+      () => document.querySelector('[role="progressbar"]'),
+      "return to decomposition progress"
+    );
   } else if (step === "registry") {
     const jobs = await api.longBookDecomposition.listJobs();
     if (

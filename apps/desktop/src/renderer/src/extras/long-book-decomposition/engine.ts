@@ -1,4 +1,4 @@
-import { computed, ref, shallowRef } from "vue";
+import { computed, ref, shallowRef, watch } from "vue";
 import {
   readyDecompositionUnitIds,
   assertExtrasAgentBudget,
@@ -12,6 +12,7 @@ import {
   startExtrasAgentTask,
   type ExtrasAgentTaskHandle
 } from "../agent-runtime/extrasAgentTask";
+import { createSubagentRunTracker } from "../agent-runtime/subagentRunTracker";
 import { getErrorPayload } from "../../i18n/errors";
 import { createDecompositionModelCapacities } from "./model-capacity";
 
@@ -37,7 +38,15 @@ export function createDecompositionEngine(
         : false)
     );
   };
-  const activity = ref<string[]>([]);
+  // Children of the latest packages: who runs, who waits, what they did.
+  const subtasks = createSubagentRunTracker();
+  // Another task's board is not this one's; a running package keeps its own.
+  const stopSubtaskReset = watch(
+    () => job.value?.id,
+    () => {
+      if (!running.value) subtasks.reset();
+    }
+  );
   let handle: ExtrasAgentTaskHandle | undefined;
   let generation = 0;
   let refreshSequence = 0;
@@ -149,7 +158,7 @@ export function createDecompositionEngine(
           modelCapacity
         );
         let acceptedJob: Promise<LongBookDecompositionJob> | undefined;
-        activity.value = [];
+        subtasks.begin({ phase, unitIds });
         handle = startExtrasAgentTask(
           api(),
           {
@@ -163,16 +172,22 @@ export function createDecompositionEngine(
           },
           {
             onAccepted: () => {
+              const sequence = ++refreshSequence;
               acceptedJob = api().longBookDecomposition.getJob(current.id);
+              // Claimed units show as running now, not after the first save.
+              acceptedJob.then(
+                (latest) => {
+                  if (
+                    job.value?.id === latest.id &&
+                    sequence === refreshSequence
+                  )
+                    job.value = latest;
+                },
+                () => undefined
+              );
             },
-            onSubagentEvent: (event) => {
-              if (event.type === "subagent.planned") return;
-              const label =
-                event.type === "subagent.completed"
-                  ? `${event.payload.name} · ${event.payload.status}`
-                  : event.payload.name;
-              activity.value = [...activity.value.slice(-49), label];
-            },
+            ...subtasks.parentCallbacks,
+            onSubagentEvent: (event) => subtasks.handleEvent(event),
             onOutput: () => {
               queueRefresh();
             }
@@ -180,12 +195,21 @@ export function createDecompositionEngine(
         );
         let failure: string | undefined;
         let capacity = false;
+        let stopped = false;
         try {
-          await handle.outcome;
+          stopped = (await handle.outcome).status === "stopped";
         } catch (cause) {
           capacity = capacityError(cause);
           failure = failureMessage(cause);
         }
+        subtasks.end(
+          failure && !capacity
+            ? "failed"
+            : stopped || capacity
+              ? "stopped"
+              : "completed",
+          failure
+        );
         if (capacity && epoch === generation) {
           waitingForSlot.value = true;
           await new Promise<void>((resolve) => {
@@ -239,7 +263,7 @@ export function createDecompositionEngine(
   return {
     job,
     error,
-    activity,
+    subtasks,
     waitingForSlot,
     modelCapacity: modelCapacities.peek,
     resolveModelCapacity: modelCapacities.resolve,
@@ -264,6 +288,8 @@ export function createDecompositionEngine(
       handle?.handleEvent(event);
     },
     dispose() {
+      stopSubtaskReset();
+      subtasks.dispose();
       modelCapacities.dispose();
       generation++;
       refreshSequence++;

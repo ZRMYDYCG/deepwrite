@@ -1,4 +1,12 @@
-import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  mkdtemp,
+  mkdir,
+  readFile,
+  realpath,
+  rm,
+  symlink,
+  writeFile
+} from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -7,6 +15,8 @@ import {
   initializeStorageLocation
 } from "./storage-bootstrap";
 import { StorageLocationStore } from "./storage-location-store";
+import { createBootstrapEnvironment } from "./bootstrap-environment";
+import { LongWorkspaceService } from "../utilities/long-workspace-service";
 
 const roots: string[] = [];
 afterEach(async () => {
@@ -16,7 +26,9 @@ afterEach(async () => {
 });
 
 async function fixture() {
-  const root = await mkdtemp(join(tmpdir(), "deepwrite-storage-bootstrap-"));
+  const root = await realpath(
+    await mkdtemp(join(tmpdir(), "deepwrite-storage-bootstrap-"))
+  );
   roots.push(root);
   const defaultPath = join(root, "default");
   const target = join(root, "custom");
@@ -31,6 +43,22 @@ async function fixture() {
     requestSingleInstanceLock: vi.fn(() => true)
   };
   return { root, defaultPath, target, paths, app };
+}
+
+async function profileAlias(root: string) {
+  const parent = join(root, "迁移数据");
+  const alias = join(root, "storage-alias");
+  const path = join(parent, "DeepWrite_data", "desktop");
+  await mkdir(path, { recursive: true });
+  await symlink(
+    parent,
+    alias,
+    process.platform === "win32" ? "junction" : "dir"
+  );
+  return {
+    canonical: await realpath(path),
+    requested: join(alias, "DeepWrite_data", "desktop")
+  };
 }
 
 describe("storage bootstrap", () => {
@@ -51,7 +79,106 @@ describe("storage bootstrap", () => {
     expect(paths).toEqual({ userData: defaultPath, sessionData: defaultPath });
     expect(locations.currentPath).toBe(defaultPath);
     expect(migrate).not.toHaveBeenCalled();
+    await expect(readFile(locations.statePath)).rejects.toMatchObject({
+      code: "ENOENT"
+    });
   });
+
+  it("resolves a default profile's parent alias without relocating its bootstrap anchor", async () => {
+    const { root, app, paths } = await fixture();
+    const { requested, canonical } = await profileAlias(root);
+    paths.userData = requested;
+    const original = new StorageLocationStore(requested);
+    const { locations } = initializeStorageLocation(app);
+    expect(paths).toEqual({ userData: canonical, sessionData: canonical });
+    expect(locations.currentPath).toBe(canonical);
+    expect(locations.defaultPath).toBe(requested);
+    expect(locations.statePath).toBe(original.statePath);
+    await expect(readFile(locations.statePath)).rejects.toMatchObject({
+      code: "ENOENT"
+    });
+  });
+
+  it("reopens migrated data through an old alias and registers long books using the canonical profile", async () => {
+    const { root, app, paths, defaultPath } = await fixture();
+    const { requested, canonical } = await profileAlias(root);
+    const store = new StorageLocationStore(defaultPath);
+    store.schedule(requested, false);
+    store.complete();
+    const pointer = await readFile(store.statePath, "utf8");
+    await writeFile(join(canonical, "retained.txt"), "existing profile");
+
+    const migrate = vi.fn();
+    const { locations } = initializeStorageLocation(app, migrate);
+    expect(migrate).not.toHaveBeenCalled();
+    expect(paths).toEqual({ userData: canonical, sessionData: canonical });
+    expect(locations.currentPath).toBe(canonical);
+    expect(await readFile(join(paths.userData, "retained.txt"), "utf8")).toBe(
+      "existing profile"
+    );
+    expect(await readFile(store.statePath, "utf8")).toBe(pointer);
+
+    const environment: NodeJS.ProcessEnv = {};
+    const configure = createBootstrapEnvironment({
+      environment,
+      exists: () => false
+    });
+    const userDataPath = configure(
+      { ...app, getAppPath: () => root },
+      "evaluation"
+    );
+    expect(environment.DEEPWRITE_USER_DATA_PATH).toBe(canonical);
+    const longs = new LongWorkspaceService({ userDataPath });
+    const created = await longs.create(join(root, "books"), {
+      title: "迁移后的长篇",
+      genre: "悬疑"
+    });
+    const reopened = await new LongWorkspaceService({ userDataPath }).open({
+      bookId: created.book.id
+    });
+    expect(reopened.book.title).toBe("迁移后的长篇");
+    expect((await longs.list()).books.map(({ id }) => id)).toContain(
+      created.book.id
+    );
+
+    locations.schedule(join(root, "next-profile"), false);
+    const next = new StorageLocationStore(defaultPath);
+    expect(next.currentPath).toBe(canonical);
+    expect(next.pending?.sourcePath).toBe(canonical);
+  });
+
+  it("resolves the migration target before passing it to Electron and Core", async () => {
+    const { root, app, paths, defaultPath } = await fixture();
+    const { requested, canonical } = await profileAlias(root);
+    new StorageLocationStore(defaultPath).schedule(requested, false);
+    const migrate = vi.fn();
+    const { locations } = initializeStorageLocation(app, migrate);
+    expect(migrate).toHaveBeenCalledWith(
+      expect.objectContaining({ targetPath: requested })
+    );
+    expect(paths).toEqual({ userData: canonical, sessionData: canonical });
+    expect(locations.currentPath).toBe(canonical);
+    expect(locations.pending).toBeUndefined();
+  });
+
+  it.runIf(process.platform === "win32")(
+    "restores Windows drive and directory casing from an existing profile pointer",
+    async () => {
+      const { root, app, paths, defaultPath } = await fixture();
+      const target = join(root, "MixedCaseData", "Desktop");
+      await mkdir(target, { recursive: true });
+      const canonical = await realpath(target);
+      const requested = canonical.toLowerCase();
+      const store = new StorageLocationStore(defaultPath);
+      store.schedule(requested, false);
+      store.complete();
+
+      const { locations } = initializeStorageLocation(app);
+      expect(requested).not.toBe(canonical);
+      expect(paths).toEqual({ userData: canonical, sessionData: canonical });
+      expect(locations.currentPath).toBe(canonical);
+    }
+  );
 
   it("commits migration before pointing both Electron profiles at the new data", async () => {
     const { app, paths, defaultPath, target } = await fixture();

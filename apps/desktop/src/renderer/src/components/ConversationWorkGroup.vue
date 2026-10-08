@@ -3,6 +3,7 @@ import { workGroupActivityLabel } from "./conversationActivityLabel";
 import type { WorkGroupDisplayItem } from "./conversationWorkGroups";
 import AppIcon from "./AppIcon.vue";
 import ConversationDetails from "./ConversationDetails.vue";
+import ConversationContextCompactionNotice from "./ConversationContextCompactionNotice.vue";
 import ConversationProcessingItem from "./ConversationProcessingItem.vue";
 
 withDefaults(
@@ -32,13 +33,18 @@ function detailId(id: string, prefix: string): string {
       <AppIcon name="chevron" :size="13" />
     </template>
     <div class="processing-work-group-body">
-      <ConversationProcessingItem
-        v-for="member in item.items"
-        :key="member.id"
-        :item="member"
-        :streaming="streaming && item.running"
-        :detail-id-prefix="detailIdPrefix"
-      />
+      <template v-for="member in item.items" :key="member.id">
+        <ConversationContextCompactionNotice
+          v-if="member.type === 'compaction'"
+          :compactions="[member.compaction]"
+        />
+        <ConversationProcessingItem
+          v-else
+          :item="member"
+          :streaming="streaming && item.running"
+          :detail-id-prefix="detailIdPrefix"
+        />
+      </template>
     </div>
   </ConversationDetails>
 </template>

@@ -1,6 +1,10 @@
 import { z } from "zod";
 import type { LongBookAnalysisChapter } from "../long-book-analysis-sources";
 import {
+  decompositionBatchLimit,
+  type DecompositionModelCapacity
+} from "./output-budget";
+import {
   DECOMPOSITION_CHILD_CONTEXT_RATIO,
   DECOMPOSITION_EVIDENCE_RATIO,
   DECOMPOSITION_MAX_CHUNK_CHAPTERS,
@@ -31,10 +35,6 @@ export const DecompositionChunkSchema = z.object({
     .max(DECOMPOSITION_MAX_CHUNK_TOKENS)
 });
 export type DecompositionChunk = z.infer<typeof DecompositionChunkSchema>;
-export interface DecompositionModelCapacity {
-  contextWindow?: number | undefined;
-  maxTokens?: number | undefined;
-}
 export function decompositionInputBudget(
   model: DecompositionModelCapacity,
   promptCharacters = 0
@@ -75,16 +75,16 @@ export function decompositionChildContextBudget(
   const window = model.contextWindow ?? DECOMPOSITION_MIN_CONTEXT_WINDOW;
   return Math.floor(window * DECOMPOSITION_CHILD_CONTEXT_RATIO);
 }
-/** Chapters one submission call can carry within the model's output limit. */
+/**
+ * Chapters one submission call can carry within the model's output limit
+ * after reasoning; smaller calls also put the first chapters on screen sooner.
+ */
 export function decompositionChaptersPerSubmission(
   model: DecompositionModelCapacity
 ): number {
-  return Math.max(
-    1,
-    Math.min(
-      DECOMPOSITION_MAX_CHUNK_CHAPTERS,
-      Math.floor((outputReserve(model) * 0.6) / 3000)
-    )
+  return Math.min(
+    DECOMPOSITION_MAX_CHUNK_CHAPTERS,
+    decompositionBatchLimit(model, "readingChapter")
   );
 }
 export function splitDecompositionChunks(
@@ -167,11 +167,14 @@ export function splitDecompositionChronicles(
   model: DecompositionModelCapacity
 ) {
   // A segment's digest (summaries, events, beats) arrives as one evidence
-  // pack, so segments follow the evidence budget of the integration model.
+  // pack, and its chronicle is written in one call: segments follow both the
+  // evidence budget and the output budget of the integration model.
   const budget = decompositionEvidenceBudget(model);
+  const chapterLimit = decompositionBatchLimit(model, "chronicleChapter");
   const segments: Array<{ id: string; volume?: string; chunkIds: string[] }> =
     [];
   let cost = 0;
+  let chapters = 0;
   for (const chunk of chunks) {
     const size = Math.max(
       1000,
@@ -179,7 +182,12 @@ export function splitDecompositionChronicles(
       chunk.chapterIds.length * 1500
     );
     let current = segments.at(-1);
-    if (!current || current.volume !== chunk.volume || cost + size > budget) {
+    if (
+      !current ||
+      current.volume !== chunk.volume ||
+      cost + size > budget ||
+      chapters + chunk.chapterIds.length > chapterLimit
+    ) {
       current = {
         id: `chronicle:${segments.length + 1}`,
         ...(chunk.volume ? { volume: chunk.volume } : {}),
@@ -187,9 +195,11 @@ export function splitDecompositionChronicles(
       };
       segments.push(current);
       cost = 0;
+      chapters = 0;
     }
     current.chunkIds.push(chunk.id);
     cost += size;
+    chapters += chunk.chapterIds.length;
   }
   return segments;
 }

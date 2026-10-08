@@ -1,4 +1,5 @@
 import { DatabaseSync, type StatementSync } from "node:sqlite";
+import { ConversationStorageError } from "./errors";
 
 /** Only the Core-owned storage worker opens this database in production. */
 export function openConversationDatabase(path: string): DatabaseSync {
@@ -15,13 +16,16 @@ export function openConversationDatabase(path: string): DatabaseSync {
         .prepare("SELECT version FROM schema_version")
         .get();
       if (existing && existing.version !== 1)
-        throw new Error("Unsupported conversation database version.");
+        throw new ConversationStorageError(
+          "schema_unsupported",
+          "Unsupported conversation database version."
+        );
     }
+    database.exec("PRAGMA busy_timeout = 5000;");
     database.exec(`
       PRAGMA journal_mode = WAL;
       PRAGMA synchronous = FULL;
       PRAGMA foreign_keys = ON;
-      PRAGMA busy_timeout = 5000;
       CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL);
       INSERT INTO schema_version SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM schema_version);
       CREATE TABLE IF NOT EXISTS scopes (
@@ -119,7 +123,10 @@ export function openConversationDatabase(path: string): DatabaseSync {
       .prepare("SELECT version FROM schema_version")
       .get();
     if (version?.version !== 1)
-      throw new Error("Unsupported conversation database version.");
+      throw new ConversationStorageError(
+        "schema_unsupported",
+        "Unsupported conversation database version."
+      );
     return database;
   } catch (error) {
     database.close();

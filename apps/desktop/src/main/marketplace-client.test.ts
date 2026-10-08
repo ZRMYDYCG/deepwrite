@@ -168,6 +168,16 @@ describe("MarketplaceClient", () => {
     const client = new MarketplaceClient(root, {
       baseUrl: "https://relay.example.test",
       fetcher: async (_url, init) => {
+        if (init?.method === "PUT") {
+          return Response.json({
+            data: {
+              ...skillSummary(),
+              content_type: "group",
+              id: "remote-group",
+              status: "pending"
+            }
+          });
+        }
         if (init?.method === "POST" && typeof init.body === "string") {
           const body = JSON.parse(init.body) as Record<string, unknown>;
           if ("username" in body) return authResponse();

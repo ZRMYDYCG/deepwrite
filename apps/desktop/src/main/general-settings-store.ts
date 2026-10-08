@@ -18,6 +18,7 @@ interface DiskGeneralSettings extends Omit<
   | "textAttachmentMaxCharacters"
   | "contextCompaction"
   | "useNetworkProxy"
+  | "moreFeatures"
 > {
   version: 1 | 2;
   permissionMode: GeneralSettings["permissionMode"] | "full-access";
@@ -28,6 +29,7 @@ interface DiskGeneralSettings extends Omit<
   textAttachmentMaxCharacters?: number;
   contextCompaction?: GeneralSettings["contextCompaction"];
   useNetworkProxy?: boolean;
+  moreFeatures?: GeneralSettings["moreFeatures"];
 }
 
 function isNodeError(error: unknown, code: string): boolean {
@@ -96,7 +98,8 @@ export class GeneralSettingsStore {
         useNetworkProxy: candidate.useNetworkProxy,
         workspacePaneLayout: candidate.workspacePaneLayout,
         defaultTextViewMode: candidate.defaultTextViewMode,
-        bodyTextFormats: candidate.bodyTextFormats
+        bodyTextFormats: candidate.bodyTextFormats,
+        moreFeatures: candidate.moreFeatures
       });
       if (!parsed.success) {
         return GeneralSettingsSnapshotSchema.parse({

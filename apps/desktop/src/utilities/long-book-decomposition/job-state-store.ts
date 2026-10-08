@@ -18,6 +18,10 @@ import {
   secureDirectory
 } from "../long-project-store/io";
 
+// Completion journals may hold the refs from job.json in older versions.
+// Reads, writes and transaction recovery must accept the same file size.
+const MAX_JOB_FILE_BYTES = 32 * 1024 * 1024;
+
 export interface TargetPreparation {
   operationId: string;
   bookId: string;
@@ -53,6 +57,7 @@ export class DecompositionJobStateStore {
     );
     await commitProjectTransaction({
       projectRoot: root,
+      maxFileBytes: MAX_JOB_FILE_BYTES,
       operations: [
         {
           path: "job.json",
@@ -71,10 +76,10 @@ export class DecompositionJobStateStore {
   }
   async load(id: string): Promise<LongBookDecompositionJob> {
     const root = await secureDirectory(this.directory(id), "拆解任务");
-    await recoverProjectTransaction(root, 32 * 1024 * 1024);
+    await recoverProjectTransaction(root, MAX_JOB_FILE_BYTES);
     const { bytes } = await readNoFollowFile(
       join(root, "job.json"),
-      32 * 1024 * 1024,
+      MAX_JOB_FILE_BYTES,
       "任务状态",
       root
     );
@@ -88,7 +93,7 @@ export class DecompositionJobStateStore {
     job.updatedAt = new Date().toISOString();
     await commitProjectTransaction({
       projectRoot: this.directory(job.id),
-      maxFileBytes: 32 * 1024 * 1024,
+      maxFileBytes: MAX_JOB_FILE_BYTES,
       operations: [
         {
           path: "job.json",
@@ -127,7 +132,7 @@ export class DecompositionJobStateStore {
       const root = await secureDirectory(this.directory(id), "拆解任务");
       const { bytes } = await readNoFollowFile(
         join(root, "completion.json"),
-        1024 * 1024,
+        MAX_JOB_FILE_BYTES,
         "完成记录",
         root
       );
@@ -142,6 +147,7 @@ export class DecompositionJobStateStore {
   async saveCompletion(id: string, value: DecompositionCompletion) {
     await commitProjectTransaction({
       projectRoot: this.directory(id),
+      maxFileBytes: MAX_JOB_FILE_BYTES,
       operations: [
         {
           path: "completion.json",

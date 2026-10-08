@@ -296,7 +296,7 @@ export default {
     conversationHistoryMigrationIsIncompleteTheOriginalRecordsHave:
       "Conversation history migration is incomplete. The original records have been preserved.",
     conversationHistoryCouldNotBeReadYouCanContinue:
-      "Conversation history could not be read. You can continue using the app during this session.",
+      "Conversation history could not be read. Check the user data folder; messages must be saved before they can be sent.",
     theConversationRuntimeRegistryHasBeenClosed:
       "The conversation runtime registry has been closed."
   },
@@ -314,6 +314,8 @@ export default {
       "The agent stopped before tool calls returned their final state."
   },
   sendMessage: {
+    couldNotSaveBeforeSending:
+      "The message has not been saved locally and cannot be sent yet. Check the user data folder.",
     pleaseReadAndAnalyzeTheAttachmentsIUploaded:
       "Please read and analyze the attachments I uploaded.",
     theBrowserPreviewHasNoDesktopAgentRuntimeStart:

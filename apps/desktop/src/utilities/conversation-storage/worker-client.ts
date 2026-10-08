@@ -1,6 +1,12 @@
 import { mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
 import { Worker } from "node:worker_threads";
+import { recordStorageFailure } from "./storage-diagnostics";
+import {
+  describeStorageFailure,
+  storageFailureError,
+  type StorageFailure
+} from "./storage-failure";
 import type {
   ConversationHistoryApi,
   ConversationHistoryArchiveListQuery,
@@ -28,6 +34,7 @@ import type {
 } from "@deepwrite/contracts";
 
 type Pending = {
+  method: string;
   resolve: (result: unknown) => void;
   reject: (error: Error) => void;
 };
@@ -46,51 +53,77 @@ export class ConversationStorageWorker implements ConversationHistoryApi {
   ) {}
 
   private async start(): Promise<Worker> {
-    if (this.worker) return this.worker;
     if (this.starting) return this.starting;
+    if (this.worker) return this.worker;
     this.starting = mkdir(dirname(this.databasePath), { recursive: true })
-      .then(() => {
-        const worker = new Worker(this.workerPath, {
-          workerData: {
-            databasePath: this.databasePath,
-            legacyStatePath: this.legacyStatePath
-          }
-        });
-        this.worker = worker;
-        worker.on(
-          "message",
-          (response: {
-            id: number;
-            result?: unknown;
-            error?: { code: string; message: string };
-          }) => {
-            const pending = this.pending.get(response.id);
-            if (!pending) return;
-            this.pending.delete(response.id);
-            if (response.error)
-              pending.reject(
-                Object.assign(new Error(response.error.message), {
-                  code: response.error.code
-                })
-              );
-            else pending.resolve(response.result);
-          }
-        );
-        const fail = (error: Error) => {
-          if (this.worker !== worker) return;
-          this.worker = undefined;
-          for (const pending of this.pending.values()) pending.reject(error);
-          this.pending.clear();
-        };
-        worker.on("error", fail);
-        worker.on("exit", (code) =>
-          fail(
-            new Error(
-              `Conversation storage worker exited (${code}); retry the unconfirmed batch.`
-            )
-          )
-        );
-        return worker;
+      .then(
+        () =>
+          new Promise<Worker>((resolve, reject) => {
+            const worker = new Worker(this.workerPath, {
+              workerData: {
+                databasePath: this.databasePath,
+                legacyStatePath: this.legacyStatePath
+              }
+            });
+            this.worker = worker;
+            let ready = false;
+            const fail = (error: Error, expected = false) => {
+              if (this.worker !== worker) return;
+              this.worker = undefined;
+              const failure = describeStorageFailure(error, "worker-start");
+              const reported = storageFailureError(failure);
+              if (ready && !expected)
+                recordStorageFailure(this.databasePath, failure);
+              reject(reported);
+              for (const pending of this.pending.values())
+                pending.reject(reported);
+              this.pending.clear();
+            };
+            worker.on(
+              "message",
+              (
+                response:
+                  | { kind: "ready" }
+                  | { kind: "startup.failed"; error: StorageFailure }
+                  | { id: number; result?: unknown; error?: StorageFailure }
+              ) => {
+                if ("kind" in response) {
+                  if (response.kind === "startup.failed")
+                    fail(storageFailureError(response.error));
+                  else {
+                    ready = true;
+                    resolve(worker);
+                  }
+                  return;
+                }
+                const pending = this.pending.get(response.id);
+                if (!pending) return;
+                this.pending.delete(response.id);
+                if (response.error) {
+                  recordStorageFailure(
+                    this.databasePath,
+                    response.error,
+                    pending.method
+                  );
+                  pending.reject(storageFailureError(response.error));
+                } else pending.resolve(response.result);
+              }
+            );
+            worker.on("error", fail);
+            worker.on("exit", (code) =>
+              fail(
+                new Error(
+                  `Conversation storage worker exited (${code}); retry the unconfirmed batch.`
+                ),
+                code === 0 && (this.closed || Boolean(this.closing))
+              )
+            );
+          })
+      )
+      .catch((error: unknown) => {
+        const failure = describeStorageFailure(error, "worker-start");
+        recordStorageFailure(this.databasePath, failure);
+        throw storageFailureError(failure);
       })
       .finally(() => {
         this.starting = undefined;
@@ -112,6 +145,7 @@ export class ConversationStorageWorker implements ConversationHistoryApi {
     const id = ++this.nextId;
     return new Promise<T>((resolve, reject) => {
       this.pending.set(id, {
+        method,
         resolve: (result) => resolve(result as T),
         reject
       });

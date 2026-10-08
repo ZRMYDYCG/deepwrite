@@ -68,7 +68,10 @@ export default {
     "A library in this group has no publishable content.",
   changesSubmittedTheContentIsPendingReviewAgain:
     "Changes submitted. The content is pending review again.",
-  contentSubmittedForReview: "Content submitted for review.",
+  contentSubmittedForReview:
+    "Content submitted for review and enabled. It will appear in the marketplace after approval.",
+  contentSubmittedButEnableFailed:
+    "Content uploaded, but marketplace visibility could not be enabled. Enable it in My publications; no need to upload again.",
   couldNotSubmitContent: "Could not submit content.",
   couldNotLoadContentForEditing: "Could not load content for editing.",
   contentMarkedAsDeletedTheServerWillRetainIt:
@@ -132,7 +135,7 @@ export default {
   myPublicationsPagination: "My publications pagination",
   editPublication: "Edit publication",
   newAndEditedContentEntersPublicVisibilityWithPending:
-    "New and edited content enters public visibility with pending review status.",
+    "New publications are enabled by default and appear after approval. Edits are reviewed again.",
   cancelEditing: "Cancel editing",
   publicationType: "Publication type",
   localSkill: "Local skill",

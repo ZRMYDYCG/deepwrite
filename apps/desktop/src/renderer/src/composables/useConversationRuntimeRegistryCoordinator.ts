@@ -1,4 +1,5 @@
 import { createScopedTranslator } from "../i18n";
+import { formatError, getErrorCode } from "../i18n/errors";
 import { createConversationRegistryHistory } from "./conversationRegistryHistory";
 import { canonicalBookConversationKey } from "../utils/bookConversationKey";
 import type { ConversationRuntimeRegistryCoordinatorOptions } from "./conversationRuntimeRegistryTypes";
@@ -54,9 +55,20 @@ export function useConversationRuntimeRegistryCoordinator(
     options.notifications.warning(message);
   }
 
+  function warnPersistenceError(error: unknown, fallback: string): void {
+    warnPersistenceOnce(
+      getErrorCode(error) === "renderer_state.command_failed"
+        ? formatError(error, fallback)
+        : fallback
+    );
+  }
+
   options.store.configurePersistenceAdapter(options.persistenceAdapter, {
-    onError: () => {
-      warnPersistenceOnce(t("conversationHistoryCouldNotBeSavedLocallyYouCan"));
+    onError: (_key, error) => {
+      warnPersistenceError(
+        error,
+        t("conversationHistoryCouldNotBeSavedLocallyYouCan")
+      );
     }
   });
 
@@ -118,9 +130,10 @@ export function useConversationRuntimeRegistryCoordinator(
     try {
       try {
         await options.persistenceAdapter?.prepareHistory?.(key);
-      } catch {
+      } catch (error) {
         failed = true;
-        warnPersistenceOnce(
+        warnPersistenceError(
+          error,
           t("conversationHistoryMigrationIsIncompleteTheOriginalRecordsHave")
         );
       }
@@ -144,10 +157,11 @@ export function useConversationRuntimeRegistryCoordinator(
             conversation.initializePersistenceBaseline();
         }
       }
-    } catch {
+    } catch (error) {
       failed = true;
       if (controllerIsCurrent(key, conversation, generation)) {
-        warnPersistenceOnce(
+        warnPersistenceError(
+          error,
           t("conversationHistoryCouldNotBeReadYouCanContinue")
         );
       }

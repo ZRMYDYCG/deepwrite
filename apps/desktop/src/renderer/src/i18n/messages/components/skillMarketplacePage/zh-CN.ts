@@ -62,7 +62,10 @@ export default {
     "技能组内存在没有可发布正文的技能库。",
   changesSubmittedTheContentIsPendingReviewAgain:
     "修改已提交，内容重新进入待审核状态。",
-  contentSubmittedForReview: "发布内容已提交审核。",
+  contentSubmittedForReview:
+    "发布内容已提交审核并开启展示，审核通过后会在广场显示。",
+  contentSubmittedButEnableFailed:
+    "内容已上传，但自动开启广场展示失败。请在“我的发布”中开启，无需重复上传。",
   couldNotSubmitContent: "提交发布内容失败。",
   couldNotLoadContentForEditing: "读取待编辑内容失败。",
   contentMarkedAsDeletedTheServerWillRetainIt:
@@ -125,7 +128,7 @@ export default {
   myPublicationsPagination: "我的发布分页",
   editPublication: "编辑发布内容",
   newAndEditedContentEntersPublicVisibilityWithPending:
-    "所有新建和修改内容都会进入 public + pending，等待审核。",
+    "新发布默认开启广场展示，审核通过后显示；修改已有内容会重新进入审核。",
   cancelEditing: "取消编辑",
   publicationType: "发布内容类型",
   localSkill: "本地技能",

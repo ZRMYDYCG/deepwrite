@@ -197,6 +197,10 @@ import {
   registerAppearanceFontScheme
 } from "./appearance-font-protocol";
 import { registerMarketplaceIpc } from "./ipc/marketplace-ipc";
+import {
+  registerAgentTeamMarketplaceIpc,
+  type AgentTeamMarketplaceClient
+} from "../extras/agent-team-marketplace";
 
 registerAppearanceFontScheme();
 registerCoverScheme();
@@ -254,6 +258,7 @@ let menuBarTray: Tray | undefined;
 let updateService: UpdateService | undefined;
 let appAlertStore: AppAlertStore | undefined;
 let marketplaceClient: MarketplaceClient | undefined;
+let agentTeamMarketplaceClient: AgentTeamMarketplaceClient | undefined;
 let cloudBackupService: CloudBackupService | undefined;
 let deviceSyncService: ReturnType<typeof createDesktopDeviceSync> | undefined;
 const rendererStateFlush = createRendererStateFlushCoordinator();
@@ -901,6 +906,10 @@ function registerIpc(): void {
     getMainWindow: () => mainWindow,
     getMarketplaceClient: () => marketplaceClient
   });
+  registerAgentTeamMarketplaceIpc(
+    () => agentTeamMarketplaceClient,
+    () => mainWindow
+  );
 
   registerDeviceSyncIpc(
     () => deviceSyncService,
@@ -2362,7 +2371,8 @@ if (!hasSingleInstanceLock) {
       appAlertStore,
       cloudBackupService,
       deviceSyncService,
-      marketplaceClient
+      marketplaceClient,
+      agentTeamMarketplaceClient
     } = services);
     storageSettingsService = createStorageSettingsService({
       locations: storageBootstrap!.locations,

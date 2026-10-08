@@ -16,5 +16,6 @@ export default {
   runTool: "Run tool",
   finished: "Finished",
   thinking: "Thinking",
+  compactingContext: "Compacting context",
   subagentRunning: "Subagent running"
 };

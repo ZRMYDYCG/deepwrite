@@ -15,8 +15,20 @@ import {
   readSecureTextFile,
   readNoFollowFile
 } from "../../../utilities/long-project-store/io";
+import { ValidatedFileReadCache } from "../../../utilities/validated-file-read-cache";
 
 const MAX_SOURCE_BYTES = 512 * 1024 * 1024;
+// Shared across command-scoped stores; large or evicted sources use normal reads.
+const sourceRevisions = new ValidatedFileReadCache(
+  64 * 1024 * 1024,
+  (text) => {
+    const source = LongBookAnalysisSourceSchema.parse(JSON.parse(text));
+    if (source.fingerprint !== longBookSourceFingerprint(source))
+      throw new Error("来源版本或指纹不一致，无法继续拆解。");
+    return source;
+  },
+  4
+);
 export function longBookSourceFingerprint(
   source: LongBookAnalysisSource
 ): string {
@@ -55,22 +67,33 @@ export async function loadLongBookSourceRevision(
   revision: number
 ): Promise<LongBookAnalysisSource> {
   await recoverProjectTransaction(root, MAX_SOURCE_BYTES);
-  const { bytes } = await readNoFollowFile(
-    join(root, "revisions", `${revision}.json`),
+  const source = await sourceRevisions.read(
+    root,
+    `revisions/${revision}.json`,
     MAX_SOURCE_BYTES,
-    "来源版本",
-    root
+    "来源版本"
   );
-  const source = LongBookAnalysisSourceSchema.parse(
-    JSON.parse(bytes.toString("utf8"))
-  );
-  if (
-    source.id !== sourceId ||
-    source.revision !== revision ||
-    source.fingerprint !== longBookSourceFingerprint(source)
-  )
+  if (source.id !== sourceId || source.revision !== revision)
     throw new Error("来源版本或指纹不一致，无法继续拆解。");
   return source;
+}
+
+export async function inspectLongBookSourceRevision(
+  root: string,
+  sourceId: string,
+  revision: number
+) {
+  await recoverProjectTransaction(root, MAX_SOURCE_BYTES);
+  const identity = await sourceRevisions.inspect(
+    root,
+    `revisions/${revision}.json`,
+    MAX_SOURCE_BYTES,
+    "来源版本",
+    ({ id, revision, fingerprint }) => ({ id, revision, fingerprint })
+  );
+  if (identity.id !== sourceId || identity.revision !== revision)
+    throw new Error("来源版本或指纹不一致，无法继续拆解。");
+  return identity;
 }
 export async function saveLongBookSourceVersion(
   root: string,

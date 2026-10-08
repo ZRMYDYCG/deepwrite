@@ -18,6 +18,7 @@ import {
   type ModelSettingsInput,
   type ModelUsageDashboard,
   type ModelUsageQueryInput,
+  type MoreFeaturesSettings,
   type OfficialModelBalance,
   type SiteOfficialQuota,
   type TextViewMode,
@@ -40,36 +41,14 @@ import ShortAgentSettingsPanel from "./ShortAgentSettingsPanel.vue";
 import SiteOfficialModelsPanel from "./SiteOfficialModelsPanel.vue";
 import ImageModelSettingsPanel from "./ImageModelSettingsPanel.vue";
 import VoiceSettingsPanel from "./VoiceSettingsPanel.vue";
+import MoreFeaturesSettingsPanel from "./MoreFeaturesSettingsPanel.vue";
+import { settingsSections as sections } from "./settingsCategories";
 
 const ArchivedConversationsPanel = defineAsyncComponent(
   () => import("./ArchivedConversationsPanel.vue")
 );
 
-const imageT = createScopedTranslator("components.imageModelSettings");
 const t = createScopedTranslator("components.settingsPage");
-
-interface SettingsCategory {
-  id: string;
-  label: string;
-  keywords?: string;
-  icon?:
-    | "directory"
-    | "sparkles"
-    | "globe"
-    | "model"
-    | "ledger"
-    | "brain"
-    | "settings"
-    | "wand"
-    | "archive"
-    | "image";
-}
-
-interface SettingsSection {
-  id: string;
-  label: string;
-  categories: SettingsCategory[];
-}
 
 const props = defineProps<{
   initialCategory?: string;
@@ -87,6 +66,7 @@ const props = defineProps<{
   workspacePaneLayout: WorkspacePaneLayout;
   defaultTextViewMode: TextViewMode;
   bodyTextFormats: BodyTextFormats;
+  moreFeaturesSettings: MoreFeaturesSettings;
   workspaceAgentSettings: readonly WorkspaceAgentSettings[];
   creativePlotStages: readonly CreativePlotStage[];
   longAgentSettings: LongAgentSettings | null;
@@ -134,6 +114,7 @@ const emit = defineEmits<{
   updateWorkspacePaneLayout: [layout: WorkspacePaneLayout];
   updateDefaultTextViewMode: [mode: TextViewMode];
   updateBodyTextFormat: [change: BodyTextFormatChange];
+  updateMoreFeatures: [settings: MoreFeaturesSettings];
   saveWorkspaceAgents: [settings: WorkspaceAgentSettingsInput];
   retryLongAgents: [];
   saveLongAgents: [settings: LongAgentSettingsInput];
@@ -157,156 +138,6 @@ const emit = defineEmits<{
 }>();
 const activeCategory = ref(props.initialCategory ?? "general");
 const searchQuery = ref("");
-
-const sections: SettingsSection[] = [
-  {
-    id: "personal",
-    get label() {
-      return t("personal");
-    },
-    categories: [
-      {
-        id: "general",
-        get label() {
-          return t("general");
-        },
-        icon: "settings"
-      },
-      {
-        id: "directory",
-        get label() {
-          return t("storage");
-        },
-        icon: "directory",
-        get keywords() {
-          return t("storageUserDataHistoryDefaultLocationWorkspaceFolder");
-        }
-      },
-      {
-        id: "body-text",
-        get label() {
-          return t("manuscriptText");
-        },
-        icon: "wand"
-      },
-      {
-        id: "appearance",
-        get label() {
-          return t("appearance");
-        },
-        icon: "sparkles"
-      },
-      {
-        id: "configuration",
-        get label() {
-          return t("contextSettings");
-        },
-        icon: "model"
-      }
-    ]
-  },
-  {
-    id: "models-and-usage",
-    get label() {
-      return t("modelsAndUsage");
-    },
-    categories: [
-      {
-        id: "usage",
-        get label() {
-          return t("usage");
-        },
-        icon: "ledger"
-      },
-      {
-        id: "free-models",
-        get label() {
-          return t("freeModels");
-        },
-        icon: "model"
-      },
-      {
-        id: "custom-models",
-        get label() {
-          return t("customModelSettings");
-        },
-        icon: "model"
-      },
-      {
-        id: "official-models",
-        get label() {
-          return t("legacyOfficialModels");
-        },
-        icon: "model"
-      },
-      {
-        id: "site-official-models",
-        get label() {
-          return t("officialSiteModels");
-        },
-        icon: "model"
-      },
-      {
-        id: "voice",
-        get label() {
-          return t("voiceSettings");
-        },
-        icon: "brain"
-      },
-      {
-        id: "image-models",
-        get label() {
-          return imageT("title");
-        },
-        icon: "image"
-      }
-    ]
-  },
-  {
-    id: "creation",
-    get label() {
-      return t("writing");
-    },
-    categories: [
-      {
-        id: "short-agents",
-        get label() {
-          return t("workspaceSettings");
-        },
-        icon: "brain"
-      },
-      {
-        id: "skill-library-agent",
-        get label() {
-          return t("skillLibrarySettings");
-        },
-        icon: "wand"
-      },
-      {
-        id: "material-library-agent",
-        get label() {
-          return t("materialLibrarySettings");
-        },
-        icon: "archive"
-      }
-    ]
-  },
-  {
-    id: "archived",
-    get label() {
-      return t("archived");
-    },
-    categories: [
-      {
-        id: "archived-conversations",
-        get label() {
-          return t("archivedConversations");
-        },
-        icon: "archive"
-      }
-    ]
-  }
-];
 
 const visibleSections = computed(() => {
   const query = searchQuery.value.trim().toLocaleLowerCase();
@@ -439,6 +270,12 @@ async function selectCategory(id: string): Promise<void> {
           :runtime-available="runtimeAvailable"
           @save="emit('saveLibraryAgents', $event)"
           @reset="emit('resetLibraryAgent', $event)"
+        />
+
+        <MoreFeaturesSettingsPanel
+          v-else-if="activeCategory === 'more-features'"
+          :settings="moreFeaturesSettings"
+          @update="emit('updateMoreFeatures', $event)"
         />
 
         <ModelUsagePanel

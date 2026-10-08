@@ -23,16 +23,20 @@ type TurnRetryContext = Pick<
 >;
 export function retryMetadata(
   ctx: TurnRetryContext,
-  input: {
-    state: AgentRetryMetadata["state"];
-    turnId: string;
-    attempt: number;
-    maxAttempts: number;
-    retryAt?: string;
-    delayMs?: number;
-    reason?: string;
-  }
+  input: Parameters<typeof agentRetryMetadata>[0]
 ): AgentRetryMetadata {
+  return agentRetryMetadata(input);
+}
+/** Context-free, for consumers that track runs without a conversation. */
+export function agentRetryMetadata(input: {
+  state: AgentRetryMetadata["state"];
+  turnId: string;
+  attempt: number;
+  maxAttempts: number;
+  retryAt?: string;
+  delayMs?: number;
+  reason?: string;
+}): AgentRetryMetadata {
   return {
     state: input.state,
     turnId: input.turnId,

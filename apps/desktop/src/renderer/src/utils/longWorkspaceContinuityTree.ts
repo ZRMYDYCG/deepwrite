@@ -10,18 +10,23 @@ import {
 } from "../types/longWorkspace";
 import { createLongWorkspaceTreeNode } from "./longWorkspaceTreeNode";
 import { longContinuityBatchLabel } from "./longContinuityBatchLabel";
+import type { LongChapterLookup } from "../types/longIndexedChapter";
 
 const t = createScopedTranslator("workspace");
 
 export function projectLongWorkspaceContinuityTree(
   book: LongBookSummary,
-  index?: LongWorkspaceIndexSnapshot | null
+  index?: LongWorkspaceIndexSnapshot | null,
+  lookup?: LongChapterLookup
 ): ResourceTreeNode[] {
   const node = createLongWorkspaceTreeNode(book);
   const characterAndContinuityUseLeftTree =
     index?.featureSettings.characterAndContinuityItemLayout === "left-tree";
   const continuityPendingChildren: ResourceTreeNode[] = [];
   const continuityRecordChildren: ResourceTreeNode[] = [];
+  const titleById = new Map(
+    book.navigation.chapterCards.map(({ id, title }) => [id, title])
+  );
   const continuityChapterNode = (
     selection: LongWorkspaceSelection,
     options: {
@@ -68,16 +73,14 @@ export function projectLongWorkspaceContinuityTree(
       const selection = createLongContinuitySelection(
         book,
         index,
-        chapterCardId
+        chapterCardId,
+        lookup
       );
       if (!selection) continue;
-      const chapter = book.navigation.chapterCards.find(
-        ({ id }) => id === chapterCardId
-      );
       continuityPendingChildren.push(
         continuityChapterNode(selection, {
           icon: "check",
-          label: chapter?.title ?? selection.title,
+          label: titleById.get(chapterCardId) ?? selection.title,
           badge: t("longWorkspaceDraftTree.pendingCommit")
         })
       );
@@ -92,12 +95,14 @@ export function projectLongWorkspaceContinuityTree(
       const selection = createLongContinuitySelection(
         book,
         index,
-        commit.chapterCardId
+        commit.chapterCardId,
+        lookup
       );
       if (selection) {
         const display = longContinuityBatchLabel(
           commit,
-          book.navigation.chapterCards
+          book.navigation.chapterCards,
+          titleById
         );
         continuityRecordChildren.push(
           continuityChapterNode(selection, {

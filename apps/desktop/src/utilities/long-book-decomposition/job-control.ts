@@ -12,6 +12,9 @@ import { copyReusedDecompositionRecords } from "./reuse";
 import { resolveDecompositionConflict } from "./conflicts";
 import type { DecompositionService } from "./service";
 import { requeueDecompositionUnit } from "./unit-retry";
+import { readDecompositionCards } from "./query-records";
+import { replanDecompositionRegistry } from "./workflow";
+import { settleDecompositionRegistryMerge } from "./submission-staging";
 
 const tokens = (value: number) => value.toLocaleString("zh-CN");
 
@@ -63,6 +66,21 @@ export async function controlDecompositionJob(
           () => service.state.save(job)
         );
     await service.recover(job, true);
+    if (job.phase === "registry")
+      replanDecompositionRegistry(
+        job,
+        await readDecompositionCards(job, service.reader)
+      );
+    // The user starts a new retry allowance for unfinished units only.
+    // Keep their revision and partial receipts so saved work is reused.
+    for (const unit of Object.values(job.units))
+      if (unit.phase === job.phase && unit.status === "failed") {
+        unit.status = "pending";
+        unit.attempts = 0;
+        delete unit.attemptId;
+        delete unit.runId;
+        delete unit.lastError;
+      }
     job.status = "idle";
     // Continuing after a usage pause is the user's go-ahead for more.
     const used = decompositionUsageTotal(job.usage);
@@ -142,6 +160,9 @@ export async function controlDecompositionJob(
       () => service.state.save(job)
     );
   } else return service.advance(job);
+  // Parts saved in earlier packages may leave a merge Core can finish alone.
+  if (job.phase === "registry" && job.status !== "running")
+    await settleDecompositionRegistryMerge(service, job).catch(() => false);
   await service.state.save(job);
   return job;
 }

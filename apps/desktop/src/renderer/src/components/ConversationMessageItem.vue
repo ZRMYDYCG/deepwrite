@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { createScopedTranslator, locale } from "../i18n";
-import { computed, onBeforeUnmount, ref } from "vue";
-import { provideConversationDisclosureScope } from "../composables/conversationDisclosureState";
+import { computed, onBeforeUnmount, ref, useId } from "vue";
+import {
+  provideConversationDisclosureScope,
+  useConversationDisclosure
+} from "../composables/conversationDisclosureState";
 import type { LongWorkspaceIndexSnapshot } from "@deepwrite/contracts";
 import type { LongWorkspaceProposalItem } from "../composables/useLongWorkspaceProposals";
 import { formatFileSize } from "../composables/useConversationAttachments";
@@ -12,7 +15,6 @@ import type {
 import { uiMessage } from "../ui-feedback";
 import {
   approvalItemsForMessage,
-  hasProcessing,
   visibleResponse
 } from "./conversationToolPresentation";
 import AgentEditProposalCard from "./AgentEditProposalCard.vue";
@@ -70,6 +72,23 @@ const response = computed(() => visibleResponse(props.message));
 const approvalItems = computed(() =>
   approvalItemsForMessage(props.message, props.longProposalItems)
 );
+const hasApprovalCards = computed(
+  () =>
+    props.message.role === "assistant" &&
+    props.message.status !== "streaming" &&
+    approvalItems.value.length > 0
+);
+const approvalCardsId = useId();
+const approvalCardsCollapsed = useConversationDisclosure(
+  () => `${props.message.id}:approval-cards-collapsed`
+);
+const approvalCardsToggleLabel = computed(() =>
+  t(
+    approvalCardsCollapsed.value
+      ? "expandApprovalCards"
+      : "collapseApprovalCards"
+  )
+);
 const copied = ref(false);
 let copiedTimer: number | undefined;
 
@@ -111,19 +130,7 @@ onBeforeUnmount(() => {
   <article
     :data-conversation-message-id="message.id"
     class="message"
-    :class="[
-      `is-${message.role}`,
-      {
-        'is-editing': editing,
-        'is-empty-error':
-          message.role === 'assistant' &&
-          message.status === 'error' &&
-          !message.content &&
-          !hasProcessing(message) &&
-          !message.subagentRuns?.length &&
-          !message.editProposals?.length
-      }
-    ]"
+    :class="[`is-${message.role}`, { 'is-editing': editing }]"
   >
     <div class="message-body">
       <ConversationProcessingTimeline
@@ -193,11 +200,9 @@ onBeforeUnmount(() => {
           {{ t("generationStopped") }}
         </div>
         <section
-          v-if="
-            message.role === 'assistant' &&
-            message.status !== 'streaming' &&
-            approvalItems.length
-          "
+          v-if="hasApprovalCards"
+          v-show="!approvalCardsCollapsed"
+          :id="approvalCardsId"
           class="approval-card-stack"
           :aria-label="t('approvalCardsForThisTurn')"
         >
@@ -228,7 +233,11 @@ onBeforeUnmount(() => {
       </div>
 
       <div
-        v-if="message.content && message.status !== 'streaming' && !editing"
+        v-if="
+          (message.content || hasApprovalCards) &&
+          message.status !== 'streaming' &&
+          !editing
+        "
         class="message-actions"
       >
         <span v-if="message.role === 'user'">{{
@@ -243,6 +252,7 @@ onBeforeUnmount(() => {
           <AppIcon name="edit" :size="15" />
         </button>
         <button
+          v-if="message.content"
           type="button"
           :aria-label="
             copied
@@ -255,15 +265,46 @@ onBeforeUnmount(() => {
         >
           <AppIcon :name="copied ? 'check' : 'copy'" :size="15" />
         </button>
+        <button
+          v-if="hasApprovalCards"
+          type="button"
+          :title="approvalCardsToggleLabel"
+          :aria-label="approvalCardsToggleLabel"
+          :aria-expanded="!approvalCardsCollapsed"
+          :aria-controls="approvalCardsId"
+          @click="approvalCardsCollapsed = !approvalCardsCollapsed"
+        >
+          <AppIcon
+            name="chevron"
+            :size="15"
+            class="approval-cards-chevron"
+            :class="{ 'is-collapsed': approvalCardsCollapsed }"
+          />
+        </button>
         <span v-if="message.role === 'assistant'">{{
           formatTime(message.createdAt)
         }}</span>
       </div>
+      <p
+        v-if="message.role === 'assistant' && message.status === 'error'"
+        class="message-error-copy"
+        role="status"
+      >
+        {{ message.errorMessage || t("couldNotCompleteGenerationTryAgain") }}
+      </p>
     </div>
   </article>
 </template>
 
 <style scoped>
+.approval-cards-chevron {
+  transform: rotate(-90deg);
+}
+
+.approval-cards-chevron.is-collapsed {
+  transform: rotate(90deg);
+}
+
 .message.is-user.is-editing .message-body {
   width: 100%;
   max-width: 100%;
@@ -273,5 +314,14 @@ onBeforeUnmount(() => {
   width: 100%;
   padding: 0;
   background: transparent;
+}
+
+.message-error-copy {
+  margin: 12px 0 0;
+  color: color-mix(in srgb, var(--danger) 70%, var(--text-primary));
+  font-size: 0.928571rem;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }
 </style>

@@ -150,6 +150,26 @@ export async function secureTextFileMetadataMatches(
   const target = resolve(projectDirectory, relativePath);
   assertContained(projectDirectory, target);
   await validateParentDirectories(projectDirectory, dirname(target));
+  return noFollowFileMetadataMatches(
+    target,
+    maxBytes,
+    cached,
+    projectDirectory
+  );
+}
+
+export type NoFollowFileMetadata = Pick<
+  SecureTextFile,
+  "identity" | "size" | "mtimeNs" | "ctimeNs"
+>;
+
+/** Rechecks file identity and safety without rereading unchanged bytes. */
+export async function noFollowFileMetadataMatches(
+  target: string,
+  maxBytes: number,
+  cached: NoFollowFileMetadata,
+  containingRoot: string
+): Promise<boolean> {
   let handle: Awaited<ReturnType<typeof open>>;
   try {
     handle = await open(target, fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW);
@@ -165,12 +185,16 @@ export async function secureTextFileMetadataMatches(
       return false;
     }
     const canonical = await realpath(target);
-    assertContained(projectDirectory, canonical);
+    assertContained(containingRoot, canonical);
     const pathInfo = await lstat(target, { bigint: true });
     if (
       pathInfo.isSymbolicLink() ||
       pathInfo.dev !== info.dev ||
-      pathInfo.ino !== info.ino
+      pathInfo.ino !== info.ino ||
+      pathInfo.nlink !== info.nlink ||
+      pathInfo.size !== info.size ||
+      pathInfo.mtimeNs !== info.mtimeNs ||
+      pathInfo.ctimeNs !== info.ctimeNs
     ) {
       return false;
     }

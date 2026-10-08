@@ -1,5 +1,6 @@
 import { createScopedTranslator } from "../../i18n";
 import type { AgentConversationContext } from "./context";
+import type { TrackedMessages } from "./message-mutations";
 import { queueSubagentTextDelta } from "./subagent-text-deltas";
 import type {
   SubagentEventEnvelope,
@@ -15,13 +16,12 @@ type SubagentEventsContext = Pick<
   | "handleSubagentTurnStarted"
   | "handleSubagentRetryScheduled"
   | "acceptsSubagentRetryActivity"
-  | "messageMutations"
   | "pendingSubagentTextDeltas"
   | "scheduleStreamPresentation"
   | "earlierTimestamp"
   | "subagentTurnCheckpointByRun"
   | "subagentTurnKey"
->;
+> & { messageMutations: Pick<TrackedMessages, "appendText"> };
 export function handleSubagentEvent(
   ctx: SubagentEventsContext,
   event: SubagentEventEnvelope

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { createScopedTranslator } from "../i18n";
 import type {
+  AgentTeamCatalogSnapshot,
   AgentTeamProfileCreateInput,
   AgentTeamProfileRenameInput,
   AgentTeamProfileSaveInput,
@@ -17,6 +18,7 @@ import type {
   ModelConfigInput,
   ModelSettingsInput,
   ModelUsageQueryInput,
+  MoreFeaturesSettings,
   TextViewMode,
   WorkspacePaneLayout,
   WorkspaceAgentSettingsInput
@@ -34,6 +36,7 @@ import {
   StyleComparisonPage,
   SettingsPage,
   SkillMarketplacePage,
+  AgentTeamMarketplacePage,
   ZhuqueDetectionPage,
   WorkspaceDirectoryFeature
 } from "./lazyAppComponents";
@@ -80,6 +83,7 @@ const emit = defineEmits<{
   updateWorkspacePaneLayout: [layout: WorkspacePaneLayout];
   updateDefaultTextViewMode: [mode: TextViewMode];
   updateBodyTextFormat: [change: BodyTextFormatChange];
+  updateMoreFeatures: [settings: MoreFeaturesSettings];
   saveWorkspaceAgents: [settings: WorkspaceAgentSettingsInput];
   retryLongAgents: [];
   saveLongAgents: [settings: LongAgentSettingsInput];
@@ -113,6 +117,7 @@ const emit = defineEmits<{
   openOfficialModels: [];
   refreshCatalog: [];
   marketplaceSessionChange: [session: MarketplaceSession];
+  agentTeamCatalogChange: [catalog: AgentTeamCatalogSnapshot];
 }>();
 </script>
 
@@ -138,6 +143,7 @@ const emit = defineEmits<{
     :workspace-pane-layout="module.workspacePaneLayout"
     :default-text-view-mode="module.defaultTextViewMode"
     :body-text-formats="module.bodyTextFormats"
+    :more-features-settings="module.moreFeaturesSettings"
     :workspace-agent-settings="module.workspaceAgentSettings"
     :creative-plot-stages="module.creativePlotStages"
     :long-agent-settings="module.longAgentSettings"
@@ -184,6 +190,7 @@ const emit = defineEmits<{
     @update-workspace-pane-layout="emit('updateWorkspacePaneLayout', $event)"
     @update-default-text-view-mode="emit('updateDefaultTextViewMode', $event)"
     @update-body-text-format="emit('updateBodyTextFormat', $event)"
+    @update-more-features="emit('updateMoreFeatures', $event)"
     @save-workspace-agents="emit('saveWorkspaceAgents', $event)"
     @retry-long-agents="emit('retryLongAgents')"
     @save-long-agents="emit('saveLongAgents', $event)"
@@ -387,6 +394,28 @@ const emit = defineEmits<{
       :initial-session="module.session"
       @refresh-catalog="emit('refreshCatalog')"
       @session-change="emit('marketplaceSessionChange', $event)"
+    />
+  </main>
+
+  <main
+    v-else-if="module.kind === 'agent-team-marketplace'"
+    class="marketplace-main-view"
+    :aria-label="t('agentTeamMarketplace')"
+  >
+    <button
+      v-if="leftCollapsed"
+      class="icon-button marketplace-expand-sidebar"
+      type="button"
+      :aria-label="t('expandSidebar')"
+      @click="emit('expandLeft')"
+    >
+      <AppIcon name="panel-left" :size="18" />
+    </button>
+    <AgentTeamMarketplacePage
+      :catalog="module.catalog"
+      :initial-session="module.session"
+      @session-change="emit('marketplaceSessionChange', $event)"
+      @catalog-change="emit('agentTeamCatalogChange', $event)"
     />
   </main>
 

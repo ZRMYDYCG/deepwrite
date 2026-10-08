@@ -236,6 +236,15 @@ export function useWorkspaceFeatureHostCoordinator(
     }
   }
 
+  async function openAgentTeamMarketplace(): Promise<void> {
+    const generation = beginNavigation();
+    if (!(await canApplyNavigation(generation))) return;
+    options.view.workspaceMain.value = "agent-team-marketplace";
+    if (options.api() && !settingsStore.agentTeamLoaded) {
+      issueBackground(options.loaders.loadAgentTeamSettings);
+    }
+  }
+
   async function openDeviceSync(): Promise<void> {
     const generation = beginNavigation();
     if (!(await canApplyNavigation(generation))) return;
@@ -331,6 +340,7 @@ export function useWorkspaceFeatureHostCoordinator(
     openOfficialModelsSettings,
     openAgentTeams,
     openMarketplace,
+    openAgentTeamMarketplace,
     openDeviceSync,
     openCloudBackup,
     openZhuqueDetection,

@@ -5,6 +5,7 @@ import type {
 } from "@deepwrite/contracts";
 import type { ResourceTreeNode } from "../types/workspace";
 import { createLongChapterSelection } from "../types/longWorkspace";
+import type { LongChapterLookup } from "../types/longIndexedChapter";
 
 const t = createScopedTranslator("workspace");
 
@@ -14,11 +15,12 @@ type LongNavigationVolume = LongBookSummary["navigation"]["volumes"][number];
 
 function chapterStatusBadge(
   chapter: LongNavigationChapter,
-  index?: LongWorkspaceIndexSnapshot | null
+  index?: LongWorkspaceIndexSnapshot | null,
+  lookup?: LongChapterLookup
 ): string {
-  const files = index?.chapters.find(
-    ({ chapterCardId }) => chapterCardId === chapter.id
-  );
+  const files = lookup
+    ? lookup.entries.get(chapter.id)
+    : index?.chapters.find(({ chapterCardId }) => chapterCardId === chapter.id);
   if (files && files.commitId !== null)
     return t("longWorkspaceDraftTree.completed");
   return (files?.bodyStatus ?? chapter.bodyStatus) === "written"
@@ -32,13 +34,19 @@ export function projectLongWorkspaceDraftTree(input: {
   volumes: LongNavigationVolume[];
   chaptersByVolume: ReadonlyMap<string, LongNavigationChapter[]>;
   nodeId: (key: string) => string;
+  lookup?: LongChapterLookup | undefined;
 }): ResourceTreeNode[] {
   return input.volumes.map<ResourceTreeNode>((volume) => {
     const chapters = (
       input.chaptersByVolume.get(volume.id) ?? []
     ).flatMap<ResourceTreeNode>((chapter) => {
       const selection = input.index
-        ? createLongChapterSelection(input.book, input.index, chapter.id)
+        ? createLongChapterSelection(
+            input.book,
+            input.index,
+            chapter.id,
+            input.lookup
+          )
         : {
             key: `chapter:${chapter.id}`,
             root: "draft" as const,
@@ -59,7 +67,7 @@ export function projectLongWorkspaceDraftTree(input: {
               id: input.nodeId(selection.key),
               label: selection.title,
               icon: "edit",
-              badge: chapterStatusBadge(chapter, input.index),
+              badge: chapterStatusBadge(chapter, input.index, input.lookup),
               workspaceType: "long",
               longBookId: input.book.id,
               catalogNodeType: "category",

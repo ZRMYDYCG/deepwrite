@@ -1,6 +1,4 @@
 import { normalizableLegacyHistory } from "./legacy-history-shape";
-import { createHash } from "node:crypto";
-import { setImmediate } from "node:timers/promises";
 import {
   ConversationHistoryIdSchema,
   RendererStateKeySchema
@@ -9,6 +7,8 @@ import type { JsonNodes, ValueRef } from "./json-nodes";
 import type { Statements } from "./schema";
 import type { MessageRecords } from "./message-records";
 import type { NormalizingCursor } from "./migration-reader";
+import { migrationRecordFingerprint } from "./migration-record-fingerprint";
+import { ConversationStorageError } from "./errors";
 
 export class MigrationNormalizer {
   constructor(
@@ -28,12 +28,14 @@ export class MigrationNormalizer {
 
   private array(ref: ValueRef | undefined): ValueRef[] {
     if (!ref || !("node" in ref))
-      throw new Error(
+      throw new ConversationStorageError(
+        "migration_invalid",
         "History conversation messages are not an array; original data has been preserved."
       );
     const node = this.nodes.node(ref.node);
     if (node.kind !== "array")
-      throw new Error(
+      throw new ConversationStorageError(
+        "migration_invalid",
         "History conversation messages are not an array; original data has been preserved."
       );
     return node.entries;
@@ -53,25 +55,6 @@ export class MigrationNormalizer {
     }
   }
 
-  private async verify(ref: ValueRef): Promise<string> {
-    const hash = createHash("sha256");
-    let bytes = 0;
-    let sinceYield = 0;
-    for (const part of this.nodes.jsonParts(ref)) {
-      hash.update(part);
-      const count = Buffer.byteLength(part);
-      bytes += count;
-      sinceYield += count;
-      if (sinceYield >= 1024 * 1024) {
-        await setImmediate();
-        sinceYield = 0;
-      }
-    }
-    if (bytes !== ref.bytes)
-      throw new Error("History record failed its migration size check.");
-    return hash.digest("hex");
-  }
-
   async run(): Promise<void> {
     const version = this.nodes.get(this.cursor.root, ["version"]);
     const entriesRef = this.nodes.get(this.cursor.root, ["entries"]);
@@ -82,12 +65,14 @@ export class MigrationNormalizer {
       !entriesRef ||
       !("node" in entriesRef)
     )
-      throw new Error(
+      throw new ConversationStorageError(
+        "migration_invalid",
         "History file format is invalid; original data has been preserved."
       );
     const entries = this.nodes.node(entriesRef.node);
     if (entries.kind !== "object")
-      throw new Error(
+      throw new ConversationStorageError(
+        "migration_invalid",
         "History file entries are invalid; original data has been preserved."
       );
     for (; this.cursor.entry < entries.entries.length;) {
@@ -101,7 +86,7 @@ export class MigrationNormalizer {
           this.cursor.message === 0 &&
           !normalizableLegacyHistory(this.nodes, value))
       ) {
-        await this.verify(value);
+        await migrationRecordFingerprint(this.nodes, value);
         this.transaction(() => {
           this.sql
             .get("INSERT INTO legacy_values(key, value_ref) VALUES (?, ?)")
@@ -123,7 +108,10 @@ export class MigrationNormalizer {
           const messageId = ConversationHistoryIdSchema.parse(
             this.scalar(messageRef, ["id"])
           );
-          const checksum = await this.verify(messageRef);
+          const checksum = await migrationRecordFingerprint(
+            this.nodes,
+            messageRef
+          );
           this.transaction(() => {
             this.sql
               .get("INSERT OR IGNORE INTO scopes(key) VALUES (?)")
@@ -134,7 +122,8 @@ export class MigrationNormalizer {
               )
               .run(key, sessionId);
             if (this.records.find(key, sessionId, messageId))
-              throw new Error(
+              throw new ConversationStorageError(
+                "migration_duplicate_message",
                 "History has duplicate message IDs; original data has been preserved."
               );
             this.records.save(
@@ -165,7 +154,8 @@ export class MigrationNormalizer {
             )
             .get(key, sessionId);
           if (Number(count?.count) !== messages.length)
-            throw new Error(
+            throw new ConversationStorageError(
+              "migration_count_mismatch",
               "History message count failed migration verification."
             );
           const existing = this.sql
@@ -174,7 +164,8 @@ export class MigrationNormalizer {
             )
             .get(key, sessionId);
           if (existing?.metadata_ref)
-            throw new Error(
+            throw new ConversationStorageError(
+              "migration_duplicate_session",
               "History has duplicate conversation IDs; original data has been preserved."
             );
           const { container, child } = this.nodes.takeField(

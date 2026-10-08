@@ -1,7 +1,6 @@
 import { join } from "node:path";
 import {
   MaterialLibraryProjectManifestSchema,
-  DecompositionReceiptSchema,
   type LongBookDecompositionJob,
   type DecompositionContentRef,
   type DecompositionRecord,
@@ -14,6 +13,11 @@ import { recoverProjectTransaction } from "../project-transaction";
 import { decompositionLongFiles } from "./record-files";
 import { decompositionSha } from "./content-guard";
 import { decompositionReceiptId } from "./identity";
+import {
+  decompositionContentReads,
+  decompositionReceiptReads,
+  mapDecompositionReads
+} from "./read-cache";
 import {
   decompositionRecordId,
   decompositionUnitIsRecordOnly,
@@ -45,11 +49,14 @@ export class DecompositionRecordsReader {
     return this.memo(`long:${bookId}`, () => this.longs.catalog.open(bookId));
   }
   content(ref: DecompositionContentRef): Promise<string> {
+    return this.fileContent(ref).then(({ content }) => content);
+  }
+  private fileContent(ref: DecompositionContentRef) {
     return this.memo(`content:${ref.projectId}:${ref.resourceId}`, () =>
       this.readContent(ref)
     );
   }
-  private async readContent(ref: DecompositionContentRef): Promise<string> {
+  private async readContent(ref: DecompositionContentRef) {
     if (ref.fileId) {
       const opened = await this.long(ref.projectId);
       const index = opened.book.workspaceIndex;
@@ -58,14 +65,12 @@ export class DecompositionRecordsReader {
       );
       const file = files.get(ref.fileId);
       if (!file) throw new Error("真实长篇文档已移除。");
-      return (
-        await readNoFollowFile(
-          join(opened.projectDirectory, file.path),
-          32 * 1024 * 1024,
-          "真实长篇文档",
-          opened.projectDirectory
-        )
-      ).bytes.toString("utf8");
+      return decompositionContentReads.read(
+        opened.projectDirectory,
+        file.path,
+        32 * 1024 * 1024,
+        "真实长篇文档"
+      );
     }
     const root = await this.catalog.managedProjectDirectory(ref.projectId);
     await recoverProjectTransaction(root);
@@ -85,14 +90,12 @@ export class DecompositionRecordsReader {
     );
     const entry = manifest.entries.find(({ id }) => id === ref.resourceId);
     if (!entry) throw new Error("真实素材条目已移除。");
-    return (
-      await readNoFollowFile(
-        join(root, entry.path),
-        32 * 1024 * 1024,
-        "真实素材",
-        root
-      )
-    ).bytes.toString("utf8");
+    return decompositionContentReads.read(
+      root,
+      entry.path,
+      32 * 1024 * 1024,
+      "真实素材"
+    );
   }
   /** The machine record a unit submitted, read from the task directory. */
   record(
@@ -111,7 +114,7 @@ export class DecompositionRecordsReader {
   ): Promise<DecompositionReceipt[]> {
     const files: Array<{ root: string; path: string }> = [];
     if (job.target?.kind === "long") {
-      const opened = await this.longs.catalog.open(job.target.bookId);
+      const opened = await this.long(job.target.bookId);
       files.push(
         ...(opened.book.workspaceIndex.writeReceipts ?? []).map(({ path }) => ({
           root: opened.projectDirectory,
@@ -166,24 +169,11 @@ export class DecompositionRecordsReader {
       });
       ids.set(unitId, new Set([id]));
     }
-    for (const { root, path } of files) {
-      const raw = (
-        await readNoFollowFile(
-          join(root, path),
-          4 * 1024 * 1024,
-          "目标内回执",
-          root
-        )
-      ).bytes.toString("utf8");
-      let parsed: unknown;
-      try {
-        parsed = JSON.parse(raw);
-      } catch {
-        continue;
-      }
-      const result = DecompositionReceiptSchema.safeParse(parsed);
-      if (!result.success) continue;
-      const receipt = result.data;
+    const persisted = await mapDecompositionReads(files, ({ root, path }) =>
+      decompositionReceiptReads.read(root, path, 4 * 1024 * 1024, "目标内回执")
+    );
+    for (const receipt of persisted) {
+      if (!receipt) continue;
       if (
         receipt.jobId !== job.id ||
         receipt.outputVersion !== job.outputVersion ||
@@ -250,7 +240,7 @@ export class DecompositionRecordsReader {
     ref: DecompositionContentRef
   ): Promise<string> {
     if (ref.fileId || job.target?.kind === "material-group") {
-      return decompositionSha(await this.content(ref));
+      return (await this.fileContent(ref)).sha256;
     } else if (job.target?.kind === "long") {
       const index = (await this.long(ref.projectId)).book.workspaceIndex;
       const object = [

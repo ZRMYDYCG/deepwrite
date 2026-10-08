@@ -56,9 +56,20 @@ export async function commitDecompositionLedger(
         decompositionSha(JSON.stringify(object))
       ])
     );
+    // Only ledger-derived changes need recovery overrides; the other refs
+    // already live in job.json and their receipts.
     const postCommitRefs = Object.fromEntries(
       Object.entries(job.units)
-        .filter(([, unit]) => unit.status === "done" && unit.outputRefs.length)
+        .filter(
+          ([, unit]) =>
+            unit.status === "done" &&
+            unit.outputRefs.some(
+              (ref) =>
+                !ref.fileId &&
+                objects.has(ref.resourceId) &&
+                objects.get(ref.resourceId) !== ref.sha256
+            )
+        )
         .map(([id, unit]) => [
           id,
           unit.outputRefs.map((ref) =>

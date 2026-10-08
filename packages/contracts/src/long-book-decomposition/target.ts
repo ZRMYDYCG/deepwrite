@@ -71,6 +71,8 @@ export const DecompositionReceiptSchema = z.object({
   inputRevision: z.string().min(1).max(256),
   /** Empty for units whose only output is the task-local record. */
   refs: z.array(DecompositionContentRefSchema).max(10_000),
-  savedAt: z.string().datetime()
+  savedAt: z.string().datetime(),
+  /** Entries staged so far by a partial submission; the unit is not done. */
+  staged: z.number().int().nonnegative().optional()
 });
 export type DecompositionReceipt = z.infer<typeof DecompositionReceiptSchema>;

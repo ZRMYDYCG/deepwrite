@@ -409,6 +409,7 @@ export function useLongWorkspaceSessionCoordinator<TimerHandle>(
     saveActiveEditorBeforeLeaving,
     openBook,
     refreshActiveWorkspace: refresh.refreshActiveWorkspace,
+    refreshAfterBackgroundWrite: refresh.refreshAfterBackgroundWrite,
     selectWorkspaceFile,
     selectCharacterTab,
     selectPlotPointTab,

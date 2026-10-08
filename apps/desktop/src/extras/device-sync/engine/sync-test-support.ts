@@ -8,6 +8,7 @@ import {
   type SyncServiceOptions
 } from "@deepwrite/contracts";
 import { createHash } from "node:crypto";
+import { deepFreeze } from "@deepwrite/shared";
 
 export function item(
   body = "第一行\n第二行\n第三行\n",
@@ -69,7 +70,9 @@ export function device(name: string, dav: MemoryDav, initial: SyncItem[] = []) {
       now: () => "2026-09-08T01:00:00.000Z"
     },
     metadata: {
-      read: async () => (metadata ? structuredClone(metadata) : null),
+      // Like the desktop store, readers share one frozen value.
+      read: async () =>
+        metadata ? deepFreeze(structuredClone(metadata)) : null,
       write: async (value) => {
         metadata = structuredClone(value);
       }

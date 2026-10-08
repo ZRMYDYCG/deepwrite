@@ -104,20 +104,19 @@ export async function writeDecompositionLongUnit(
     );
     const revision =
       (job.target?.kind === "long" ? job.target.baseRevision : 0) + 1;
+    const current = async (path: string) => {
+      try {
+        return (
+          await readSecureTextFile(projectDirectory, path, 32 * 1024 * 1024)
+        ).content;
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+        return undefined;
+      }
+    };
     const writer: NativeAssetWriter = {
       file: async (reference, content) => {
-        let old: string | undefined;
-        try {
-          old = (
-            await readSecureTextFile(
-              projectDirectory,
-              reference.path,
-              32 * 1024 * 1024
-            )
-          ).content;
-        } catch (error) {
-          if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-        }
+        const old = await current(reference.path);
         assertDecompositionDocumentWritable(
           job,
           reference.id,
@@ -151,6 +150,24 @@ export async function writeDecompositionLongUnit(
           resourceId: id,
           revision,
           sha256: decompositionSha(JSON.stringify(value))
+        });
+      },
+      // A removed object leaves no ref; edits made since the job wrote it
+      // stop the removal the same way they stop a rewrite.
+      remove: async (id, file) => {
+        assertDecompositionObjectWritable(
+          job,
+          id,
+          priorObjects.get(id),
+          replace
+        );
+        const old = file && (await current(file.path));
+        if (!file || old === undefined) return;
+        assertDecompositionDocumentWritable(job, file.id, old, "", replace);
+        operations.push({
+          action: "delete",
+          path: file.path,
+          expectedSha256: decompositionSha(old)
         });
       }
     };
@@ -211,7 +228,21 @@ export async function writeDecompositionLongUnit(
           writer
         );
     }
-    const canonical = LongWorkspaceIndexSnapshotSchema.parse(loaded.index);
+    const parsed = LongWorkspaceIndexSnapshotSchema.safeParse(loaded.index);
+    if (!parsed.success) {
+      const issues = parsed.error.issues
+        .slice(0, 3)
+        .map(
+          (issue) =>
+            `${issue.path.join(".")}：${issue.code}${"maximum" in issue ? `，上限 ${String(issue.maximum)}` : ""}`
+        )
+        .join("；");
+      // Core built this index, so no change to the submission can fix it.
+      throw new Error(
+        `系统侧保存失败：长篇索引未通过校验（${issues}）。这不是提交内容的问题，修改后重交也无法解决；请停止提交此单元，并在最终回复中报告。`
+      );
+    }
+    const canonical = parsed.data;
     const objects = [
       ...canonical.characters,
       ...canonical.worldbuilding,

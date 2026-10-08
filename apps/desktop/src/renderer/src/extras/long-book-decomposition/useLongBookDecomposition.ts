@@ -17,6 +17,7 @@ import {
 } from "@deepwrite/contracts/renderer";
 import { createLongAnalysisSources } from "../long-book-analysis/long-analysis-sources";
 import { createDecompositionEngine } from "./engine";
+import { getErrorPayload } from "../../i18n/errors";
 
 export function useLongBookDecomposition(options: {
   api(): DeepWriteApi | undefined;
@@ -200,7 +201,8 @@ export function useLongBookDecomposition(options: {
         await inspect();
       } catch (cause) {
         engine.error.value =
-          cause instanceof Error ? cause.message : String(cause);
+          getErrorPayload(cause)?.message ??
+          (cause instanceof Error ? cause.message : String(cause));
       }
     },
     /** Task-local records for the progress dialog. */

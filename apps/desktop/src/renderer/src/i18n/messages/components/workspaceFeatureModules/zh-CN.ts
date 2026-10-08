@@ -6,6 +6,7 @@ export default {
   novelAnalysis: "长篇拆书分析",
   styleComparison: "文风比对",
   skillMarketplace: "技能广场",
+  agentTeamMarketplace: "团队广场",
   expandSidebar: "展开左侧栏",
   deviceSync: "双端同步",
   expandSidebarLabel: "展开侧栏",

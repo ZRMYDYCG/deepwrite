@@ -3,6 +3,7 @@ import {
   decompositionChaptersPerSubmission,
   decompositionReadingUnitId,
   type DecompositionAsset,
+  type DecompositionAssetPart,
   type DecompositionReadingCard,
   type DecompositionRecord,
   type DecompositionRegistry,
@@ -12,7 +13,6 @@ import {
 import { characterBriefs, domainBriefs } from "./brief-assets";
 import {
   chapterDigestSections,
-  factLine,
   fitBriefSections,
   type BriefSection
 } from "./brief-text";
@@ -21,7 +21,13 @@ import {
   readDecompositionRegistry
 } from "./query-records";
 import type { DecompositionRecordsReader } from "./records-reader";
-import { decompositionMentions, emptyDecompositionRegistry } from "./workflow";
+import { emptyDecompositionRegistry } from "./workflow";
+import {
+  registryItemLine,
+  registryMentionItems,
+  registryPartItems
+} from "./registry-mentions";
+import { registryEntryLine, registryMergeInput } from "./registry-merge";
 
 export interface BriefContext {
   job: LongBookDecompositionJob;
@@ -33,6 +39,8 @@ export interface BriefContext {
   asset(unitId: string): Promise<DecompositionAsset | undefined>;
   /** Review issues that sent a finished unit back for repair. */
   repairs(unitId: string): Promise<string[]>;
+  /** Batches staged for an unfinished unit by an earlier attempt. */
+  draft(unitId: string): Promise<DecompositionAssetPart | undefined>;
 }
 
 export function briefContext(
@@ -62,6 +70,7 @@ export function briefContext(
         : emptyDecompositionRegistry(),
     record,
     asset,
+    draft: (unitId) => reader.records.draft(job, unitId),
     repairs: async (unitId) => {
       const lines: string[] = [];
       for (const id of Object.keys(job.units))
@@ -89,21 +98,23 @@ function readerBrief(context: BriefContext, unitId: string): string {
     const chapter = chapters.find(({ id }) => id === chapterId);
     if (!chapter) throw new Error("阅读块章节不在来源范围内。");
     const readingId = decompositionReadingUnitId(chunk, chapterId);
-    const label = `第 ${chapter.order} 章 ${chapter.title}${chunk.segment ? `（片段 ${chunk.segment.index + 1}/${chunk.segment.count}，segmentIndex=${chunk.segment.index}）` : ""}`;
+    const segment = chunk.segment
+      ? `｜segmentIndex=${chunk.segment.index}（片段 ${chunk.segment.index + 1}/${chunk.segment.count}）`
+      : "";
     if (job.units[readingId]?.status === "done") {
-      saved.push(`${readingId}（${label}）`);
+      saved.push(`${readingId}（第 ${chapter.order} 章 ${chapter.title}）`);
       continue;
     }
     const text = chunk.segment
       ? chapter.text.slice(chunk.segment.start, chunk.segment.end)
       : chapter.text;
     parts.push(
-      `### ${readingId}｜chapterId=${chapter.id}｜order=${chapter.order}｜${label}\n${text}`
+      `### ${readingId}｜chapterId=${chapter.id}｜order=${chapter.order}｜title=${chapter.title}${segment}\n${text}`
     );
   }
   // Source text is never trimmed: the chunk plan already sized it.
   return [
-    `【阅读块 ${chunk.id}】第 ${chunk.startOrder}–${chunk.endOrder} 章${chunk.volume ? `，${chunk.volume}` : ""}。每次提交建议不超过 ${decompositionChaptersPerSubmission(job.models.reading)} 章。`,
+    `【阅读块 ${chunk.id}】第 ${chunk.startOrder}–${chunk.endOrder} 章${chunk.volume ? `，${chunk.volume}` : ""}。按章节顺序分批提交，每次不超过 ${decompositionChaptersPerSubmission(job.models.reading)} 章；每章单独保存，先交的章节立即显示为完成。`,
     saved.length ? `已保存，无需再交：${saved.join("、")}` : "",
     ...parts
   ]
@@ -111,42 +122,42 @@ function readerBrief(context: BriefContext, unitId: string): string {
     .join("\n\n");
 }
 
-async function registryBrief(context: BriefContext, unitId: string) {
+async function registryBrief(
+  context: BriefContext,
+  unitId: string
+): Promise<BriefSection> {
+  const cards = await context.cards();
   if (unitId === "registry:merge") {
-    // Part registries stay structured: the merge keeps or rewrites their ids.
-    const parts = { characters: [] as unknown[], terms: [] as unknown[] };
-    for (const id of context.job.units[unitId]!.dependencies) {
-      const saved = await context.record(id);
-      if (saved.data.kind !== "registry") continue;
-      parts.characters.push(...saved.data.registry.characters);
-      parts.terms.push(...saved.data.registry.terms);
-    }
+    const { registry, candidates } = await registryMergeInput(
+      context.job,
+      context.record,
+      cards
+    );
+    const entries = new Map(
+      [...registry.characters, ...registry.terms].map((entry) => [
+        entry.id,
+        entry
+      ])
+    );
     return {
-      title: "【名册分片】合并为完整名册，每个名字都要归属或标记忽略。",
-      lines: [JSON.stringify(parts)]
+      title: `【名册合并】各分片已由程序合并：正式名相同的条目已合为一条，重复的名字已按出处归属。以下 ${candidates.length} 个候选簇来自不同分片，可能是同一对象；refs 写条目编号，只对确属同一对象的写 groups，未写到的条目保持原样。`,
+      lines: candidates.length
+        ? candidates.flatMap((cluster, index) => [
+            `候选簇 ${index + 1}：`,
+            ...cluster.map((id) => registryEntryLine(entries.get(id)!))
+          ])
+        : ["没有需要判断的候选簇：提交 groups 与 ignored 都为空的计划即可。"]
     };
   }
-  const cards = await context.cards();
-  const mentions = decompositionMentions(cards);
-  const part = Math.max(0, Number(unitId.split(":").at(-1) ?? 1) - 1);
-  const sample = (facts: unknown[]) =>
-    [facts[0], facts[Math.floor(facts.length / 2)], facts.at(-1)]
-      .filter((fact, index, all) => fact && all.indexOf(fact) === index)
-      .map((fact) =>
-        factLine(fact as { chapterOrder: number; text: string }).slice(0, 90)
-      )
-      .join("；");
-  const lines = [
-    ...mentions.characters.map(
-      (entry) =>
-        `人物｜${entry.name}｜别名：${entry.aliases.join("、") || "无"}｜首次第${entry.firstChapterOrder}章｜出现于 ${entry.chunkCount} 块｜${sample(entry.facts)}`
-    ),
-    ...mentions.terms.map(
-      (entry) =>
-        `设定｜${entry.categoryId}｜${entry.name}｜别名：${entry.aliases.join("、") || "无"}｜提及 ${entry.mentionCount} 次｜${sample(entry.facts)}`
-    )
-  ].slice(part * 1000, (part + 1) * 1000);
-  return { title: `【${unitId} 名字提及】`, lines };
+  const items = registryPartItems(
+    context.job,
+    registryMentionItems(cards),
+    unitId
+  );
+  return {
+    title: `【${unitId} 名字】共 ${items.length} 个编号。groups 只写需要合并为同一对象或需要标明分级、类别的编号；没写到的编号各自成条（人物默认路人），ignored 写不是任何对象的名字。`,
+    lines: items.map(registryItemLine)
+  };
 }
 
 async function chronicleBrief(context: BriefContext, unitId: string) {
@@ -189,6 +200,25 @@ async function plotBrief(context: BriefContext, unitId: string) {
   return sections;
 }
 
+/** What an earlier attempt already staged, so a retry only adds the rest. */
+function stagedSection(unitId: string, draft: DecompositionAssetPart) {
+  const titles =
+    draft.kind === "world"
+      ? draft.items.map(({ title }) => title)
+      : draft.kind === "foreshadowing"
+        ? draft.lines.map(({ key, title }) => `${key}｜${title}`)
+        : draft.kind === "book-line"
+          ? draft.volumes.map(({ title }) => title)
+          : draft.points.map(
+              ({ title, startOrder, endOrder }) =>
+                `${title}（${startOrder}–${endOrder}）`
+            );
+  return {
+    title: `【${unitId} 已暂存 ${titles.length} 条】下面这些已保存在暂存区，不要重交；只提交其余条目，最后一批不带 more 完成本单元。`,
+    lines: [titles.join("、")]
+  };
+}
+
 /**
  * Assembles everything one child needs for its units, within the evidence
  * budget, so the child reads it once instead of paging through lookups.
@@ -219,6 +249,8 @@ export async function buildDecompositionBrief(
     const repairs = await context.repairs(id);
     if (repairs.length)
       sections.push({ title: `【${id} 审校要求修复】`, lines: repairs });
+    const draft = await context.draft(id);
+    if (draft) sections.push(stagedSection(id, draft));
   }
   return fitBriefSections(
     sections.filter(({ lines }) => lines.length),

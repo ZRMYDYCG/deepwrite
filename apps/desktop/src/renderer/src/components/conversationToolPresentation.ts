@@ -7,7 +7,6 @@ import type {
 import type { LongWorkspaceProposalItem } from "../composables/useLongWorkspaceProposals";
 import { agentProposalSupportsDiscard } from "../utils/acceptedEditDiscard";
 
-import { visibleCompaction } from "./conversationCompactionPresentation";
 import { isWriteTool } from "./conversationToolStatus";
 import {
   processingItems,
@@ -239,21 +238,6 @@ function hasResponseSteps(message: ChatMessage): boolean {
 
 export function visibleResponse(message: ChatMessage): string {
   if (message.status === "streaming" && hasResponseSteps(message)) return "";
-  if (!message.contextCompactions?.some(visibleCompaction))
-    return message.content;
-  const finalStep = [...(message.processingSteps ?? [])]
-    .reverse()
-    .find((step) => step.type === "response");
-  if (
-    processingItems(message).some(
-      (item) =>
-        item.type === "response" &&
-        (item.id === finalStep?.id ||
-          item.id === `${message.id}_final_response`)
-    )
-  ) {
-    return "";
-  }
   return message.content;
 }
 

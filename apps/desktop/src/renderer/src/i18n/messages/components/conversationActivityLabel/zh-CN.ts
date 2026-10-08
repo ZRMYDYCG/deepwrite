@@ -16,5 +16,6 @@ export default {
   runTool: "执行工具",
   finished: "处理完成",
   thinking: "思考中",
+  compactingContext: "压缩上下文中",
   subagentRunning: "子智能体执行中"
 };
